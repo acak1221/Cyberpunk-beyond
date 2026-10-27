@@ -1,0 +1,1 @@
+.crafting-tools{margin-top:24px}.crafting-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}.crafting-output{margin-top:16px}.crafting-output textarea{width:100%;min-height:190px;resize:vertical}.crafting-note{font-size:.9em;line-height:1.55;opacity:.8}
