@@ -4,7 +4,7 @@ function setup(){const w={},ctx={window:w,console,Math,Date,globalThis:{crypto:{
 function character(){return {id:'person',extra:{cash:600,unrelated:{x:9},weapons:[{id:'pistol',catalogId:'weapon-medium-pistol',name:'Pistol',capacity:12,ammo:0,usesAmmo:true,other:'keep'}],items:[{id:'ammo',catalogId:'ammo-basic-ammunition',name:'Basic',quantity:30,ammoType:'medium-pistol',purchase:{itemId:'ammo-basic-ammunition',ammoType:'medium-pistol',perPack:10,quantity:3,ammoCount:30,total:30},other:'keep'}]}}}
 const good={isCurrent:()=>true},clone=x=>JSON.parse(JSON.stringify(x));
 function select(w,c,type,value){return w.ReloadTools.handle({type:'change',target:{dataset:{reloadField:type},value}},c,'en',good)}
-function click(w,c,opts=good){return w.ReloadTools.handle({type:'click',target:{closest:s=>s==='[data-reload]'?{dataset:{reload:'load'}}:null}},c,'en',opts)}
+function click(w,c,opts=good,ui){ui=ui||{root:{isConnected:true},button:{isConnected:true}};const b=ui.button;b.dataset={reload:'load'};b.closest=s=>s==='[data-reload-root]'?ui.root:null;return w.ReloadTools.handle({type:'click',target:{closest:s=>s==='[data-reload]'?b:null}},c,'en',opts)}
 test('reload consumes one full magazine and preserves all unrelated state atomically',()=>{
  const w=setup(),c=character();select(w,c,'weapon','pistol');select(w,c,'ammo','ammo');const r=click(w,c);assert.equal(r.dirty,true);assert.equal(c.extra.weapons[0].ammo,12);assert.equal(c.extra.items[0].quantity,18);assert.equal(c.extra.items[0].purchase.ammoCount,30);assert.deepEqual(clone(c.extra.weapons[0].lastReload),{version:1,ammoCatalogId:'ammo-basic-ammunition',ammoType:'medium-pistol',ammoRecordId:'ammo',units:12});assert.equal(c.extra.cash,600);assert.deepEqual(c.extra.unrelated,{x:9});assert.equal(c.extra.weapons[0].other,'keep');assert.equal(c.extra.items[0].other,'keep');assert.equal(click(w,c).dirty,undefined);
 });
@@ -45,5 +45,11 @@ test('compatible receipts preserve unknown fields; incompatible future receipt i
 });
 test('receipt changes during confirmation are detected before either count changes',()=>{
  const w=setup(),c=character();select(w,c,'weapon','pistol');select(w,c,'ammo','ammo');w.confirm=()=>{c.extra.weapons[0].lastReload={version:2,future:'keep'};return true};assert(!click(w,c).dirty);assert.equal(c.extra.weapons[0].ammo,0);assert.equal(c.extra.items[0].quantity,30);assert.equal(c.extra.weapons[0].lastReload.future,'keep');
+});
+test('changed selections or detached controls during confirmation prevent the quoted reload',()=>{
+ const w=setup(),c=character();select(w,c,'weapon','pistol');select(w,c,'ammo','ammo');
+ w.confirm=()=>{select(w,c,'ammo','');return true};let before=clone(c);assert(!click(w,c).dirty);assert.deepEqual(c,before);
+ select(w,c,'ammo','ammo');let ui={root:{isConnected:true},button:{isConnected:true}};w.confirm=()=>{ui.root.isConnected=false;return true};assert(!click(w,c,good,ui).dirty);assert.deepEqual(c,before);
+ ui={root:{isConnected:true},button:{isConnected:true}};w.confirm=()=>{ui.button.isConnected=false;return true};assert(!click(w,c,good,ui).dirty);assert.deepEqual(c,before);
 });
 test('module never uses independent storage, network or timers',()=>{const f=fs.readFileSync(base+'reload-tools.js','utf8');assert(!/localStorage|sessionStorage|\bfetch\s*\(|setTimeout/.test(f))});

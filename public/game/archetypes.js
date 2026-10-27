@@ -190,6 +190,23 @@ function fromRolls(role,method,rolls){assertRole(role);if(!['streetrat','edgerun
 function rollStats(role,method,random=Math.random){if(typeof random!=='function')throw new Error('Invalid random source');let n=method==='streetrat'?1:method==='edgerunner'?10:0;if(!n)throw new Error('Unsupported method');return fromRolls(role,method,Array.from({length:n},()=>{let v=random();if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>=1)throw new Error('Random source must return [0, 1)');return Math.floor(v*10)+1}));}
 function validateEdgerunner(role,levels){let expected=getSkills(role),errors=[],points=0;if(!levels||typeof levels!=='object'||Array.isArray(levels))return {ok:false,points:0,errors:['invalid_levels']};for(const s of expected){let n=Number(levels[s.name]);if(!Number.isInteger(n)||n<2||n>6)errors.push('level:'+s.name);else points+=n*s.costMultiplier;}for(const k of Object.keys(levels))if(!expected.some(s=>s.name===k)&&Number(levels[k])!==0)errors.push('not_role_skill:'+k);if(points!==86)errors.push('points');return {ok:errors.length===0,points,errors};}
 function copy(data){return JSON.parse(JSON.stringify(data));}
+// Ammunition in the printed starter packages (p. 98); quantities are individual rounds.
+const STARTER_AMMO=Object.freeze({
+ 'Basic VH Pistol Ammunition':['ammo-basic-ammunition','very-heavy-pistol'],
+ 'Basic H Pistol Ammunition':['ammo-basic-ammunition','heavy-pistol'],
+ 'Basic Rifle Ammunition':['ammo-basic-ammunition','rifle'],
+ 'Basic Shotgun Shell Ammunition':['ammo-basic-ammunition','shell'],
+ 'Basic Slug Ammunition':['ammo-basic-ammunition','slug'],
+ 'Incendiary Shotgun Shell Ammunition':['ammo-incendiary-ammunition','shell'],
+ 'Incendiary Rifle Ammunition':['ammo-incendiary-ammunition','rifle']
+});
+function getStarterAmmo(role,index,choices){
+ if(!Object.hasOwn(gear,role)||!Number.isSafeInteger(index)||index<0||index>=gear[role].length)return null;
+ let entry=gear[role][index],optionIndex=null;
+ if(entry.type==='choice'){optionIndex=choices?.[index];if(!Number.isSafeInteger(optionIndex)||optionIndex<0||optionIndex>=entry.options.length)return null;entry=entry.options[optionIndex]}
+ const mapped=STARTER_AMMO[entry?.name?.en];if(!mapped||!Number.isSafeInteger(entry.quantity)||entry.quantity<1)return null;
+ return {catalogId:mapped[0],ammoType:mapped[1],name:entry.name.en,initialQuantity:entry.quantity,starterAmmo:{version:1,role,gearIndex:index,optionIndex}};
+}
 function getTemplate(role){assertRole(role);return copy({role,names:{ru:rp[role].ru,en:rp[role].en},pages:{stats:rp[role].stats,skills:rp[role].skills,edgerunnerSkills:rp[role].skills===86?88:89,gear:98,outfit:103,cyberware:117,lifestyle:105},statRows:statTables[role],streetratSkills:getSkills(role),edgerunnerSkills:getSkills(role).map(({name,costMultiplier,needsSpecialty})=>({name,costMultiplier,needsSpecialty,min:2,max:6})),gear:gear[role],outfit:outfit[role],cyberware:cyber[role].items,startingHumanityLoss:cyber[role].loss,roleRank:4,nativeLanguageLevels:4,extraCash:500,lifestyle:role==='exec'?{ru:'Corporate Conapt и Good Prepak: первый месяц оплачен; последующие месяцы образ жизни 600 eb.',en:'Corporate Conapt and Good Prepak: first month paid; subsequent lifestyle costs 600 eb/month.'}:{ru:'Cargo Container и Kibble: первый месяц оплачен; далее 1 100 eb/месяц. У Nomad могут быть дополнительные варианты.',en:'Cargo Container and Kibble: first month paid; thereafter 1,100 eb/month. Nomads may have additional options.'},notes});}
-window.Archetypes={ORDER,roleIds:Object.keys(rp),sources,notes,getTemplate,getSkills,fromRolls,rollStats,validateEdgerunner};
+window.Archetypes={ORDER,roleIds:Object.keys(rp),sources,notes,getTemplate,getSkills,fromRolls,rollStats,validateEdgerunner,getStarterAmmo};
 })();

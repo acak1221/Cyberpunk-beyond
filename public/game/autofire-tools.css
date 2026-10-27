@@ -1,0 +1,1 @@
+.autofire-tool{margin-top:24px}.autofire-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.autofire-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.autofire-result{margin:14px 0;padding:12px;border:1px solid #554b43;line-height:1.6}.autofire-result p{margin:6px 0 0}.autofire-note{line-height:1.6}
