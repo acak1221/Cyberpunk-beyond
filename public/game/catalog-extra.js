@@ -5,6 +5,14 @@
 if(!Array.isArray(window.CATALOG))throw Error('catalog.js must load before catalog-extra.js');
 const extra=[];
 const tr=(ru,en)=>({ru,en});
+// Cyberware from the Corebook's character creation tables, pp. 113–114.
+// Dependencies and the item's effects are checked by the player and GM.
+extra.push(
+ {id:'cyberware-bug-detector',category:'cyberware',name:tr('Детектор жучков','Bug Detector'),price:100,page:113,details:tr('Подаёт сигнал в пределах 2 м/ярдов от подслушивающего устройства. Требуется Cyberaudio Suite; занимает 1 слот.','Beeps within 2 m/yd of a listening device. Requires a Cyberaudio Suite and takes 1 option slot.'),stats:{humanityLoss:'1d6/2',humanityLossAtCreation:2,installation:'Mall'}},
+ {id:'cyberware-vampyres',category:'cyberware',name:tr('Клыки Vampyres','Vampyres'),price:500,page:114,details:tr('Скрываемое лёгкое оружие ближнего боя превосходного качества (1d6, ROF 2). Хранящийся во рту яд или биотоксин покупается отдельно и наносится без действия: одна ампула на 30 минут. Подробности: стр. 363.','Concealable Excellent Quality Light Melee Weapon (1d6, ROF 2). A separately purchased vial of Poison or Biotoxin can be stored in the mouth and applied without an Action: one vial lasts 30 minutes. Details: p. 363.'),stats:{humanityLoss:'4d6',humanityLossAtCreation:14,installation:'Clinic'}},
+ {id:'cyberware-midnight-lady',category:'cyberware',name:tr('Сексуальный имплант Midnight Lady','Midnight Lady Sexual Implant'),price:100,page:114,details:tr('Внутренний сексуальный имплант; занимает 1 слот внутренней кибернетики.','Internal sexual implant; occupies 1 internal cyberware option slot.'),stats:{humanityLoss:'2d6',humanityLossAtCreation:7,installation:'Clinic'}},
+ {id:'cyberware-mr-studd',category:'cyberware',name:tr('Сексуальный имплант Mr. Studd','Mr. Studd Sexual Implant'),price:100,page:114,details:tr('Внутренний сексуальный имплант; занимает 1 слот внутренней кибернетики.','Internal sexual implant; occupies 1 internal cyberware option slot.'),stats:{humanityLoss:'2d6',humanityLossAtCreation:7,installation:'Clinic'}}
+);
 function add(id,category,ru,en,price,page,detailRu,detailEn,unitRu,unitEn,stats={},priceNote){
   const entry={id:'extra-'+id,category,name:tr(ru,en),price,page,details:tr(detailRu,detailEn),stats};
   if(unitRu||unitEn)entry.priceUnit=tr(unitRu||'',unitEn||'');

@@ -53,7 +53,7 @@
     const names=window.SKILL_LABELS||{};
     for(const key of Object.keys(c.skills||{}))if(Object.hasOwn(names,key))add('skill',key,(ru?'Навык: ':'Skill: ')+(names[key][l]||key)+' ('+(Number(c.skills[key])||0)+')');
     add('native','native',(ru?'Родной язык: ':'Native language: ')+(c.native||'—')+' ('+x.nativeLevel+')');
-    x.specializations.forEach((s,i)=>add('special',i,(ru?'Специализация: ':'Specialization: ')+(s.name||'—')+' ('+(Number(s.level)||0)+', ×'+(Number(s.cost)===2?2:1)+')'));
+    x.specializations.forEach((s,i)=>add('special',i,(ru?'Специализация: ':'Specialization: ')+(s.name||'—')+' ('+(Number(s.level)||0)+', ×'+specializationMultiplier(s)+')'));
     const roles=advancementRoles(c);if(roles){
       add('role',c.role,(ru?'Роль: ':'Role: ')+ABILITIES[c.role][ru?1:0]+' ('+c.rank+')');
       for(const r of roles.additionalRoles)add('role',r.role,(ru?'Роль: ':'Role: ')+ABILITIES[r.role][ru?1:0]+' ('+r.rank+')');

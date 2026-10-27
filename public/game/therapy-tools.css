@@ -1,0 +1,6 @@
+.therapy-tools { margin-top: 18px; }
+.therapy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.therapy-ack { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0; }
+.therapy-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.therapy-result { padding: 12px; margin: 12px 0; border: 1px solid var(--border, #55483e); }
+.therapy-result p { margin: 6px 0; }

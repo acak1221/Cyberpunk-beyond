@@ -27,9 +27,9 @@ const aliases=Object.freeze({
  'рокербой':'Rockerboy','соло':'Solo','техник':'Tech','медтех':'Medtech','медиа':'Media','корпорат':'Exec',
  'законник':'Lawman','фиксeр':'Fixer','фиксер':'Fixer','номад':'Nomad','персонаж':'character','ведущий':'GM'
 });
-const searchTerm=x=>{const q=normalize(x),key=q.toLocaleLowerCase();return Object.hasOwn(aliases,key)?aliases[key]:q};
-Object.assign(W.ru,{start:'Поиск работает на вашем устройстве. Распространённые русские термины ищутся по английским соответствиям; остальные запросы — буквально.',as:'Искать в оригинале'});
-Object.assign(W.en,{start:'Search runs on your device. Common Russian game terms map to English; other queries are searched literally.',as:'Searched in the original as'});
+const searchTerm=x=>{const q=normalize(x),key=q.toLocaleLowerCase();if(Object.hasOwn(aliases,key))return aliases[key];const matches=new Map();for(const item of Array.isArray(window.CATALOG)?window.CATALOG:[]){const ru=item?.name?.ru,en=item?.name?.en;if(typeof ru!=='string'||typeof en!=='string'||!normalize(en)||normalize(ru).toLocaleLowerCase()!==key)continue;const text=normalize(en);matches.set(text.toLocaleLowerCase(),text)}return matches.size===1?matches.values().next().value:q};
+Object.assign(W.ru,{start:'Поиск работает на вашем устройстве. Распространённые русские термины и точные названия из каталога ищутся по английским соответствиям; остальные запросы — буквально.',as:'Искать в оригинале'});
+Object.assign(W.en,{start:'Search runs on your device. Common Russian terms and exact catalog names map to English; other queries are searched literally.',as:'Searched in the original as'});
 async function loadPDF(bytes){const lib=await import('./vendor/pdfjs/pdf.min.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.min.mjs',document.baseURI).href;return lib.getDocument({data:new Uint8Array(bytes),disableAutoFetch:true});}
 function create(loader=loadPDF){let file=null,token=0,task=null,index=null,query='',term='',status={key:'start'},results=[];
  function cancel(){token++;if(task?.destroy)Promise.resolve(task.destroy()).catch(()=>{});task=null;if(status.key==='busy')status={key:'stopped'};}

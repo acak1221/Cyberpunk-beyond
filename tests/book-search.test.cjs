@@ -9,6 +9,10 @@ test('indexes the chosen local document and reuses it for searches with printed 
 test('common Russian terms search their English equivalents; unknown phrases stay literal',async()=>{
  const s=create(loader(['cover','Autofire and armor','Critical Injury and cover']));s.setFile(file);await s.search('  Автоматический   ОГОНЬ ');assert.equal(s.snapshot().term,'Autofire');assert.deepEqual(s.snapshot().results.map(x=>x.page),[1]);await s.search('критическое ранение');assert.equal(s.snapshot().term,'Critical Injury');assert.deepEqual(s.snapshot().results.map(x=>x.page),[2]);assert.equal(window.BookSearch.searchTerm('неизвестная фраза'),'неизвестная фраза');assert.equal(window.BookSearch.searchTerm('Night City'),'Night City');assert.equal(window.BookSearch.searchTerm('constructor'),'constructor');assert.equal(window.BookSearch.searchTerm('__proto__'),'__proto__');
 });
+test('exact catalog names use an unambiguous existing translation',()=>{
+ window.CATALOG=[{name:{ru:'Средний пистолет',en:'Medium Pistol'}},{name:{ru:'Средний пистолет',en:'Medium Pistol'}},{name:{ru:'Спорное название',en:'First'}},{name:{ru:'Спорное название',en:'Second'}}];
+ assert.equal(window.BookSearch.searchTerm('СРЕДНИЙ ПИСТОЛЕТ'),'Medium Pistol');assert.equal(window.BookSearch.searchTerm('Спорное название'),'Спорное название');assert.equal(window.BookSearch.searchTerm('средний'),'средний');delete window.CATALOG;
+});
 test('new files invalidate the old index and markup in text remains data',async()=>{
  const load=loader(['cover','<script>Night City</script>']);const s=create(load);s.setFile(file);await s.search('night city');assert.match(s.snapshot().results[0].snippet,/<script>/);s.setFile(file);assert.equal(s.snapshot().results.length,0);await s.search('night city');assert.equal(load.calls(),2);
 });
