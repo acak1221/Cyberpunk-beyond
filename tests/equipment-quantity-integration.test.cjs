@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const base=path.join(__dirname,'..','public','game'),app=fs.readFileSync(path.join(base,'app.js'),'utf8'),start=app.indexOf('function handleEquipment(e){'),end=app.indexOf('\nfunction handleExtra(e)',start);assert(start>=0&&end>start);
 function harness(){
  const c={id:'c',humanity:60,head:0,bodyArmor:0,stats:{EMP:6,LUCK:6},extra:{cash:1000,items:[],weapons:[]}},snapshots=[],messages=[];
- const ctx={window:{},console,active:()=>c,state:{view:'sheet',lang:'en'},syncAdapter:{getScope:()=>'scope-a'},save:()=>snapshots.push(JSON.parse(JSON.stringify(c))),render(){},notify:m=>messages.push(m)};vm.createContext(ctx);
+ const ctx={window:{},console,active:()=>c,state:{view:'sheet',lang:'en'},syncAdapter:{getScope:()=>'scope-a'},editScope:()=>'scope-a',currentCharacter:x=>x===c,save:()=>snapshots.push(JSON.parse(JSON.stringify(c))),render(){},notify:m=>messages.push(m)};vm.createContext(ctx);
  for(const file of ['catalog.js','catalog-extra.js','character-extra.js','equipment-tools.js'])vm.runInContext(fs.readFileSync(path.join(base,file),'utf8'),ctx);
  vm.runInContext(app.slice(start,end)+'\nthis.handle=handleEquipment;',ctx);
  const m=ctx.window.EquipmentTools,item=ctx.window.CATALOG.find(x=>x.id==='armor-kevlar');m.purchase(c,item,'cash','en',{quantity:2,confirmed:true});let id=c.extra.items[0].id;m.equip(c,id,'head','en',true);m.equip(c,id,'body','en',true);m.setSP(c,'body',2);m.unequip(c,'body','en',true);

@@ -1,0 +1,6 @@
+.repair-tools .repair-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.repair-tools .repair-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.repair-tools .repair-note{color:var(--muted,#bcb9af);line-height:1.5}
+.repair-tools .repair-warning{color:#edc86f}
+.repair-tools .repair-job{border-top:1px solid #49463e;padding:14px 0}
+.repair-tools .repair-log{white-space:pre-wrap;overflow-wrap:anywhere}

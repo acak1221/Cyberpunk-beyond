@@ -101,8 +101,10 @@ function applyToCharacter(c,lang,force=false){
  Object.assign(c.extra.life,values);for(const key of Object.keys(values))storeTranslation(c,key,{ru:resultText(key,'ru'),en:resultText(key,'en')});if(state.native)c.native=state.native;
  return {ok:true,fields:Object.keys(values),native:!!state.native};
 }
-function handle(e,lang,characters){
+function handle(e,lang,characters,options={}){
  if(!e?.target)return {handled:false};const el=e.target,l=lang==='en'?'en':'ru',ru=l==='ru';
+ const current=c=>{try{return !options.isCurrent||options.isCurrent(c)===true}catch{return false}};
+ const stale=()=>({handled:true,notify:ru?'Данные персонажа или аккаунт изменились; повторите перенос.':'The character or account changed; try again.'});
  if(e.type==='input'&&el.hasAttribute('data-lp-native')){state.native=String(el.value).slice(0,100);return {handled:true,rerender:false}}
  if(e.type==='change'){
   if(el.hasAttribute('data-lp-native')){state.native=String(el.value).slice(0,100);return {handled:true,rerender:false}}
@@ -115,8 +117,8 @@ function handle(e,lang,characters){
  if(b.dataset.lpAction==='roll'){rollSingle(b.dataset.lpKey);return {handled:true,rerender:true}}
  if(b.dataset.lpAction==='all'){rollAll();return {handled:true,rerender:true}}
  if(b.dataset.lpAction==='apply'){
-  const c=(characters||[]).find(x=>x.id===state.target);let r=applyToCharacter(c,l);
-  if(r.reason==='overwrite'){const names=r.conflicts.map(x=>x==='native'?(ru?'родной язык':'native language'):(labels[x]?.[l]||x)).join(', ');if(!confirm((ru?'Заменить уже заполненные поля: ':'Replace already filled fields: ')+names+'?'))return {handled:true};r=applyToCharacter(c,l,true)}
+  const c=(characters||[]).find(x=>x.id===state.target);if(c&&!current(c))return stale();let r=applyToCharacter(c,l);
+  if(r.reason==='overwrite'){const before=JSON.stringify([state,c]),names=r.conflicts.map(x=>x==='native'?(ru?'родной язык':'native language'):(labels[x]?.[l]||x)).join(', ');if(!confirm((ru?'Заменить уже заполненные поля: ':'Replace already filled fields: ')+names+'?'))return {handled:true};if(!current(c)||JSON.stringify([state,c])!==before)return stale();r=applyToCharacter(c,l,true)}
   if(r.reason==='empty')return {handled:true,notify:ru?'Сначала сгенерируй или выбери хотя бы один результат.':'Generate or choose at least one result first.'};
   if(!r.ok)return {handled:true,notify:ru?'Сначала выбери персонажа.':'Choose a character first.'};
   return {handled:true,dirty:true,rerender:true,notify:ru?'Результаты добавлены в лист персонажа.':'Results applied to the character sheet.'};
@@ -124,7 +126,7 @@ function handle(e,lang,characters){
  return {handled:true};
 }
 function resetGeneral(){state.results={};state.native='';state.target=''}
-window.Lifepath={render,handle,roll:rollSingle,rollAll,setChoice:setSingle,applyToCharacter,resultText,displayField,storeTranslation,sameGenerated,resetGeneral,labels,rows,languages,relationTables:{friends:friendRows,enemyWho,enemyCause,enemyForce,revenge,romance:loveRows}};
+window.Lifepath={render,handle,roll:rollSingle,rollAll,setChoice:setSingle,applyToCharacter,resultText,displayField,storeTranslation,sameGenerated,resetGeneral,generalSignature:()=>JSON.stringify(state),restoreGeneral:saved=>{state.results=saved.results;state.native=saved.native;state.target=saved.target},labels,rows,languages,relationTables:{friends:friendRows,enemyWho,enemyCause,enemyForce,revenge,romance:loveRows}};
 })();
 
 // Role-specific Lifepaths, Corebook print pp. 54–69.
@@ -232,24 +234,32 @@ const baseRender=api.render,baseHandle=api.handle;
 api.render=function(lang,characters){const l=lang==='en'?'en':'ru';let s=baseRender(lang,characters);s=s.replace('Ролевые таблицы в этот генератор не включены.','Ролевые таблицы расположены ниже.').replace('Role-specific tables are not included.','Role-specific tables are below.');return s.replace('<div class="card lp-apply">',roleSection(l,characters)+'<div class="card lp-apply">')};
 function userConfirm(lang){return confirm(lang==='en'?'Replace the existing role-specific Lifepath in this character sheet?':'Заменить уже заполненный ролевой жизненный путь в листе персонажа?')}
 function finishRole(c,lang,allow){if(!allow)return {handled:true};const r=applyRole(c,lang,true);return r.ok?{handled:true,dirty:true,rerender:true,notify:lang==='en'?'Role-specific Lifepath applied to the character.':'Ролевой жизненный путь добавлен в лист персонажа.'}:{handled:true,notify:lang==='en'?'Choose and generate role-specific results first.':'Сначала выбери роль и результаты ролевого жизненного пути.'}}
-api.handle=function(e,lang,characters){
+api.handle=function(e,lang,characters,options={}){
  if(!e?.target)return {handled:false};let el=e.target,l=lang==='en'?'en':'ru',target=(characters||[]).find(c=>c.id===rs.target);
- if(e.type==='change'&&el.hasAttribute('data-lp-target')){rs.target=el.value;return baseHandle(e,lang,characters)}
+ const current=c=>{try{return !options.isCurrent||options.isCurrent(c)===true}catch{return false}},stale=()=>({handled:true,notify:l==='en'?'The character or account changed; try again.':'Данные персонажа или аккаунт изменились; повторите перенос.'});
+ if(e.type==='change'&&el.hasAttribute('data-lp-target')){rs.target=el.value;return baseHandle(e,lang,characters,options)}
  if(e.type==='change'&&el.hasAttribute('data-lpr-role')){rs.role=roles[el.value]?el.value:'';return {handled:true,rerender:true}}
  if(e.type==='change'&&el.hasAttribute('data-lpr-choice')){let id=el.dataset.lprChoice;if(el.value)setRoleChoice(rs.role,id,Number(el.value));else delete resultFor(rs.role)[id];return {handled:true,rerender:true}}
- if(e.type!=='click')return baseHandle(e,lang,characters);
+ if(e.type!=='click')return baseHandle(e,lang,characters,options);
  let b=el.closest('[data-lpr-action]');if(b){let action=b.dataset.lprAction;if(action==='use-role'){if(target&&roles[target.role])rs.role=target.role;return {handled:true,rerender:true}}if(action==='all'){rollAllRole(rs.role);return {handled:true,rerender:true}}if(action==='roll'){rollRole(rs.role,b.dataset.lprId);return {handled:true,rerender:true}}return {handled:true}}
- const apply=el.closest('[data-lp-action="apply"]');if(!apply)return baseHandle(e,lang,characters);
- const value=roleText(rs.role,l);if(!value||!target)return baseHandle(e,lang,characters);
+ const apply=el.closest('[data-lp-action="apply"]');if(!apply)return baseHandle(e,lang,characters,options);
+ const value=roleText(rs.role,l);if(!value||!target)return baseHandle(e,lang,characters,options);
+ if(!current(target))return stale();const roleBefore=JSON.stringify(rs),generalBefore=api.generalSignature(),characterBefore=JSON.stringify(target);
  const existing=target.extra?.life?.roleHistory,conflict=!!(String(existing??'').trim()&&existing!==value&&!api.sameGenerated(target,'roleHistory',{ru:roleText(rs.role,'ru'),en:roleText(rs.role,'en')}));
- if(conflict&&!userConfirm(l))return {handled:true};
+ if(conflict){if(!userConfirm(l))return {handled:true};if(!current(target)||JSON.stringify(rs)!==roleBefore||api.generalSignature()!==generalBefore||JSON.stringify(target)!==characterBefore)return stale()}
  const hasGeneral=Object.keys(api.labels).some(k=>!!api.resultText(k,l));
  if(!hasGeneral)return finishRole(target,l,true);
- const general=baseHandle(e,lang,characters);if(!general.dirty)return general;
+ const guarded={...options,isCurrent:c=>current(c)&&JSON.stringify(rs)===roleBefore&&api.generalSignature()===generalBefore};
+ const general=baseHandle(e,lang,characters,guarded);if(!general.dirty)return general;
  const roleResult=applyRole(target,l,true);if(roleResult.ok)general.notify=l==='ru'?'Общий и ролевой жизненный путь добавлены в лист персонажа.':'General and role-specific Lifepaths applied to the character.';
  return general;
 };
-let scopeId=null;
-function setScope(scope){scope=typeof scope==='string'&&scope?scope:null;if(scope===scopeId)return;scopeId=scope;api.resetGeneral();rs.role='';rs.target='';rs.results={}}
+let scopeId=null;const draftsByScope=new Map();
+function setScope(scope){
+ scope=typeof scope==='string'&&scope?scope:null;if(scope===scopeId)return;
+ if(scopeId!==null)draftsByScope.set(scopeId,{general:JSON.parse(api.generalSignature()),role:JSON.parse(JSON.stringify(rs))});
+ scopeId=scope;api.resetGeneral();rs.role='';rs.target='';rs.results={};
+ const draft=scope!==null?draftsByScope.get(scope):null;if(draft){api.restoreGeneral(draft.general);rs.role=draft.role.role;rs.target=draft.role.target;rs.results=draft.role.results}
+}
 Object.assign(api,{roleTables:roles,rollRole,rollAllRole,setRoleChoice,roleText,applyRole,setScope});
 })();

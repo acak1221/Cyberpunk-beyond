@@ -1,0 +1,50 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=n=>fs.readFileSync(__dirname+'/../public/game/'+n,'utf8');
+function harness(){
+ const events={},saved=[],notices=[],el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){events[t]=fn}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#catalog-quantity':{value:'2'},'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
+ const character=id=>({id,name:id,role:'solo',rank:4,stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{Handgun:2},hp:45,humanity:60,head:0,bodyArmor:0,extra:{gearBudget:2550,items:[],ipOpening:100,ipLog:[],advancementChoice:'skill|Handgun'}});
+ let scope='account-a',confirmAction=()=>true;const item={id:'ammo-basic-ammunition',category:'ammo',price:10,page:345,name:{ru:'Боеприпасы',en:'Basic ammunition'},description:{ru:'',en:''},stats:{}},armor={id:'armor-kevlar',category:'armor',name:{ru:'Кевлар',en:'Kevlar'},stats:{sp:7}};
+ const w={ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''},ability:{en:'Combat',ru:'Бой'}}],CATALOG:[item,armor],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},SyncAdapter:{create(){return{stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>scope,hasQueued:()=>false,save(s){saved.push(JSON.parse(JSON.stringify(s)));return Promise.resolve({ok:true})}}}},confirm:()=>confirmAction(),scrollTo(){}};
+ const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:()=>JSON.stringify({characters:[character('person'),character('other')],campaigns:[],lang:'en'})},globalThis:{crypto:{randomUUID:()=> 'new-item'}},confirm:()=>confirmAction(),setTimeout:()=>0,clearTimeout(){},console,Math,JSON,Set,Number,String,Array,Object,Promise};
+ vm.createContext(ctx);for(const file of ['character-extra.js','equipment-tools.js'])vm.runInContext(source(file),ctx);vm.runInContext(source('app.js')+'\nwindow.qa={snapshot:snapshotAppState,replace:applySyncedSnapshot,go:(v,id)=>{state.view=v;state.active=id;render()}};',ctx);
+ return{w,saved,notices,events,setScope:s=>scope=s,setConfirm:f=>confirmAction=f,async select(id,value){await events.change({target:{id,value,dataset:{}}})},async click(action,id){await events.click({type:'click',target:{closest:s=>s==='[data-action]'?{dataset:{action,id}}:null}})},async equip(){const b={dataset:{eqAction:'equip',eqId:'armor-record',eqLocation:'head'},closest:()=>null};await events.click({type:'click',target:{closest:s=>s==='[data-eq-action]'?b:null}})},async advance(){const b={dataset:{cxAction:'advance-ip'}};await events.click({type:'click',target:{closest:s=>s==='[data-cx-action]'?b:null}})}};
+}
+test('catalog confirmation cannot mutate a detached character after same-account hydration',async()=>{
+ const h=harness();for(const [id,value] of [['catalog-target','person'],['catalog-mode','gearBudget'],['catalog-ammo-type','medium-pistol']])await h.select(id,value);
+ h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.click('catalog-buy','ammo-basic-ammunition');
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].extra.gearBudget,2550);assert.equal(h.w.qa.snapshot().characters[0].extra.items.length,0);assert.match(h.notices.at(-1),/changed/i);
+});
+test('catalog confirmation aborts on account switch even when an old character remains displayed',async()=>{
+ const h=harness();for(const [id,value] of [['catalog-target','person'],['catalog-mode','gearBudget'],['catalog-ammo-type','medium-pistol']])await h.select(id,value);
+ h.setConfirm(()=>{h.setScope('account-b');return true});await h.click('catalog-buy','ammo-basic-ammunition');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].extra.items.length,0);assert.match(h.notices.at(-1),/changed/i);
+});
+test('delete confirmation cannot delete a different selected character or hydrated copy',async()=>{
+ const h=harness();h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.go('sheet','other');return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i);
+ h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);
+});
+test('equipping armor aborts when the character is rehydrated during confirmation',async()=>{
+ const h=harness(),s=h.w.qa.snapshot();s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.equip();
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].head,0);assert.match(h.notices.at(-1),/changed/i);
+});
+test('equipping armor aborts if the same character changes while confirmation is open',async()=>{
+ const h=harness(),s=h.w.qa.snapshot();s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.snapshot().characters[0].head=3;return true});await h.equip();
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].head,3);assert.match(h.notices.at(-1),/changed/i);
+});
+test('IP advancement aborts when the current character changes during confirmation',async()=>{
+ const h=harness();h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.go('sheet','other');return true});await h.advance();
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].skills.Handgun,2);assert.equal(h.w.qa.snapshot().characters[0].extra.ipLog.length,0);assert.match(h.notices.at(-1),/changed/i);
+});
+test('restoring a full backup does not replace a new account after asynchronous file reading',async()=>{
+ const h=harness();let release;const data={format:'nightcity-red-backup',version:1,_completeSnapshot:{characters:[],campaigns:[]}},file={text:()=>new Promise(r=>release=()=>r(JSON.stringify(data)))};
+ const pending=h.events.change({target:{id:'restore-backup',files:[file],value:'test',dataset:{}}});h.setScope('account-b');release();await pending;
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i);
+});
+test('restoring a full backup aborts if the snapshot changes during confirmation',async()=>{
+ const h=harness(),data={format:'nightcity-red-backup',version:1,_completeSnapshot:{characters:[],campaigns:[]}};h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});
+ await h.events.change({target:{id:'restore-backup',files:[{text:async()=>JSON.stringify(data)}],value:'test',dataset:{}}});
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i);
+});
+test('character and backup imports abort if the account changes while the file is read',async()=>{
+ for(const id of ['import-file','import-backup']){const h=harness();let release;const source=h.w.qa.snapshot(),data=id==='import-file'?{character:source.characters[0]}:{format:'nightcity-red-backup',version:1,characters:source.characters,campaigns:[]};const file={text:()=>new Promise(r=>release=()=>r(JSON.stringify(data)))};
+  const pending=h.events.change({target:{id,files:[file],value:'test',dataset:{}}});h.setScope('account-b');release();await pending;assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i)}
+});

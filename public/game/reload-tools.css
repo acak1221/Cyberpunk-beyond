@@ -1,0 +1,1 @@
+.reload-tools{margin:1rem 0}.reload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.reload-note{color:var(--muted,#aaa);font-size:.9rem;line-height:1.5}.reload-warning{color:#f1a79d}.reload-tools button:disabled{opacity:.5;cursor:not-allowed}

@@ -148,6 +148,26 @@ const upgrades=[
  ['housing-capacity','Жилой модуль','Housing Capacity',1,165,'Добавляет жилое пространство; для некоторых машин требуется Heavy Chassis.','Adds living space; some vehicles require Heavy Chassis.']
 ];
 for(const [id,ru,en,rank,page,dr,de] of upgrades){const fixed=rank===1;add('upgrade-'+id,'vehicles',ru,en,fixed?1000:null,page,`Улучшение транспорта; Moto rank ${rank}. ${dr} На открытом рынке встречается редко.`,`Vehicle upgrade; Moto rank ${rank}. ${de} Rare on the open market.`,'за улучшение','per upgrade',{type:'upgrade',motoRank:rank},fixed?undefined:tr('Категория Luxury; точная цена не указана','Luxury category; exact price not specified'));}
+// Corebook pp. 347–349: exotic weapons with a meaningful ordinary damage
+// roll can be added to a weapon sheet. Effects, special ammo and accuracy
+// bonuses still require the player's judgment; never apply them silently.
+const exoticWeaponProfiles={
+ 'weapon-constitution-arms-hurricane':[{damage:'5d6',skill:'Shoulder Arms',rof:2,magazine:16,ammo:'Slug or Shotgun Shell',hands:2,concealable:false},'Для Slug — 5d6; дробь — 3d6 по особому правилу. Нельзя прицельно; перезарядка два действия, требуется BODY 11 или установка. Учитывайте вручную.','Slug damage is 5d6; shells use 3d6 and special rules. No aimed shots; reload takes two Actions; requires BODY 11 or a mount. Resolve manually.'],
+ 'weapon-dartgun':[{damage:'4d6',skill:'Handgun',rof:1,magazine:8,ammo:'Non-Basic Arrow',hands:1,concealable:false},'Только специальные стрелы; эффекты некоторых не наносят обычный урон. Выбирайте урон и применяйте эффект вручную.','Only non-basic arrows; some ammunition replaces ordinary damage with an effect. Resolve the correct damage and effect manually.'],
+ 'weapon-flamethrower':[{damage:'3d6',skill:'Heavy Weapons',rof:1,magazine:4,ammo:'Incendiary Shotgun Shell',hands:2,concealable:false},'Только зажигательная дробь по особому правилу. Без прицельных выстрелов и критических ранений; эффект огня отмечайте вручную.','Incendiary shells only, using their special rules. No aimed shots or Critical Injuries; track the fire effect manually.'],
+ 'weapon-kendachi-mono-three':[{damage:'4d6',skill:'Melee Weapon',rof:1,magazine:null,ammo:null,hands:2,concealable:false},'Превосходное качество даёт +1 к атаке. При верном биоключе обходит броню ниже SP 11; учитывайте бонус и броню вручную.','Excellent quality grants +1 to attacks. With the correct biometric key, ignores armor below SP 11; apply the bonus and armor rule manually.'],
+ 'weapon-malorian-arms-3516':[{damage:'5d6',skill:'Handgun',rof:1,magazine:8,ammo:'VH Pistol',hands:1,concealable:false},'Превосходное качество даёт +1 к атаке; подключённый обязательный Smartgun Link даёт ещё +1. Вносите бонусы вручную.','Excellent quality grants +1 to attacks; the required connected Smartgun Link grants another +1. Enter bonuses manually.'],
+ 'weapon-militech-cowboy-u-56':[{damage:'6d6',skill:'Heavy Weapons',rof:2,magazine:4,ammo:'Grenade',hands:2,concealable:false},'Взрыв и особые гранаты рассчитываются вручную. Перезарядка два действия; требуется BODY 11 или установка.','Resolve blast and special grenades manually. Reload takes two Actions; requires BODY 11 or a mount.'],
+ 'weapon-rhinemetall-emg-86-railgun':[{damage:'5d6',skill:'Heavy Weapons',rof:1,magazine:4,ammo:'Rifle',hands:2,concealable:false},'Нет автоматического огня и прицельных выстрелов; броня ниже SP 11 обходится. Перезарядка два действия, BODY 11 или установка. Применяйте вручную.','No Autofire or aimed shots; ignores armor below SP 11. Reload takes two Actions; requires BODY 11 or a mount. Resolve manually.'],
+ 'weapon-stun-baton':[{damage:'2d6',skill:'Melee Weapon',rof:2,magazine:null,ammo:null,hands:1,concealable:false},'Не вызывает критических ранений и не истощает броню; цель, опущенную ниже 1 HP, оставляет без сознания на 1 HP. Учитывайте вручную.','Cannot inflict Critical Injuries or ablate armor; a target reduced below 1 HP is unconscious at 1 HP. Resolve manually.'],
+ 'weapon-stun-gun':[{damage:'3d6',skill:'Handgun',rof:2,magazine:8,ammo:'Battery',hands:1,concealable:true},'Не вызывает критических ранений и не истощает броню; цель ниже 1 HP остаётся без сознания на 1 HP. Аккумулятор: 8 выстрелов, зарядка час. Учитывайте вручную.','Cannot inflict Critical Injuries or ablate armor; a target reduced below 1 HP is unconscious at 1 HP. Battery: 8 shots, one-hour recharge. Resolve manually.']
+};
+for(const [id,[profile,ru,en]] of Object.entries(exoticWeaponProfiles)){
+  const item=window.CATALOG.find(x=>x.id===id);
+  if(!item||item.category!=='weapon'||item.stats?.exotic!==true)throw Error('Missing exotic catalog item: '+id);
+  Object.assign(item.stats,profile);
+  item.details={ru,en};
+}
 const seen=new Set(window.CATALOG.map(x=>x.id));for(const e of extra){if(seen.has(e.id))throw Error('Duplicate catalog id: '+e.id);seen.add(e.id);window.CATALOG.push(e)}
 window.CATALOG_EXTRA_COUNT=extra.length;
 })();
