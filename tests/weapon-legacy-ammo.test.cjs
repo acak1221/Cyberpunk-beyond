@@ -15,3 +15,30 @@ test('a missing weapon modifier uses the displayed zero; negative modifiers rema
 test('a stale or failed scope check cannot spend ammunition or luck',()=>{
  for(const check of [()=>false,()=>{throw Error('stale')}]){const c=person({ammo:1,ammoCost:1});const result=attack(c,check);assert.equal(result.roll,undefined);assert.equal(c.extra.weapons[0].ammo,1);assert.equal(c.extra.luck,3);assert.equal(c.extra.luckUse,1);assert.match(result.notify,/no longer open/i);}
 });
+test('legacy weapons roll the Handgun and REF defaults shown by the sheet without rewriting the record',()=>{
+ for(const absent of [undefined,null,'']){
+  const c=person({ammo:1,skill:absent,stat:absent});
+  const rendered=X.render(c,'en');
+  assert.match(rendered,/data-cx-key="skill"[^>]*>[^]*?<option value="Handgun" selected>/);
+  assert.match(rendered,/data-cx-key="stat"[^>]*>[^]*?<option value="REF" selected>/);
+  const result=attack(c);
+  assert.equal(result.roll.skill,4);assert.equal(result.roll.stat,5);
+  assert.equal(c.extra.weapons[0].skill,absent);assert.equal(c.extra.weapons[0].stat,absent);
+ }
+});
+test('a legacy specialization rolls the INT default shown on its form',()=>{
+ for(const absent of [undefined,null,'']){
+  const c=person({ammo:1});c.stats.INT=7;c.extra.specializations=[{id:'s',name:'Science',stat:absent,level:3,cost:1}];
+  const rendered=X.render(c,'en');
+  assert.match(rendered,/data-cx-list="specializations"[^>]*data-cx-key="stat"[^>]*>[^]*?<option value="INT" selected>/);
+  const result=X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'roll-skill',cxIndex:'0'}})}},c,'en',{isCurrent:()=>true});
+  assert.equal(result.roll.stat,7);assert.equal(result.roll.skill,3);assert.equal(c.extra.specializations[0].stat,absent);
+ }
+});
+test('an unsupported STAT is visible and cannot consume ammo or luck until corrected',()=>{
+ const c=person({ammo:1,stat:'UNKNOWN'});c.stats.INT=7;c.extra.specializations=[{id:'s',name:'Science',stat:'UNKNOWN',level:3,cost:1}];
+ assert.match(X.render(c,'en'),/<option value="UNKNOWN" selected disabled>Unknown STAT: UNKNOWN/);
+ assert.match(attack(c).notify,/Unknown STAT/);assert.equal(c.extra.weapons[0].ammo,1);assert.equal(c.extra.luck,3);assert.equal(c.extra.luckUse,1);
+ const r=X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'roll-skill',cxIndex:'0'}})}},c,'en',{isCurrent:()=>true});
+ assert.match(r.notify,/Unknown STAT/);assert.equal(c.extra.luck,3);assert.equal(c.extra.luckUse,1);
+});

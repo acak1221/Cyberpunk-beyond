@@ -174,3 +174,81 @@ const practicalRuleRows = [
 for (const [id,page,ruCategory,enCategory,ruTitle,enTitle,ruText,enText] of practicalRuleRows) {
   window.RULES.push({id,page,category:{ru:ruCategory,en:enCategory},title:{ru:ruTitle,en:enTitle},text:{ru:ruText,en:enText}});
 }
+
+// Skill dictionary: short original descriptions of Corebook v1.22 pp. 131–142.
+// Each row is a skill family; specializations (language, area, form, etc.) are tracked separately.
+const skillReferenceRows = [
+['Concentration','Концентрация',131,'WILL',1,'Удержание внимания, память и самоконтроль в напряжённой обстановке.','Focus, memory and mental or physiological control under pressure.'],
+['Conceal/Reveal Object','Спрятать / обнаружить предмет',131,'INT',1,'Спрятать предмет или найти вещь, которую специально скрыли, включая оружие под одеждой.','Hide objects or discover deliberately concealed objects, including weapons under clothing.'],
+['Lip Reading','Чтение по губам',131,'INT',1,'Понять речь, наблюдая за движением губ.','Understand speech by watching a speaker’s lips.'],
+['Perception','Восприятие',131,'INT',1,'Замечать улики, ловушки и скрывающихся людей; для специально спрятанных предметов используйте Conceal/Reveal Object.','Notice clues, traps and people using Stealth; use Conceal/Reveal Object for deliberately hidden objects.'],
+['Tracking','Выслеживание',131,'INT',1,'Идти по следу, изучая отпечатки и другие оставленные признаки.','Follow a trail using tracks and other signs.'],
+['Athletics','Атлетика',131,'DEX',1,'Прыжки, лазание, плавание, подъём тяжестей и метание, включая метательное оружие.','Jumping, climbing, swimming, lifting and throwing, including thrown weapons.'],
+['Contortionist','Акробатическая гибкость',131,'DEX',1,'Освободиться от наручников или пут и протиснуться в тесное пространство.','Escape handcuffs or restraints and fit through tight spaces.'],
+['Dance','Танцы',132,'DEX',1,'Профессиональное исполнение танцев.','Perform dance at a professional level.'],
+['Endurance','Выносливость',132,'WILL',1,'Переносить длительные лишения, тяжёлую среду, боль и работу без еды, воды или сна.','Withstand prolonged hardship, harsh conditions, pain and activity without food, water or sleep.'],
+['Resist Torture/Drugs','Сопротивление пыткам / наркотикам',132,'WILL',1,'Сопротивляться болезненному воздействию, пыткам, допросу и веществам.','Resist painful effects, torture, interrogation and drugs.'],
+['Stealth','Скрытность',132,'DEX',1,'Тихо двигаться, прятаться и действовать незаметно; наблюдатель использует Perception.','Move quietly, hide and act discreetly; observers use Perception.'],
+['Drive Land Vehicle','Вождение наземного транспорта',132,'REF',1,'Вести и маневрировать на наземном транспорте.','Drive and maneuver land vehicles.'],
+['Pilot Air Vehicle','Пилотирование воздушного транспорта',132,'REF',2,'Пилотировать воздушный транспорт и управлять его манёврами.','Pilot and maneuver air vehicles.'],
+['Pilot Sea Vehicle','Управление водным транспортом',132,'REF',1,'Управлять водным транспортом и маневрировать на воде.','Pilot and maneuver watercraft.'],
+['Riding','Верховая езда',133,'REF',1,'Ездить верхом на обученном живом животном.','Ride a living creature trained for that purpose.'],
+['Accounting','Бухгалтерия',133,'INT',1,'Вести и проверять отчётность, бюджеты и финансовые записи, включая подложные.','Manage and examine accounts, budgets and financial records, including false books.'],
+['Animal Handling','Обращение с животными',133,'INT',1,'Обращаться с животными, дрессировать их и заботиться о них.','Handle, train and care for animals.'],
+['Bureaucracy','Бюрократия',133,'INT',1,'Ориентироваться в бюрократии, находить нужных сотрудников и получать сведения.','Navigate bureaucracies, find the right contacts and obtain information.'],
+['Business','Бизнес',134,'INT',1,'Понимать деловую практику, спрос и предложение, персонал, закупки, продажи и маркетинг.','Understand business practice, supply and demand, staff, procurement, sales and marketing.'],
+['Composition','Сочинение',134,'INT',1,'Создавать песни, статьи и художественные тексты.','Write songs, articles and stories.'],
+['Criminology','Криминология',134,'INT',1,'Исследовать улики и место преступления, использовать баллистику и полицейские записи.','Investigate evidence and crime scenes using forensics, ballistics and police records.'],
+['Cryptography','Криптография',134,'INT',1,'Шифровать сообщения и расшифровывать коды.','Encrypt messages and decode ciphers.'],
+['Deduction','Дедукция',134,'INT',1,'Соединять улики в неочевидные выводы, в том числе медицинские диагнозы.','Combine clues into non-obvious conclusions, including medical diagnoses.'],
+['Education','Образование',135,'INT',1,'Общие школьные знания, грамотность, арифметика и основы истории.','General education, literacy, basic mathematics and history.'],
+['Gamble','Азартные игры',135,'INT',1,'Оценивать шансы и играть в азартные игры.','Calculate odds and play games of chance.'],
+['Language','Язык',135,'INT',1,'Владеть конкретным языком; при повышении навыка выберите язык. Каждый язык развивается отдельно.','Speak a specific language; choose the language when increasing the skill. Each language is advanced separately.'],
+['Library Search','Поиск информации',135,'INT',1,'Искать факты в базах данных, Data Pool, библиотеках и других собраниях сведений.','Find facts in databases, the Data Pool, libraries and other compiled sources.'],
+['Local Expert','Знание района',135,'INT',1,'Знать конкретное место и интересы его группировок. Выберите область не больше одного района или сообщества; области развиваются отдельно.','Know a specific place and its factions. Choose an area no larger than one neighborhood or community; areas advance separately.'],
+['Science','Наука',135,'INT',1,'Исследовать и обсуждать конкретную область науки, проверять гипотезы и ставить эксперименты. Каждая область развивается отдельно.','Investigate a specific field of science, test hypotheses and design experiments. Each field advances separately.'],
+['Tactics','Тактика',136,'INT',1,'Управлять крупным сражением и предвидеть действия вражеских сил.','Direct a large-scale battle and anticipate enemy forces.'],
+['Wilderness Survival','Выживание в дикой природе',136,'INT',1,'Выживать вне города: добывать ресурсы, ставить ловушки, устраивать укрытие и разводить огонь.','Survive in the wild by foraging, trapping, building shelter and making fire.'],
+['Brawling','Рукопашный бой',136,'DEX',1,'Драться без оружия и бороться грубой силой; включает захваты.','Fight unarmed and grapple with brute strength.'],
+['Evasion','Уклонение',137,'DEX',1,'Уклоняться от атак ближнего боя. При REF 8 или выше можно также уклоняться от дальних атак и взрывов.','Evade melee attacks. At REF 8 or higher, also dodge ranged attacks and explosions.'],
+['Martial Arts','Боевые искусства',137,'DEX',2,'Драться выбранным стилем: Karate, Taekwondo, Judo или Aikido. Каждый стиль изучается и повышается отдельно.','Fight using a chosen form: Karate, Taekwondo, Judo or Aikido. Learn and advance each form separately.'],
+['Melee Weapon','Холодное оружие',137,'DEX',1,'Сражаться с использованием оружия ближнего боя.','Fight with melee weapons.'],
+['Acting','Актёрское мастерство',137,'COOL',1,'Войти в роль, изобразить настроение или выдать себя за другого человека.','Assume a role, imitate emotions or disguise yourself as someone else.'],
+['Play Instrument','Игра на инструменте',137,'TECH',1,'Профессионально исполнять музыку. При повышении выбирайте инструмент; пение тоже является вариантом.','Perform music professionally. Choose the instrument when increasing the skill; singing is an option.'],
+['Archery','Стрельба из лука',137,'REF',1,'Метко стрелять оружием, запускающим стрелы или болты.','Accurately fire weapons that launch arrows or bolts.'],
+['Autofire','Автоматический огонь',138,'REF',2,'Удерживать автоматическую очередь на цели, компенсируя отдачу.','Keep an Autofire burst on target through recoil.'],
+['Handgun','Пистолеты',138,'REF',1,'Стрелять из ручного огнестрельного оружия, включая пистолеты-пулемёты в одиночном режиме.','Fire handguns and other handheld firearms, including SMGs in single-shot mode.'],
+['Heavy Weapons','Тяжёлое оружие',138,'REF',2,'Стрелять из тяжёлого оружия, например гранатомётов и ракетниц.','Fire heavy weapons such as grenade and rocket launchers.'],
+['Shoulder Arms','Длинноствольное оружие',138,'REF',1,'Стрелять из оружия с упором в плечо, включая винтовки и дробовики.','Fire shoulder-braced weapons, including rifles and shotguns.'],
+['Bribery','Подкуп',138,'COOL',1,'Понять, кого и когда подкупать и сколько предложить.','Know when and how to bribe someone and how much to offer.'],
+['Conversation','Разговор',138,'EMP',1,'Осторожной беседой извлекать сведения так, чтобы собеседник не заметил цели разговора.','Draw out information through careful conversation without alerting the subject.'],
+['Human Perception','Понимание людей',139,'EMP',1,'Читать эмоции и поведение, замечать обман или скрытые намерения.','Read emotions and behavior, noticing deception or concealed motives.'],
+['Interrogation','Допрос',139,'COOL',1,'Принуждением извлекать сведения из людей.','Extract information from people through forceful questioning.'],
+['Persuasion','Убеждение',139,'COOL',1,'Убеждать отдельных людей или группы и влиять на их решения.','Convince or influence individuals and groups.'],
+['Personal Grooming','Уход за собой',139,'COOL',1,'Уход, причёска и другие приёмы, улучшающие внешний вид.','Use grooming, hairstyling and similar techniques to improve appearance.'],
+['Streetwise','Знание улиц',139,'COOL',1,'Ориентироваться в преступной среде, искать контрабанду и избегать опасностей плохих районов.','Navigate criminal circles, find contraband and avoid trouble in dangerous neighborhoods.'],
+['Trading','Торговля',139,'COOL',1,'Торговаться и заключать выгодные сделки с покупателями и продавцами.','Bargain and make favorable deals with buyers or merchants.'],
+['Wardrobe & Style','Гардероб и стиль',139,'COOL',1,'Подбирать одежду и внешний стиль под случай и обстановку.','Choose clothing and a look appropriate to the occasion.'],
+['Air Vehicle Tech','Техника воздушного транспорта',140,'TECH',1,'Обслуживать и ремонтировать воздушный транспорт; сложность и время зависят от повреждения.','Maintain and repair air vehicles; difficulty and time depend on damage.'],
+['Basic Tech','Основы техники',140,'TECH',1,'Понимать и ремонтировать простую электронику и предметы, не покрытые другим техническим навыком.','Understand and repair simple electronics and items not covered by another TECH skill.'],
+['Cybertech','Кибертехника',140,'TECH',1,'Опознавать, понимать и ремонтировать кибернетику.','Identify, understand and repair cybernetics.'],
+['Demolitions','Подрывное дело',140,'TECH',2,'Определять, устанавливать и обезвреживать взрывчатку; рассчитывать её нужное количество.','Identify, set and defuse explosives and estimate the amount needed.'],
+['Electronics/Security Tech','Электроника / безопасность',141,'TECH',2,'Устанавливать, ремонтировать и обходить сложную электронику и электронные системы безопасности.','Install, repair and counter complex electronics and electronic security systems.'],
+['First Aid','Первая помощь',141,'TECH',1,'Стабилизировать раненых и лечить наиболее распространённые критические ранения.','Stabilize wounded people and treat the most common Critical Injuries.'],
+['Forgery','Подделка документов',141,'TECH',1,'Создавать и распознавать поддельные документы, удостоверения и произведения искусства.','Create and detect false documents, identification and works of art.'],
+['Land Vehicle Tech','Техника наземного транспорта',141,'TECH',1,'Обслуживать и ремонтировать наземный транспорт; сложность и время зависят от повреждения.','Maintain and repair land vehicles; difficulty and time depend on damage.'],
+['Paint/Draw/Sculpt','Живопись / рисунок / скульптура',141,'TECH',1,'Профессионально создавать картины, рисунки и скульптуры.','Create professional paintings, drawings or sculptures.'],
+['Paramedic','Парамедик',141,'TECH',2,'Стабилизировать раненых и лечить критические ранения, не требующие Surgery. Surgery доступна Медтеху через Medicine.','Stabilize wounded people and treat Critical Injuries not requiring Surgery. Surgery is available to Medtechs through Medicine.'],
+['Photography/Film','Фото / видеосъёмка',141,'TECH',1,'Профессионально создавать фотографии, фильмы и брайндансы.','Produce professional photographs, films and braindances.'],
+['Pick Lock','Взлом замков',142,'TECH',1,'Вскрывать неэлектронные замки и обходить неэлектронную защиту.','Pick non-electronic locks and bypass non-electronic security.'],
+['Pick Pocket','Карманные кражи',142,'TECH',1,'Незаметно вынимать небольшие предметы из карманов или магазина.','Discreetly pick pockets and shoplift small items.'],
+['Sea Vehicle Tech','Техника водного транспорта',142,'TECH',1,'Обслуживать и ремонтировать водный транспорт; сложность и время зависят от повреждения.','Maintain and repair watercraft; difficulty and time depend on damage.'],
+['Weaponstech','Оружейная техника',142,'TECH',1,'Обслуживать и ремонтировать оружие; сложность и время ремонта зависят от ценовой категории.','Maintain and repair weapons; repair difficulty and time depend on price category.']
+];
+window.SKILL_REFERENCE = skillReferenceRows.map(([name,ruName,page,stat,multiplier,ru,en])=>({name,ruName,page,stat,multiplier,ru,en}));
+for (const row of window.SKILL_REFERENCE) {
+  const id='skill-ref-'+row.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-$/,'');
+  const costRu=row.multiplier===2?' · ×2 к стоимости при создании и повышении':'';
+  const costEn=row.multiplier===2?' · ×2 creation and improvement cost':'';
+  window.RULES.push({id,page:row.page,category:{ru:'Навыки',en:'Skills'},title:{ru:row.ruName,en:row.name},text:{ru:`${row.stat}${costRu}. ${row.ru}`,en:`${row.stat}${costEn}. ${row.en}`}});
+}
