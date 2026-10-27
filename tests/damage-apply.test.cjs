@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');require('../public/game/equipment-tools.js');require('../public/game/damage-apply.js');
+global.window={};require('../public/game/combat-tools.js');require('../public/game/equipment-tools.js');require('../public/game/medical-tools.js');require('../public/game/damage-apply.js');
 const D=window.DamageApply,E=window.EquipmentTools;
 const make=()=>({id:'a',hp:40,head:11,bodyArmor:11,extra:{equipment:{armor:{body:{recordId:'vest',piece:0,catalogId:'armor-light'}},armorHistory:[{recordId:'vest',piece:0,location:'body',sp:11,unknown:'keep'}],future:{x:1}},injuries:'old'}});
 const args=(type='standard',location='body',raw=15,critical=false)=>({type,location,raw,critical});
@@ -42,4 +42,18 @@ test('malformed numbers, unsupported attack types and out-of-bounds HP do not pr
 });
 test('legacy numeric strings work and direct damage does not require armor values',()=>{
  const c=make();c.hp='40';c.bodyArmor='11';let q=D.quote(c,args());assert.equal(q.hpAfter,36);assert.equal(q.spAfter,10);delete c.bodyArmor;q=D.quote(c,args('direct'));assert.equal(q.hpAfter,25);assert.equal(q.sp,null);assert.equal(D.quote(c,args()),null);assert.equal(D.armorClone(c,q).hp,'40');
+});
+test('confirmed HP damage explicitly invalidates stabilization and preserves medical extensions',()=>{
+ const c=make();c.hp=15;c.extra.medical={version:1,stabilized:true,stabilizedHp:15,future:{keep:'yes'}};const h=harness(c);h.field('raw','15');h.click('preview');assert.match(D.render(c,'en'),/clears the recorded stabilization/i);let prompt='';h.setConfirm(text=>{prompt=text;return true});h.click('apply');assert.match(prompt,/clears the recorded stabilization/i);assert.equal(c.hp,11);assert.equal(c.extra.medical.stabilized,false);assert.equal(c.extra.medical.stabilizedHp,15);assert.deepEqual(c.extra.medical.future,{keep:'yes'});c.hp=15;assert.equal(window.MedicalTools.medical(c).stabilized,false);
+});
+test('blocked attack leaves stabilization intact; critical bonus invalidates it',()=>{
+ let c=make();c.extra.medical={version:1,stabilized:true,stabilizedHp:40};let h=harness(c);h.field('raw','10');h.click('preview');h.click('apply');assert.equal(c.hp,40);assert.equal(c.extra.medical.stabilized,true);
+ c=make();c.extra.medical={version:1,stabilized:true,stabilizedHp:40};h=harness(c);h.field('raw','10');h.field('critical',true);h.click('preview');h.click('apply');assert.equal(c.hp,35);assert.equal(c.extra.medical.stabilized,false);assert.equal(c.bodyArmor,11);
+});
+test('unsupported medical records cannot be overwritten by HP damage',()=>{
+ for(const medical of [null,'future',{version:2,stabilized:true,stabilizedHp:40},{version:1,stabilized:true}]){const c=make();c.extra.medical=medical;const before=JSON.stringify(c),h=harness(c);h.field('raw','15');assert.match(h.click('preview').notify,/medical record/i);assert.equal(JSON.stringify(c),before)}
+ const c=make();c.extra.medical={version:2,opaque:true};const before=JSON.stringify(c),h=harness(c);h.field('raw','10');h.click('preview');h.click('apply');assert.equal(JSON.stringify(c),before);
+});
+test('medical state modified during confirmation prevents all damage changes',()=>{
+ const c=make();c.extra.medical={version:1,stabilized:true,stabilizedHp:40};const h=harness(c);h.field('raw','15');h.click('preview');h.setConfirm(()=>{c.extra.medical.stabilized=false;return true});const result=h.click('apply');assert.equal(result.dirty,undefined);assert.equal(c.hp,40);assert.equal(c.bodyArmor,11);assert.equal(c.extra.equipment.armorHistory[0].sp,11);
 });

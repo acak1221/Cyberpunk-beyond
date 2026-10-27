@@ -1,0 +1,4 @@
+.drug-tools { margin: 16px 0; }
+.drug-tools p { line-height: 1.5; }
+.drug-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 12px 0; }
+.drug-actions .field { min-width: 160px; }

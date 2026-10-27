@@ -1,0 +1,5 @@
+.combat-navigation { margin-bottom: 18px; }
+.combat-navigation div { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.combat-navigation a { color: inherit; border: 1px solid var(--border, #514942); padding: 7px 10px; text-decoration: none; }
+.combat-navigation a:hover, .combat-navigation a:focus-visible { border-color: #ec5b50; text-decoration: underline; }
+.combat-section { scroll-margin-top: 16px; }
