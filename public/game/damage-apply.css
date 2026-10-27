@@ -1,0 +1,3 @@
+.damage-apply { margin-top: 18px; }
+.damage-apply-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.damage-apply p { line-height: 1.5; }

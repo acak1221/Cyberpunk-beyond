@@ -2,7 +2,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const source=fs.readFileSync(__dirname+'/../public/game/medical-tools.js','utf8');
 function setup(confirmResult=true){let rolls=[],confirmCalls=[];let math=Object.create(Math);math.random=()=>rolls.length?rolls.shift():0.5;const w={confirm:message=>{confirmCalls.push(message);return confirmResult}};vm.runInNewContext(source,{window:w,Math:math,Number,String,JSON,Array,Object,Set});w.MedicalTools.setScope('account-a');return{m:w.MedicalTools,rolls,confirmCalls,w}}
 const patient=()=>({id:'p',name:'<Patient>',hp:20,stats:{BODY:8,WILL:6},extra:{baseDeathPenalty:2,deathPenalty:4,unchanged:'secret'}});
-const click=(m,op,c)=>m.handle({type:'click',target:{closest:()=>({dataset:{medAction:op}})}},{lang:'en',characters:[c]});
+const event=op=>{const root={isConnected:true},button={isConnected:true,dataset:{medAction:op},closest:s=>s==='[data-med-root]'?root:null};return {type:'click',target:{closest:s=>s==='[data-med-action]'?button:null},root,button}};
+const click=(m,op,c)=>m.handle(event(op),{lang:'en',characters:[c]});
 const field=(m,key,value,c,type='change')=>m.handle({type,target:{dataset:{medField:key},value,checked:value===true,closest:()=>null}},{lang:'en',characters:[c]});
 test('wound states and stabilization DVs use book thresholds',()=>{let {m}=setup(),c=patient();c.hp=45;assert.equal(m.patientInfo(c).state,'healthy');c.hp=23;assert.equal(m.patientInfo(c).dv,10);c.hp=22;assert.equal(m.patientInfo(c).dv,13);c.hp=1;assert.equal(m.patientInfo(c).dv,13);c.hp=0;assert.equal(m.patientInfo(c).dv,15);c.hp=46;assert.equal(m.patientInfo(c),null)});
 test('check follows d10 critical addition/subtraction and requires strictly beating DV',()=>{let {m}=setup();let rng=()=>0.4;assert.equal(m.check(6,4,0,15,rng).success,false);let rolls=[0.99,0.4];let high=m.check(6,4,0,15,()=>rolls.shift());assert.equal(high.total,25);assert.equal(high.success,true);rolls=[0,0.4];let low=m.check(6,4,0,15,()=>rolls.shift());assert.equal(low.total,6);assert.equal(low.success,false);assert.equal(m.check(null,4,0,10),null)});
@@ -23,24 +24,34 @@ test('same-account hydration during a confirmation never mutates a detached pati
  for(const op of ['stabilize-apply','heal','reopen']){
   let {m,w,rolls}=setup(),c=patient();if(op==='stabilize-apply')c.hp=3;else c.extra.medical={version:1,stabilized:true,stabilizedHp:c.hp};
   let live=c;const ctx={lang:'en',characters:[c],isCurrent:(candidate,scope)=>candidate===live&&scope==='account-a'};
-  m.render(ctx);if(op==='stabilize-apply'){rolls.push(0.9,0.4);m.handle({type:'click',target:{closest:()=>({dataset:{medAction:'stabilize-roll'}})}},ctx)}
+  m.render(ctx);if(op==='stabilize-apply'){rolls.push(0.9,0.4);m.handle(event('stabilize-roll'),ctx)}
   const before=JSON.stringify(c);w.confirm=()=>{live=JSON.parse(JSON.stringify(c));return true};
-  const result=m.handle({type:'click',target:{closest:()=>({dataset:{medAction:op}})}},ctx);
+  const result=m.handle(event(op),ctx);
   assert.notEqual(result.dirty,true,op);assert.match(result.notify,/changed/,op);assert.equal(JSON.stringify(c),before,op);assert.equal(JSON.stringify(live),before,op);
  }
 });
 test('missing current patient or a failing current callback blocks medical mutation before prompting',()=>{
  let {m,w}=setup(),c=patient();c.extra.medical={version:1,stabilized:true,stabilizedHp:c.hp};m.render({lang:'en',characters:[c]});let prompts=0;w.confirm=()=>{prompts++;return true};const before=JSON.stringify(c);
- const e={type:'click',target:{closest:()=>({dataset:{medAction:'heal'}})}};
+ const e=event('heal');
  for(const callback of [()=>false,()=>{throw Error('unavailable')}]){const r=m.handle(e,{lang:'en',characters:[c],isCurrent:callback});assert.notEqual(r.dirty,true)}
  assert.equal(prompts,0);assert.equal(JSON.stringify(c),before);
 });
 test('a successful roll survives same-account hydration and can be applied to the current matching patient',()=>{
  let {m,w,rolls}=setup(),old=patient();old.hp=3;let live=old;
  const options={lang:'en',characters:[old],isCurrent:(candidate,scope)=>candidate===live&&scope==='account-a'};
- m.render(options);rolls.push(0.9,0.4);m.handle({type:'click',target:{closest:()=>({dataset:{medAction:'stabilize-roll'}})}},options);
- w.confirm=()=>{live=JSON.parse(JSON.stringify(old));return true};let event={type:'click',target:{closest:()=>({dataset:{medAction:'stabilize-apply'}})}};
- assert.notEqual(m.handle(event,options).dirty,true);assert.equal(old.extra.medical,undefined);
+ m.render(options);rolls.push(0.9,0.4);m.handle(event('stabilize-roll'),options);
+ w.confirm=()=>{live=JSON.parse(JSON.stringify(old));return true};let applyEvent=event('stabilize-apply');
+ assert.notEqual(m.handle(applyEvent,options).dirty,true);assert.equal(old.extra.medical,undefined);
  const fresh={...options,characters:[live]};assert(m.render(fresh).includes('Confirm successful stabilization'));w.confirm=()=>true;
- assert.equal(m.handle(event,fresh).dirty,true);assert.equal(live.extra.medical.stabilized,true);assert.equal(old.extra.medical,undefined);
+ assert.equal(m.handle(applyEvent,fresh).dirty,true);assert.equal(live.extra.medical.stabilized,true);assert.equal(old.extra.medical,undefined);
+});
+test('switching the selected patient during confirmation cancels stabilization, reopening, and rest',()=>{
+ for(const op of ['stabilize-apply','reopen','heal']){
+  const {m,w,rolls}=setup(),a=patient(),b=patient();a.id='a';b.id='b';if(op==='stabilize-apply')a.hp=3;else a.extra.medical={version:1,stabilized:true,stabilizedHp:a.hp};b.extra.medical={version:1,stabilized:true,stabilizedHp:b.hp};const ctx={lang:'en',characters:[a,b],isCurrent:(c,scope)=>scope==='account-a'&&ctx.characters.includes(c)};m.render(ctx);if(op==='stabilize-apply'){rolls.push(0.9,0.4);m.handle(event('stabilize-roll'),ctx)}const before=JSON.stringify(a);w.confirm=()=>{m.handle({type:'change',target:{dataset:{medField:'selected'},value:'b',closest:()=>null}},ctx);return true};const result=m.handle(event(op),ctx);assert.notEqual(result.dirty,true,op);assert.equal(JSON.stringify(a),before,op);assert.equal(b.extra.medical.stabilized,true,op);
+ }
+});
+test('detached forms and account transitions during confirmation cannot change the patient',()=>{
+ for(const op of ['stabilize-apply','reopen','heal'])for(const change of ['root','button','scope']){
+  const {m,w,rolls}=setup(),c=patient();if(op==='stabilize-apply')c.hp=3;else c.extra.medical={version:1,stabilized:true,stabilizedHp:c.hp};const ctx={lang:'en',characters:[c],isCurrent:(x,s)=>x===c&&s==='account-a'};m.render(ctx);if(op==='stabilize-apply'){rolls.push(0.9,0.4);m.handle(event('stabilize-roll'),ctx)}const before=JSON.stringify(c),e=event(op);w.confirm=()=>{if(change==='root')e.root.isConnected=false;if(change==='button')e.button.isConnected=false;if(change==='scope'){m.setScope(null);m.setScope('account-a')}return true};assert.notEqual(m.handle(e,ctx).dirty,true,`${op}/${change}`);assert.equal(JSON.stringify(c),before,`${op}/${change}`);
+ }
 });

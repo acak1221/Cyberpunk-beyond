@@ -119,7 +119,19 @@ function equip(c,recordId,location,lang,confirmed){let info=armorInfo(c,recordId
  for(const where of locations){const sp=storedSP(e,recordId,piece,where,info.item.stats.sp);e.armor[where]={recordId,piece,catalogId:info.item.id};if(where==='head')c.head=sp;else c.bodyArmor=sp}
  return {ok:true,dirty:true};}
 function unequip(c,location,lang,confirmed){if(!['head','body'].includes(location))return {ok:false,reason:'invalidItem'};let e=eqdata(c),slot=e?.armor?.[location];if(!slot)return {ok:false,reason:'invalidItem',message:tx(lang,'invalidItem')};if(!confirmed)return {ok:false,reason:'confirmNeeded',message:tx(lang,'confirmNeeded')};e=ensure(c);const locations=slot.catalogId==='armor-bodyweight-suit'?['head','body']:[location];for(const loc of locations){savePrevious(c,e,loc);delete e.armor[loc];if(loc==='head')c.head=0;else c.bodyArmor=0}return {ok:true,dirty:true}}
-function setSP(c,loc,sp){if(!['head','body'].includes(loc)||!integer(sp)||sp<0||sp>1000)return {ok:false};if(loc==='head')c.head=sp;else c.bodyArmor=sp;const e=eqdata(c);if(e?.armor?.[loc])savePrevious(c,e,loc);return {ok:true,dirty:true}}
+function setSP(c,loc,sp){
+ if(!c||typeof c!=='object'||Array.isArray(c)||c.extra!==undefined&&(!c.extra||typeof c.extra!=='object'||Array.isArray(c.extra))||!['head','body'].includes(loc)||!integer(sp)||sp<0||sp>1000)return {ok:false};
+ const raw=c.extra?.equipment;if(raw!==undefined&&raw!==null&&(typeof raw!=='object'||Array.isArray(raw)))return {ok:false};
+ const e=eqdata(c);if(e?.armor!==undefined&&e.armor!==null&&(typeof e.armor!=='object'||Array.isArray(e.armor)))return {ok:false};
+ const slot=e?.armor?.[loc];let nextHistory=null;
+ if(slot!==undefined&&slot!==null){
+  if(typeof slot!=='object'||Array.isArray(slot)||typeof slot.recordId!=='string'||!slot.recordId||!Number.isSafeInteger(slot.piece)||slot.piece<0)return {ok:false};
+  const history=e.armorHistory===undefined?[]:e.armorHistory;if(!Array.isArray(history)||history.some(v=>!v||typeof v!=='object'||Array.isArray(v)))return {ok:false};
+  const matches=history.filter(v=>v.recordId===slot.recordId&&v.piece===slot.piece&&v.location===loc);if(matches.length>1)return {ok:false};
+  nextHistory=history.slice();if(matches.length){const i=history.indexOf(matches[0]);nextHistory[i]={...matches[0],sp}}else nextHistory.push({recordId:slot.recordId,piece:slot.piece,location:loc,sp});
+ }
+ if(nextHistory)e.armorHistory=nextHistory;if(loc==='head')c.head=sp;else c.bodyArmor=sp;return {ok:true,dirty:true};
+}
 function maxHumanity(c){const value=eqdata(c)?.maxHumanity;return integer(value)?value:null}
 function baseHumanity(c){const raw=c?.stats?.EMP;if(raw===undefined||raw===null||raw===''||typeof raw==='boolean')return null;const emp=Number(raw);return integer(emp)&&emp>=0&&emp<=20?emp*10:null}
 function setMax(c,max,lang,confirmed){if(!integer(max)||max<0||max>200)return {ok:false,reason:'invalidMax',message:tx(lang,'invalidMax')};const base=baseHumanity(c);if(base===null||max>base)return {ok:false,reason:'baseLimit',message:tx(lang,'baseLimit')};if(!confirmed)return {ok:false,reason:'confirmNeeded',message:tx(lang,'confirmNeeded')};ensure(c).maxHumanity=max;return {ok:true,dirty:true}}
