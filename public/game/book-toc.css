@@ -1,0 +1,10 @@
+.book-toc{margin:18px 0;padding:18px}
+.book-toc summary{cursor:pointer;font-weight:800;letter-spacing:.06em}
+.book-toc p{color:var(--muted);font-size:12px}
+.book-toc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.book-toc section{border:1px solid var(--border);padding:10px}
+.book-toc button{display:flex;justify-content:space-between;gap:10px;width:100%;padding:5px 0;text-align:left;background:none;border:0;color:inherit;cursor:pointer;font:inherit}
+.book-toc section>button{font-weight:700}
+.book-toc button:hover,.book-toc button:focus-visible{color:var(--yellow)}
+.book-toc button span{white-space:nowrap;color:var(--muted);font-size:11px}
+.book-toc ul{list-style:none;margin:5px 0 0;padding:0;font-size:12px}
