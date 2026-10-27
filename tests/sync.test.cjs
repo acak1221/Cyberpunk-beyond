@@ -58,3 +58,35 @@ test('failed auto-hydration reports previous in-memory snapshot for emergency re
 test('removing legacy key does not auto-accept empty snapshot',async()=>{
  const srv=server(),store=storage(),lock=locks(),base=st('base');store.setItem('nightcity-red-v1',JSON.stringify(base));srv.rows.set(A,{revision:1,data:base});const tabB=tab(store,lock,srv,{canApplyExternal:()=>true});tabB.set(base);const b=await tabB.start();store.removeItem('nightcity-red-v1');b.onStorage({key:'nightcity-red-v1',newValue:null});assert.equal(b.getStatus().kind,'conflict');assert.equal(b.getConflict().local.characters[0].id,'base');b.dispose();
 });
+async function clearedConflictCase({dirty=false,allowed=true,incompatible=false}={}){
+ const srv=server(),store=storage(),lock=locks(),base=st('base'),prior=st('prior-draft'),other=st('other-tab-choice'),blockKey='nightcity-red-sync-block-v1:'+encodeURIComponent(A);
+ store.setItem('nightcity-red-sync-owner-v1',A);store.setItem('nightcity-red-v1',JSON.stringify(base));srv.rows.set(A,{revision:1,data:base});
+ store.setItem(blockKey,JSON.stringify({kind:'tab',local:prior,remote:base,observedRaw:raw(store),blockScope:A}));
+ let captured;const t=tab(store,lock,srv,{canApplyExternal:()=>allowed,validate:data=>!incompatible||data.characters[0]?.id!=='other-tab-choice',onIncompatibleRemote:data=>captured=data});t.set(dirty?st('current-draft'):base);const ctl=await t.start();
+ return {srv,store,lock,t,ctl,base,prior,other,blockKey,getCaptured:()=>captured};
+}
+test('another tab clearing a conflict cannot discard a dirty or queued draft',async()=>{
+ for(const opts of [{dirty:true,allowed:true},{dirty:false,allowed:false}]){const a=await clearedConflictCase(opts);a.store.setItem('nightcity-red-v1',JSON.stringify(a.other));a.store.removeItem(a.blockKey);a.ctl.onStorage({key:a.blockKey,newValue:null});
+  assert.equal(a.t.get().characters[0].id,opts.dirty?'current-draft':'base');assert.equal(a.ctl.getConflict().local.characters[0].id,opts.dirty?'current-draft':'base');assert.equal(a.ctl.getConflict().remote.characters[0].id,'other-tab-choice');assert.equal(JSON.parse(raw(a.store)).characters[0].id,'other-tab-choice');
+  const previous=a.ctl.preservedExports(0);assert.equal(JSON.parse(previous.local)._completeSnapshot.characters[0].id,'prior-draft');assert.equal(JSON.parse(previous.remote)._completeSnapshot.characters[0].id,'base');a.ctl.dispose();}
+});
+test('cleared conflict accepts a compatible choice only for a clean tab',async()=>{
+ const a=await clearedConflictCase();a.store.setItem('nightcity-red-v1',JSON.stringify(a.other));a.store.removeItem(a.blockKey);a.ctl.onStorage({key:a.blockKey,newValue:null});assert.equal(a.t.get().characters[0].id,'other-tab-choice');assert.equal(a.ctl.getConflict(),null);assert(a.store.entries().some(([k])=>k.includes('cleared-conflict-local')));a.ctl.dispose();
+});
+test('cleared conflict never applies an incompatible choice',async()=>{
+ const a=await clearedConflictCase({incompatible:true});a.store.setItem('nightcity-red-v1',JSON.stringify(a.other));a.store.removeItem(a.blockKey);a.ctl.onStorage({key:a.blockKey,newValue:null});assert.equal(a.t.get().characters[0].id,'base');assert.equal(a.ctl.getConflict().remote.characters[0].id,'other-tab-choice');assert.equal(a.getCaptured().characters[0].id,'other-tab-choice');assert.equal((await a.ctl.resolve('other')).reason,'invalid');a.ctl.dispose();
+});
+test('owner change and archive failure cannot silently select a cleared conflict',async()=>{
+ {const a=await clearedConflictCase();a.store.setItem('nightcity-red-sync-owner-v1',B);a.store.removeItem(a.blockKey);a.ctl.onStorage({key:'nightcity-red-sync-owner-v1',newValue:B});assert.equal(a.ctl.getStatus().kind,'account');assert.equal(a.t.get().characters[0].id,'base');assert.equal(a.ctl.getConflict().local.characters[0].id,'prior-draft');a.ctl.dispose()}
+ {const a=await clearedConflictCase();a.store.setItem('nightcity-red-v1',JSON.stringify(a.other));a.store.removeItem(a.blockKey);const real=a.store.setItem;a.store.setItem=(k,v)=>{if(k.includes('cleared-conflict-'))throw Error('quota');real(k,v)};a.ctl.onStorage({key:a.blockKey,newValue:null});assert.equal(a.ctl.getStatus().kind,'backupError');assert.equal(a.t.get().characters[0].id,'base');assert.equal(a.ctl.getConflict().local.characters[0].id,'prior-draft');a.ctl.dispose()}
+});
+test('a competing block created during conflict reopening keeps this tab’s draft downloadable',async()=>{
+ const a=await clearedConflictCase({dirty:true,allowed:false});a.store.setItem('nightcity-red-v1',JSON.stringify(a.other));a.store.removeItem(a.blockKey);
+ const competing={kind:'tab',local:st('competing-draft'),remote:a.other,observedRaw:raw(a.store),blockScope:A},read=a.store.getItem;let blockReads=0;
+ a.store.getItem=k=>{if(k===a.blockKey&&++blockReads===2)a.store.setItem(a.blockKey,JSON.stringify(competing));return read(k)};
+ a.ctl.onStorage({key:a.blockKey,newValue:null});assert.equal(a.ctl.getConflict().local.characters[0].id,'competing-draft');
+ const snapshots=()=>a.ctl.getConflict().preserved.map((_,i)=>JSON.parse(a.ctl.preservedExports(i).local)._completeSnapshot.characters[0].id);
+ assert(snapshots().includes('current-draft'));assert(snapshots().includes('prior-draft'));assert.equal(a.t.get().characters[0].id,'current-draft');assert.equal(JSON.parse(raw(a.store)).characters[0].id,'other-tab-choice');
+ // The storage notification for the competing block must not erase this tab’s retained copy.
+ a.ctl.onStorage({key:a.blockKey,newValue:read(a.blockKey)});assert(snapshots().includes('current-draft'));a.ctl.panel={innerHTML:''};a.ctl.paint();assert.match(a.ctl.panel.innerHTML,/data-sync-action="export-previous-local"/);a.ctl.panel=null;a.ctl.dispose();
+});

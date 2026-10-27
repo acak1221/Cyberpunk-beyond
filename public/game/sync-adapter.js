@@ -50,7 +50,7 @@ function create(options){
    show();
    if(initialIssue){latestStatus={kind:'badData'};started=true;halted=true;show();return null}
    try{
-     controller=await global.CloudSync.start({mount,language:lang,read:()=>clone(options.read()),apply,validate:options.validate,onIncompatibleRemote:data=>{incompatibleRemote=clone(data);show()},onExternalApplyFailure:previous=>{emergencyDrafts.push(clone(previous));draftHold=true;halted=true;downloaded=false;show()},canApplyExternal:()=>canEdit()&&!working&&queue.length===0&&!draftHold&&!halted,onStatus:updateStatus,debounceMs:600});
+     controller=await global.CloudSync.start({mount,language:lang,read:()=>clone(options.read()),apply,validate:options.validate,onIncompatibleRemote:data=>{incompatibleRemote=clone(data);show()},onExternalApplyFailure:previous=>{emergencyDrafts.push(clone(previous));draftHold=true;halted=true;downloaded=false;show()},canApplyExternal:()=>canEdit()&&!working&&queue.length===0&&!draftHold&&!halted,canApplyAfterConflict:()=>{try{const scope=controller?.scope;return started&&latestStatus.kind==='conflict'&&!working&&queue.length===0&&!draftHold&&!halted&&typeof scope==='string'&&scope.length>=8&&scope.length<=512&&global.localStorage?.getItem('nightcity-red-sync-owner-v1')===scope}catch{return false}},onStatus:updateStatus,debounceMs:600});
      latestStatus=controller.getStatus();started=true;show();return controller;
    }catch(err){latestStatus={kind:'error'};started=true;halted=true;show();options.onFailure?.(err);return null}
  }

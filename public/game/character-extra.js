@@ -10,14 +10,23 @@
   const language=l=>l==='en'?'en':'ru';
   const get=(l,k)=>D[language(l)][k]||k;
   const id=()=>globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
+  function supported(c){
+    if(!c||typeof c!=='object'||Array.isArray(c))return false;
+    if(c.extra===undefined)return true;
+    const x=c.extra;if(!x||typeof x!=='object'||Array.isArray(x))return false;
+    for(const key of ['life','lifeTranslations'])if(x[key]!==undefined&&(!x[key]||typeof x[key]!=='object'||Array.isArray(x[key])))return false;
+    for(const key of ['specializations','weapons','items','ipLog'])if(x[key]!==undefined&&(!Array.isArray(x[key])||!x[key].every(item=>item&&typeof item==='object'&&!Array.isArray(item))))return false;
+    return true;
+  }
   function init(c){
-    if(!c.extra||typeof c.extra!=='object'||Array.isArray(c.extra))c.extra={};
+    if(!supported(c))throw Error('unsupported_character_extra');
+    if(c.extra===undefined)c.extra={};
     const x=c.extra;
-    if(!x.life||typeof x.life!=='object'||Array.isArray(x.life))x.life={};
+    if(x.life===undefined)x.life={};
     // Existing entries must never be silently truncated on render or save.
     // The host validates these arrays before accepting a loaded snapshot.
-    for(const key of ['specializations','weapons','items','ipLog']){if(!Array.isArray(x[key]))x[key]=[];else x[key]=x[key].filter(item=>item&&typeof item==='object'&&!Array.isArray(item))}
-    for(const [key,value] of Object.entries({luck:c.stats?.LUCK??0,luckUse:0,nativeLevel:4,cash:0,gearBudget:0,fashionBudget:0,deathPenalty:0,baseDeathPenalty:0,modifier:0,ipOpening:0,ipAmount:10,ipReason:'',roleNotes:'',injuries:''}))if(x[key]===undefined||x[key]===null)x[key]=value;
+    for(const key of ['specializations','weapons','items','ipLog'])if(x[key]===undefined)x[key]=[];
+    for(const [key,value] of Object.entries({luck:c.stats?.LUCK??0,luckUse:0,nativeLevel:4,cash:0,gearBudget:0,fashionBudget:0,deathPenalty:0,baseDeathPenalty:0,modifier:0,ipOpening:0,ipAmount:10,ipReason:'',roleNotes:'',injuries:''}))if(x[key]===undefined)x[key]=value;
     return x;
   }
   const martialName=name=>/^(?:(?:martial arts|\u0431\u043e\u0435\u0432\u044b\u0435 \u0438\u0441\u043a\u0443\u0441\u0441\u0442\u0432\u0430)(?=\s|\(|$)|(?:aikido|karate|judo|taekwondo|\u0430\u0439\u043a\u0438\u0434\u043e|\u043a\u0430\u0440\u0430\u0442\u0435|\u0434\u0437\u044e\u0434\u043e|\u0442\u0445\u044d\u043a\u0432\u043e\u043d\u0434\u043e)$)/iu.test(String(name||'').trim());
@@ -175,6 +184,6 @@
     const category=['armor','cyberware'].includes(item.category)?item.category:'equipment';
     const record=addItem(c,{name,category,quantity:1,notes});record.catalogId=String(item.id||'');return {kind:'item',record};
   }
-  window.CharacterExtra={init,render,handle,specializationCost,ipBalance,addItem,addCatalog,advancementOptions,advancementQuote,advance,advancementRoles};
+  window.CharacterExtra={supported,init,render,handle,specializationCost,ipBalance,addItem,addCatalog,advancementOptions,advancementQuote,advance,advancementRoles};
 })();
 

@@ -1,0 +1,5 @@
+.grapple-tools { margin-top: 24px; }
+.grapple-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; }
+.grapple-grid > section { min-width: 0; }
+.grapple-grid [role="status"] { margin-top: 10px; overflow-wrap: anywhere; }
+.grapple-actions { display: flex; flex-wrap: wrap; gap: 8px; }
