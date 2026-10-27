@@ -1,0 +1,6 @@
+.hustle-tools { margin: 20px 0; }
+.hustle-tools .hustle-help { color: #bdb6aa; line-height: 1.6; }
+.hustle-tools .hustle-warning { color: #eebd68; }
+.hustle-tools .hustle-result { margin: 14px 0; padding: 14px; border: 1px solid #575145; background: #24221d; }
+.hustle-tools .hustle-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hustle-tools details { margin-top: 12px; }
