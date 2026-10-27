@@ -1,0 +1,27 @@
+.et-root { display:grid; gap:12px; }
+.et-root h3 { margin:14px 0 0; font-size:19px; }
+.et-hint { margin:0 !important; color:#a9a099; font-size:11px !important; line-height:1.55; }
+.et-entry { padding:14px; background:#151517; border:1px solid #3b3737; }
+.et-entry strong,.et-entry small { display:block; }
+.et-entry strong { color:#ece1d5; font-size:12px; }
+.et-entry small { margin:4px 0 8px; color:#a99d91; }
+.et-entry .et-hint { margin:8px 0 !important; }
+.et-root button { min-height:34px; padding:7px 11px; color:#e9c071; background:#302923; border:1px solid #605044; border-radius:2px; cursor:pointer; font-size:10px; font-weight:700; }
+.et-root button:hover { color:#fff2dc; background:#483329; border-color:#a6745d; }
+.et-root button:focus-visible,.et-root input:focus-visible,.et-root select:focus-visible { outline:2px solid #e9c66d; outline-offset:2px; }
+.et-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.et-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.et-grid label,.et-max label { display:grid; gap:6px; color:#c9c0b8; font-size:11px; font-weight:700; }
+.et-check { display:flex; align-items:flex-start; gap:8px; margin:12px 0; font-size:11px; }
+.et-check input { flex:0 0 auto; }
+.et-max,.et-slot { display:flex; align-items:end; flex-wrap:wrap; gap:10px; padding:12px; background:#252120; border:1px solid #4d403a; }
+.et-slot > span { flex:1; min-width:150px; color:#c5b4a3; font-size:11px; }
+.et-slot label { max-width:95px; font-size:10px; }
+.et-slot input { margin-top:3px; }
+.et-preview { padding:14px; border-left:3px solid #d69d51; background:#342b21; color:#ead7bb; }
+.et-preview strong { font-size:10px; letter-spacing:.1em; }
+.et-preview p { margin:8px 0 !important; color:#e3d0b6; line-height:1.65; }
+@media(max-width:550px){.et-grid{grid-template-columns:1fr}.et-slot>span{flex-basis:100%}.et-max label{flex:1;min-width:160px}}
+@media print{.et-root button,.et-grid,.et-check{display:none}.et-entry,.et-slot{background:white;color:#111;border-color:#999}.et-entry strong{color:#111}}
+.et-removal { margin:12px 0; padding:10px; border:1px solid #5b4540; background:#251e1d; }
+.et-removal .et-check { margin:0 0 10px; }

@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sync Browser Test</title><link rel="stylesheet" href="/sync.css"></head><body><div id="sync-root"></div><label>Draft name<input id="name" value="first"></label><button id="add">Save draft</button><button id="refresh">Refresh</button><pre id="info"></pre><script src="/sync.js"></script><script>
+let state;try{state=JSON.parse(localStorage.getItem('nightcity-red-v1'))||{characters:[],campaigns:[],history:[]}}catch{state={characters:[],campaigns:[],history:[]}}
+let ctl;function draw(){document.getElementById('info').textContent=JSON.stringify({state,status:ctl?.getStatus()},null,2)}
+(async()=>{ctl=await CloudSync.start({mount:document.getElementById('sync-root'),language:()=> 'en',read:()=>structuredClone(state),apply:s=>{state=s;draw()},onStatus:()=>draw(),debounceMs:600000});draw()})();
+document.getElementById('add').onclick=async()=>{let n=document.getElementById('name').value;state.characters.push({id:n,name:n,stats:{},skills:{}});let result=await ctl.save(state);document.getElementById('info').textContent=JSON.stringify({state,result,status:ctl.getStatus()},null,2)};
+document.getElementById('refresh').onclick=async()=>{await ctl.refresh();draw()};
+</script></body></html>

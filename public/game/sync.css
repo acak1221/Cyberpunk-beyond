@@ -1,0 +1,15 @@
+.cloud-sync-panel { padding: 12px 14px; border: 1px solid #4a4240; background: #1b1b1d; color: #f4efe6; font: 12px/1.5 Inter, system-ui, sans-serif; }
+.sync-status, .sync-actions { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.sync-status strong { font-size:11px; } .sync-status > span:not(.sync-dot) { color:#bdb0a5; }
+.sync-status button { margin-left:auto; }
+.sync-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#bba569; flex:0 0 auto; }
+.sync-synced { background:#84b799; } .sync-error,.sync-conflict,.sync-account,.sync-forbidden,.sync-backupError { background:#df5a4d; }
+.sync-conflict { margin-top:12px; padding-top:12px; border-top:1px solid #4a4240; background:transparent; }
+.sync-conflict p { color:#c9bcb0; margin:0 0 10px; }
+.sync-compare { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.sync-compare > div { display:flex; flex-direction:column; gap:6px; padding:10px; border:1px solid #514844; background:#141415; }
+.sync-compare span { color:#a99f96; font-size:10px; }
+.cloud-sync-panel button { padding:7px 10px; color:#f2dbc3; background:#302923; border:1px solid #6c554b; border-radius:2px; cursor:pointer; font:700 10px/1.3 Inter,system-ui,sans-serif; text-align:left; }
+.cloud-sync-panel button:hover { color:white; background:#4b352d; } .cloud-sync-panel button:focus-visible { outline:2px solid #e9c66d; outline-offset:2px; }
+.sync-actions { margin-top:10px; }
+@media(max-width:500px){.sync-compare{grid-template-columns:1fr}.sync-status button{margin-left:0}}
