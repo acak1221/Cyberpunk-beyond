@@ -32,3 +32,27 @@ test('an altered maximum during confirmation prevents recovery',()=>{
 test('addiction treatment has no automatic changes to character data',()=>{
  const x=setup(),oldRandom=Math.random,before=JSON.stringify(x.c);Math.random=()=>.99;try{window.confirm=()=>true;x.field('type','addiction');x.field('tech','8');x.field('skill','6');x.field('ack',true);const r=M.handle(x.event,x.ctx);assert.equal(r.dirty,undefined);assert.equal(JSON.stringify(x.c),before);const html=M.render(x.ctx);assert.match(html,/one addiction/);assert.doesNotMatch(html,/data-therapy-action="apply"/);}finally{Math.random=oldRandom}
 });
+
+require('../public/game/drug-tools.js');
+const addictionRecord=(extra={})=>({status:'resolved',remainingHours:0,addicted:true,yearVulnerability:false,lastCheck:null,...extra});
+function addictionSetup(){const x=setup();x.c.extra.streetDrugs={version:1,records:{boost:addictionRecord({unknown:'preserved'}),smash:addictionRecord()},unknownRoot:{keep:true}};x.field('type','addiction');x.field('drug','boost');x.field('tech','8');x.field('skill','6');x.field('ack',true);return x}
+function rollSuccess(x){window.confirm=()=>true;const old=Math.random;Math.random=()=>.99;try{return M.handle(x.event,x.ctx)}finally{Math.random=old}}
+test('confirmed successful therapy changes only the selected tracked addiction, once',()=>{
+ const x=addictionSetup(),before=structuredClone(x.c),roll=rollSuccess(x);assert.equal(roll.dirty,undefined);assert.deepEqual(x.c,before);assert.match(M.render(x.ctx),/Apply addiction treatment/);x.button.dataset.therapyAction='apply';window.confirm=()=>false;assert.equal(M.handle(x.event,x.ctx).dirty,undefined);assert.deepEqual(x.c,before);window.confirm=()=>true;assert.equal(M.handle(x.event,x.ctx).dirty,true);const expected=structuredClone(before);expected.extra.streetDrugs.records.boost.addicted=false;expected.extra.streetDrugs.records.boost.yearVulnerability=true;assert.deepEqual(x.c,expected);assert.equal(M.handle(x.event,x.ctx).dirty,undefined);assert.deepEqual(x.c,expected);
+});
+test('failed tracked addiction check cannot be applied',()=>{
+ const x=addictionSetup(),before=structuredClone(x.c),old=Math.random;window.confirm=()=>true;Math.random=()=>0;try{M.handle(x.event,x.ctx)}finally{Math.random=old}assert.doesNotMatch(M.render(x.ctx),/data-therapy-action="apply"/);x.button.dataset.therapyAction='apply';assert.equal(M.handle(x.event,x.ctx).dirty,undefined);assert.deepEqual(x.c,before);
+});
+test('changed selection, data, patient, scope or form during confirmation cannot apply tracked therapy',()=>{
+ for(const mode of ['selection','record','other','patient','scope','detached']){const x=addictionSetup();rollSuccess(x);x.button.dataset.therapyAction='apply';window.confirm=()=>{if(mode==='selection')x.field('drug','smash');if(mode==='record')x.c.extra.streetDrugs.records.boost.unknown='changed';if(mode==='other')x.c.extra.other='changed';if(mode==='patient')x.ctx.characters[0]=structuredClone(x.c);if(mode==='scope')M.setScope('different-account');if(mode==='detached')x.root.isConnected=false;return true};assert.equal(M.handle(x.event,x.ctx).dirty,undefined,mode);assert.equal(x.c.extra.streetDrugs.records.boost.addicted,true,mode);assert.equal(x.c.extra.streetDrugs.records.smash.addicted,true,mode)}
+});
+test('future and unknown addiction data formats are never overwritten',()=>{
+ for(const mode of ['version','nested','missing']){const x=addictionSetup();if(mode==='version')x.c.extra.streetDrugs.version=2;if(mode==='nested')x.c.extra.streetDrugs.records.boost.lastCheck={forced:true,success:false,dv:17,future:true};if(mode==='missing')delete x.c.extra.streetDrugs.records.boost;const before=structuredClone(x.c);window.confirm=()=>true;assert.equal(M.handle(x.event,x.ctx).dirty,undefined);x.button.dataset.therapyAction='apply';assert.equal(M.handle(x.event,x.ctx).dirty,undefined);assert.deepEqual(x.c,before)}
+});
+test('changing selected addiction or tracked data during roll confirmation invalidates the check',()=>{
+ for(const mode of ['selection','data']){const x=addictionSetup(),before=structuredClone(x.c);window.confirm=()=>{if(mode==='selection')x.field('drug','smash');else x.c.extra.streetDrugs.records.boost.unknown='changed';return true};assert.match(M.handle(x.event,x.ctx).notify,/changed/);assert.doesNotMatch(M.render(x.ctx),/data-therapy-action="apply"/);assert.equal(x.c.extra.streetDrugs.records.boost.addicted,true);assert.equal(x.c.extra.streetDrugs.records.smash.addicted,true);if(mode==='selection')assert.deepEqual(x.c,before)}
+});
+
+test('addiction therapy does not require or warn about the Humanity maximum',()=>{
+ const x=setup();delete x.c.extra.equipment.maxHumanity;x.field('type','addiction');assert.doesNotMatch(M.render(x.ctx),/Humanity maximum is not set/);x.field('type','standard');assert.match(M.render(x.ctx),/Humanity maximum is not set/);
+});

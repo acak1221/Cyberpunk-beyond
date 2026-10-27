@@ -24,16 +24,57 @@ function validArchitectures(value){
  }
  return true;
 }
-let selected=null,lastRoll=null,lastScope=null;
-function setScope(scope){if(scope!==lastScope){lastScope=scope;selected=null;lastRoll=null}}
+let selected=null,lastRoll=null,lastScope=null,combatDraft=null,combatResult=null;
+function resetCombat(){combatDraft={mode:'program',target:'program',kind:'antiProgram',ice:'',atk:0,def:0,spd:0,opponent:4,speed:0,attackMod:0,defendMod:0};combatResult=null}
+function setScope(scope){if(scope!==lastScope){lastScope=scope;selected=null;lastRoll=null;resetCombat()}}
 function button(a,label,more=''){return `<button class="btn ghost" data-net="${a}" ${more}>${esc(label)}</button>`}
 function input(label,kind,value,extra=''){return `<label class="field">${esc(label)}<input data-net-${kind} value="${esc(value)}" ${extra}></label>`}
 function opt(v,label,cur){return `<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(label)}</option>`}
+// Temporary calculator: no actions, REZ or other records are changed.
+function combatDie(rng=Math.random){const first=1+Math.floor(rng()*10),extra=first===1||first===10?1+Math.floor(rng()*10):0;return {first,extra,value:first+(first===10?extra:first===1?-extra:0)}}
+function combatCheck(config,rng=Math.random){
+ const {mode,target,kind}=config;
+ if(!['program','ice','zap','encounter'].includes(mode)||!['program','person'].includes(target))return null;
+ if((mode==='program'||mode==='ice')&&((kind==='antiProgram'&&target!=='program')||(kind==='antiPersonnel'&&target!=='person')||!['antiProgram','antiPersonnel'].includes(kind)))return null;
+ const n=x=>clamp(x??0,-999,999);let attackBase,defendBase;
+ if(mode==='encounter'){attackBase=n(config.spd)+n(config.attackMod);defendBase=n(config.rank)+n(config.speed)+n(config.defendMod)}
+ else {attackBase=(mode==='ice'?0:n(config.rank))+(mode==='zap'?0:n(config.atk))+n(config.attackMod);defendBase=(target==='person'?n(config.opponent):n(config.def))+n(config.defendMod)}
+ const attackDie=combatDie(rng),defendDie=combatDie(rng),attack=attackBase+attackDie.value,defend=defendBase+defendDie.value;
+ return {attackBase,defendBase,attackDie,defendDie,attack,defend,hit:attack>defend,mode};
+}
+function selectedIce(a,value){if(!value)return null;const [fId,eId]=value.split(':');const f=a.floors?.find(x=>encodeURIComponent(x.id)===fId);const e=f?.entries?.find(x=>encodeURIComponent(x.id)===eId);return e?.type==='ice'?e:null}
+function combatHtml(a,l){
+ if(!combatDraft)resetCombat();const d=combatDraft,ru=l==='ru',L=(r,e)=>ru?r:e;
+ if(d.ice&&!selectedIce(a,d.ice)){d.ice='';combatResult=null}const ice=selectedIce(a,d.ice);
+ const choose=(key,label,options)=>`<label class="field">${esc(label)}<select data-net-combat="${key}">${options.map(([v,name])=>opt(v,name,d[key])).join('')}</select></label>`;
+ const num=(key,label)=>`<label class="field">${esc(label)}<input type="number" min="-99" max="999" data-net-combat="${key}" value="${esc(d[key])}"></label>`;
+ const iceOptions=[['',L('Ввести характеристики вручную','Enter stats manually')]];
+ a.floors.forEach(f=>f.entries.forEach(e=>{if(e.type==='ice')iceOptions.push([`${encodeURIComponent(f.id)}:${encodeURIComponent(e.id)}`,`${f.label} · ${e.name||'Black ICE'}`])}));
+ let h=`<section class="card"><div class="card-heading"><span>${esc(L('NET-БОЙ / КАЛЬКУЛЯТОР','NET COMBAT / CALCULATOR'))}</span><span>129–130 · 201–205</span></div><p class="net-note">${esc(L('Встречный бросок для одной цели. Заполните значения и применяйте эффекты вручную. Ничего не расходуется и не изменяется автоматически.','Opposed check for one target. Enter values and resolve effects manually. Nothing is spent or changed automatically.'))}</p><div class="net-grid">`;
+ h+=choose('mode',L('Проверка','Check'),[['program',L('Атака программой','Program attack')],['ice',L('Атака Black ICE','Black ICE attack')],['zap','Zap'],['encounter',L('Первая встреча с ожидающим ICE','Encounter waiting ICE')]]);
+ h+=choose('ice',L('Характеристики ICE из архитектуры','ICE stats from architecture'),iceOptions);
+ if(d.mode!=='encounter')h+=choose('target',L('Цель','Target'),[['program',L('Программа / ICE','Program / ICE')],['person',L('Нетраннер','Netrunner')]]);
+ if(d.mode==='program'||d.mode==='ice')h+=choose('kind',L('Класс атакующей программы','Attacker class'),[['antiProgram','Anti-Program'],['antiPersonnel','Anti-Personnel']]);
+ if(d.mode==='program')h+=num('atk',L('ATK программы','Program ATK'));
+ if(d.mode==='ice')h+=ice?`<label class="field">ICE ATK <strong>${ice.atk}</strong></label>`:num('atk','ICE ATK');
+ if(d.mode==='encounter')h+=ice?`<label class="field">ICE SPD <strong>${ice.spd}</strong></label>`:num('spd','ICE SPD');
+ if(d.mode==='encounter')h+=num('speed',L('Бонус SPEED нетраннера','Netrunner SPEED bonus'));
+ else if(d.target==='person')h+=num('opponent',L('Interface цели','Target Interface'));
+ else h+=ice&&d.mode!=='ice'?`<label class="field">ICE DEF <strong>${ice.def}</strong></label>`:num('def',L('DEF цели','Target DEF'));
+ h+=num('attackMod',L('Модификатор атакующего','Attacker modifier'))+num('defendMod',L('Модификатор защищающегося','Defender modifier'))+`</div>`;
+ h+=`<p class="net-note">${esc(L('Ранг Interface нетраннера берётся из поля выше: ','Netrunner Interface rank comes from the field above: '))}${a.rank}. ${esc(L('При встрече атакующий — ICE, защищающийся — нетраннер. При равенстве защищающийся побеждает.','For an encounter ICE attacks and the Netrunner defends. The defender wins ties.'))}</p>`;
+ h+=`<p class="net-note">${esc(L('Anti-Program действует только на программы, Anti-Personnel — только на нетраннеров. Проверьте класс выбранного ICE по книге; калькулятор не определяет его автоматически.','Anti-Program affects programs only; Anti-Personnel affects Netrunners only. Check the selected ICE class in the book; the calculator does not determine it.'))}</p>`;
+ h+=button('combat-roll',L('Бросить обе стороны','Roll both sides'));
+ if(combatResult){let r=combatResult,die=x=>`${x.first}${x.extra?(x.first===10?' + ':' − ')+x.extra:''}`;h+=`<div class="net-result" role="status">${esc(L('Атака / SPEED ICE','Attack / ICE SPEED'))}: ${r.attackBase} + (${die(r.attackDie)}) = ${r.attack}<br>${esc(L('Защита / SPEED нетраннера','Defense / Netrunner SPEED'))}: ${r.defendBase} + (${die(r.defendDie)}) = ${r.defend}<br><strong>${esc(r.hit?L('Атакующий побеждает','Attacker wins'):L('Защищающийся побеждает','Defender wins'))}</strong>${r.mode==='encounter'?'<br>'+esc(r.hit?L('ICE немедленно применяет эффект. В любом случае поместите ICE в начало инициативы.','ICE immediately applies its effect. In either case, put ICE at the top of initiative.'):L('Мгновенного эффекта нет. Поместите ICE в начало инициативы.','No immediate effect. Put ICE at the top of initiative.')):''}</div>`}
+ h+=`<p class="net-note">${esc(L('Zap при попадании наносит 1d6 к REZ программы или напрямую в мозг нетраннера. Активировать или деактивировать программу стоит NET-действие; каждый экземпляр активируется не более раза за раунд, атакующие программы сразу деактивируются. Когда урон снижает REZ до 0, программа Derezzed: для восстановления нужны деактивация и повторная активация (уничтоженную программу восстановить нельзя). Встреченный вражеский Anti-Program ICE выбирает случайную активную программу цели. Чтобы переназначить цель собственного ICE, деактивируйте его и снова активируйте (2 NET-действия), поместив наверх инициативы. Последствия, инициативу и NET-действия контролирует ведущий (стр. 201–205).','Zap deals 1d6 to program REZ or directly to a Netrunner’s brain on a hit. Activation or deactivation costs a NET Action; each copy activates at most once per round, and Attacker Programs deactivate immediately. When damage lowers REZ to 0 the program is Derezzed; deactivate and reactivate it to restore it (a destroyed program cannot be restored). Encountered enemy Anti-Program ICE targets a random active program. To retarget your own ICE, deactivate and reactivate it (2 NET Actions), placing it atop initiative again. The GM manages effects, initiative and NET Actions (pp. 201–205).'))}</p></section>`;
+ return h;
+}
 function render(ctx){
  const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=Array.isArray(ctx.architectures)?ctx.architectures:[],a=all.find(x=>x.id===selected);let html=`<div class="net-tools"><div class="page-header"><div><div class="overline">NETRUNNING / COREBOOK 197–211</div><h1>${esc(z.title)}</h1><p>${esc(z.intro)}</p></div>${button('new','＋ '+z.create)}</div>`;
  if(!a){html+=`<div class="campaign-grid">${all.length?all.map(x=>`<article class="card"><div class="card-heading"><span>NET ARCHITECTURE</span><span>${Array.isArray(x.floors)?x.floors.length:0}</span></div><h2>${esc(x.name||z.unknown)}</h2><p>${esc(x.access||'')}</p>${button('open',z.openArch,`data-id="${esc(x.id)}"`)}</article>`).join(''):`<div class="empty"><p>${esc(z.none)}</p></div>`}</div></div>`;return html}
  const floors=Array.isArray(a.floors)?a.floors:[];
  html+=`${button('back','← '+z.back)}<section class="card"><div class="net-grid">${input(z.name,'field="name"',a.name,'maxlength="100"')}${input(z.access,'field="access"',a.access,'maxlength="200"')}${input(z.rank,'field="rank"',a.rank,'type="number" min="1" max="10"')}${input(z.modifier,'field="modifier"',a.modifier,'type="number" min="-99" max="99"')}${input(z.dv,'field="dv"',a.dv,'type="number" min="-99" max="999"')}${input(z.current,'field="current"',a.current,'maxlength="80"')}</div><label class="field">${esc(z.notes)}<textarea data-net-field="notes" maxlength="10000">${esc(a.notes)}</textarea></label><p class="net-note">${esc(z.turnHelp)}</p><strong>${esc(z.turn)}: ${clamp(a.remaining,0,99)} / ${actions(a.rank)}</strong><div class="net-actions">${button('reset',z.reset)}${button('spend',z.spend)}${button('refund',z.refund)}${button('roll',z.roll)}</div><p class="net-note">${esc(z.diceHelp)}</p>${lastRoll?`<div class="net-result" role="status">${esc(lastRoll)}</div>`:''}<p class="net-note">${esc(z.saveNote)}</p></section>`;
+ html+=combatHtml(a,l);
  html+=`<section class="card"><div class="card-heading"><span>${esc(z.floor)}</span><span>${floors.length}</span></div><p class="net-note">${esc(z.architectureHelp)}</p>${floors.map((f,i)=>`<div class="net-floor"><div class="net-grid">${input(z.floor,'floor="label"',f.label,`data-index="${i}" maxlength="80"`)}${input(z.branch,'floor="branch"',f.branch,`data-index="${i}" maxlength="120"`)}</div><div class="net-actions">${button('floor-up',z.up,`data-index="${i}" ${i===0?'disabled':''}`)}${button('floor-down',z.down,`data-index="${i}" ${i===floors.length-1?'disabled':''}`)}${button('remove-floor',z.removeFloor,`data-index="${i}"`)}</div>${(Array.isArray(f.entries)?f.entries:[]).map((e,j)=>entryHTML(e,i,j,z)).join('')}${button('add-entry','＋ '+z.addElement,`data-index="${i}"`)}</div>`).join('')}${button('add-floor','＋ '+z.addFloor)}</section>`;
  html+=`<section class="card"><div class="card-heading"><span>${esc(z.operations)}</span><span>197–205</span></div>${[z.op1,z.op2,z.op3,z.op4,z.op5].map(x=>`<p class="net-note">${esc(x)}</p>`).join('')}</section><div>${button('delete',z.delete)}</div></div>`;return html;
 }
@@ -48,12 +89,20 @@ function result(c,l){let z=t[l],parts=[`${z.result}: ${c.total} ${c.success?' > 
 function handle(ev,ctx){
  const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=ctx.architectures,el=ev.target,b=el.closest('[data-net]'),a=all.find(x=>x.id===selected);
  if(ev.type==='click'&&b){const op=b.dataset.net,i=Number(b.dataset.index),j=Number(b.dataset.entry),f=a?.floors?.[i],entry=f?.entries?.[j];
-  if(op==='new'){if(all.length>=100)return {handled:true,notify:z.limit};let n=newArchitecture(l);all.unshift(n);selected=n.id;lastRoll=null;return {handled:true,dirty:true,rerender:true}}
-  if(op==='open'){selected=b.dataset.id;lastRoll=null;return {handled:true,rerender:true}}
-  if(op==='back'){selected=null;lastRoll=null;return {handled:true,rerender:true}}
+  if(op==='new'){if(all.length>=100)return {handled:true,notify:z.limit};let n=newArchitecture(l);all.unshift(n);selected=n.id;lastRoll=null;resetCombat();return {handled:true,dirty:true,rerender:true}}
+  if(op==='open'){selected=b.dataset.id;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
+  if(op==='back'){selected=null;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
   if(!a)return {handled:true};
   if(op==='delete'){if(!window.confirm(z.deleteConfirm))return {handled:true};all.splice(all.indexOf(a),1);selected=null;lastRoll=null;return {handled:true,dirty:true,rerender:true}}
   if(op==='roll'){lastRoll=result(check(a.rank,a.modifier,a.dv),l);return {handled:true,rerender:true}}
+  if(op==='combat-roll'){
+   if(!combatDraft)resetCombat();const d=combatDraft,ice=selectedIce(a,d.ice);
+   if(d.ice&&!ice)return {handled:true,notify:l==='ru'?'Выбранный ICE больше не существует; выберите заново.':'The selected ICE no longer exists; select it again.'};
+   const config={...d,rank:a.rank,atk:d.mode==='ice'&&ice?ice.atk:d.atk,spd:ice?ice.spd:d.spd,def:d.mode!=='ice'&&ice?ice.def:d.def};
+   combatResult=combatCheck(config);
+   if(!combatResult)return {handled:true,notify:l==='ru'?'Класс программы не подходит для выбранной цели.':'The program class does not match the target.'};
+   return {handled:true,rerender:true};
+  }
   if(op==='reset')a.remaining=actions(a.rank);else if(op==='spend')a.remaining=Math.max(0,clamp(a.remaining,0,99)-1);else if(op==='refund')a.remaining=Math.min(actions(a.rank),clamp(a.remaining,0,99)+1);
   else if(op==='add-floor'){if(a.floors.length>=100)return {handled:true,notify:z.limit};a.floors.push(newFloor(a.floors.length+1))}
   else if(op==='remove-floor'){if(!f||!window.confirm(z.removeFloorConfirm))return {handled:true};a.floors.splice(i,1)}
@@ -62,14 +111,15 @@ function handle(ev,ctx){
   else if(op==='add-entry'&&f){if(f.entries.length>=50)return {handled:true,notify:z.limit};f.entries.push(newEntry())}
   else if(op==='remove-entry'&&entry){if(!window.confirm(z.removeElementConfirm))return {handled:true};f.entries.splice(j,1)}
   else if(op==='apply-ice'&&entry&&Object.hasOwn(ICE,entry.preset)){if(!window.confirm(z.applyConfirm))return {handled:true};let [per,spd,atk,def,rez]=ICE[entry.preset];Object.assign(entry,{name:entry.preset,per,spd,atk,def,maxRez:rez,rez,state:'waiting'})}
-  else return {handled:true};return {handled:true,dirty:true,rerender:true};
+  else return {handled:true};combatResult=null;return {handled:true,dirty:true,rerender:true};
  }
- if((ev.type==='input'||ev.type==='change')&&a){let key=el.dataset.netField;if(key){if(!['name','access','notes','rank','modifier','dv','current'].includes(key))return {handled:true};a[key]=['rank','modifier','dv'].includes(key)?clamp(el.value,key==='rank'?1:-99,key==='rank'?10:key==='dv'?999:99):String(el.value).slice(0,key==='notes'?10000:200);if(key==='rank')a.remaining=Math.min(clamp(a.remaining,0,99),actions(a.rank));if(['rank','modifier','dv'].includes(key))lastRoll=null;return {handled:true,dirty:true,rerender:ev.type==='change'&&['rank','modifier','dv'].includes(key)}}
+ if((ev.type==='input'||ev.type==='change')&&a){let key=el.dataset.netCombat;if(key){if(!combatDraft)resetCombat();const options={mode:['program','ice','zap','encounter'],target:['program','person'],kind:['antiProgram','antiPersonnel']};if(options[key]){if(!options[key].includes(el.value))return {handled:true};combatDraft[key]=el.value}else if(key==='ice'){if(el.value&&!selectedIce(a,el.value))return {handled:true};combatDraft.ice=el.value}else if(['atk','def','spd','opponent','speed','attackMod','defendMod'].includes(key))combatDraft[key]=clamp(el.value,-99,999);else return {handled:true};combatResult=null;return {handled:true,rerender:ev.type==='change'}}
+ key=el.dataset.netField;if(key){if(!['name','access','notes','rank','modifier','dv','current'].includes(key))return {handled:true};a[key]=['rank','modifier','dv'].includes(key)?clamp(el.value,key==='rank'?1:-99,key==='rank'?10:key==='dv'?999:99):String(el.value).slice(0,key==='notes'?10000:200);if(key==='rank'){a.remaining=Math.min(clamp(a.remaining,0,99),actions(a.rank));combatResult=null}if(['rank','modifier','dv'].includes(key))lastRoll=null;return {handled:true,dirty:true,rerender:ev.type==='change'&&['rank','modifier','dv'].includes(key)}}
   key=el.dataset.netFloor;if(key){let f=a.floors?.[Number(el.dataset.index)];if(!f||!['label','branch'].includes(key))return {handled:true};f[key]=String(el.value).slice(0,120);return {handled:true,dirty:true}}
-  key=el.dataset.netEntry;if(key){let e=a.floors?.[Number(el.dataset.index)]?.entries?.[Number(el.dataset.entry)];if(!e||!['type','name','state','preset','dv','rez','maxRez','per','spd','atk','def','notes'].includes(key))return {handled:true};if(key==='type'){if(!['password','file','control','ice','other'].includes(el.value))return {handled:true};e.type=el.value;e.state=e.type==='ice'?'waiting':'closed'}else if(key==='state'){if(!['waiting','pursuing','derezzed','destroyed','closed','open','other'].includes(el.value))return {handled:true};e.state=el.value}else if(key==='preset'){if(el.value&&!Object.hasOwn(ICE,el.value))return {handled:true};e.preset=el.value}else if(['dv','rez','maxRez','per','spd','atk','def'].includes(key))e[key]=clamp(el.value,0,999);else e[key]=String(el.value).slice(0,key==='notes'?2000:160);return {handled:true,dirty:true,rerender:key==='type'&&ev.type==='change'}
+  key=el.dataset.netEntry;if(key){let e=a.floors?.[Number(el.dataset.index)]?.entries?.[Number(el.dataset.entry)];if(!e||!['type','name','state','preset','dv','rez','maxRez','per','spd','atk','def','notes'].includes(key))return {handled:true};if(key==='type'){if(!['password','file','control','ice','other'].includes(el.value))return {handled:true};e.type=el.value;e.state=e.type==='ice'?'waiting':'closed'}else if(key==='state'){if(!['waiting','pursuing','derezzed','destroyed','closed','open','other'].includes(el.value))return {handled:true};e.state=el.value}else if(key==='preset'){if(el.value&&!Object.hasOwn(ICE,el.value))return {handled:true};e.preset=el.value}else if(['dv','rez','maxRez','per','spd','atk','def'].includes(key))e[key]=clamp(el.value,0,999);else e[key]=String(el.value).slice(0,key==='notes'?2000:160);combatResult=null;return {handled:true,dirty:true,rerender:ev.type==='change'}
   }
  }
  return {handled:false};
 }
-window.NetTools={ICE,actions,check,newEntry,newFloor,newArchitecture,validArchitectures,render,handle,setScope};
+window.NetTools={ICE,actions,check,combatDie,combatCheck,newEntry,newFloor,newArchitecture,validArchitectures,render,handle,setScope};
 })();
