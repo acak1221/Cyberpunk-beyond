@@ -1,0 +1,11 @@
+.shared-campaigns { margin: 28px 0 36px; }
+.shared-campaigns .shared-actions { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+.shared-campaigns .shared-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.shared-campaigns .shared-box { background:var(--surface,#1c1b18); border:1px solid #49463e; padding:16px; margin:14px 0; }
+.shared-campaigns textarea { min-height:110px; }
+.shared-campaigns .shared-warning { color:#edc86f; overflow-wrap:anywhere; }
+.shared-campaigns .shared-error { color:#f1a79d; overflow-wrap:anywhere; }
+.shared-campaigns .shared-mono { font-family:monospace; overflow-wrap:anywhere; word-break:break-all; }
+.shared-campaigns .shared-invite-list, .shared-campaigns .shared-member-list { display:grid; gap:8px; margin:12px 0; }
+.shared-campaigns .shared-row { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; border-top:1px solid #49463e; padding:10px 0; }
+.shared-campaigns pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:18rem; overflow:auto; }

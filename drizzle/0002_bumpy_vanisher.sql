@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX `campaign_invite_token` ON `campaign_invites` (`token_hash`);--> statement-breakpoint
+CREATE UNIQUE INDEX `campaign_member_identity` ON `campaign_members` (`campaign_id`,`user_id`);

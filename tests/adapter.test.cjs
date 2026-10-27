@@ -42,3 +42,11 @@ test('verified account scope survives offline and returns only for its matching 
  a.status('synced');assert.equal(a.adapter.getScope(),scope);assert.equal(a.writes(),0);
  const initial=setup(null,'offline');await initial.adapter.start();assert.equal(initial.adapter.getScope(),null);assert.equal(initial.writes(),0);
 });
+test('scope observers are notified after startup and immediately when account access is lost',async()=>{
+ const scope='nc1_'+'b'.repeat(64),changes=[];let current={kind:'synced'},hook;
+ const controller={scope,getStatus:()=>current,getConflict:()=>null,refresh(){}};
+ const win={localStorage:{getItem:key=>key==='nightcity-red-sync-owner-v1'?scope:null},addEventListener(){},CloudSync:{start:async h=>{hook=h;return controller}}};
+ vm.runInNewContext(source,{window:win,document:{querySelector(){return null}},Blob,URL,setTimeout,clearTimeout,confirm:()=>true});
+ const adapter=win.SyncAdapter.create({app:node(),mount:node(),status:node(),language:()=> 'en',read:()=>({characters:[],campaigns:[]}),apply(){},onScopeChange:s=>changes.push(s)});
+ await adapter.start();assert.deepEqual(changes,[scope]);current={kind:'pending'};hook.onStatus(current);assert.deepEqual(changes,[scope]);current={kind:'signedout'};hook.onStatus(current);assert.deepEqual(changes,[scope,null]);
+});
