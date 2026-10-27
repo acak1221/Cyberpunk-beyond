@@ -18,6 +18,9 @@ test('catalog confirmation aborts on account switch even when an old character r
  const h=harness();for(const [id,value] of [['catalog-target','person'],['catalog-mode','gearBudget'],['catalog-ammo-type','medium-pistol']])await h.select(id,value);
  h.setConfirm(()=>{h.setScope('account-b');return true});await h.click('catalog-buy','ammo-basic-ammunition');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].extra.items.length,0);assert.match(h.notices.at(-1),/changed/i);
 });
+test('missing scope cannot authorize a catalog change even if the adapter reports editable',async()=>{
+ const h=harness();for(const [id,value] of [['catalog-target','person'],['catalog-mode','gearBudget'],['catalog-ammo-type','medium-pistol']])await h.select(id,value);h.setScope(null);await h.click('catalog-buy','ammo-basic-ammunition');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].extra.items.length,0);assert.match(h.notices.at(-1),/changed/i);
+});
 test('delete confirmation cannot delete a different selected character or hydrated copy',async()=>{
  const h=harness();h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.go('sheet','other');return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i);
  h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);

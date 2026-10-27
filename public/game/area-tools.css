@@ -1,0 +1,7 @@
+.area-tools { margin-top: 24px; }
+.area-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 14px 0; }
+.area-target { border: 1px solid var(--line, #514a43); padding: 14px; margin-top: 14px; }
+.area-target-heading,.area-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+.area-result { margin-top: 14px; padding: 12px; background: rgba(255,255,255,.04); overflow-wrap: anywhere; }
+.area-result:empty { display: none; }
+.area-note { font-size: .9em; opacity: .84; line-height: 1.5; }
