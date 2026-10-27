@@ -95,7 +95,7 @@ function create(options){
     if(typeof raw==='string'){const u=URL.createObjectURL(new Blob([raw],{type:'application/json'})),anchor=document.createElement('a');anchor.href=u;anchor.download='night-city-original-local.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
   }
   if(a==='download-incompatible'&&incompatibleRemote){
-    const data=clone(incompatibleRemote),file={...data,format:'nightcity-red-backup',version:1,_completeSnapshot:data};const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'})),anchor=document.createElement('a');anchor.href=u;anchor.download='night-city-incompatible-cloud.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+    const data=clone(incompatibleRemote),file={...data,format:'nightcity-red-backup',version:1,_completeSnapshot:clone(data)};const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'})),anchor=document.createElement('a');anchor.href=u;anchor.download='night-city-incompatible-cloud.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
   }
   if(a==='review'&&draftHold&&downloaded&&!working&&!queue.length){
     if(!confirm(word('Вы скачали копию. Разрешить выбор другой версии? Черновик останется доступным в этой вкладке до закрытия.','You downloaded a copy. Allow choosing another version? The draft remains available in this tab until it closes.')))return;

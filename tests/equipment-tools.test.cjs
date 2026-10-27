@@ -25,10 +25,46 @@ test('ammunition purchase fails without mutation until a concrete ammo type and 
  const c=character(),before=copy(c);
  for(const id of ['ammo-basic-ammunition','ammo-armor-piercing-ammunition','ammo-flashbang-ammunition']){
   const item=find(id),quote=M.quote(c,item,'cash','en',{quantity:2}),purchase=M.purchase(c,item,'cash','en',{quantity:2,confirmed:true});
-  assert.equal(quote.reason,'ammoManual');assert.equal(purchase.reason,'ammoManual');assert.match(purchase.message,/manual tracking/);assert.equal(copy(c),before);
+  assert.equal(quote.reason,'ammoManual');assert.equal(purchase.reason,'ammoManual');assert.match(purchase.message,/Select an eligible/);assert.equal(copy(c),before);
  }
  const added=ctx.window.CharacterExtra.addCatalog(c,find('ammo-basic-ammunition'),'en');
  assert(added.record);assert.equal(c.extra.cash,10000);assert.equal(c.extra.items.length,1);
+});
+
+test('ammunition combinations and pack sizes follow the Corebook, without conflating calibres',()=>{
+ const cases=[
+ ['ammo-basic-ammunition',10,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','shell','arrow']],
+ ['ammo-armor-piercing-ammunition',100,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','arrow','grenade','rocket']],
+ ['ammo-biotoxin-ammunition',500,['arrow','grenade']],['ammo-emp-ammunition',500,['grenade']],
+ ['ammo-expansive-ammunition',100,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','arrow']],
+ ['ammo-flashbang-ammunition',100,['grenade']],
+ ['ammo-incendiary-ammunition',100,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','shell','arrow','grenade']],
+ ['ammo-poison-ammunition',100,['arrow','grenade']],
+ ['ammo-rubber-ammunition',10,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','arrow']],
+ ['ammo-sleep-ammunition',500,['arrow','grenade']],
+ ['ammo-smart-ammunition',500,['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','arrow','rocket']],
+ ['ammo-smoke-ammunition',50,['grenade']],['ammo-teargas-ammunition',50,['grenade']]];
+ const all=['medium-pistol','heavy-pistol','very-heavy-pistol','rifle','slug','shell','arrow','grenade','rocket'];
+ for(const [id,price,allowed] of cases){const item=find(id),c=character();assert.equal(item.price,price,id);assert.deepEqual(Array.from(M.ammoTypeOptions(item,'en'),x=>x.value),allowed,id);
+  for(const type of all){const before=copy(c),q=M.quote(c,item,'cash','en',{quantity:2,ammoType:type});
+   if(!allowed.includes(type)){assert.equal(q.reason,'ammoUnsupported',id+' '+type);assert.equal(copy(c),before);continue}
+   assert.equal(q.ok,true,id+' '+type);assert.equal(q.total,2*price);assert.equal(q.ammoCount,['grenade','rocket'].includes(type)?2:20);assert.equal(q.perPack,['grenade','rocket'].includes(type)?1:10);assert.equal(copy(c),before);
+  }
+ }
+});
+test('confirmed ammunition purchase records individual rounds, pack cost and type atomically',()=>{
+ const c=character(),item=find('ammo-basic-ammunition'),before=copy(c),preview=M.purchase(c,item,'cash','en',{quantity:3,ammoType:'heavy-pistol'});
+ assert.equal(preview.reason,'confirmNeeded');assert.equal(preview.quote.ammoCount,30);assert.equal(copy(c),before);
+ let p=M.purchase(c,item,'cash','en',{quantity:3,ammoType:'heavy-pistol',confirmed:true});assert.equal(p.ok,true);assert.equal(c.extra.cash,9970);
+ let rec=c.extra.items[0];assert.equal(rec.quantity,30);assert.equal(rec.ammoType,'heavy-pistol');assert.equal(rec.purchase.quantity,3);assert.equal(rec.purchase.perPack,10);assert.equal(rec.purchase.ammoCount,30);assert.equal(rec.purchase.total,30);assert.match(rec.notes,/Heavy Pistol/);
+ let grenade=M.purchase(c,find('ammo-flashbang-ammunition'),'cash','ru',{quantity:2,ammoType:'grenade',confirmed:true});assert.equal(grenade.ok,true);assert.equal(c.extra.items[1].quantity,2);assert.equal(c.extra.items[1].purchase.perPack,1);assert.equal(c.extra.cash,9770);
+ assert.equal(M.ammoTypeName('heavy-pistol','ru'),'Тяжёлый пистолет');assert.equal(M.ammoTypeName('heavy-pistol','en'),'Heavy Pistol');
+});
+test('unsupported, altered or unaffordable ammunition fails closed without mutations',()=>{
+ const c=character(),before=copy(c),basic=find('ammo-basic-ammunition');
+ for(const [i,options,reason] of [[basic,{ammoType:'grenade'},'ammoUnsupported'],[basic,{ammoType:'constructor'},'ammoUnsupported'],[{...basic,price:1},{ammoType:'rifle'},'ammoUnsupported'],[{...basic,id:'unknown-ammo'},{ammoType:'rifle'},'ammoUnsupported'],[basic,{ammoType:'rifle',quantity:0},'badQuantity']]){assert.equal(M.purchase(c,i,'cash','en',{...options,confirmed:true}).reason,reason);assert.equal(copy(c),before)}
+ assert.equal(M.purchase(c,basic,'fashionBudget','en',{ammoType:'rifle',confirmed:true}).reason,'badBudget');assert.equal(copy(c),before);
+ c.extra.cash=0;const empty=copy(c);assert.equal(M.purchase(c,basic,'cash','en',{ammoType:'rifle',confirmed:true}).reason,'noFunds');assert.equal(copy(c),empty);
 });
 
 

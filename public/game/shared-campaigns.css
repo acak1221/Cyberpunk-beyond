@@ -9,3 +9,10 @@
 .shared-campaigns .shared-invite-list, .shared-campaigns .shared-member-list { display:grid; gap:8px; margin:12px 0; }
 .shared-campaigns .shared-row { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; border-top:1px solid #49463e; padding:10px 0; }
 .shared-campaigns pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:18rem; overflow:auto; }
+.shared-campaigns .shared-combat-list { display:grid; gap:8px; }
+.shared-campaigns .shared-combatant { display:grid; grid-template-columns:minmax(120px,2fr) repeat(4,minmax(65px,1fr)) auto; gap:8px; align-items:end; border:1px solid #49463e; padding:10px; }
+.shared-campaigns .shared-combatant.current { border-color:#edc86f; }
+.shared-campaigns .shared-combatant label { display:grid; gap:5px; font-size:.8rem; }
+.shared-campaigns .shared-combatant input { width:100%; min-width:0; }
+.shared-campaigns .shared-combat-form { display:grid; grid-template-columns:minmax(140px,2fr) minmax(70px,1fr) minmax(70px,1fr) auto; gap:8px; align-items:end; margin-top:16px; }
+@media(max-width:760px){.shared-campaigns .shared-combatant,.shared-campaigns .shared-combat-form { grid-template-columns:repeat(2,minmax(0,1fr)); }}
