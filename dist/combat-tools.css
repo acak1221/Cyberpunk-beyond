@@ -1,0 +1,16 @@
+.combat-tools-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.combat-tool-card {min-width:0;display:flex;flex-direction:column;gap:16px}
+.combat-tool-card .card-heading {margin-bottom:0}
+.combat-tool-card .btn {align-self:flex-start}
+.combat-injury-card {grid-column:1 / -1}
+.combat-injury-controls {display:flex;align-items:end;gap:16px;flex-wrap:wrap}
+.combat-injury-controls .field {min-width:180px;flex:1}
+.combat-check {display:flex;align-items:center;gap:10px;color:#e7dfd5;font-size:12px;cursor:pointer}
+.combat-check input {width:18px;height:18px}
+.combat-result {display:flex;flex-direction:column;gap:7px;min-height:88px;padding:16px;border:1px solid #443839;background:#131315;color:#eee4d7;font-size:13px}
+.combat-result>span {color:#c5ad80;font:700 10px/1.3 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.combat-result>strong {font-size:25px;line-height:1.1;color:#fff}
+.combat-result>p {margin:0;color:#e4dbd0}
+.combat-result>small {color:#e4b64f}
+.combat-tool-card p.combat-note {margin:0;color:#a9a19a;font-size:12px;line-height:1.6}
+@media(max-width:800px){.combat-tools-grid{grid-template-columns:1fr}.combat-injury-card{grid-column:auto}}
