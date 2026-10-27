@@ -1,0 +1,1 @@
+.hazard-tools{margin-top:24px}.hazard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.hazard-grid section{border:1px solid var(--border,#48413b);padding:16px;min-width:0}.hazard-grid p{line-height:1.5}.hazard-grid [role=status]{margin:10px 0;overflow-wrap:anywhere}

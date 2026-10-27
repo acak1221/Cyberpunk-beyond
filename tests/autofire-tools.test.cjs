@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/autofire-tools.js');
+global.window={};require('../public/game/combat-tools.js');require('../public/game/autofire-tools.js');
 const {calculate,render,handle}=window.AutofireTools;
 const input={weapon:'assault',attack:21,defense:17,sp:11,die1:4,die2:6};
 test('assault rifle example: margin 4, 2d6 10, damage 40 before SP',()=>{let r=calculate(input);assert.equal(r.multiplier,4);assert.equal(r.damage,40);assert.equal(r.penetration,29);assert.equal(r.spAfter,10);assert.equal(r.critical,false)});
@@ -10,3 +10,9 @@ test('standard armor ablates only on penetration, and unarmored damage never goe
 test('invalid numbers and unknown weapons fail closed',()=>{for(const fields of [{attack:''},{defense:'x'},{die1:0},{die2:7},{sp:-1},{weapon:'pistol'},{attack:Infinity},{sp:'1.5'}])assert.equal(calculate({...input,...fields}),null)});
 test('both language UIs expose dice, manual target, book link, and warnings',()=>{for(const l of ['ru','en']){let html=render(l);assert.match(html,/data-af-weapon/);assert.match(html,/data-af-defense/);assert.match(html,/data-af-die1/);assert.match(html,/data-page="173"/);assert.match(html,/REF 8\+/);assert.match(html,/10/);}});
 test('interactive calculator reads the actual input and does not change it',()=>{const vals={'[data-af-weapon]':'smg','[data-af-attack]':'21','[data-af-defense]':'17','[data-af-sp]':'11','[data-af-die1]':'4','[data-af-die2]':'6'};const fields=Object.fromEntries(Object.entries(vals).map(([k,v])=>[k,{value:v}]));fields['[data-af-result]']={innerHTML:'',textContent:''};const root={querySelector:s=>fields[s]};const button={dataset:{afAction:'calculate'},closest:s=>s==='[data-autofire-tool]'?root:null};const target={closest:s=>s==='[data-af-action]'?button:null};assert.equal(handle({type:'click',target},'en'),true);assert.match(fields['[data-af-result]'].innerHTML,/30/);assert.match(fields['[data-af-result]'].innerHTML,/19/);for(const [k,v] of Object.entries(vals))assert.equal(fields[k].value,v)});
+test('range DV uses the Autofire table with boundary and invalid inputs',()=>{
+ const f=window.AutofireTools.rangeDV;assert.equal(f('smg',6),20);assert.equal(f('smg',7),17);assert.equal(f('assault',14),17);assert.equal(f('assault',100),25);assert.equal(f('smg',101),null);assert.equal(f('smg',''),null);assert.equal(f('pistol',5),null);
+});
+test('range button inserts the DV, preserving manual defense when out of range',()=>{
+ const fields={'[data-af-weapon]':{value:'assault'},'[data-af-distance]':{value:'14'},'[data-af-defense]':{value:'5'},'[data-af-result]':{textContent:''}};const root={querySelector:s=>fields[s]},button={dataset:{afAction:'range'},closest:()=>root},target={closest:()=>button};assert.equal(handle({type:'click',target},'ru'),true);assert.equal(fields['[data-af-defense]'].value,'17');fields['[data-af-distance]'].value='101';assert.equal(handle({type:'click',target},'en'),true);assert.equal(fields['[data-af-defense]'].value,'17');assert.match(fields['[data-af-result]'].textContent,/no value/i);
+});
