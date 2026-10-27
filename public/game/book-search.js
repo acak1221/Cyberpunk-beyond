@@ -27,9 +27,20 @@ const aliases=Object.freeze({
  'рокербой':'Rockerboy','соло':'Solo','техник':'Tech','медтех':'Medtech','медиа':'Media','корпорат':'Exec',
  'законник':'Lawman','фиксeр':'Fixer','фиксер':'Fixer','номад':'Nomad','персонаж':'character','ведущий':'GM'
 });
-const searchTerm=x=>{const q=normalize(x),key=q.toLocaleLowerCase();if(Object.hasOwn(aliases,key))return aliases[key];const matches=new Map();for(const item of Array.isArray(window.CATALOG)?window.CATALOG:[]){const ru=item?.name?.ru,en=item?.name?.en;if(typeof ru!=='string'||typeof en!=='string'||!normalize(en)||normalize(ru).toLocaleLowerCase()!==key)continue;const text=normalize(en);matches.set(text.toLocaleLowerCase(),text)}return matches.size===1?matches.values().next().value:q};
-Object.assign(W.ru,{start:'Поиск работает на вашем устройстве. Распространённые русские термины и точные названия из каталога ищутся по английским соответствиям; остальные запросы — буквально.',as:'Искать в оригинале'});
-Object.assign(W.en,{start:'Search runs on your device. Common Russian terms and exact catalog names map to English; other queries are searched literally.',as:'Searched in the original as'});
+// Only exact translated names are mapped. Multiple different English candidates remain literal.
+// Normalizing ё and spacing around slashes lets users type the same Russian name naturally.
+const lookupKey=x=>normalize(x).toLocaleLowerCase().replace(/ё/g,'е').replace(/\s*\/\s*/g,'/');
+const aliasIndex=new Map();
+for(const [ru,en] of Object.entries(aliases)){const k=lookupKey(ru),previous=aliasIndex.get(k);aliasIndex.set(k,previous===undefined||previous===en?en:null)}
+const searchTerm=x=>{const q=normalize(x),key=lookupKey(q);if(aliasIndex.has(key))return aliasIndex.get(key)||q;const matches=new Map();
+ const add=(ru,en)=>{if(typeof ru!=='string'||typeof en!=='string'||!normalize(ru)||!normalize(en)||lookupKey(ru)!==key)return;const text=normalize(en);matches.set(text.toLocaleLowerCase(),text)};
+ for(const item of Array.isArray(window.CATALOG)?window.CATALOG:[])add(item?.name?.ru,item?.name?.en);
+ for(const skill of Array.isArray(window.SKILL_REFERENCE)?window.SKILL_REFERENCE:[])add(skill?.ruName,skill?.name);
+ for(const role of Array.isArray(window.ROLES)?window.ROLES:[])add(role?.name?.ru,role?.name?.en);
+ for(const chapter of Array.isArray(window.BookToc?.chapters)?window.BookToc.chapters:[]){if(!Array.isArray(chapter))continue;add(chapter[1],chapter[2]);for(const section of Array.isArray(chapter[3])?chapter[3]:[])if(Array.isArray(section))add(section[1],section[2])}
+ return matches.size===1?matches.values().next().value:q};
+Object.assign(W.ru,{start:'Поиск работает на вашем устройстве. Точные русские названия навыков, ролей, разделов и предметов ищутся по английским соответствиям, если перевод однозначен; остальные запросы — буквально.',as:'Искать в оригинале'});
+Object.assign(W.en,{start:'Search runs on your device. Exact Russian names of skills, roles, sections and equipment map to English when unambiguous; other queries are searched literally.',as:'Searched in the original as'});
 async function loadPDF(bytes){const lib=await import('./vendor/pdfjs/pdf.min.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.min.mjs',document.baseURI).href;return lib.getDocument({data:new Uint8Array(bytes),disableAutoFetch:true});}
 function create(loader=loadPDF){let file=null,token=0,task=null,index=null,query='',term='',status={key:'start'},results=[];
  function cancel(){token++;if(task?.destroy)Promise.resolve(task.destroy()).catch(()=>{});task=null;if(status.key==='busy')status={key:'stopped'};}

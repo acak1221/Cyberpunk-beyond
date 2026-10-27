@@ -43,6 +43,15 @@ test('reject malformed, oversized, duplicate IDs, prototype keys and deep state'
  let huge=JSON.stringify({scope,revision:0,data:{characters:[],campaigns:[],payload:'a'.repeat(MAX_BYTES+1)}});assert.equal((await a.put(request('PUT',huge))).status,413);assert.equal((await write(a,scope,-1,state('a'))).status,400);assert.equal((await write(a,scope,Number.MAX_SAFE_INTEGER,state('a'))).status,400);assert.equal((await current(a)).revision,0);db.sql.close();
 });
 test('database availability produces explicit error and no fake success',async()=>{let db=database(),scope=(await current(service(db,'alice'))).scope,a=service(undefined,'alice');assert.equal((await a.get(request('GET'))).status,503);assert.equal((await write(a,scope,0,state('a'))).status,503);db.sql.close()});
+test('dated rest history at the supported client limit survives a server save and reload',async()=>{
+ const db=database(),a=service(db,'alice'),scope=(await current(a)).scope,s=state('a');
+ const start=Date.UTC(2045,0,1),dates=Array.from({length:10000},(_,i)=>new Date(start+i*86400000).toISOString().slice(0,10));
+ s.characters[0].extra={antibioticTreatment:{version:1,courses:[],restDates:dates}};
+ assert.equal(validState(s),true);assert.equal((await write(a,scope,0,s)).status,201);
+ assert.deepEqual((await current(a)).data.characters[0].extra.antibioticTreatment.restDates,dates);
+ s.characters[0].extra.antibioticTreatment.restDates.push('2100-01-01');assert.equal(validState(s),false);
+ assert.equal((await write(a,scope,1,s)).status,400);assert.equal((await current(a)).revision,1);db.sql.close();
+});
 test('account scope is stable, distinct, opaque, and never authorizes writes',async()=>{
  const db=database(),alice=service(db,'sensitive-account-id-alice'),bob=service(db,'sensitive-account-id-bob');const first=await current(alice),again=await current(alice),other=await current(bob);
  assert.equal(first.scope,again.scope);assert.notEqual(first.scope,other.scope);assert.match(first.scope,/^nc1_[a-f0-9]{64}$/);assert(!JSON.stringify(first).includes('sensitive-account-id-alice'));assert(!('email' in first));assert(!('userId' in first));

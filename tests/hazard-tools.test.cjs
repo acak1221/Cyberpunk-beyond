@@ -26,3 +26,11 @@ test('fully protected and short falls do not require irrelevant armor or Athleti
  assert.equal(window.HazardTools.falling(9,false,'','',[]).mode,'small');
  assert.equal(window.HazardTools.falling(31,true,'','',[]),null);
 });
+test('drug effects use the three corebook DVs, with ties failing',()=>{
+ for(const [kind,dv,effect] of [['mild',11,'inebriation'],['strong',13,'suggestibility'],['deadly',15,'designed']]){assert.deepEqual(H.drug(kind,dv),{resisted:false,dv,effect});assert.deepEqual(H.drug(kind,dv+1),{resisted:true,dv,effect})}
+ assert.equal(H.drug('constructor',20),null);assert.equal(H.drug('strong',''),null);
+});
+test('drug check is exposed and reports its effect in both languages without a sheet mutation',()=>{
+ const values={'[data-hz-drug]':{value:'strong'},'[data-hz-drug-resist]':{value:'13'}},outputs={},character={hp:20};const root={querySelector(s){return values[s]||(outputs[s]??={textContent:''})}},button={dataset:{hzAction:'drug'},closest(){return root}},event={type:'click',target:{closest(){return button}}};
+ assert.match(H.render('ru'),/пентотал натрия/);assert.match(H.render('en'),/sodium pentothal/);assert.equal(H.handle(event,'ru'),true);assert.match(outputs['[data-hz-result="drug"]'].textContent,/Внушаемость/);values['[data-hz-drug-resist]'].value='14';H.handle(event,'en');assert.match(outputs['[data-hz-result="drug"]'].textContent,/effect does not occur/);assert.equal(character.hp,20);
+});

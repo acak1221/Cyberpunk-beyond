@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+global.window={};require('../public/game/character-extra.js');const X=window.CharacterExtra;
+function person(base,current){return {name:'Doc',role:'solo',stats:{BODY:8,LUCK:5},skills:{},extra:{baseDeathPenalty:base,deathPenalty:current}}}
+function roll(c,isCurrent=()=>true){return X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'death-save'}})}},c,'en',{isCurrent})}
+test('Death Save includes base injuries, then increases the current penalty by one',()=>{const c=person(2,2);const first=roll(c);assert.equal(first.roll.penalty,2);assert.equal(c.extra.deathPenalty,3);const second=roll(c);assert.equal(second.roll.penalty,3);assert.equal(c.extra.deathPenalty,4)});
+test('the current penalty cannot be manually lowered below the base penalty',()=>{const c=person(3,5),field={dataset:{cxField:'deathPenalty'},type:'number',value:'1',hasAttribute:()=>false};const r=X.handle({type:'change',target:field},c,'en');assert.equal(r.dirty,true);assert.equal(c.extra.deathPenalty,3);assert.equal(field.value,'3');assert.match(X.render(c,'en'),/data-cx-field="deathPenalty"[^>]*min="3"/)});
+test('inconsistent imported penalties and stale accounts do not silently roll or mutate data',()=>{let c=person(3,1);const invalid=roll(c);assert.equal(invalid.roll,undefined);assert.match(invalid.notify,/cannot be below/i);assert.equal(c.extra.deathPenalty,1);c=person(2,3);const stale=roll(c,()=>false);assert.equal(stale.roll,undefined);assert.equal(c.extra.deathPenalty,3)});
