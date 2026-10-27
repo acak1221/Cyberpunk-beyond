@@ -176,6 +176,65 @@ for(const [id,[profile,ru,en]] of Object.entries(exoticWeaponProfiles)){
   Object.assign(item.stats,profile);
   item.details={ru,en};
 }
+// Corebook v1.22, gear descriptions pp. 352–355 and internal cyberware p. 362.
+// Keep mechanical bonuses descriptive: none are automatically applied to a sheet.
+const coreGearDescriptions=[
+ ['gear-agent',352,'Персональный помощник и смартфон: +2 к Library Search и +2 к Wardrobe & Style при ношении рекомендованной сезонной одежды. Несколько агентов не складывают бонусы.','Personal assistant and smartphone: +2 Library Search and +2 Wardrobe & Style when wearing its seasonal clothing recommendations. Multiple Agents do not stack.'],
+ ['gear-airhypo',352,'Вводит дозу согласной цели действием; против несогласной цели требуется попадание атакой Melee Weapon. Перезарядка дозой не требует действия.','Administer a dose to a willing target with an Action; an unwilling target requires a successful Melee Weapon Attack. Loading a dose costs no Action.'],
+ ['gear-anti-smog-breathing-mask',352,'Защищает от токсичных газов, дыма и сходных опасностей, действующих при вдыхании.','Protects against toxic gases, fumes and similar hazards that must be inhaled.'],
+ ['gear-audio-recorder',352,'Записывает до 24 часов звука на установленный стандартный Memory Chip.','Records up to 24 hours of audio to an installed standard Memory Chip.'],
+ ['gear-auto-level-dampening-ear-protectors',352,'Защищают от глухоты и других эффектов опасно громких звуков, включая светошумовые гранаты.','Protect against deafness and other effects of dangerously loud sounds, including flashbangs.'],
+ ['gear-binoculars',352,'Увеличивают изображение в два или три раза.','Magnify the viewed image two or three times.'],
+ ['gear-braindance-viewer',352,'Воспроизводит браинданс с ощущениями и эмоциями записанного человека.','Plays braindance recordings with the recorded person’s senses and emotions.'],
+ ['gear-bug-detector',352,'Подаёт сигнал в пределах 2 м/ярдов от прослушки, жучка или другого подслушивающего устройства.','Beeps within 2 m/yd of a tap, bug or other listening device.'],
+ ['gear-carryall',352,'Прочная нейлоновая сумка; размеры варьируются от наплечной до большой дорожной.','A tough nylon bag, ranging from messenger-sized to a large duffel.'],
+ ['gear-chemical-analyzer',352,'Действием определяет химический состав вещества и узнаёт большинство веществ по базе образцов.','As an Action, determines chemical composition and identifies most substances using its sample database.'],
+ ['gear-computer',352,'Настольный или переносной компьютер для работы с текстом и доступа к Data Pool.','A desktop or laptop computer for word processing and access to the Data Pool.'],
+ ['gear-cryopump',353,'Медтех действием помещает согласного или бессознательного пациента в стазис; обычный насос имеет 1 заряд на 1 человека. До недели без Death Save; мешок — укрытие 15 HP. Заправка: 50 eb за заряд.','A Medtech uses an Action to place a willing or unconscious patient in stasis; the standard pump holds one person and has one charge. For up to a week no Death Saves are rolled; the bag provides 15 HP cover. Refueling costs 50 eb per charge.'],
+ ['gear-cryotank',353,'Медтех с проверкой Medical Tech против DV13 помещает одного пациента в стазис; пациент без сознания восстанавливается вдвое быстрее. Камера — укрытие 30 HP.','A Medtech who beats DV13 Medical Tech places one patient in stasis; the unconscious patient heals at twice the normal rate. The tank provides 30 HP cover.'],
+ ['gear-cyberdeck-excellent-quality',353,'9 слотов для программ и Hardware; для работы нужны Neural Link и Interface Plugs.','Nine Program/Hardware slots; operation requires a Neural Link and Interface Plugs.'],
+ ['gear-cyberdeck-poor-quality',353,'5 слотов для программ и Hardware; для работы нужны Neural Link и Interface Plugs.','Five Program/Hardware slots; operation requires a Neural Link and Interface Plugs.'],
+ ['gear-cyberdeck-standard-quality',353,'7 слотов для программ и Hardware; для работы нужны Neural Link и Interface Plugs.','Seven Program/Hardware slots; operation requires a Neural Link and Interface Plugs.'],
+ ['gear-disposable-cell-phone',353,'Одноразовый мобильный телефон для связи.','A disposable mobile phone for communications.'],
+ ['gear-drum-synthesizer',353,'Электронные барабанные панели; для слышимого звучания нужен усилитель.','Electronic drum pads; amplification is needed to hear the instrument.'],
+ ['gear-duct-tape',353,'Клейкая лента разных цветов; возможен светящийся вариант для разметки.','Duct tape in various colors, optionally glowing for marking routes or objects.'],
+ ['gear-electric-guitar-or-another-instrument',353,'Музыкальный инструмент; электронным инструментам требуется усилитель.','A musical instrument; electronic instruments require amplification.'],
+ ['gear-flashlight',353,'Перезаряжаемый фонарь: луч до 100 м/ярдов, до 10 часов работы.','Rechargeable flashlight: 100 m/yd beam and up to 10 hours per charge.'],
+ ['gear-food-stick',353,'Сухой питательный батончик на один приём пищи.','A dry food bar equivalent to one meal.'],
+ ['gear-glow-paint',353,'Светящаяся аэрозольная краска для отметок и рисунков.','Glow-in-the-dark spray paint for marking and artwork.'],
+ ['gear-glow-stick',353,'Одноразовый источник света: освещает 4 м/ярда до 10 часов.','Single-use light stick illuminating a 4 m/yd area for up to 10 hours.'],
+ ['gear-grapple-gun',353,'Действием закрепляет крюк на толстом укрытии в пределах 30 м/ярдов. Трос: 10 HP, нагрузка до двойного веса пользователя; движение при лазании не замедляется. Не оружие и не Grab.','As an Action, attaches a grapple to thick cover within 30 m/yd. The line has 10 HP, supports twice the user’s weight, and removes the normal climbing movement penalty. It is not a weapon and cannot make a Grab.'],
+ ['gear-handcuffs',353,'Наручники; персонаж с BODY выше 10 может легко их сломать.','Handcuffs; a character with BODY greater than 10 can break them easily.'],
+ ['gear-homing-tracer',354,'Отслеживает связанный маячок на расстоянии до 1 мили; один маячок включён, замена стоит 50 eb.','Tracks a linked tracer up to one mile away; one tracer is included and replacements cost 50 eb.'],
+ ['gear-inflatable-bed-sleep-bag',354,'Самонадувающийся матрас и тонкий спальный мешок; компактно складываются.','A self-inflating mattress and thin sleeping bag that fold into a compact package.'],
+ ['gear-kibble-pack',354,'Пакет сухого корма, рассчитанный на один приём пищи.','A packet of dry kibble equivalent to one meal.'],
+ ['gear-linear-frame-beta',354,'Подключённая рама повышает BODY до 14; HP и Death Save не меняются. Для работы нужны две установки Interface Plugs.','While connected, the frame raises BODY to 14 without changing HP or Death Save. It requires two installations of Interface Plugs.'],
+ ['gear-linear-frame-sigma',354,'Подключённая рама повышает BODY до 12; HP и Death Save не меняются. На странице книги указаны и одна, и две установки Interface Plugs: согласуйте требование с ведущим.','While connected, the frame raises BODY to 12 without changing HP or Death Save. The book’s page lists both one and two installations of Interface Plugs; agree the requirement with the GM.'],
+ ['gear-lock-picking-set',354,'Набор инструментов для вскрытия механических замков.','A pouch of tools for opening mechanical locks.'],
+ ['gear-medscanner',354,'Даёт +2 к First Aid и Paramedic; несколько сканеров не складывают бонусы. Помогает в медицинских случаях, не требующих Surgery.','Adds +2 to First Aid and Paramedic; multiple scanners do not stack. Assists with medical emergencies that do not require Surgery.'],
+ ['gear-medtech-bag',354,'Медицинский набор инструментов, включая кожные степлеры, искусственную кожу и стерильные скальпели.','Medical toolkit with dermal staplers, spray skin and sterile scalpels.'],
+ ['gear-memory-chips',354,'Носитель для хранения различных видов информации.','A data wafer for storing information in various forms.'],
+ ['gear-mre',354,'Саморазогревающийся пакет одной горячей порции; нагрев занимает около двух минут после добавления воды.','A self-heating single meal; after adding water, it heats in about two minutes.'],
+ ['gear-personal-carepak',354,'Набор предметов личной гигиены и ухода.','A personal hygiene and grooming kit.'],
+ ['gear-pocket-amplifier',354,'Перезаряжаемый усилитель для двух инструментов: звук до 100 м/ярдов, до 6 часов работы.','Rechargeable amplifier for two instruments: sound reaches up to 100 m/yd for up to six hours.'],
+ ['gear-radar-detector',354,'Подаёт сигнал при наличии активного радарного луча в пределах 100 м/ярдов.','Beeps when an active radar beam is present within 100 m/yd.'],
+ ['gear-radio-communicator',354,'Наушник для радиосвязи на расстоянии до 1 мили.','An earpiece for radio communication at a range of one mile.'],
+ ['gear-radio-scanner-music-player',354,'Проигрывает музыку и ищет используемые радиочастоты в пределах мили; некоторые каналы требуют дешифратора.','Plays music and scans active radio bands within one mile; some channels require a descrambler.'],
+ ['gear-road-flare',354,'Одноразовый сигнальный огонь освещает область 100 м/ярдов на 1 час.','A single-use flare illuminates a 100 m/yd area for one hour.'],
+ ['gear-rope-60m-yds',354,'Нейлоновая верёвка длиной 60 м/ярдов, выдерживает до 360 кг.','60 m/yd of nylon rope supporting up to 800 lb (360 kg).'],
+ ['gear-scrambler-descrambler',354,'Шифрует исходящую связь и включает дешифратор для приёма закодированной связи.','Scrambles outgoing communications and includes a descrambler for receiving encoded communications.'],
+ ['gear-smart-glasses',354,'Два слота для опций Cybereye; установленные опции считаются парными. Одновременно можно носить одну пару.','Two slots for Cybereye options; installed options count as paired. Only one pair can be worn at a time.'],
+ ['gear-tech-bag',354,'Набор инструментов для электроники и машин; включает Techtool, детали, термогорелку и ручной инструмент.','Toolkit for electronics and machines; includes a Techtool, parts, a heat torch and hand tools.'],
+ ['gear-techscanner',355,'Даёт +2 к Basic Tech, Cybertech, Land/Sea/Air Vehicle Tech, Electronics/Security Tech и Weaponstech; несколько сканеров не складываются.','Adds +2 to Basic Tech, Cybertech, Land/Sea/Air Vehicle Tech, Electronics/Security Tech and Weaponstech; multiple scanners do not stack.'],
+ ['gear-techtool',355,'Компактный набор для ремонта электроники и машин.','A compact tool kit for fixing electronics and machines.'],
+ ['gear-tent-camping-equipment',355,'Одноместная палатка и самонагревающийся походный котелок.','A one-person tent and self-heating camping pot.'],
+ ['gear-vial-of-biotoxin',355,'Действием нанесите ампулу на лёгкое оружие ближнего боя на 30 минут. Вместо обычного урона живая цель проверяет Resist Torture/Drugs против DV15; провал — 3d6 напрямую в HP, броня не снижается.','Use an Action to apply a vial to a Light Melee Weapon for 30 minutes. Instead of normal damage, a living target must beat DV15 Resist Torture/Drugs; failure deals 3d6 directly to HP without ablating armor.'],
+ ['gear-vial-of-poison',355,'Действием нанесите ампулу на лёгкое оружие ближнего боя на 30 минут. Вместо обычного урона живая цель проверяет Resist Torture/Drugs против DV13; провал — 2d6 напрямую в HP, броня не снижается.','Use an Action to apply a vial to a Light Melee Weapon for 30 minutes. Instead of normal damage, a living target must beat DV13 Resist Torture/Drugs; failure deals 2d6 directly to HP without ablating armor.'],
+ ['gear-video-camera',355,'Ручная камера записывает до 12 часов видео и звука на стандартный Memory Chip.','A handheld camera records up to 12 hours of video and audio to a standard Memory Chip.'],
+ ['gear-virtuality-goggles',355,'Очки проецируют изображение киберпространства поверх окружающего мира.','Goggles project cyberspace imagery over the user’s view of the physical world.'],
+ ['cyberware-contraceptive-implant',362,'Предотвращает нежелательную беременность; внутренняя кибернетика.','Prevents unwanted pregnancy; internal body cyberware.']
+];
+for(const [id,page,ru,en] of coreGearDescriptions){const matches=window.CATALOG.filter(x=>x.id===id);if(matches.length!==1)throw Error('Missing or duplicate core gear: '+id);const item=matches[0];if(item.details?.ru||item.details?.en)throw Error('Core gear description already present: '+id);item.details={ru,en};item.page=page;}
 const seen=new Set(window.CATALOG.map(x=>x.id));for(const e of extra){if(seen.has(e.id))throw Error('Duplicate catalog id: '+e.id);seen.add(e.id);window.CATALOG.push(e)}
 window.CATALOG_EXTRA_COUNT=extra.length;
 })();

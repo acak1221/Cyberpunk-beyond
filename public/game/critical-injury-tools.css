@@ -1,0 +1,5 @@
+.critical-injury-tools { margin: 18px 0; }
+.critical-injury-tools > h3 { margin-top: 20px; }
+.ci-record { border-top: 1px solid var(--border, #48413b); padding: 10px 0; }
+.ci-record p { margin: 5px 0 10px; }
+.ci-record button { margin: 0 8px 6px 0; }
