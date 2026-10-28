@@ -36,13 +36,14 @@ test('missing current patient or a failing current callback blocks medical mutat
  for(const callback of [()=>false,()=>{throw Error('unavailable')}]){const r=m.handle(e,{lang:'en',characters:[c],isCurrent:callback});assert.notEqual(r.dirty,true)}
  assert.equal(prompts,0);assert.equal(JSON.stringify(c),before);
 });
-test('a successful roll survives same-account hydration and can be applied to the current matching patient',()=>{
+test('a successful roll survives same-account hydration when the entire patient snapshot matches',()=>{
  let {m,w,rolls}=setup(),old=patient();old.hp=3;let live=old;
  const options={lang:'en',characters:[old],isCurrent:(candidate,scope)=>candidate===live&&scope==='account-a'};
  m.render(options);rolls.push(0.9,0.4);m.handle(event('stabilize-roll'),options);
  w.confirm=()=>{live=JSON.parse(JSON.stringify(old));return true};let applyEvent=event('stabilize-apply');
  assert.notEqual(m.handle(applyEvent,options).dirty,true);assert.equal(old.extra.medical,undefined);
  const fresh={...options,characters:[live]};assert(m.render(fresh).includes('Confirm successful stabilization'));w.confirm=()=>true;
+ // Identical rehydrated data can use the pending result; changes during confirmation were rejected above.
  assert.equal(m.handle(applyEvent,fresh).dirty,true);assert.equal(live.extra.medical.stabilized,true);assert.equal(old.extra.medical,undefined);
 });
 test('switching the selected patient during confirmation cancels stabilization, reopening, and rest',()=>{

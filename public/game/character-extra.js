@@ -145,6 +145,14 @@
   }
   // Event handlers build a fresh index so edits or duplicate IDs cannot use stale data.
   function attackSpecialization(c,id){return typeof id==='string'&&id&&id.length<=160?attackSpecializationIndex(c).byId.get(id)||null:null}
+  // Pure preflight for sheet rolls: identify the actual STAT before LUCK or ammunition is spent.
+  function rollStatKey(c,action,index){
+    if(action==='roll-native')return 'INT';
+    if(typeof index!=='string'||!/^\d+$/.test(index))return null;const i=Number(index);if(!Number.isSafeInteger(i))return null;
+    if(action==='roll-skill'){const s=Array.isArray(c?.extra?.specializations)?c.extra.specializations[i]:null;return s&&STATS.includes(s.stat||'INT')?(s.stat||'INT'):null}
+    if(action==='attack'){const w=Array.isArray(c?.extra?.weapons)?c.extra.weapons[i]:null;if(!w||typeof w!=='object'||Array.isArray(w))return null;const stat=Object.hasOwn(w,'skillSpecializationId')?attackSpecialization(c,w.skillSpecializationId)?.stat:(w.stat||'REF');return STATS.includes(stat)?stat:null}
+    return null;
+  }
   function weaponSpecField(indexData,w,index,lang){
     const l=language(lang),t=k=>get(l,k),specs=indexData.specs,present=Object.hasOwn(w,'skillSpecializationId'),valid=present&&typeof w.skillSpecializationId==='string'&&indexData.byId.get(w.skillSpecializationId),selected=present?(valid?'s:'+valid.id:'invalid:'):'';
     const invalid=present&&!valid?`<option value="invalid:" selected disabled>${html(t('weaponSpecInvalid'))}</option>`:'';
@@ -245,6 +253,6 @@
     const category=['armor','cyberware'].includes(item.category)?item.category:'equipment';
     const record=addItem(c,{name,category,quantity:1,notes});record.catalogId=String(item.id||'');return {kind:'item',record};
   }
-  window.CharacterExtra={supported,init,render,handle,specializationCost,ipBalance,addItem,addCatalog,advancementOptions,advancementQuote,advance,advancementRoles};
+  window.CharacterExtra={supported,init,render,handle,rollStatKey,specializationCost,ipBalance,addItem,addCatalog,advancementOptions,advancementQuote,advance,advancementRoles};
 })();
 
