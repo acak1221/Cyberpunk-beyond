@@ -43,7 +43,8 @@ function create(options){
  function apply(next){
    // An async refresh must never replace data the SPA has not durably saved.
    if(queue.length||working||draftHold){failClosed();throw Error('unsaved_memory_draft')}
-   try{options.apply(clone(next))}catch(err){failClosed();throw err}
+   let previous;try{previous=clone(options.read())}catch{}
+   try{options.apply(clone(next))}catch(err){if(previous)emergencyDrafts.push(previous);failClosed();throw err}
    show();
  }
  async function start(){

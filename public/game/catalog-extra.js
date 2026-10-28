@@ -21,14 +21,14 @@ function add(id,category,ru,en,price,page,detailRu,detailEn,unitRu,unitEn,stats=
 }
 // Cyberdeck hardware. Each piece normally occupies one hardware slot, except those marked 2.
 const hardware=[
- ['backup-drive','Резервный накопитель','Backup Drive',2,'Хранит уничтоженные не-Black ICE программы для переустановки; 2 слота.','Stores destroyed non-Black ICE programs for reinstallation; 2 slots.'],
- ['dna-lock','Биометрический замок','DNA Lock',2,'Биометрическая блокировка; вскрытие проверкой Electronics/Security Tech DV17; 2 слота.','Biometric lock; bypass with Electronics/Security Tech DV17; 2 slots.'],
- ['hardened-circuitry','Усиленная схемотехника','Hardened Circuitry',1,'Защищает деку от отключения и уничтожения эффектами EMP и программ, кроме Black ICE.','Protects the deck from EMP and non-Black ICE program effects that disable or destroy it.'],
+ ['backup-drive','Резервный накопитель','Backup Drive',2,'Спасает уничтоженные программы Attacker, Defender и Booster, кроме Black ICE. Физическим действием можно переустановить все сохранённые программы, если есть свободные слоты; ограничения на использование в текущем Netrun сохраняются. При извлечении накопителя сохранённые программы стираются.','Saves destroyed non-Black ICE Attacker, Defender and Booster programs. As a Meat Action, reinstall all saved programs if the deck has enough slots; restrictions on use during the current Netrun remain. Removing the drive erases its saved programs.'],
+ ['dna-lock','Биометрический замок','DNA Lock',2,'Доступ к запертой деке возможен по биометрическому ключу или проверкой Electronics/Security Tech DV17. Способ проверки биометрии зависит от модели.','A locked deck requires its biometric key or a DV17 Electronics/Security Tech check for access. The biometric method depends on the model.'],
+ ['hardened-circuitry','Усиленная схемотехника','Hardened Circuitry',1,'Защищает деку от временного отключения, вывода из строя и уничтожения эффектами ЭМИ и программ, кроме Black ICE.','Protects the deck from temporary disabling, being rendered inoperable or destruction by EMP and non-Black ICE program effects.'],
  ['insulated-wiring','Изолированная проводка','Insulated Wiring',1,'Предотвращает возгорание деки или одежды от эффекта программы.','Prevents the deck or clothing catching fire due to a program effect.'],
- ['krash-barrier','Барьер KRASH','KRASH Barrier',2,'Защищает от программ, принудительно вызывающих выход из сети; 2 слота.','Prevents program effects forcing a safe or unsafe Jack Out; 2 slots.'],
+ ['krash-barrier','Барьер KRASH','KRASH Barrier',2,'Защищает от программ, принудительно вызывающих безопасный или небезопасный выход из сети.','Prevents program effects forcing a safe or unsafe Jack Out.'],
  ['range-upgrade','Увеличитель дальности','Range Upgrade',1,'Позволяет подключиться к точке доступа с расстояния до 8 м.','Allows connection to an access point from up to 8 m.']
 ];
-for(const [id,ru,en,slots,dr,de] of hardware)add('deck-'+id,'programs',ru,en,100,368,dr,de,'за модуль','per module',{type:'hardware',slots});
+for(const [id,ru,en,slots,dr,de] of hardware)add('deck-'+id,'programs',ru,en,100,368,`${dr} Занимает ${slots} ${slots===1?'слот':'слота'}; установка или снятие занимает 1 час (стр. 208).`,`${de} Takes ${slots} ${slots===1?'slot':'slots'}; installation or removal takes 1 hour (p. 208).`,'за модуль','per module',{type:'hardware',slots});
 // Program profile: attack, defense and REZ, including one-use restrictions in the synopsis.
 const programs=[
  ['eraser','Eraser','booster',0,0,7,20,368,'+2 ко всем Cloak Checks, пока активна.','+2 to all Cloak Checks while rezzed.'],

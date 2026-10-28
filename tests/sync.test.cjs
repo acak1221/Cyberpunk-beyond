@@ -144,3 +144,82 @@ test('a competing block created during conflict reopening keeps this tab’s dra
  // The storage notification for the competing block must not erase this tab’s retained copy.
  a.ctl.onStorage({key:a.blockKey,newValue:read(a.blockKey)});assert(snapshots().includes('current-draft'));a.ctl.panel={innerHTML:''};a.ctl.paint();assert.match(a.ctl.panel.innerHTML,/data-sync-action="export-previous-local"/);a.ctl.panel=null;a.ctl.dispose();
 });
+test('failed initial cloud installation is retried before any upload',async()=>{
+ const srv=server(),store=storage(),lock=locks(),cloud=st('cloud');srv.rows.set(A,{revision:1,data:cloud});
+ let fail=true;const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes(':before-remote:'))throw Error('quota');write(key,value)};
+ const t=tab(store,lock,srv);const ctl=await t.start();try{
+  assert.equal(ctl.getStatus().kind,'backupError');assert.equal(raw(store),null);assert.deepEqual(srv.rows.get(A).data,cloud);
+  fail=false;await ctl.refresh();await ctl.flush();
+  assert.deepEqual(JSON.parse(raw(store)),cloud);assert.deepEqual(srv.rows.get(A).data,cloud);assert.equal(srv.putCount,0);
+ }finally{ctl.dispose()}
+});
+test('failed initial cloud installation survives reload and later retries safely',async()=>{
+ for(const failure of ['archive','apply']){
+  const srv=server(),store=storage(),lock=locks(),cloud=st('cloud');srv.rows.set(A,{revision:1,data:cloud});let fail=true;
+  const write=store.setItem;store.setItem=(key,value)=>{if(fail&&failure==='archive'&&key.includes(':before-remote:'))throw Error('quota');write(key,value)};
+  const first=tab(store,lock,srv,{apply:()=>{if(fail&&failure==='apply')throw Error('render_failed')}}),a=await first.start();
+  try{assert.equal(a.getStatus().kind,failure==='archive'?'backupError':'badData');assert.equal(raw(store),null);assert.deepEqual(srv.rows.get(A).data,cloud)}finally{a.dispose()}
+  fail=false;const second=tab(store,lock,srv),b=await second.start();try{await b.flush();assert.deepEqual(JSON.parse(raw(store)),cloud);assert.deepEqual(srv.rows.get(A).data,cloud);assert.equal(srv.putCount,0)}finally{b.dispose()}
+ }
+});
+test('metadata failure after initial installation keeps the cloud snapshot recoverable',async()=>{
+ const srv=server(),store=storage(),cloud=st('cloud');srv.rows.set(A,{revision:1,data:cloud});let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.startsWith('nightcity-red-sync-v1:'))throw Error('quota');write(key,value)};
+ const t=tab(store,locks(),srv),ctl=await t.start();try{
+  assert.equal(ctl.getStatus().kind,'backupError');assert.deepEqual(JSON.parse(raw(store)),cloud);assert.deepEqual(srv.rows.get(A).data,cloud);
+  fail=false;await ctl.refresh();await ctl.flush();assert.equal(ctl.getStatus().kind,'synced');assert.deepEqual(srv.rows.get(A).data,cloud);assert.equal(srv.putCount,0);
+ }finally{ctl.dispose()}
+});
+test('failed initial backup exposes retry and initializes only after storage recovers',async()=>{
+ const srv=server(),store=storage(),base={...st('local'),future:{nested:['preserve']}};store.setItem('nightcity-red-v1',JSON.stringify(base));let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes('original-legacy'))throw Error('quota');write(key,value)};
+ const root={appendChild(el){this.child=el}},t=tab(store,locks(),srv,{mount:root});t.window.document={createElement(){return {innerHTML:'',addEventListener(){},remove(){}}}};const ctl=await t.start();try{
+  assert.equal(ctl.getStatus().kind,'backupError');assert(root.child);assert.match(root.child.innerHTML,/data-sync-action="retry"/);
+  assert.deepEqual(JSON.parse(raw(store)),base);assert.equal(srv.putCount,0);fail=false;await ctl.refresh();await ctl.flush();
+  assert.deepEqual(srv.rows.get(A).data,base);assert.equal(ctl.getStatus().kind,'synced');
+ }finally{ctl.dispose()}
+});
+test('failed local installation preserves future fields until successful retry',async()=>{
+ const srv=server(),store=storage(),cloud={...st('cloud'),future:{nested:['one',{two:2}]},format:'custom',version:42};srv.rows.set(A,{revision:1,data:cloud});let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key==='nightcity-red-v1')throw Error('quota');write(key,value)};
+ const t=tab(store,locks(),srv),ctl=await t.start();try{
+  assert.equal(ctl.getStatus().kind,'backupError');assert.equal(raw(store),null);assert.deepEqual(srv.rows.get(A).data,cloud);
+  fail=false;await ctl.refresh();await ctl.flush();assert.deepEqual(JSON.parse(raw(store)),cloud);assert.deepEqual(srv.rows.get(A).data,cloud);assert.equal(srv.putCount,0);
+ }finally{ctl.dispose()}
+});
+test('retrying a failed initial backup honors an existing conflict before syncing',async()=>{
+ const srv=server(),store=storage(),base=st('local'),other=st('draft'),blockKey='nightcity-red-sync-block-v1:'+encodeURIComponent(A);store.setItem('nightcity-red-v1',JSON.stringify(base));store.setItem('nightcity-red-sync-owner-v1',A);store.setItem(blockKey,JSON.stringify({kind:'tab',local:other,remote:base,observedRaw:raw(store),blockScope:A}));let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes('original-legacy'))throw Error('quota');write(key,value)};
+ const t=tab(store,locks(),srv),ctl=await t.start();try{assert.equal(ctl.getStatus().kind,'backupError');fail=false;await ctl.refresh();assert.equal(ctl.getStatus().kind,'conflict');assert.equal(ctl.scope,A);assert.equal(ctl.getConflict().local.characters[0].id,'draft');assert.equal(srv.putCount,0)}finally{ctl.dispose()}
+});
+test('retry after initial backup failure detects another tab before admitting edits',async()=>{
+ const srv=server(),store=storage(),lock=locks(),base=st('base'),newer={...st('other-tab'),future:{keep:true}};srv.rows.set(A,{revision:1,data:base});store.setItem('nightcity-red-sync-owner-v1',A);store.setItem('nightcity-red-v1',JSON.stringify(base));let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes('original-legacy'))throw Error('quota');write(key,value)};
+ const t=tab(store,lock,srv);t.set(base);const ctl=await t.start();try{
+  assert.equal(ctl.getStatus().kind,'backupError');store.setItem('nightcity-red-v1',JSON.stringify(newer));srv.rows.set(A,{revision:2,data:newer});fail=false;await ctl.refresh();
+  assert.equal(ctl.getStatus().kind,'conflict');assert.equal(ctl.getConflict().local.characters[0].id,'base');assert.equal(ctl.getConflict().remote.future.keep,true);
+  assert.equal((await ctl.save(base)).ok,false);assert.deepEqual(JSON.parse(raw(store)),newer);assert.equal(srv.putCount,0);
+  const original=store.entries().find(([key])=>key.includes('original-legacy'));assert.deepEqual(JSON.parse(JSON.parse(original[1]).raw),base);
+ }finally{ctl.dispose()}
+});
+test('retry after initial backup failure treats owner changes as account conflict',async()=>{
+ const srv=server(),store=storage(),lock=locks(),base=st('old-owner'),current=st('new-owner-local'),cloud=st('new-owner-cloud');store.setItem('nightcity-red-sync-owner-v1',A);store.setItem('nightcity-red-v1',JSON.stringify(base));let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes('original-legacy'))throw Error('quota');write(key,value)};
+ const t=tab(store,lock,srv);t.set(base);const ctl=await t.start();try{
+  store.setItem('nightcity-red-sync-owner-v1',B);store.setItem('nightcity-red-v1',JSON.stringify(current));srv.scope=B;srv.rows.set(B,{revision:1,data:cloud});fail=false;await ctl.refresh();
+  assert.equal(ctl.getStatus().kind,'account');assert.equal(ctl.getConflict().kind,'account');assert.equal(ctl.getConflict().local.characters[0].id,'old-owner');
+  assert.equal(JSON.parse(ctl.preservedExports(0).remote)._completeSnapshot.characters[0].id,'new-owner-local');
+  assert.equal(srv.putCount,0);assert.deepEqual(JSON.parse(raw(store)),current);
+  const backup=store.entries().find(([key])=>key.includes('original-legacy'));assert.equal(JSON.parse(backup[1]).scope,A);assert.deepEqual(JSON.parse(JSON.parse(backup[1]).raw),base);
+ }finally{ctl.dispose()}
+});
+test('existing block after failed original backup exposes the original open data even after reload',async()=>{
+ const srv=server(),store=storage(),lock=locks(),base=st('a-open'),current=st('b-local'),other=st('b-other'),blockKey='nightcity-red-sync-block-v1:'+encodeURIComponent(B);store.setItem('nightcity-red-sync-owner-v1',A);store.setItem('nightcity-red-v1',JSON.stringify(base));let fail=true;
+ const write=store.setItem;store.setItem=(key,value)=>{if(fail&&key.includes('original-legacy'))throw Error('quota');write(key,value)};
+ const t=tab(store,lock,srv);t.set(base);const ctl=await t.start();try{
+  store.setItem('nightcity-red-sync-owner-v1',B);store.setItem('nightcity-red-v1',JSON.stringify(current));store.setItem(blockKey,JSON.stringify({kind:'tab',local:other,remote:current,observedRaw:raw(store),blockScope:B}));srv.scope=B;fail=false;await ctl.refresh();
+  assert.equal(ctl.getStatus().kind,'conflict');assert.equal(JSON.parse(ctl.preservedExports(0).local)._completeSnapshot.characters[0].id,'a-open');assert.equal(JSON.parse(ctl.preservedExports(0).remote)._completeSnapshot.characters[0].id,'b-local');
+  assert.equal(srv.putCount,0);assert.deepEqual(JSON.parse(raw(store)),current);
+ }finally{ctl.dispose()}
+ const again=tab(store,lock,srv);again.set(current);const next=await again.start();try{assert.equal(JSON.parse(next.preservedExports(0).local)._completeSnapshot.characters[0].id,'a-open');assert.equal(srv.putCount,0)}finally{next.dispose()}
+});

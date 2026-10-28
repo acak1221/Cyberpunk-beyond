@@ -58,3 +58,14 @@ test('scope observers are notified after startup and immediately when account ac
  const adapter=win.SyncAdapter.create({app:node(),mount:node(),status:node(),language:()=> 'en',read:()=>({characters:[],campaigns:[]}),apply(){},onScopeChange:s=>changes.push(s)});
  await adapter.start();assert.deepEqual(changes,[scope]);current={kind:'pending'};hook.onStatus(current);assert.deepEqual(changes,[scope]);current={kind:'signedout'};hook.onStatus(current);assert.deepEqual(changes,[scope,null]);
 });
+test('failed apply preserves the pre-apply snapshot, downloads it, and permits explicit recovery',async()=>{
+ const scope='test-account-123456',app=node(),mount=node(),status=node(),blobs=[],before={characters:[],campaigns:[],future:{note:'before'}},changed={characters:[],campaigns:[],future:{note:'partially applied'}};let model=structuredClone(before),hooks,fail=true;
+ const controller={scope,getStatus:()=>({kind:'synced'}),getConflict:()=>null,refresh(){}};
+ const win={localStorage:{getItem:k=>k==='nightcity-red-sync-owner-v1'?scope:null},addEventListener(){},CloudSync:{start:async h=>{hooks=h;return controller}}};
+ vm.runInNewContext(source,{window:win,document:{querySelector(){return null},createElement(){return {click(){}}}},Blob,URL:{createObjectURL(b){blobs.push(b);return 'blob:draft'},revokeObjectURL(){}},setTimeout:()=>0,clearTimeout(){},confirm:()=>true});
+ const adapter=win.SyncAdapter.create({app,mount,status,language:()=> 'en',read:()=>model,apply:value=>{model=structuredClone(value);if(fail)throw Error('render_failed')}});await adapter.start();
+ assert.throws(()=>hooks.apply(changed),/render_failed/);assert.equal(adapter.canEdit(),false);assert.equal(adapter.hasDraft(),true);
+ const click=action=>status.listeners.click({target:{closest:()=>({dataset:{adapterAction:action}})}});click('download');const file=JSON.parse(await blobs[0].text());
+ assert.equal(file.unpersistedDrafts[0].future.note,'before');assert.equal(file.unpersistedDrafts.at(-1).future.note,'partially applied');
+ click('review');fail=false;hooks.apply(changed);hooks.onStatus({kind:'synced'});assert.equal(adapter.canEdit(),true);assert.equal(model.future.note,'partially applied');
+});
