@@ -283,3 +283,64 @@ const traumaReferenceRows = [
 for (const [id,page,ruTitle,enTitle,ruText,enText] of traumaReferenceRows) {
   window.RULES.push({id,page,category:{ru:'Лечение',en:'Healing'},title:{ru:ruTitle,en:enTitle},text:{ru:ruText,en:enText}});
 }
+// Improvement Point awards: Corebook v1.22, pp. 409–411.
+const ipAwardRows = [
+  [10,
+   ['Миссия не выполнена, но группа доблестно старалась.','Mission failed, but the group tried valiantly.'],
+   ['Часто использовал боевые навыки, пусть и без выдающегося результата.','Used combat skills often, even without exceptional effect.'],
+   ['Поддерживал и помогал группе в игре или вне игры.','Was a supportive and helpful part of the group, in or out of game.'],
+   ['Часто пытался исследовать мир или ситуацию, пусть и без выдающегося результата.','Often attempted investigation or exploration, even without exceptional effect.'],
+   ['Часто пытался отыгрывать персонажа.','Often attempted to roleplay the character.']],
+  [20,
+   ['Группа едва выполнила цели миссии.','The group barely accomplished the mission goals.'],
+   ['Часто и эффективно применял боевые навыки, нередко побеждая важных противников.','Used combat skills often and effectively, often taking out important opponents.'],
+   ['Поддержка помогала единству игроков и команды, например заметки или подборка цитат.','Support helped player or party cohesion, for example game notes or quote lists.'],
+   ['Эффективно исследовал, узнавая новое о мире или ситуации.','Used exploration effectively to learn about the world or situation.'],
+   ['Постоянно отыгрывал персонажа, нередко эффективно.','Roleplayed in character all the time, often effectively.']],
+  [30,
+   ['Группа хорошо работала вместе, выполнила большинство целей, и все участвовали в приключении.','The group worked well together, achieved most mission goals, and everyone participated.'],
+   ['Часто и эффективно применял боевые навыки, побеждая опаснейших противников в столкновении.','Frequently and effectively used combat skills to defeat the most dangerous opponents in a combat challenge.'],
+   ['Частая и эффективная поддержка помогала единству команды, например рисунки персонажей или подробные дневники.','Frequent, effective support helped party cohesion, such as character pictures or extensive diaries.'],
+   ['Часто и эффективно исследовал и расследовал ради личных и групповых целей.','Frequently and effectively explored or investigated to advance personal and group goals.'],
+   ['Часто и эффективно достигал целей отыгрышем, действуя вместо броска.','Frequently and effectively achieved goals by roleplaying, acting rather than rolling.']],
+  [40,
+   ['Группа хорошо выполнила большинство целей миссии и показала сильное сотрудничество.','The group accomplished most mission goals well and showed strong cooperation.'],
+   ['Необычно использовал боевые навыки и победил противника неожиданным способом.','Used combat skills in an unusual way to defeat an opponent unexpectedly.'],
+   ['Необычным действием воодушевил команду или помог ей, например подробным дневником или особым событием.','Did something unusual to encourage or help the group, such as extensive diaries or special events.'],
+   ['Благодаря исследованию и расследованию обнаружил нечто необычное или исключительное.','Discovered something unusual or exceptional through exploration and investigation.'],
+   ['Необычно проявил себя в отыгрыше, например находчивой речью или взаимодействием.','Did something unusual in roleplay, such as a clever speech or in-game interaction.']],
+  [50,
+   ['Группа исключительно хорошо выполнила большинство целей и показала несколько ярких моментов.','The group accomplished most mission goals extremely well, with a few stellar moments.'],
+   ['Очень эффективно или находчиво применил бой, победив нескольких противников неожиданными способами.','Used combat skills very effectively or cleverly to defeat several opponents in unexpected ways.'],
+   ['Очень эффективно или находчиво помог всей группе или поддержал её.','Did something very effective or clever to encourage or help the whole group.'],
+   ['Очень эффективно или находчиво исследовал и нашёл важного человека, место, улику или предмет.','Used investigation or exploration very effectively or cleverly to uncover an important person, place, clue, or thing.'],
+   ['Очень эффективно или находчиво отыграл, создав важное взаимодействие или момент.','Roleplayed very effectively or cleverly, creating an important interaction or moment.']],
+  [60,
+   ['Миссия стала большим успехом: группа выполнила все цели и показала несколько ярких моментов.','The mission was a strong success: the group achieved every mission goal with several stellar moments.'],
+   ['Боевые навыки были решающими для персонажа: он в одиночку победил главного противника или давнего врага.','Combat was critical for the character, who defeated a major opponent or long-term nemesis single-handedly.'],
+   ['Поддержка игрока была очень важна для совместного достижения целей группы.','The player’s support was very important to helping the group work together toward its goals.'],
+   ['Расследование или исследование важного человека, места, улики или предмета было решающим для персонажа.','Investigation or exploration uncovered a person, place, clue, or thing critical to the character.'],
+   ['Убедительный отыгрыш был решающим для игрока и изменил личный исход игры.','Convincing roleplay was critical to the player, changing their personal game outcome.']],
+  [70,
+   ['Миссия прошла с оглушительным успехом: все цели и несколько побочных целей выполнены при сильной командной работе.','The mission was a resounding success: all goals and several side goals were achieved with strong teamwork.'],
+   ['Бой персонажа был решающим для всей группы: без него команда потерпела бы полное поражение.','The character’s combat was critical to the whole party; without their help it would have been totally defeated.'],
+   ['Поддержка игрока была решающей для совместного достижения групповых целей.','The player’s support was critical to helping the group work together toward its goals.'],
+   ['Расследование или исследование было решающим для всей группы.','Investigation or exploration was critical to the entire party.'],
+   ['Убедительный отыгрыш был решающим для всей группы и изменил общий исход игры.','Convincing roleplay was critical to the entire party, changing the overall game outcome.']],
+  [80,
+   ['Миссия стала легендарной: выполнены все основные и побочные цели при исключительном сотрудничестве.','The mission was legendary: all mission and side goals were achieved with exceptional cooperation.'],
+   ['Совершил нечто невероятное в бою: победил невозможного противника или спас всю группу.','Did something incredible in combat, such as defeating an impossible enemy or saving the whole party.'],
+   ['Совершил нечто невероятное, поддержав команду и помогая ей достичь целей.','Did something incredible to support the group and help it achieve its goals.'],
+   ['Исследование или расследование привело к поистине невероятному открытию.','Exploration or investigation uncovered something truly incredible.'],
+   ['Совершил нечто невероятное отыгрышем, например героической речью или исключительным влиянием на исход игры.','Did something incredible in roleplay, such as a heroic speech or amazing influence on the outcome.']]
+];
+window.RULES.push({id:'ip-award-method',page:410,category:{ru:'Развитие',en:'Advancement'},title:{ru:'Начисление очков развития IP',en:'Awarding Improvement Points'},text:{
+ ru:'После каждой игровой сессии ведущий начисляет IP каждому игроку. Если миссия завершилась успехом или неудачей, обычно используют колонку «Группа»; если не завершилась — основной или вторичный стиль игрока. Выдающееся достижение в другом стиле может дать больше. Это выбор подходящей награды, а не сумма всех колонок. На стр. 409 предлагается выбрать пять игровых предпочтений: стиль с большинством выборов — основной, следующий — вторичный.',
+ en:'After each session the GM awards each player IP. If the mission ended, successfully or not, normally use the Group column; if unfinished, use the player’s primary or secondary style. An outstanding achievement in another style can award more. Choose the applicable award rather than adding the columns. Page 409 suggests choosing five gameplay preferences: the style with most choices is primary, the next is secondary.'
+}});
+for (const [points,group,warrior,socializer,explorer,roleplayer] of ipAwardRows) {
+  window.RULES.push({id:`ip-award-${points}`,page:points<=50?410:411,category:{ru:'Развитие',en:'Advancement'},title:{ru:`Начисление IP: ${points}`,en:`IP award: ${points}`},text:{
+    ru:`Группа: ${group[0]} Воин: ${warrior[0]} Социализатор: ${socializer[0]} Исследователь: ${explorer[0]} Ролевик: ${roleplayer[0]}`,
+    en:`Group: ${group[1]} Warrior: ${warrior[1]} Socializer: ${socializer[1]} Explorer: ${explorer[1]} Roleplayer: ${roleplayer[1]}`
+  }});
+}
