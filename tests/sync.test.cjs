@@ -19,6 +19,54 @@ test('both nonempty: conflict survives reload, neither version is overwritten',a
 test('choose local only after reviewing conflict',async()=>{const srv=server(),store=storage();store.setItem('nightcity-red-v1',JSON.stringify(st('local')));srv.rows.set(A,{revision:2,data:st('cloud')});const {ctl}=await started(srv,store);assert.equal((await ctl.resolve('local')).ok,true);await ctl.flush();assert.equal(srv.rows.get(A).data.characters[0].id,'local');assert.equal(srv.rows.get(A).revision,3);ctl.dispose()});
 test('response lost after commit is reconciled without a second PUT',async()=>{const srv=server(),store=storage();store.setItem('nightcity-red-v1',JSON.stringify(st('local')));const {ctl}=await started(srv,store);srv.drop=true;await ctl.flush();assert.equal(ctl.getStatus().kind,'unknown');assert.equal(srv.putCount,1);await ctl.refresh();assert.equal(ctl.getStatus().kind,'synced');await ctl.flush();assert.equal(srv.putCount,1);ctl.dispose()});
 test('offline queue saves locally, then sends after reconnect',async()=>{const srv=server();srv.rows.set(A,{revision:1,data:st('base')});const store=storage();store.setItem('nightcity-red-v1',JSON.stringify(st('base')));const {ctl}=await started(srv,store);srv.offline=true;assert.equal((await ctl.save(st('offline'))).ok,true);await ctl.flush();assert(['offline','unknown'].includes(ctl.getStatus().kind));assert.equal(JSON.parse(raw(store)).characters[0].id,'offline');srv.offline=false;await ctl.refresh();await ctl.flush();assert.equal(srv.rows.get(A).data.characters[0].id,'offline');ctl.dispose()});
+test('refresh does not silently accept another tab write whose storage event is still queued',async()=>{
+ const srv=server(),store=storage(),base=st('base'),newer=st('other-tab');store.setItem('nightcity-red-v1',JSON.stringify(base));srv.rows.set(A,{revision:1,data:base});
+ const t=tab(store,locks(),srv);t.set(base);const ctl=await t.start();store.setItem('nightcity-red-v1',JSON.stringify(newer));await ctl.refresh();
+ assert.equal(ctl.getStatus().kind,'conflict');assert.equal(t.get().characters[0].id,'base');assert.equal(ctl.getConflict().local.characters[0].id,'base');assert.equal(ctl.getConflict().remote.characters[0].id,'other-tab');
+ assert.equal(JSON.parse(raw(store)).characters[0].id,'other-tab');assert.equal(srv.putCount,0);ctl.dispose();
+});
+test('clean adapter tab with a delayed storage event retains both snapshots during refresh',async()=>{
+ const srv=server(),store=storage(),lock=locks(),base=st('base'),newer=st('other-tab');
+ store.setItem('nightcity-red-v1',JSON.stringify(base));srv.rows.set(A,{revision:1,data:base});
+ const adapterCode=fs.readFileSync(__dirname+'/../public/game/sync-adapter.js','utf8');
+ function integrated(){
+  let model=structuredClone(base);const listeners={};
+  const element=()=>({inert:false,innerHTML:'',setAttribute(){},addEventListener(){},querySelector(){return null}});
+  const window={localStorage:store,navigator:{locks:lock},crypto,fetch:(...args)=>srv.fetch(...args),addEventListener:(name,fn)=>{listeners[name]=fn},removeEventListener(){}};
+  const ctx=vm.createContext({window,document:{querySelector(){return null}},setTimeout,clearTimeout,URL,Blob,CustomEvent:class{},console});
+  vm.runInContext(code,ctx);vm.runInContext(adapterCode,ctx);
+  const adapter=window.SyncAdapter.create({app:element(),mount:element(),status:element(),language:()=> 'en',read:()=>model,apply:value=>{model=value}});
+  return {adapter,listeners,set:value=>{model=value},get:()=>model};
+ }
+ const first=integrated(),second=integrated(),firstSync=await first.adapter.start(),secondSync=await second.adapter.start();
+ assert.equal(first.adapter.canEdit(),true);assert.equal(second.adapter.canEdit(),true);
+ first.set(newer);assert.equal((await first.adapter.save(newer)).ok,true);const updated=raw(store);
+ // No storage callback has reached the clean second tab when it starts refresh.
+ assert.equal(second.get().characters[0].id,'base');assert.equal(second.adapter.hasQueued(),false);assert.equal(second.adapter.hasDraft(),false);
+ await secondSync.refresh();
+ assert.equal(secondSync.getStatus().kind,'conflict');assert.equal(second.adapter.canEdit(),false);
+ assert.equal(secondSync.getConflict().local.characters[0].id,'base');assert.equal(secondSync.getConflict().remote.characters[0].id,'other-tab');
+ assert.equal(second.get().characters[0].id,'base');assert.equal(raw(store),updated);assert.equal(srv.putCount,0);
+ // Delivery after refresh must not silently replace either side or permit a stale save.
+ second.listeners.storage({key:'nightcity-red-v1',newValue:updated});
+ assert.equal(secondSync.getConflict().local.characters[0].id,'base');assert.equal(secondSync.getConflict().remote.characters[0].id,'other-tab');
+ assert.equal(raw(store),updated);assert.equal(srv.putCount,0);
+ firstSync.dispose();secondSync.dispose();
+});
+test('refresh retries when a different tab writes after reading but before acquiring the local lock',async()=>{
+ const srv=server(),store=storage(),base=st('base'),newer=st('other-tab'),underlying=locks();let inject=false;
+ const lock={request(name,opts,fn){return underlying.request(name,opts,async()=>{if(inject&&name==='nightcity-red:local'){inject=false;store.setItem('nightcity-red-v1',JSON.stringify(newer));store.setItem('nightcity-red-sync-cache-v1:'+encodeURIComponent(A),JSON.stringify(newer))}return fn()})}};
+ store.setItem('nightcity-red-v1',JSON.stringify(base));srv.rows.set(A,{revision:1,data:base});const t=tab(store,lock,srv);t.set(base);const ctl=await t.start();inject=true;await ctl.refresh();
+ assert.equal(ctl.getStatus().kind,'conflict');assert.equal(t.get().characters[0].id,'base');assert.equal(ctl.getConflict().local.characters[0].id,'base');assert.equal(ctl.getConflict().remote.characters[0].id,'other-tab');
+ assert.equal(JSON.parse(raw(store)).characters[0].id,'other-tab');assert.equal(JSON.parse(store.getItem('nightcity-red-sync-cache-v1:'+encodeURIComponent(A))).characters[0].id,'other-tab');assert.equal(srv.putCount,0);ctl.dispose();
+});
+test('first account verification preserves a competing write made while the local lock was pending',async()=>{
+ const srv=server(),store=storage(),base=st('base'),newer=st('other-tab'),underlying=locks();let inject=true;
+ const lock={request(name,opts,fn){return underlying.request(name,opts,async()=>{if(inject&&name==='nightcity-red:local'){inject=false;store.setItem('nightcity-red-v1',JSON.stringify(newer))}return fn()})}};
+ store.setItem('nightcity-red-v1',JSON.stringify(base));const t=tab(store,lock,srv);t.set(base);const ctl=await t.start();
+ assert.equal(ctl.getStatus().kind,'conflict');assert.equal(t.get().characters[0].id,'base');assert.equal(ctl.getConflict().local.characters[0].id,'base');assert.equal(ctl.getConflict().remote.characters[0].id,'other-tab');
+ assert.equal(JSON.parse(raw(store)).characters[0].id,'other-tab');assert.equal(srv.putCount,0);ctl.dispose();
+});
 test('racing tabs do not overwrite legacy; conflict survives reload',async()=>{const srv=server(),store=storage(),lock=locks();store.setItem('nightcity-red-v1',JSON.stringify(st('base')));srv.rows.set(A,{revision:1,data:st('base')});let a=await started(srv,store,lock),b=await started(srv,store,lock);await a.ctl.save(st('first'));const result=await b.ctl.save(st('second'));assert.equal(result.reason,'tab_conflict');assert.equal(JSON.parse(raw(store)).characters[0].id,'first');a.ctl.dispose();b.ctl.dispose();let c=await started(srv,store,lock);assert.equal(c.ctl.getStatus().kind,'conflict');assert.equal(c.ctl.getConflict().kind,'tab');assert.equal((await c.ctl.resolve('mine')).ok,true);assert.equal(JSON.parse(raw(store)).characters[0].id,'second');c.ctl.dispose()});
 test('account switch cannot upload previous account data',async()=>{const srv=server(),store=storage();store.setItem('nightcity-red-v1',JSON.stringify(st('account-a')));srv.rows.set(A,{revision:1,data:st('account-a')});srv.rows.set(B,{revision:1,data:st('account-b')});const {ctl}=await started(srv,store);srv.scope=B;await ctl.refresh();assert.equal(ctl.getStatus().kind,'account');assert.equal((await ctl.resolve('local')).reason,'account_switch');assert.equal(srv.putCount,0);assert.equal((await ctl.resolve('remote')).ok,true);assert.equal(JSON.parse(raw(store)).characters[0].id,'account-b');assert.equal(srv.rows.get(B).data.characters[0].id,'account-b');ctl.dispose()});
 test('server scope guard stops account switch between GET and PUT',async()=>{const srv=server(),store=storage();store.setItem('nightcity-red-v1',JSON.stringify(st('private-a')));const {ctl}=await started(srv,store);srv.flipOnPut=B;await ctl.flush();assert.equal(srv.rows.get(B),undefined);assert.equal(ctl.getStatus().kind,'account');ctl.dispose()});

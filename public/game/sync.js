@@ -82,13 +82,16 @@ class Sync {
   try{const preserved=[...(Array.isArray(previous.preserved)?previous.preserved:[]),{local:previous.local,remote:previous.remote}],next={kind:'tab',local:mine,remote:other,observedRaw:raw,preserved};this.conflict=null;this.setConflict(next);this.retainedConflicts=this.conflict===next?[]:[...preserved,{local:mine,remote:other}]}catch{this.conflict=previous;this.retainedConflicts=[];this.set('backupError');return}
   this.set('conflict');
  }
- async refresh(){if(this.disposed||!this.ensure())return;if(this.conflict){this.paint();return}try{return await this.lock('sync',()=>this.refreshLocked())}catch{this.set('error')}}
+ async refresh(){if(this.disposed||!this.ensure())return;if(this.conflict){this.paint();return}try{for(let attempt=0;attempt<3;attempt++){const result=await this.lock('sync',()=>this.refreshLocked());if(result!=='retry_local')return result}this.set('error',this.t('stale'))}catch{this.set('error')}}
  async refreshLocked(){if(this.disposed)return;if(this.scope&&global.localStorage.getItem(OWNER)!==this.scope){this.set('account');return}let blocked;try{blocked=this.readBlock(global.localStorage.getItem(OWNER));if(blocked){this.conflict=blocked;this.set(blocked.kind==='account'?'account':'conflict');return}}catch{this.set('error',this.t('invalid'));return}let remote;this.set('connecting');try{remote=await this.get()}catch(e){this.statusError(e);return}
  let owner=global.localStorage.getItem(OWNER),raw=getRaw(),local;if(this.scope&&owner!==this.scope){this.set('account');return}try{local=parseRaw(raw)}catch{this.set('error',this.t('invalid'));return}
  if(owner&&owner!==remote.scope){this.scope=remote.scope;this.setConflict({kind:'account',local,remote:remote.data||clean(BLANK),remoteRevision:remote.revision,scope:remote.scope,observedRaw:raw});this.set('account');return}
- this.scope=remote.scope;
- try{await this.lock('local',async()=>{let ownerNow=global.localStorage.getItem(OWNER);if(owner?ownerNow!==owner:ownerNow&&ownerNow!==remote.scope)throw Error('owner_changed');this.immutableLegacy(remote.scope,raw);if(!ownerNow)global.localStorage.setItem(OWNER,remote.scope)})}catch(e){if(e.message==='owner_changed'){this.set('account');return}this.set('backupError');return}
- this.seenRaw=raw;try{this.putCache(this.scope,local)}catch{this.set('backupError');return}let m=this.meta();
+ // A refresh may run before a queued storage event, including during the
+ // first account verification. Do not silently advance past another tab's
+ // write while the open model still contains older data.
+ if(raw!==this.seenRaw&&(!this.scope||owner===this.scope)){this.onStorage({key:LEGACY,newValue:raw});if(this.conflict||this.seenRaw!==raw)return;}
+ try{await this.lock('local',async()=>{let ownerNow=global.localStorage.getItem(OWNER);if(owner?ownerNow!==owner:ownerNow&&ownerNow!==remote.scope)throw Error('owner_changed');if(getRaw()!==raw)throw Error('local_changed');this.immutableLegacy(remote.scope,raw);if(!ownerNow)global.localStorage.setItem(OWNER,remote.scope);this.putCache(remote.scope,local);this.seenRaw=raw})}catch(e){if(e.message==='owner_changed'){this.set('account');return}if(e.message==='local_changed')return 'retry_local';this.set('backupError');return}
+ this.scope=remote.scope;if(getRaw()!==raw)return 'retry_local';let m=this.meta();
  if(!m){m={scope:this.scope,revision:remote.revision,base:remote.data,pending:null};
    if(nonempty(local)&&nonempty(remote.data)&&!equal(local,remote.data)){try{this.setConflict({kind:'cloud',local,remote:remote.data,remoteRevision:remote.revision,scope:this.scope,observedRaw:raw});this.putMeta(m)}catch{this.set('backupError');return}this.set('conflict');return}
    try{this.putMeta(m)}catch{this.set('backupError');return}

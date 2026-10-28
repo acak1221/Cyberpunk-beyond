@@ -22,6 +22,10 @@ Object.assign(T.ru,{starterIntro:'Можно использовать подхо
 Object.assign(T.en,{starterIntro:'Compatible starter-package ammunition and confirmed purchases can be used.',recognize:'Recognize older starter ammunition',recognizeConfirm:'Verify each quantity is the rounds still outside the magazine after all earlier manual loading. Quantities will not change and no ammunition will be added. Confirm recognition?',recognizeDone:'Starter ammunition recognized; quantities were not changed.'});
 Object.assign(T.ru,{intro:'Выберите стандартное оружие и подходящие боеприпасы. Перезаряжается только пустой магазин полностью, одним типом боеприпасов; частично заполненный или нестандартный учтите вручную (стр. 170, 174, 344–346).',empty:'Подходящее оружие или подтверждённые боеприпасы не найдены.'});
 Object.assign(T.en,{intro:'Select a standard weapon and compatible ammunition. Only an empty magazine is fully reloaded with one ammunition type; handle partly loaded or nonstandard weapons manually (pp. 170, 174, 344–346).',empty:'No eligible weapon or verified ammunition was found.'});
+Object.assign(T.ru,{unload:'Вернуть остаток в запас',unloadHint:'Остаток из последней подтверждённой перезарядки можно перенести обратно в исходную запись запаса. Сначала убедитесь, что в магазине всё ещё указанный тип патронов и остаток не был уже учтён в запасе. После этого можно выбрать полный магазин для замены; затраты действий и порядок обращения с магазинами согласуйте с ведущим.',unloadReady:'Вернётся в запас',unloadConfirm:'Вернуть остаток в указанную запись запаса? Подтвердите, что содержимое магазина соответствует последней перезарядке и этот остаток ещё не учтён в запасе.',unloadDone:'Остаток перенесён в запас; магазин отмечен пустым.',unloadUnavailable:'Для безопасного переноса нужна последняя подтверждённая перезарядка, сохранившаяся исходная запись патронов и корректный остаток. Иначе учитывайте смену магазина вручную.'});
+Object.assign(T.en,{unload:'Return remaining rounds to stock',unloadHint:'Remaining rounds from the last confirmed reload can be returned to their original stock entry. First verify the magazine still contains that ammunition type and these rounds are not already in stock. You may then select a full replacement magazine; agree action costs and magazine handling with the GM.',unloadReady:'Rounds returned to stock',unloadConfirm:'Return the remaining rounds to this stock entry? Confirm the magazine still contains the ammunition from the last reload and those rounds are not already counted in stock.',unloadDone:'Remaining rounds returned to stock; the magazine is marked empty.',unloadUnavailable:'A matching last confirmed reload, its original ammunition record, and a valid remaining count are required. Otherwise track the magazine change manually.'});
+Object.assign(T.ru,{unloadRecorded:'Остаток этой перезарядки уже возвращён в запас.'});
+Object.assign(T.en,{unloadRecorded:'The remaining rounds from this reload have already been returned to stock.'});
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const text=lang=>T[lang==='en'?'en':'ru'];
 const validId=x=>typeof x==='string'&&x.length>0&&x.length<=160;
@@ -32,7 +36,7 @@ function key(c){return scope&&validId(c?.id)?JSON.stringify([scope,c.id]):null}
 function draft(c){const k=key(c);if(!k)return null;if(!drafts.has(k))drafts.set(k,{weapon:'',ammo:''});return drafts.get(k)}
 function lookup(c,list,id){if(!validId(id)||!Array.isArray(c?.extra?.[list]))return null;const matches=c.extra[list].filter(x=>x&&typeof x==='object'&&!Array.isArray(x)&&x.id===id);return matches.length===1?matches[0]:null}
 function weaponProfile(w){if(!w||!Object.hasOwn(WEAPONS,w.catalogId))return null;const p=WEAPONS[w.catalogId],tracks=w.usesAmmo===true||(w.usesAmmo===undefined&&integer(w.capacity,1,100));return tracks&&integer(w.capacity,1,100)&&p.caps.includes(w.capacity)&&integer(w.ammo,0,w.capacity)?p:null}
-function validReceipt(v){return !!v&&typeof v==='object'&&!Array.isArray(v)&&v.version===1&&validId(v.ammoCatalogId)&&validId(v.ammoType)&&validId(v.ammoRecordId)&&integer(v.units,1,100)}
+function validReceipt(v){return !!v&&typeof v==='object'&&!Array.isArray(v)&&v.version===1&&validId(v.ammoCatalogId)&&validId(v.ammoType)&&validId(v.ammoRecordId)&&integer(v.units,1,100)&&(v.unloadCompleted===undefined||typeof v.unloadCompleted==='boolean')}
 function starterSpec(c,index){
  const pack=c?.extra?.startingPack;
  if(!pack||pack.confirmed!==true||!['streetrat','edgerunner'].includes(pack.method)||typeof pack.role!=='string'||!pack.choices?.gear||typeof pack.choices.gear!=='object'||Array.isArray(pack.choices.gear))return null;
@@ -73,6 +77,23 @@ function quote(c,weaponId,ammoId,lang){
  const q={scope,characterId:c.id,weaponId:w.id,ammoId:a.id,weaponCatalogId:w.catalogId,ammoCatalogId:a.catalogId,ammoType:spec.type,capacity:w.capacity,weaponAmmo:w.ammo,stock:a.quantity,weaponName:String(w.name||''),ammoName:String(a.name||''),itemName:String(itemName),typeName:String(option),priorReceipt:w.lastReload===undefined?null:w.lastReload,provenance:a.starterAmmo!==undefined?{starterAmmo:a.starterAmmo,pack:c.extra.startingPack}:a.purchase};
  return {ok:true,quote:q,signature:JSON.stringify(q)};
 }
+function quoteUnload(c,weaponId,lang){
+ const t=text(lang),w=lookup(c,'weapons',weaponId),profile=weaponProfile(w),receipt=w?.lastReload;
+ if(!scope||!validId(c?.id)||!w||!profile||!validReceipt(receipt)||receipt.unloadCompleted===true||receipt.units!==w.capacity||!integer(w.ammo,1,receipt.units))return {ok:false,reason:'unloadUnavailable',message:t.unloadUnavailable};
+ const a=lookup(c,'items',receipt.ammoRecordId),spec=ammunition(c,a);
+ if(!a||!spec||receipt.ammoCatalogId!==a.catalogId||receipt.ammoType!==a.ammoType||!profile.types.includes(spec.type)||a.quantity+w.ammo>99999)return {ok:false,reason:'unloadUnavailable',message:t.unloadUnavailable};
+ const option=window.EquipmentTools?.ammoTypeName?.(spec.type,lang)||spec.type,itemName=spec.item.name?.[lang==='en'?'en':'ru']||spec.item.name?.en||'';
+ const q={scope,characterId:c.id,weaponId:w.id,ammoId:a.id,weaponCatalogId:w.catalogId,ammoCatalogId:a.catalogId,ammoType:spec.type,capacity:w.capacity,weaponAmmo:w.ammo,stock:a.quantity,weaponName:String(w.name||''),ammoName:String(a.name||''),itemName:String(itemName),typeName:String(option),receipt,provenance:a.starterAmmo!==undefined?{starterAmmo:a.starterAmmo,pack:c.extra.startingPack}:a.purchase};
+ return {ok:true,quote:q,signature:JSON.stringify(q)};
+}
+function commitUnload(c,expected,lang,options={}){
+ const t=text(lang);if(!expected||typeof expected!=='object'||!expected.quote||typeof expected.signature!=='string')return {ok:false,reason:'invalid',message:t.invalid};
+ let current=false;try{current=typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}
+ if(!scope||!current)return {ok:false,reason:'stale',message:t.stale};
+ const check=quoteUnload(c,expected.quote.weaponId,lang);if(!check.ok||check.signature!==expected.signature)return {ok:false,reason:'stale',message:t.stale};
+ const w=lookup(c,'weapons',check.quote.weaponId),a=lookup(c,'items',check.quote.ammoId),count=check.quote.weaponAmmo;
+ a.quantity+=count;w.ammo=0;w.lastReload={...w.lastReload,unloadCompleted:true};return {ok:true,dirty:true,returned:count};
+}
 function commit(c,expected,lang,options={}){
  const t=text(lang);if(!expected||typeof expected!=='object'||!expected.quote||typeof expected.signature!=='string')return {ok:false,reason:'invalid',message:t.invalid};
  let current=false;try{current=typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}
@@ -81,7 +102,7 @@ function commit(c,expected,lang,options={}){
  const w=lookup(c,'weapons',check.quote.weaponId),a=lookup(c,'items',check.quote.ammoId);
  // The host writes the entire character as one snapshot; both mutations are synchronous.
  a.quantity-=check.quote.capacity;w.ammo=check.quote.capacity;
- w.lastReload={...(w.lastReload||{}),version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:check.quote.capacity};
+ w.lastReload={...(w.lastReload||{}),version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:check.quote.capacity,...(w.lastReload?.unloadCompleted===true?{unloadCompleted:false}:{})};
  return {ok:true,dirty:true,loaded:check.quote.capacity};
 }
 function render(c,lang){
@@ -93,10 +114,12 @@ function render(c,lang){
  const chosen=weapons.find(w=>w.id===d.weapon),profile=weaponProfile(chosen),compatible=items.filter(a=>profile?.types.includes(a.ammoType));
  const options=(list,selected,fmt)=>`<option value="">${esc(t.choose)}</option>`+list.map(x=>`<option value="${esc(x.id)}" ${x.id===selected?'selected':''}>${esc(fmt(x))}</option>`).join('');
  out+=`<div class="reload-grid"><label class="field">${esc(t.weapon)}<select data-reload-field="weapon">${options(weapons,d.weapon,w=>`${w.name||w.catalogId} · ${t.mag} ${w.ammo}/${w.capacity}`)}</select></label><label class="field">${esc(t.ammo)}<select data-reload-field="ammo">${options(compatible,d.ammo,a=>`${a.name||a.catalogId} · ${window.EquipmentTools?.ammoTypeName?.(a.ammoType,lang)||a.ammoType} · ${t.stock} ${a.quantity}`)}</select></label></div>`;
- for(const gun of allWeapons.filter(w=>w.lastReload!==undefined)){if(validReceipt(gun.lastReload)){const prior=gun.lastReload,entry=Array.isArray(window.CATALOG)?window.CATALOG.find(x=>x.id===prior.ammoCatalogId):null,l=lang==='en'?'en':'ru',name=entry?.name?.[l]||entry?.name?.en||prior.ammoCatalogId,typeName=window.EquipmentTools?.ammoTypeName?.(prior.ammoType,lang)||prior.ammoType;out+=`<p class="reload-note"><strong>${esc(gun.name||gun.catalogId)} — ${esc(t.lastReload)}:</strong> ${esc(name)} · ${esc(typeName)} · ${prior.units} ${esc(t.rounds)}. ${esc(t.lastNote)}</p>`}else out+=`<p class="reload-warning">${esc(gun.name||gun.catalogId)}: ${esc(t.unknownReceipt)}</p>`}
+ for(const gun of allWeapons.filter(w=>w.lastReload!==undefined)){if(validReceipt(gun.lastReload)){const prior=gun.lastReload,entry=Array.isArray(window.CATALOG)?window.CATALOG.find(x=>x.id===prior.ammoCatalogId):null,l=lang==='en'?'en':'ru',name=entry?.name?.[l]||entry?.name?.en||prior.ammoCatalogId,typeName=window.EquipmentTools?.ammoTypeName?.(prior.ammoType,lang)||prior.ammoType;out+=`<p class="reload-note"><strong>${esc(gun.name||gun.catalogId)} — ${esc(t.lastReload)}:</strong> ${esc(name)} · ${esc(typeName)} · ${prior.units} ${esc(t.rounds)}. ${esc(t.lastNote)} ${prior.unloadCompleted===true?esc(t.unloadRecorded):''}</p>`}else out+=`<p class="reload-warning">${esc(gun.name||gun.catalogId)}: ${esc(t.unknownReceipt)}</p>`}
  if(!weapons.length||!items.length)out+=`<p class="reload-note">${esc(t.empty)}</p>`;
  const q=d.weapon&&d.ammo?quote(c,d.weapon,d.ammo,lang):null;if(q?.ok)out+=`<p class="reload-note">${esc(t.ready)} ${q.quote.capacity} ${esc(t.rounds)} · ${esc(q.quote.itemName)} · ${esc(q.quote.typeName)}</p>`;else if(q)out+=`<p class="reload-warning">${esc(q.message)}</p>`;
- out+=`<button type="button" class="btn ghost" data-reload="load" ${!q?.ok?'disabled':''}>${esc(t.load)}</button>${legacyCandidates(c).length?` <button type="button" class="btn ghost" data-reload="recognize">${esc(t.recognize)}</button>`:''}</section>`;return out;
+ out+=`<button type="button" class="btn ghost" data-reload="load" ${!q?.ok?'disabled':''}>${esc(t.load)}</button>${legacyCandidates(c).length?` <button type="button" class="btn ghost" data-reload="recognize">${esc(t.recognize)}</button>`:''}`;
+ if(chosen&&chosen.ammo>0){const u=quoteUnload(c,chosen.id,lang);out+=`<p class="reload-note">${esc(t.unloadHint)}</p>${u.ok?`<p class="reload-note">${esc(t.unloadReady)}: ${u.quote.weaponAmmo} ${esc(t.rounds)} · ${esc(u.quote.itemName)} · ${esc(u.quote.typeName)}</p><button type="button" class="btn ghost" data-reload="unload">${esc(t.unload)}</button>`:`<p class="reload-warning">${esc(u.message)}</p>`}`}
+ return out+'</section>';
 }
 function handle(e,c,lang,options={}){
  const d=draft(c),t=text(lang),el=e?.target;if(!el)return {handled:false};
@@ -116,11 +139,17 @@ function handle(e,c,lang,options={}){
   for(const {record,spec} of after){record.catalogId=spec.catalogId;record.ammoType=spec.ammoType;record.starterAmmo={...spec.starterAmmo}}
   return {handled:true,dirty:true,rerender:true,notify:t.recognizeDone};
  }
+ if(b.dataset.reload==='unload'){
+  const before=quoteUnload(c,d.weapon,lang);if(!before.ok)return {handled:true,notify:before.message};const q=before.quote,weaponBefore=d.weapon,actionBefore=b.dataset.reload;
+  if(!window.confirm(`${t.unloadConfirm}\n${q.weaponName}: ${q.weaponAmmo} ${t.rounds} → ${q.ammoName||q.itemName} · ${q.typeName}`))return {handled:true};
+  if(!connected()||draft(c)!==d||d.weapon!==weaponBefore||b.dataset.reload!==actionBefore)return {handled:true,notify:t.stale};const result=commitUnload(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
+  return {handled:true,dirty:true,rerender:true,notify:t.unloadDone};
+ }
  if(b.dataset.reload!=='load')return {handled:true};
  const before=quote(c,d.weapon,d.ammo,lang);if(!before.ok)return {handled:true,notify:before.message};
  const q=before.quote,prompt=`${t.confirm} ${q.capacity} ${t.rounds}: ${q.itemName} · ${q.typeName}? ${t.action}`;
  if(!window.confirm(prompt))return {handled:true};if(!connected()||draft(c)!==d||d.weapon!==q.weaponId||d.ammo!==q.ammoId)return {handled:true,notify:t.stale};const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
  d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
 }
-window.ReloadTools={WEAPONS,setScope,quote,commit,render,handle,validReceipt};
+window.ReloadTools={WEAPONS,setScope,quote,commit,quoteUnload,commitUnload,render,handle,validReceipt};
 })();
