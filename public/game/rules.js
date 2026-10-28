@@ -385,3 +385,36 @@ window.RULES.push(
 {id:'net-defense-counter',page:213,category:{ru:'NET',en:'NET'},title:{ru:'Обезвреживание защит и управление через Agent',en:'Countering defenses and Agent control'},text:{ru:'Неуправляемую Active или Emplaced Defense можно обезвредить навыком Electronics/Security Tech с DV и временем из её описания. После этого ею можно управлять удалённо через Agent, находясь в пределах 6 м/ярдов от одной из точек доступа архитектуры: управление требует Action и работает подобно Interface Ability Control. Ведущий определяет триггеры и конкретные узлы.',en:'An uncontrolled Active or Emplaced Defense can be countered with Electronics/Security Tech at the DV and time in its description. Once countered, it can be remotely controlled with an Agent from within 6 m/yd of an architecture access point; control takes an Action and works like the Control Interface Ability. The GM sets the triggers and specific nodes.'}},
 {id:'net-devices-not-architectures',page:209,category:{ru:'NET',en:'NET'},title:{ru:'Устройство без NET-архитектуры',en:'Devices without a NET Architecture'},text:{ru:'Не каждое электронное устройство имеет NET-архитектуру: аналоговые устройства, а также устройства, работающие только через CitiNet и чипы памяти, не взламываются способностью Interface. Для них может подойти Electronics/Security Tech. Кибернетика по той же причине не взламывается через Interface; для неё используется Cybertech.',en:'Not every electronic device has a NET Architecture: analog devices and devices operating only through the CitiNet and memory chips cannot be hacked using Interface. Electronics/Security Tech may counter them. Cyberware likewise cannot be hacked through Interface; it is governed by Cybertech instead.'}}
 );
+
+// NET Architecture construction, Corebook pp. 209–211. These rows are reference
+// data: a GM chooses the context and any world-specific File/Control Node content.
+window.RULES.push(
+ {id:'net-build-difficulty',page:210,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:'Постройка NET: сложность',en:'Building NET: difficulty'},text:{ru:'Выберите сложность под ранг Interface нетраннера. Для Basic / Standard / Uncommon / Advanced обычные DV паролей, файлов и узлов — 6 / 8 / 10 / 12; соответствующий Interface с шансом пройти — 2 / 4 / 6 / 8. Standard может быть смертелен при Interface 2 или меньше, Uncommon — 4 или меньше, Advanced — 6 или меньше.',en:'Choose the difficulty for the Netrunner’s Interface rank. Basic / Standard / Uncommon / Advanced use typical Password, File and Control Node DV 6 / 8 / 10 / 12; Interface 2 / 4 / 6 / 8 respectively has a fighting chance. Standard can be deadly at Interface 2 or less, Uncommon at 4 or less and Advanced at 6 or less.'}},
+ {id:'net-build-shape',page:210,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:'Постройка NET: этажи и ветви',en:'Building NET: floors and branches'},text:{ru:'Бросьте 3d6: сумма задаёт общее число этажей. Затем бросайте d10: каждый результат 7 или выше добавляет ветвь; остановитесь на результате ниже 7. Распределите этажи между основным путём и ветвями; ветвление возможно только после второго этажа основного пути. У архитектуры должна быть самая длинная ветвь с определённым дном для Virus.',en:'Roll 3d6 for the total number of floors. Then roll d10 repeatedly: each result of 7 or higher adds a branch; stop on a lower result. Distribute the floors between the main path and branches. Branching begins only after the second floor of the main path; provide a longest branch with a defined bottom for a Virus.'}},
+ {id:'net-build-fill',page:210,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:'Постройка NET: заполнение этажей',en:'Building NET: populating floors'},text:{ru:'Два первых этажа определяются таблицей Lobby с броском d6 для каждого. Для остальных используйте 3d6 и колонку выбранной сложности. Перебрасывайте повторно выпавшие программы или пароли; файлы и узлы управления можно размещать повторно. Решите, что именно содержит каждый файл и каким объектом управляет узел.',en:'Roll d6 on the Lobby table for each of the first two floors. For remaining floors roll 3d6 using the column for the selected difficulty. Reroll Programs or Password entries already rolled; Files and Control Nodes can recur. Decide what each File contains and what each Control Node operates.'}},
+ {id:'net-build-lobby',page:211,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:'Постройка NET: таблица Lobby',en:'Building NET: Lobby table'},text:{ru:'Для каждого из первых двух этажей бросьте d6: 1 — файл DV6; 2 — пароль DV6; 3 — пароль DV8; 4 — Skunk; 5 — Wisp; 6 — Killer. Перебрасывайте уже выпавшие программы и пароли.',en:'Roll d6 for each of the first two floors: 1 File DV6; 2 Password DV6; 3 Password DV8; 4 Skunk; 5 Wisp; 6 Killer. Reroll Programs and Password entries already rolled.'}},
+ {id:'net-build-meatspace',page:211,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:'Постройка NET: связь с реальным объектом',en:'Building NET: fit it to the location'},text:{ru:'У файлов и узлов должна быть причина существовать в защищаемом месте. Для активных защит нужен Demon или ручное управление нетраннера. Ведущий может заменить программу на другую той же цены или выбрать этажи вручную; изредка допустим этаж сложности на одну категорию выше как особое препятствие.',en:'Give Files and Control Nodes a purpose in the defended location. Active Defenses require a Demon or manual Netrunner control. The GM may replace a Program with another of the same price, choose floors instead of rolling, or sparingly add a boss floor from one difficulty higher.'}}
+);
+const netBodyRows=[
+ [3,'Hellhound','Hellhound x2','Kraken','Hellhound x3'],
+ [4,'Sabertooth','Hellhound, Killer','Hellhound, Scorpion','Asp x2'],
+ [5,'Raven x2','Skunk x2','Hellhound, Killer','Hellhound, Liche'],
+ [6,'Hellhound','Sabertooth','Raven x2','Wisp x3'],
+ [7,'Wisp','Scorpion','Sabertooth','Hellhound, Sabertooth'],
+ [8,'Raven','Hellhound','Hellhound','Kraken'],
+ [9,'Password DV6','Password DV8','Password DV10','Password DV12'],
+ [10,'File DV6','File DV8','File DV10','File DV12'],
+ [11,'Control Node DV6','Control Node DV8','Control Node DV10','Control Node DV12'],
+ [12,'Password DV6','Password DV8','Password DV10','Password DV12'],
+ [13,'Skunk','Asp','Killer','Giant'],
+ [14,'Asp','Killer','Liche','Dragon'],
+ [15,'Scorpion','Liche','Dragon','Killer, Scorpion'],
+ [16,'Killer, Skunk','Asp','Asp, Raven','Kraken'],
+ [17,'Wisp x3','Raven x3','Dragon, Wisp','Raven, Wisp, Hellhound'],
+ [18,'Liche','Liche, Raven','Giant','Dragon x2']
+];
+const netBodyRu=s=>s.replace('Password','Пароль').replace('File','Файл').replace('Control Node','Узел управления').replaceAll(' x',' ×');
+for(const [roll,basic,standard,uncommon,advanced] of netBodyRows){
+ const page=211;
+ window.RULES.push({id:`net-build-body-${roll}`,page,category:{ru:'НЕТРАННИНГ',en:'Netrunning'},title:{ru:`NET: основной этаж, 3d6 = ${roll}`,en:`NET body floor: 3d6 = ${roll}`},text:{ru:`Базовая Basic: ${netBodyRu(basic)}. Стандартная Standard: ${netBodyRu(standard)}. Необычная Uncommon: ${netBodyRu(uncommon)}. Продвинутая Advanced: ${netBodyRu(advanced)}.`,en:`Basic: ${basic}. Standard: ${standard}. Uncommon: ${uncommon}. Advanced: ${advanced}.`}});
+}
