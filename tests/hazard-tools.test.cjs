@@ -34,3 +34,21 @@ test('drug check is exposed and reports its effect in both languages without a s
  const values={'[data-hz-drug]':{value:'strong'},'[data-hz-drug-resist]':{value:'13'}},outputs={},character={hp:20};const root={querySelector(s){return values[s]||(outputs[s]??={textContent:''})}},button={dataset:{hzAction:'drug'},closest(){return root}},event={type:'click',target:{closest(){return button}}};
  assert.match(H.render('ru'),/пентотал натрия/);assert.match(H.render('en'),/sodium pentothal/);assert.equal(H.handle(event,'ru'),true);assert.match(outputs['[data-hz-result="drug"]'].textContent,/Внушаемость/);values['[data-hz-drug-resist]'].value='14';H.handle(event,'en');assert.match(outputs['[data-hz-result="drug"]'].textContent,/effect does not occur/);assert.equal(character.hp,20);
 });
+
+test('catching a fall uses a single DV15 check, including critical roll arithmetic and equipment',()=>{
+ assert.deepEqual(H.catchFall('none'),{mode:'none'});assert.deepEqual(H.catchFall('gear'),{mode:'gear'});
+ assert.equal(H.catchFall('edge',6,4,0,5).success,false);assert.equal(H.catchFall('edge',6,4,0,6).success,true);
+ assert.equal(H.catchFall('edge',6,4,0,10,6).total,26);assert.equal(H.catchFall('edge',6,4,0,1,6).total,5);
+ assert.equal(H.catchFall('edge',6,4,0,1,null),null);assert.equal(H.catchFall('edge','',4,0,5),null);assert.equal(H.catchFall('edge',6,11,0,5),null);assert.equal(H.catchFall('edge',6,4,0,10,0),null);assert.equal(H.catchFall('bad'),null);
+});
+test('the pre-fall check is separate from the Athletics check on impact and accessible in both languages',()=>{
+ for(const lang of ['ru','en']){const html=H.render(lang);assert.match(html,/data-hz-action="ledge"/);assert.match(html,/data-hz-action="fall"/);assert.match(html,/40/)}
+ const values={'[data-hz-ledge-situation]':{value:'edge'},'[data-hz-ledge-dex]':{value:'6'},'[data-hz-ledge-athletics]':{value:'4'},'[data-hz-ledge-mod]':{value:'0'}},outputs={},root={querySelector(s){return values[s]||(outputs[s]??={textContent:''})}},button={dataset:{hzAction:'ledge'},closest(){return root}},event={type:'click',target:{closest(){return button}}};const random=Math.random;try{Math.random=()=>.5;H.handle(event,'en');assert.match(outputs['[data-hz-result="ledge"]'].textContent,/16 > DV 15/);values['[data-hz-ledge-situation]'].value='gear';H.handle(event,'en');assert.match(outputs['[data-hz-result="ledge"]'].textContent,/No check is required/);values['[data-hz-ledge-situation]'].value='none';H.handle(event,'en');assert.match(outputs['[data-hz-result="ledge"]'].textContent,/unavailable/)}finally{Math.random=random}
+});
+test('impact Athletics fills the separate impact total and reflects failure at a tie',()=>{
+ const values={'[data-hz-ledge-dex]':{value:'6'},'[data-hz-ledge-athletics]':{value:'4'},'[data-hz-ledge-mod]':{value:'0'},'[data-hz-athletics]':{value:'99'}},outputs={},root={querySelector(s){return values[s]||(outputs[s]??={textContent:''})}},button={dataset:{hzAction:'impact'},closest(){return root}},event={type:'click',target:{closest(){return button}}};const random=Math.random;try{Math.random=()=>.4;H.handle(event,'en');assert.equal(values['[data-hz-athletics]'].value,'15');assert.match(outputs['[data-hz-result="impact"]'].textContent,/15 ≤ DV 15/);assert.match(outputs['[data-hz-result="impact"]'].textContent,/Broken Leg/);values['[data-hz-ledge-dex]'].value='';H.handle(event,'en');assert.equal(values['[data-hz-athletics]'].value,'')}finally{Math.random=random}
+});
+
+test('the minimum legal critical failure can be applied to falling damage',()=>{
+ const r=H.catchFall('edge',0,0,-100,1,10);assert.equal(r.total,-109);const f=H.falling(10,false,11,r.total,[2,3]);assert.equal(f.mode,'hit');assert.equal(f.injury,true);assert.equal(H.falling(10,false,11,-110,[2,3]),null);
+});

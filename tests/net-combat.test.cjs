@@ -4,7 +4,7 @@ const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);vm.runInCo
 const N=ctx.window.NetTools;
 const sequence=(...rolls)=>{let i=0;return ()=>{assert(i<rolls.length,'unexpected extra roll');return (rolls[i++]-1)/10+0.001}};
 const base={rank:4,atk:2,def:6,opponent:5,spd:6,speed:2,attackMod:0,defendMod:0,kind:'antiProgram',target:'program'};
-const click=(op,extra={})=>({type:'click',target:{closest:()=>({dataset:{net:op,...extra}})}});
+const click=(op,extra={})=>{const root={isConnected:true},button={isConnected:true,dataset:{net:op,...extra},closest:s=>s==='[data-net-root]'?root:null};return {type:'click',target:{closest:s=>s==='[data-net]'?button:null}}};
 const edit=(key,value,type='change')=>({type,target:{dataset:{netCombat:key},value,closest:()=>null}});
 test('program attack adds Interface and ATK, target DEF only; defender wins ties',()=>{
  let r=N.combatCheck({...base,mode:'program'},sequence(5,5));assert.equal(r.attack,11);assert.equal(r.defend,11);assert.equal(r.hit,false);
@@ -44,7 +44,7 @@ test('encounter result explains initiative even when ICE loses; output is biling
  N.setScope('different-account');assert(!N.render({...x,lang:'en'}).includes('NET COMBAT / CALCULATOR'));
 });
 test('editing or deleting a selected ICE clears the previous result and updates the displayed stats',()=>{
- N.setScope('ice-change-test');const x={lang:'en',architectures:[]};N.handle(click('new'),x);const a=x.architectures[0],e=N.newEntry();
+ N.setScope('ice-change-test');const x={lang:'en',architectures:[],isCurrent:(a,s)=>a===x.architectures&&s==='ice-change-test'};N.handle(click('new'),x);const a=x.architectures[0],e=N.newEntry();
  Object.assign(e,{type:'ice',name:'Hellhound',atk:6,def:2,spd:6});a.floors[0].entries.push(e);
  const id=encodeURIComponent(a.floors[0].id)+':'+encodeURIComponent(e.id);
  N.handle(edit('mode','ice'),x);N.handle(edit('ice',id),x);N.handle(click('combat-roll'),x);assert(N.render(x).includes('Attacker wins'));

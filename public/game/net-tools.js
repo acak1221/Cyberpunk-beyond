@@ -24,9 +24,9 @@ function validArchitectures(value){
  }
  return true;
 }
-let selected=null,lastRoll=null,lastScope=null,combatDraft=null,combatResult=null;
+let selected=null,lastRoll=null,lastScope=null,scopeEpoch=0,combatDraft=null,combatResult=null;
 function resetCombat(){combatDraft={mode:'program',target:'program',kind:'antiProgram',program:'',runner:'',deck:'',copy:'',copyFingerprint:null,ice:'',atk:0,def:0,spd:0,per:0,slidePursuing:false,slideReady:false,opponent:4,speed:0,attackMod:0,defendMod:0};combatResult=null}
-function setScope(scope){if(scope!==lastScope){lastScope=scope;selected=null;lastRoll=null;resetCombat()}}
+function setScope(scope){if(scope!==lastScope){scopeEpoch++;lastScope=scope;selected=null;lastRoll=null;resetCombat()}}
 function button(a,label,more=''){return `<button class="btn ghost" data-net="${a}" ${more}>${esc(label)}</button>`}
 function input(label,kind,value,extra=''){return `<label class="field">${esc(label)}<input data-net-${kind} value="${esc(value)}" ${extra}></label>`}
 function opt(v,label,cur){return `<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(label)}</option>`}
@@ -106,7 +106,7 @@ function combatHtml(a,l,characters){
  return h;
 }
 function render(ctx){
- const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=Array.isArray(ctx.architectures)?ctx.architectures:[],a=all.find(x=>x.id===selected);let html=`<div class="net-tools"><div class="page-header"><div><div class="overline">NETRUNNING / COREBOOK 197–211</div><h1>${esc(z.title)}</h1><p>${esc(z.intro)}</p></div>${button('new','＋ '+z.create)}</div>`;
+ const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=Array.isArray(ctx.architectures)?ctx.architectures:[],a=all.find(x=>x.id===selected);let html=`<div class="net-tools" data-net-root><div class="page-header"><div><div class="overline">NETRUNNING / COREBOOK 197–211</div><h1>${esc(z.title)}</h1><p>${esc(z.intro)}</p></div>${button('new','＋ '+z.create)}</div>`;
  if(!a){html+=`<div class="campaign-grid">${all.length?all.map(x=>`<article class="card"><div class="card-heading"><span>NET ARCHITECTURE</span><span>${Array.isArray(x.floors)?x.floors.length:0}</span></div><h2>${esc(x.name||z.unknown)}</h2><p>${esc(x.access||'')}</p>${button('open',z.openArch,`data-id="${esc(x.id)}"`)}</article>`).join(''):`<div class="empty"><p>${esc(z.none)}</p></div>`}</div></div>`;return html}
  const floors=Array.isArray(a.floors)?a.floors:[];
  html+=`${button('back','← '+z.back)}<section class="card"><div class="net-grid">${input(z.name,'field="name"',a.name,'maxlength="100"')}${input(z.access,'field="access"',a.access,'maxlength="200"')}${input(z.rank,'field="rank"',a.rank,'type="number" min="1" max="10"')}${input(z.modifier,'field="modifier"',a.modifier,'type="number" min="-99" max="99"')}${input(z.dv,'field="dv"',a.dv,'type="number" min="-99" max="999"')}${input(z.current,'field="current"',a.current,'maxlength="80"')}</div><label class="field">${esc(z.notes)}<textarea data-net-field="notes" maxlength="10000">${esc(a.notes)}</textarea></label><p class="net-note">${esc(z.turnHelp)}</p><strong>${esc(z.turn)}: ${clamp(a.remaining,0,99)} / ${actions(a.rank)}</strong><div class="net-actions">${button('reset',z.reset)}${button('spend',z.spend)}${button('refund',z.refund)}${button('roll',z.roll)}</div><p class="net-note">${esc(z.diceHelp)}</p>${lastRoll?`<div class="net-result" role="status">${esc(lastRoll)}</div>`:''}<p class="net-note">${esc(z.saveNote)}</p></section>`;
@@ -122,6 +122,23 @@ function entryHTML(e,i,j,z){let more=`data-index="${i}" data-entry="${j}"`,types
  return html+`<label class="field">${esc(z.effect)}<textarea data-net-entry="notes" ${more} maxlength="2000">${esc(e.notes)}</textarea></label>${button('remove-entry',z.removeElement,more)}</div>`;
 }
 function result(c,l){let z=t[l],parts=[`${z.result}: ${c.total} ${c.success?' > ':' ≤ '}${c.dv} · ${c.success?z.success:z.failure}`,`Interface + 1d10: ${c.one}${c.extra?(c.one===10?' + ':' - ')+c.extra+' ('+(c.one===10?z.critSuccess:z.critFailure)+')':''}`];return parts.join('\n')}
+function confirmedNetAction(b,ctx,lang,all,a,op,i,j,f,entry){
+ const root=b.closest?.('[data-net-root]'),scope=lastScope,epoch=scopeEpoch,selection=selected,stale=lang==='ru'?'Данные, аккаунт или форма изменились. Повторите действие.':'The data, account or form changed. Please retry.';
+ const current=()=>{try{return !!scope&&scopeEpoch===epoch&&lastScope===scope&&selected===selection&&ctx.architectures===all&&root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-net-root]')===root&&b.dataset.net===op&&ctx.isCurrent?.(all,scope)===true}catch{return false}};
+ const floorOp=op!=='delete',entryOp=op==='remove-entry'||op==='apply-ice',idx=b.dataset.index,ent=b.dataset.entry;
+ if(!current()||!Array.isArray(all)||all.filter(x=>x?.id===selection).length!==1||all.indexOf(a)<0||floorOp&&(!/^\d+$/.test(idx||'')||!Number.isSafeInteger(i)||String(i)!==idx||!f)||entryOp&&(!/^\d+$/.test(ent||'')||!Number.isSafeInteger(j)||String(j)!==ent||!entry))return {handled:true,notify:stale};
+ const floors=a.floors,entries=f?.entries,archIndex=all.indexOf(a),objects=value=>{const refs=[],stack=[value];while(stack.length){const x=stack.pop();if(x&&typeof x==='object'){refs.push(x);for(const v of Object.values(x))stack.push(v)}}return refs};let signature,refs;try{signature=JSON.stringify(all);refs=objects(all)}catch{return {handled:true,notify:stale}}
+ const prompt={delete:t[lang].deleteConfirm,'remove-floor':t[lang].removeFloorConfirm,'remove-entry':t[lang].removeElementConfirm,'apply-ice':t[lang].applyConfirm}[op];
+ if(!window.confirm(prompt))return {handled:true};
+ if(!current())return {handled:true,notify:stale};
+ let unchanged=false;try{if(JSON.stringify(all)===signature){const now=objects(all);unchanged=now.length===refs.length&&now.every((x,n)=>x===refs[n])&&all[archIndex]===a&&(!floorOp||(b.dataset.index===idx&&a.floors===floors&&floors[i]===f))&&(!entryOp||(b.dataset.entry===ent&&f.entries===entries&&entries[j]===entry))}}catch{}
+ if(!unchanged)return {handled:true,notify:stale};
+ if(op==='delete'){all.splice(archIndex,1);selected=null;lastRoll=null;resetCombat()}
+ else if(op==='remove-floor')floors.splice(i,1);
+ else if(op==='remove-entry')entries.splice(j,1);
+ else {const [per,spd,atk,def,rez]=ICE[entry.preset];Object.assign(entry,{name:entry.preset,per,spd,atk,def,maxRez:rez,rez,state:'waiting'})}
+ combatResult=null;return {handled:true,dirty:true,rerender:true};
+}
 function handle(ev,ctx){
  const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=ctx.architectures,el=ev.target,b=el.closest('[data-net]'),a=all.find(x=>x.id===selected);
  if(ev.type==='click'&&b){const op=b.dataset.net,i=Number(b.dataset.index),j=Number(b.dataset.entry),f=a?.floors?.[i],entry=f?.entries?.[j];
@@ -129,7 +146,7 @@ function handle(ev,ctx){
   if(op==='open'){selected=b.dataset.id;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
   if(op==='back'){selected=null;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
   if(!a)return {handled:true};
-  if(op==='delete'){if(!window.confirm(z.deleteConfirm))return {handled:true};all.splice(all.indexOf(a),1);selected=null;lastRoll=null;return {handled:true,dirty:true,rerender:true}}
+  if(op==='delete')return confirmedNetAction(b,ctx,l,all,a,op,i,j,f,entry);
   if(op==='roll'){lastRoll=result(check(a.rank,a.modifier,a.dv),l);return {handled:true,rerender:true}}
   if(op==='combat-roll'){
    if(!combatDraft)resetCombat();const d=combatDraft,ice=selectedIce(a,d.ice);
@@ -146,12 +163,12 @@ function handle(ev,ctx){
   }
   if(op==='reset')a.remaining=actions(a.rank);else if(op==='spend')a.remaining=Math.max(0,clamp(a.remaining,0,99)-1);else if(op==='refund')a.remaining=Math.min(actions(a.rank),clamp(a.remaining,0,99)+1);
   else if(op==='add-floor'){if(a.floors.length>=100)return {handled:true,notify:z.limit};a.floors.push(newFloor(a.floors.length+1))}
-  else if(op==='remove-floor'){if(!f||!window.confirm(z.removeFloorConfirm))return {handled:true};a.floors.splice(i,1)}
+  else if(op==='remove-floor')return confirmedNetAction(b,ctx,l,all,a,op,i,j,f,entry);
   else if(op==='floor-up'&&f&&i>0)[a.floors[i-1],a.floors[i]]=[a.floors[i],a.floors[i-1]];
   else if(op==='floor-down'&&f&&i<a.floors.length-1)[a.floors[i+1],a.floors[i]]=[a.floors[i],a.floors[i+1]];
   else if(op==='add-entry'&&f){if(f.entries.length>=50)return {handled:true,notify:z.limit};f.entries.push(newEntry())}
-  else if(op==='remove-entry'&&entry){if(!window.confirm(z.removeElementConfirm))return {handled:true};f.entries.splice(j,1)}
-  else if(op==='apply-ice'&&entry&&Object.hasOwn(ICE,entry.preset)){if(!window.confirm(z.applyConfirm))return {handled:true};let [per,spd,atk,def,rez]=ICE[entry.preset];Object.assign(entry,{name:entry.preset,per,spd,atk,def,maxRez:rez,rez,state:'waiting'})}
+  else if(op==='remove-entry')return confirmedNetAction(b,ctx,l,all,a,op,i,j,f,entry);
+  else if(op==='apply-ice'&&entry&&Object.hasOwn(ICE,entry.preset))return confirmedNetAction(b,ctx,l,all,a,op,i,j,f,entry);
   else return {handled:true};combatResult=null;return {handled:true,dirty:true,rerender:true};
  }
  if((ev.type==='input'||ev.type==='change')&&a){let key=el.dataset.netCombat;if(key){if(!combatDraft)resetCombat();const options={mode:['program','ice','zap','encounter','slide'],target:['program','person'],kind:['antiProgram','antiPersonnel']};if(options[key]){if(!options[key].includes(el.value))return {handled:true};combatDraft[key]=el.value;if(key==='mode'){combatDraft.slideReady=false;combatDraft.slidePursuing=false}}else if(['slideReady','slidePursuing'].includes(key)){combatDraft[key]=el.checked===true}else if(key==='program'){const p=el.value&&programProfile(el.value);if(el.value&&!p)return {handled:true};combatDraft.program=el.value;if(p){combatDraft.copy='';combatDraft.copyFingerprint=null;combatDraft.target=programKind(p)==='antiProgram'?'program':'person'}}else if(key==='runner'){if(el.value&&!linkedRunner(ctx.characters,el.value))return {handled:true};combatDraft.runner=el.value;combatDraft.deck='';combatDraft.copy='';combatDraft.copyFingerprint=null}else if(key==='deck'){if(el.value&&!linkedDeck(ctx.characters,combatDraft.runner,el.value))return {handled:true};combatDraft.deck=el.value;combatDraft.copy='';combatDraft.copyFingerprint=null}else if(key==='copy'){const next={...combatDraft,copy:el.value},link=el.value?linkedCopy(ctx.characters,next):null,fingerprint=linkedFingerprint(link);if(el.value&&(!link||!fingerprint))return {handled:true};combatDraft.copy=el.value;combatDraft.copyFingerprint=fingerprint;if(link){combatDraft.program='';combatDraft.target=programKind(link.profile)==='antiProgram'?'program':'person'}}else if(key==='ice'){if(el.value&&!selectedIce(a,el.value))return {handled:true};combatDraft.ice=el.value}else if(key==='per'&&combatDraft.mode==='slide')combatDraft.per=String(el.value).slice(0,100);else if(['atk','def','spd','per','opponent','speed','attackMod','defendMod'].includes(key))combatDraft[key]=clamp(el.value,key==='per'?0:-99,999);else return {handled:true};combatResult=null;return {handled:true,rerender:ev.type==='change'}}
