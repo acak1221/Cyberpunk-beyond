@@ -375,6 +375,18 @@ kbd { color: #77716b; font: inherit; }
   input:not([type='checkbox']):not([type='radio']), select, textarea { color: #111; background: white; border-color: #aaa; }
   h1, h2, h3, p, .skill-row strong, .condition-rows strong, .stat span { color: #111; }
 }
+.sheet-print-text { display:none; }
+@media print {
+  #sync-root, #sync-adapter-status, #app-notice { display:none !important; }
+  .app-shell, .sheet-layout .cx-root { display:block; min-height:0; }
+  .sheet-layout button { display:none !important; }
+  .sheet-layout * { color:#111 !important; background:white !important; box-shadow:none !important; }
+  .sheet-layout .card, .sheet-layout .cx-section, .sheet-layout .cx-entry { break-inside:auto; }
+  .sheet-layout label.field, .sheet-layout label.rt-field { display:block; }
+  .sheet-layout .sheet-print-source { display:none !important; }
+  .sheet-layout .sheet-print-text { display:block; white-space:pre-wrap; overflow-wrap:anywhere; color:#111; background:#fff; border:1px solid #aaa; padding:8px; font-weight:400; font-size:11px; line-height:1.45; }
+  .sheet-layout label { color:#222; }
+}
 /* Campaigns and combat tracker */
 .campaign-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.campaign-grid .empty{grid-column:1/-1}.campaign-card h2{margin:16px 0 9px}.campaign-card p{min-height:48px}.campaign-card .btn{margin-top:20px}.campaign-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(250px,1fr);align-items:start;gap:18px}.campaign-layout>div,.campaign-layout>aside{display:grid;gap:16px}.campaign-layout .textarea-field{margin-top:16px}.campaign-controls{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}.combat-list{display:grid;gap:8px}.combatant{display:grid;grid-template-columns:30px minmax(90px,1fr) 80px 80px 35px;align-items:end;gap:10px;padding:12px;background:#141416;border:1px solid #353234}.combatant.current{border-left:3px solid var(--red);background:#2b2020}.combat-order{align-self:center;color:var(--red);font:700 15px/1 var(--display)}.combat-name{align-self:center;min-width:0}.combat-name strong,.combat-name small{display:block;overflow-wrap:anywhere}.combat-name small{margin-top:4px;color:var(--muted);font-size:9px;letter-spacing:.1em}.combatant label{font-size:9px;letter-spacing:.08em;text-transform:uppercase}.combatant input{margin-top:5px;padding:7px!important;min-height:36px!important}.combatant .skill-roll{margin-bottom:1px}.campaign-layout aside .card{display:grid;gap:13px}@media(max-width:900px){.campaign-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.campaign-layout{grid-template-columns:1fr}.campaign-layout aside{grid-template-columns:repeat(2,minmax(0,1fr))}.campaign-layout aside .delete-button{grid-column:1/-1}}@media(max-width:600px){.campaign-grid,.campaign-layout aside{grid-template-columns:1fr}.combatant{grid-template-columns:22px minmax(70px,1fr) 58px 58px 30px;gap:5px;padding:9px 6px}.combatant input{padding:5px!important}.campaign-controls .btn{flex:1 1 auto}}
 /* Search and the Night Market */
