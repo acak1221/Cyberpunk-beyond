@@ -75,10 +75,10 @@ test('unfinished combat numbers survive reconnect, block save, warn on unload, a
  let prevented=false;x.unload.beforeunload({preventDefault(){prevented=true},set returnValue(v){}});assert.equal(prevented,true);
  x.scope(null);x.scope('scope-a');await tick();assert.match(x.root.innerHTML,/data-combat-field="hp" data-id="combat-id"[^>]*value="27"/);
  await x.click('save-shared');assert.equal(x.calls.filter(c=>c.method==='PUT'&&c.url==='/api/campaigns/c').length,0);
- x.changeCombat('combat-id','hp','27');await x.click('save-shared');const last=x.calls.filter(c=>c.method==='PUT'&&c.url==='/api/campaigns/c').at(-1);assert.equal(last.body.shared.combat.roster[0].hp,27);
+ const before=x.root.innerHTML;x.changeCombat('combat-id','hp','27');assert.equal(x.root.innerHTML,before);await x.click('save-shared');const last=x.calls.filter(c=>c.method==='PUT'&&c.url==='/api/campaigns/c').at(-1);assert.equal(last.body.shared.combat.roster[0].hp,27);
 });
 test('invalid combat input survives rerender and conflict export contains the uncommitted text',async()=>{
- const x=setup();await prepare(x);x.inputCombat('combat-id','hp','10000');x.changeCombat('combat-id','hp','10000');assert.match(x.root.innerHTML,/data-combat-field="hp" data-id="combat-id"[^>]*value="10000"/);
+ const x=setup();await prepare(x);x.inputCombat('combat-id','hp','10000');const before=x.root.innerHTML;x.changeCombat('combat-id','hp','10000');assert.equal(x.root.innerHTML,before);await x.click('save-shared');assert.match(x.root.innerHTML,/data-combat-field="hp" data-id="combat-id"[^>]*value="10000"/);
  x.input('shared-notes','Unsaved private');x.notesConflict(true);await x.click('save-notes');assert(x.root.innerHTML.includes('pendingCombatFields'));assert(x.root.innerHTML.includes('10000'));assert(x.root.innerHTML.includes('Unsaved private'));
 });
 test('an unfinished minus sign remains visible after reconnect and is never applied as a number',async()=>{
