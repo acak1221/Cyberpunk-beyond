@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=n=>fs.readFileSync(__dirname+'/../public/game/'+n,'utf8');
+test('real dispatcher calculates and clears movement without saving character state',async()=>{
+ const events={},saved=[],node=()=>({innerHTML:'',setAttribute(){},addEventListener:(k,f)=>{events[k]=f}}),nodes={'#app':node(),'#sync-root':node(),'#sync-adapter-status':node()};
+ const w={ROLES:[],Book:{handle:()=>false},Campaigns:{handle:()=>false},NetTools:{setScope(){},validArchitectures:Array.isArray},SyncAdapter:{create(){return {start(){},getScope:()=> 'account',canEdit:()=>true,stateLabel:()=>'',save(s){saved.push(s)}}}},scrollTo(){}};
+ const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:()=>null},globalThis:{crypto:{randomUUID:()=> 'id'},addEventListener(){}},setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Number,String,Array,Object,Promise};vm.createContext(ctx);vm.runInContext(source('combat-tools.js'),ctx);vm.runInContext(source('app.js')+'\nwindow.qa={open:()=>{state.view="combat";state.lang="en"}};',ctx);w.qa.open();
+ const fields={'[data-ct-move]':{value:'6'},'[data-ct-move-prone]':{checked:false},'[data-ct-move-action]':{value:'run'},'[data-ct-move-result]':{innerHTML:'',textContent:''}},root={querySelector:s=>fields[s]},button={dataset:{ctAction:'movement'}},target={closest:s=>s==='[data-combat-tool]'?root:s==='[data-ct-action]'?button:null};
+ events.click({type:'click',target});assert.match(fields['[data-ct-move-result]'].innerHTML,/Total ordinary movement: 24/);assert.equal(saved.length,0);
+ const input={closest:s=>s==='[data-combat-tool]'?root:null,matches:()=>true};events.input({type:'input',target:input});assert.equal(fields['[data-ct-move-result]'].textContent,'Enter MOVE, position and Action.');fields['[data-ct-move-result]'].textContent='stale';await events.change({type:'change',target:input});assert.equal(fields['[data-ct-move-result]'].textContent,'Enter MOVE, position and Action.');assert.equal(saved.length,0);
+});

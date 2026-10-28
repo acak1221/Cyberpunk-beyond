@@ -28,3 +28,8 @@ test('loading task is destroyed on success and on text extraction errors',async(
  const ok=create(mk(false));ok.setFile(file);await ok.search('night city');assert.equal(ok.snapshot().status.key,'ready');assert.equal(closed,1);
  const broken=create(mk(true));broken.setFile(file);await broken.search('night city');assert.equal(broken.snapshot().status.key,'error');assert.equal(closed,2);
 });
+test('all matching pages remain accessible beyond the former 100-page limit',async()=>{
+ const s=create(loader(['cover',...Array.from({length:133},(_,i)=>`Finding on page ${i+1}`)]));s.setFile(file);await s.search('Finding');assert.equal(s.snapshot().status.count,133);assert.equal(s.snapshot().total,133);assert.equal(s.snapshot().results.length,25);assert.equal(s.snapshot().results[0].page,1);assert.equal(s.move(-1),false);
+ for(let i=0;i<5;i++)assert.equal(s.move(1),true);let last=s.snapshot();assert.equal(last.offset,125);assert.deepEqual(last.results.map(r=>r.page),[126,127,128,129,130,131,132,133]);assert.equal(s.move(1),false);assert.equal(s.move(-1),true);assert.equal(s.snapshot().results[0].page,101);
+ await s.search('Finding on page 1');assert.equal(s.snapshot().offset,0);s.setFile(file);assert.equal(s.snapshot().total,0);assert.equal(s.snapshot().offset,0);
+});
