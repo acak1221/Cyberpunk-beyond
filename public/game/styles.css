@@ -310,6 +310,10 @@ kbd { color: #77716b; font: inherit; }
 .budget-line.good { color: #a2cda5; background: #223128; }
 .skills-list { margin-top: 6px; border-top: 1px solid var(--border); }
 .skill-row { display: grid; grid-template-columns: minmax(0, 1fr) 58px 35px; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #353234; }
+.skill-row[hidden] { display:none !important; }
+.sheet-skill-filter { display:grid; gap:10px; margin:12px 0; }
+.sheet-skill-filter > label:not(.field) { display:flex; gap:8px; align-items:center; }
+.sheet-skill-filter p { margin:0; color:var(--muted); }
 .skill-row strong, .skill-row small { display: block; }
 .skill-row strong { color: #e7e0d8; font-size: 11px; }
 .skill-row small { margin-top: 2px; color: #8e857e; font-size: 9px; }
@@ -380,6 +384,8 @@ kbd { color: #77716b; font: inherit; }
   #sync-root, #sync-adapter-status, #app-notice { display:none !important; }
   .app-shell, .sheet-layout .cx-root { display:block; min-height:0; }
   .sheet-layout button { display:none !important; }
+  .sheet-layout .sheet-skill-filter { display:none !important; }
+  .sheet-layout .skill-row[hidden] { display:grid !important; }
   .sheet-layout * { color:#111 !important; background:white !important; box-shadow:none !important; }
   .sheet-layout .card, .sheet-layout .cx-section, .sheet-layout .cx-entry { break-inside:auto; }
   .sheet-layout label.field, .sheet-layout label.rt-field { display:block; }
