@@ -52,6 +52,23 @@ test('dated rest history at the supported client limit survives a server save an
  s.characters[0].extra.antibioticTreatment.restDates.push('2100-01-01');assert.equal(validState(s),false);
  assert.equal((await write(a,scope,1,s)).status,400);assert.equal((await current(a)).revision,1);db.sql.close();
 });
+test('multiple long rest histories above the former 1 MiB limit survive save and reload',async()=>{
+ const db=database(),a=service(db,'alice'),scope=(await current(a)).scope,start=Date.UTC(2045,0,1);
+ const dates=Array.from({length:10000},(_,i)=>new Date(start+i*86400000).toISOString().slice(0,10));
+ const data={characters:Array.from({length:10},(_,i)=>({...char('person-'+i),extra:{antibioticTreatment:{version:1,courses:[],restDates:[...dates]}}})),campaigns:[],history:[]};
+ const payload=JSON.stringify({scope,revision:0,data});assert(Buffer.byteLength(payload)>1024*1024);assert(Buffer.byteLength(payload)<MAX_BYTES);
+ assert.equal(validState(data),true);assert.equal((await write(a,scope,0,data)).status,201);
+ const restored=await current(a);assert.equal(restored.revision,1);assert.equal(restored.data.characters.length,10);
+ for(const c of restored.data.characters)assert.deepEqual(c.extra.antibioticTreatment.restDates,dates);
+ db.sql.close();
+});
+test('normalizing compact exponent notation cannot exceed the stored UTF-8 size limit',async()=>{
+ const db=database(),a=service(db,'alice'),scope=(await current(a)).scope;
+ const compact='['+Array(10000).fill('1e20').join(',')+']';
+ const input=`{"scope":"${scope}","revision":0,"data":{"characters":[],"campaigns":[],"numbers":[${Array(8).fill(compact).join(',')}]}}`;
+ assert(Buffer.byteLength(input)<MAX_BYTES);const rejected=await a.put(request('PUT',input));
+ assert.equal(rejected.status,413);assert.deepEqual(await json(rejected),{error:'too_large'});assert.equal((await current(a)).revision,0);db.sql.close();
+});
 test('account scope is stable, distinct, opaque, and never authorizes writes',async()=>{
  const db=database(),alice=service(db,'sensitive-account-id-alice'),bob=service(db,'sensitive-account-id-bob');const first=await current(alice),again=await current(alice),other=await current(bob);
  assert.equal(first.scope,again.scope);assert.notEqual(first.scope,other.scope);assert.match(first.scope,/^nc1_[a-f0-9]{64}$/);assert(!JSON.stringify(first).includes('sensitive-account-id-alice'));assert(!('email' in first));assert(!('userId' in first));
