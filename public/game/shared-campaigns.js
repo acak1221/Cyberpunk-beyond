@@ -19,6 +19,18 @@ function reset(scope){
 }
 function same(s,seq){return model.scope===s&&model.seq===seq&&ctx?.scope===s&&(!ctx.getScope||ctx.getScope()===s)}
 function box(){return document.querySelector('#shared-campaigns')}
+// Confirmation may outlive account changes, a replacement view or new edits.
+// Recheck the whole review context before discarding drafts or sending a write.
+function confirmCurrent(message,button){
+ const beforeModel=model,beforeContext=ctx,scope=model.scope,seq=model.seq,root=box();
+ const current=()=>{try{return !!root&&root.isConnected!==false&&button?.isConnected!==false&&box()===root&&model===beforeModel&&ctx===beforeContext&&same(scope,seq)}catch{return false}};
+ const fingerprint=()=>JSON.stringify([beforeModel,beforeContext?.lang,beforeContext?.characters,button?.dataset,root?.querySelector?.('#shared-character')?.value,location.hash]);
+ let before;try{if(!current())return false;before=fingerprint()}catch{return false}
+ if(!confirm(message))return false;
+ try{if(current()&&fingerprint()===before)return true}catch{}
+ if(model===beforeModel&&ctx===beforeContext){model.error=ctx?.lang==='ru'?'Данные, аккаунт или форма изменились. Повторите действие.':'The data, account or form changed. Please retry.'}
+ return false;
+}
 function btn(action,text,attr=''){return `<button class="btn ghost" data-shared="${action}" ${attr}>${E(text)}</button>`}
 function shell(){return '<section id="shared-campaigns" class="card shared-campaigns" aria-live="polite"></section>'}
 const validInteger=(v,min,max)=>Number.isInteger(v)&&v>=min&&v<=max;
@@ -128,7 +140,7 @@ function combatAction(action,b){
  const c=model.draftCombat,z=CT[ctx.lang]||CT.en;if(model.detail?.role!=='owner'||!c)return;
  if(action==='combat-add'){let ref=combatValue(model.combatEntry.ref,0,20),hp=combatValue(model.combatEntry.hp,-999,999);addCombatant(model.combatEntry.name,ref,hp);if(!model.error)model.combatEntry.name='';return}
  if(action==='combat-add-share'){const sh=model.shares.find(s=>s.id===model.combatEntry.share);if(!sh){model.error=z.invalid;return}const ref=Number(sh.data?.stats?.REF),hp=Number(sh.data?.hp);addCombatant(String(sh.data?.name||''),Math.max(0,Math.min(20,Math.trunc(ref))),Math.max(-999,Math.min(999,Math.trunc(hp))));return}
- if(action==='combat-remove'){const index=combatOrder(c).findIndex(r=>r.id===b.dataset.id);if(index<0||!confirm(z.removeConfirm))return;const wasCurrent=c.turnId===b.dataset.id;c.roster=c.roster.filter(r=>r.id!==b.dataset.id);model.combatFieldDrafts=model.combatFieldDrafts.filter(d=>d.id!==b.dataset.id);if(wasCurrent){const next=combatOrder(c);c.turnId=next[Math.min(index,next.length-1)]?.id||null}model.combatTouched=true;return}
+ if(action==='combat-remove'){const index=combatOrder(c).findIndex(r=>r.id===b.dataset.id);if(index<0||!confirmCurrent(z.removeConfirm,b))return;const wasCurrent=c.turnId===b.dataset.id;c.roster=c.roster.filter(r=>r.id!==b.dataset.id);model.combatFieldDrafts=model.combatFieldDrafts.filter(d=>d.id!==b.dataset.id);if(wasCurrent){const next=combatOrder(c);c.turnId=next[Math.min(index,next.length-1)]?.id||null}model.combatTouched=true;return}
  if(!c.roster.length)return;
  if(action==='combat-roll'){rollCombat(c);model.combatTouched=true;return}
  if(action==='combat-reset'){c.round=1;c.turnId=combatOrder(c)[0]?.id||null;model.combatTouched=true;return}
@@ -138,11 +150,11 @@ async function action(action,b){
  const t=label(),id=model.selected;model.error='';model.message='';
  if(action==='verify-draft'){if(model.waitingRestore)await loadList();return}
  if(action==='toggle'){model.open=!model.open;if(model.open&&model.list===null)await loadList();return}
- if(action==='resolve'){if(!confirm(t.copyFirst))return;model.conflict=null;if(id)await loadDetail(id);else await loadList();return}
- if(action==='refresh'){if(dirty()&&!confirm(t.copyFirst))return;if(id)await loadDetail(id);else await loadList();return}
- if(action==='join'){if(dirty()&&!confirm(t.copyFirst))return;const inv=token();if(!inv)return;const x=await request('/join','POST',{token:inv});history.replaceState(null,'',location.pathname+location.search);await loadList();await loadDetail(x.campaignId);model.message=t.joined;return}
+ if(action==='resolve'){if(!confirmCurrent(t.copyFirst,b))return;model.conflict=null;if(id)await loadDetail(id);else await loadList();return}
+ if(action==='refresh'){if(dirty()&&!confirmCurrent(t.copyFirst,b))return;if(id)await loadDetail(id);else await loadList();return}
+ if(action==='join'){if(dirty()&&!confirmCurrent(t.copyFirst,b))return;const inv=token();if(!inv)return;const x=await request('/join','POST',{token:inv});history.replaceState(null,'',location.pathname+location.search);await loadList();await loadDetail(x.campaignId);model.message=t.joined;return}
  if(action==='create'){const name=model.draftNew.trim();if(!name)return;const x=await request('','POST',{name});model.draftNew='';await loadList();await loadDetail(x.id);return}
- if(action==='back'){if(dirty()&&!confirm(t.copyFirst))return;model.selected=null;model.detail=null;model.inviteLink='';await loadList();return}
+ if(action==='back'){if(dirty()&&!confirmCurrent(t.copyFirst,b))return;model.selected=null;model.detail=null;model.inviteLink='';await loadList();return}
  if(action==='open'){await loadDetail(b.dataset.id);return}
  if(!id||!model.detail)return;
  if(action.startsWith('combat-')){combatAction(action,b);return}
@@ -150,11 +162,11 @@ async function action(action,b){
  if(action==='save-notes'){const draft=model.draftNotes;try{let out=await request('/'+id+'/notes','PUT',{revision:model.notes.revision,notes:draft});model.notes={revision:out.revision,notes:draft};model.message=t.saved}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict({notes:draft});return}throw e}return}
  if(action==='invite'){const x=await request('/'+id+'/invites','POST',{});model.inviteLink=location.origin+location.pathname+'#invite='+x.token;model.invites=(await request('/'+id+'/invites')).invites;return}
  if(action==='revoke'){await request('/'+id+'/invites','DELETE',{inviteId:b.dataset.id});model.invites=(await request('/'+id+'/invites')).invites;return}
- if(action==='remove-member'){if(dirty()&&!confirm(t.copyFirst))return;if(!confirm(b.dataset.mine==='1'?t.leaveConfirm:t.removeConfirm))return;await request('/'+id+'/members','DELETE',{memberId:b.dataset.id});if(b.dataset.mine==='1'){model.selected=null;model.detail=null;await loadList()}else await loadDetail(id);return}
- if(action==='delete'){if(!confirm(t.deleteConfirm))return;await request('/'+id,'DELETE',{});model.selected=null;model.detail=null;model.message=t.deleted;await loadList();return}
+ if(action==='remove-member'){if(dirty()&&!confirmCurrent(t.copyFirst,b))return;if(!confirmCurrent(b.dataset.mine==='1'?t.leaveConfirm:t.removeConfirm,b))return;await request('/'+id+'/members','DELETE',{memberId:b.dataset.id});if(b.dataset.mine==='1'){model.selected=null;model.detail=null;await loadList()}else await loadDetail(id);return}
+ if(action==='delete'){if(!confirmCurrent(t.deleteConfirm,b))return;await request('/'+id,'DELETE',{});model.selected=null;model.detail=null;model.message=t.deleted;await loadList();return}
  if(action==='publish'){const character=ctx.characters.find(c=>c.id===box().querySelector('#shared-character')?.value);if(!character)return;await request('/'+id+'/shares','POST',{data:snapshot(character)});model.shares=(await request('/'+id+'/shares')).shares;model.message=t.saved;return}
- if(action==='update-share'){const character=ctx.characters.find(c=>c.id===box().querySelector('#shared-character')?.value),sh=model.shares.find(x=>x.id===b.dataset.id&&x.mine);if(!character||!sh)return;if(!confirm((ctx.lang==='ru'?'Заменить копию «':'Replace copy “')+String(sh.data?.name||'—')+(ctx.lang==='ru'?'» данными листа «':'” with the selected sheet “')+String(character.name||'—')+(ctx.lang==='ru'?'»?':'”?')))return;const data=snapshot(character);try{await request('/'+id+'/shares/'+sh.id,'PUT',{revision:sh.revision,data});model.shares=(await request('/'+id+'/shares')).shares;model.message=t.saved}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict(data);return}throw e}return}
- if(action==='unshare'){if(!confirm(t.unshareConfirm))return;const sh=model.shares.find(x=>x.id===b.dataset.id&&x.mine);if(!sh)return;try{await request('/'+id+'/shares/'+sh.id,'DELETE',{revision:sh.revision});model.shares=(await request('/'+id+'/shares')).shares}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict(sh.data);return}throw e}}
+ if(action==='update-share'){const character=ctx.characters.find(c=>c.id===box().querySelector('#shared-character')?.value),sh=model.shares.find(x=>x.id===b.dataset.id&&x.mine);if(!character||!sh)return;if(!confirmCurrent((ctx.lang==='ru'?'Заменить копию «':'Replace copy “')+String(sh.data?.name||'—')+(ctx.lang==='ru'?'» данными листа «':'” with the selected sheet “')+String(character.name||'—')+(ctx.lang==='ru'?'»?':'”?'),b))return;const data=snapshot(character);try{await request('/'+id+'/shares/'+sh.id,'PUT',{revision:sh.revision,data});model.shares=(await request('/'+id+'/shares')).shares;model.message=t.saved}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict(data);return}throw e}return}
+ if(action==='unshare'){if(!confirmCurrent(t.unshareConfirm,b))return;const sh=model.shares.find(x=>x.id===b.dataset.id&&x.mine);if(!sh)return;try{await request('/'+id+'/shares/'+sh.id,'DELETE',{revision:sh.revision});model.shares=(await request('/'+id+'/shares')).shares}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict(sh.data);return}throw e}}
 }
 function mount(options){
  ctx=options;if(model.scope!==options.scope)reset(options.scope);render();const root=box();if(!root)return;root.inert=!!model.busy;

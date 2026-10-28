@@ -367,3 +367,7 @@ const livingReferenceRows = [
 for (const [id,page,ruTitle,enTitle,ruText,enText] of livingReferenceRows) {
  window.RULES.push({id,page,category:{ru:'Жильё и образ жизни',en:'Housing & Lifestyle'},title:{ru:ruTitle,en:enTitle},text:{ru:ruText,en:enText}});
 }
+window.RULES.push({id:'mental-trauma-humanity',page:231,category:{ru:'Человечность',en:'Humanity'},title:{ru:'Психическая травма и потеря Humanity',en:'Mental trauma and Humanity Loss'},text:{
+  ru:'Ведущий может назначить потерю Humanity из-за травмирующих событий. Травмирующий физический или психический эпизод: 1d6; длительное психическое напряжение или долгосрочные тяжёлые условия среды: 2d6. К последним книга относит голод, длительную катастрофу или постоянную опасность в течение месяца. Решение о событии принимает ведущий; максимальная Humanity от одного такого события не уменьшается.',
+  en:'The GM may assign Humanity Loss for a traumatic event. A traumatic physical or mental incident costs 1d6; long-term mental stress or long-term environmental stress costs 2d6. The book includes starvation, a long-running disaster, or constant danger for a month as examples of environmental stress. The GM decides when the event applies; the event itself does not lower maximum Humanity.'
+}});
