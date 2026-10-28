@@ -8,6 +8,10 @@ Object.assign(T.ru,{savedWithEdits:'Сохранено. Другие или бо
 Object.assign(T.en,{savedWithEdits:'Saved. Other or newer changes remain unsaved.',newCampaignDraft:'Campaign created; the newer name remains as a draft in the campaign list.'});
 Object.assign(CT.ru,{roll:'Бросить инициативу всем',rollOne:'Бросить инициативу',rollHelp:'Инициатива: 1d10 + REF + бонус. Общий бросок начинает очередь с первого раунда. Отдельный бросок сохраняет раунд и текущий ход; при ничьей учитываются прежние перебросы и выполняются недостающие (до 12). Если ничья сохраняется, определите порядок вручную.'});
 Object.assign(CT.en,{roll:'Roll initiative for all',rollOne:'Roll initiative',rollHelp:'Initiative: 1d10 + REF + bonus. Rolling for all starts the queue at round one. An individual roll keeps the round and current turn; ties use existing tie rolls and add any needed rolls (up to 12). Resolve remaining ties manually.'});
+Object.assign(CT.ru,{copyHelp:'При добавлении копируются имя, REF и HP и создаётся связь с опубликованной копией. Изменения применяются к бою только по подтверждению ведущего. Чтобы связать уже имеющегося участника, выберите копию ниже и нажмите «Связать выбранную копию» у участника.',link:'Связать выбранную копию',linked:'Связан с опубликованной копией',refreshShare:'Обновить из опубликованной копии',linkConfirm:'Связать участника с выбранной опубликованной копией?',syncConfirm:'Обновить участника из опубликованной копии? Инициатива, порядок хода и личный лист не меняются.',shareInvalid:'Опубликованная копия недоступна или в ней некорректные имя, REF или HP. Обновите её и повторите попытку.',shareStale:'Кампания или данные изменились во время загрузки. Повторите действие.',sharePending:'Сначала исправьте или подтвердите незавершённые числовые поля боя.'});
+Object.assign(CT.en,{copyHelp:'Adding a published character copies its name, REF and HP and keeps a link to that shared copy. Changes reach combat only after GM confirmation. To link an existing combatant, select a copy below and use “Link selected copy” on that combatant.',link:'Link selected copy',linked:'Linked to a published copy',refreshShare:'Update from published copy',linkConfirm:'Link this combatant to the selected published copy?',syncConfirm:'Update this combatant from the published copy? Initiative, turn order and the personal sheet do not change.',shareInvalid:'The published copy is unavailable or has an invalid name, REF or HP. Update it and try again.',shareStale:'The campaign or its data changed while loading. Please retry.',sharePending:'Correct or commit the unfinished numeric combat fields first.'});
+CT.ru.linkUnknown='Связь с опубликованным листом имеет неподдерживаемый формат.';
+CT.en.linkUnknown='The published-sheet link has an unsupported format.';
 let generation=0,model={scope:null,open:false,selected:null,list:null,detail:null,notes:null,invites:[],shares:[],error:'',message:'',inviteLink:'',conflict:null,draftNew:'',draftName:'',draftDescription:'',draftNotes:'',draftCombat:null,combatTouched:false,combatFieldDrafts:[],combatEntry:{name:'',ref:'6',hp:'30',share:''},waitingRestore:false,busy:false,seq:0}, ctx=null;
 // Keep unsaved campaign forms in memory only, keyed by the verified Site account.
 // They are not rendered until a fresh, matching /api/campaigns GET succeeds.
@@ -50,6 +54,8 @@ function combatOrder(c){return [...c.roster].sort((a,b)=>{
  let n=b.initiative-a.initiative;if(n)return n;
  for(let i=0;i<Math.max(a.ties.length,b.ties.length);i++){n=(b.ties[i]??0)-(a.ties[i]??0);if(n)return n}return 0;
 })}
+function validSheetLink(link){return !!link&&typeof link==='object'&&!Array.isArray(link)&&link.version===1&&typeof link.shareId==='string'&&link.shareId.trim()!==''&&link.shareId.length<=160}
+function shareValues(share){const d=share?.data;if(!d||typeof d!=='object'||Array.isArray(d)||typeof d.name!=='string'||!d.name.trim()||d.name.length>100||!validInteger(d.stats?.REF,0,20)||!validInteger(d.hp,-999,999))return null;return {name:d.name.trim(),ref:d.stats.REF,hp:d.hp}}
 function rollCombat(c){
  const roll=r=>1+Math.floor(Math.random()*10)+r.ref+r.bonus;
  for(const r of c.roster){r.initiative=roll(r);r.ties=[]}
@@ -72,13 +78,18 @@ function rollOneCombatant(c,id){
 }
 function fieldDraft(id,key){return model.combatFieldDrafts.find(d=>d.id===id&&d.key===key)}
 function clearFieldDraft(id,key){model.combatFieldDrafts=model.combatFieldDrafts.filter(d=>d.id!==id||d.key!==key)}
+function combatLinkHTML(r,z,owner){
+ if(r.sheetLink===undefined)return owner&&model.shares.length?btn('combat-link-share',z.link,`data-id="${E(r.id)}" aria-label="${E(z.link+' · '+r.name)}"`):'';
+ if(!validSheetLink(r.sheetLink))return `<small>${E(z.linkUnknown)}</small>`;
+ return `<small>${E(z.linked)}</small>`+(owner?btn('combat-refresh-share',z.refreshShare,`data-id="${E(r.id)}" aria-label="${E(z.refreshShare+' · '+r.name)}"`):'');
+}
 function combatHTML(owner){
  const z=CT[ctx.lang]||CT.en,c=model.draftCombat;let content=`<div class="shared-box shared-combat"><h3>${E(z.title)}</h3><p class="muted">${E(z.help)}</p>`;
  if(!c)return content+`<p class="shared-warning">${E(z.unsupported)}</p></div>`;
  const list=combatOrder(c),current=list.findIndex(r=>r.id===c.turnId);
  content+=`<p><strong>${E(z.round)} ${c.round}</strong> · ${E(z.turn)} ${current<0?'—':E(list[current].name)}</p><p class="muted">${E(z.rollHelp)}</p>`;
  if(owner)content+=`<div class="shared-actions">${btn('combat-roll',z.roll,list.length?'':'disabled')}${btn('combat-next',z.next,list.length?'':'disabled')}${btn('combat-reset',z.reset,list.length?'':'disabled')}</div>`;
- content+=`<div class="shared-combat-list">${list.length?list.map(r=>`<div class="shared-combatant ${r.id===c.turnId?'current':''}"><div><strong>${E(r.name)}</strong>${r.id===c.turnId?` <small>▶ ${E(z.current)}</small>`:''}</div>${[['ref',z.ref,0,20],['bonus',z.bonus,-99,99],['initiative',z.initiative,-999,999],['hp',z.hp,-999,999]].map(([key,name,min,max])=>`<label>${E(name)}<input type="text" inputmode="numeric" pattern="-?[0-9]*" maxlength="8" data-combat-field="${key}" data-id="${E(r.id)}" value="${E(fieldDraft(r.id,key)?.raw??r[key])}" ${owner?'':'readonly'}></label>`).join('')}${r.ties.length?`<small>${E(z.ties)}: ${E(r.ties.join(', '))}</small>`:''}${owner?btn('combat-roll-one',z.rollOne,`data-id="${E(r.id)}" aria-label="${E(z.rollOne+' · '+r.name)}"`)+btn('combat-remove',z.remove,`data-id="${E(r.id)}"`):''}</div>`).join(''):`<p class="muted">${E(z.none)}</p>`}</div>`;
+ content+=`<div class="shared-combat-list">${list.length?list.map(r=>`<div class="shared-combatant ${r.id===c.turnId?'current':''}"><div><strong>${E(r.name)}</strong>${r.id===c.turnId?` <small>▶ ${E(z.current)}</small>`:''}</div>${[['ref',z.ref,0,20],['bonus',z.bonus,-99,99],['initiative',z.initiative,-999,999],['hp',z.hp,-999,999]].map(([key,name,min,max])=>`<label>${E(name)}<input type="text" inputmode="numeric" pattern="-?[0-9]*" maxlength="8" data-combat-field="${key}" data-id="${E(r.id)}" value="${E(fieldDraft(r.id,key)?.raw??r[key])}" ${owner?'':'readonly'}></label>`).join('')}${r.ties.length?`<small>${E(z.ties)}: ${E(r.ties.join(', '))}</small>`:''}<div class="shared-actions" style="grid-column:1/-1">${combatLinkHTML(r,z,owner)}${owner?btn('combat-roll-one',z.rollOne,`data-id="${E(r.id)}" aria-label="${E(z.rollOne+' · '+r.name)}"`)+btn('combat-remove',z.remove,`data-id="${E(r.id)}"`):''}</div></div>`).join(''):`<p class="muted">${E(z.none)}</p>`}</div>`;
  if(owner){content+=`<div class="shared-combat-form"><label class="field">${E(z.name)}<input id="shared-combat-name" maxlength="100" value="${E(model.combatEntry.name)}"></label><label class="field">${E(z.ref)}<input id="shared-combat-ref" type="number" min="0" max="20" value="${E(model.combatEntry.ref)}"></label><label class="field">${E(z.hp)}<input id="shared-combat-hp" type="number" min="-999" max="999" value="${E(model.combatEntry.hp)}"></label>${btn('combat-add',z.add)}</div>`;
   content+=`<p class="muted">${E(z.copyHelp)}</p><label class="field">${E(z.chooseShare)}<select id="shared-combat-share"><option value="">${E(z.chooseShare)}</option>${model.shares.map(s=>`<option value="${E(s.id)}" ${s.id===model.combatEntry.share?'selected':''}>${E(s.data?.name||'—')}</option>`).join('')}</select></label>${model.shares.length?btn('combat-add-share',z.addShare):`<p class="muted">${E(z.noShare)}</p>`}<div class="shared-actions">${btn('save-shared',z.save)}</div>`;
  }
@@ -147,22 +158,49 @@ function dirty(){return dirtyModel(model)}
 function unsaved(m){return !!m.conflict||!!m.draftNew.trim()||dirtyModel(m)}
 function combatValue(v,min,max){if(typeof v!=='string'||!v.trim()||!/^-?\d+$/.test(v.trim()))return null;const n=Number(v);return validInteger(n,min,max)?n:null}
 function combatId(){return globalThis.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2)}
-function addCombatant(name,ref,hp){const c=model.draftCombat,z=CT[ctx.lang]||CT.en;
+function addCombatant(name,ref,hp,shareId){const c=model.draftCombat,z=CT[ctx.lang]||CT.en;
  if(c.roster.length>=100){model.error=z.limit;return}
  if(typeof name!=='string'||!name.trim()||name.length>100||!validInteger(ref,0,20)||!validInteger(hp,-999,999)){model.error=z.invalid;return}
+ if(shareId!==undefined&&!validSheetLink({version:1,shareId})){model.error=z.shareInvalid;return}
  let id=combatId();if(c.roster.some(r=>r.id===id)){model.error=z.invalid;return}
- c.roster.push({id,name:name.trim(),ref,hp,initiative:0,bonus:0,ties:[]});model.combatTouched=true;
+ c.roster.push({id,name:name.trim(),ref,hp,initiative:0,bonus:0,ties:[],...(shareId!==undefined?{sheetLink:{version:1,shareId}}:{})});model.combatTouched=true;
 }
 function combatAction(action,b){
  const c=model.draftCombat,z=CT[ctx.lang]||CT.en;if(model.detail?.role!=='owner'||!c)return;
  if(action==='combat-add'){let ref=combatValue(model.combatEntry.ref,0,20),hp=combatValue(model.combatEntry.hp,-999,999);addCombatant(model.combatEntry.name,ref,hp);if(!model.error)model.combatEntry.name='';return}
- if(action==='combat-add-share'){const sh=model.shares.find(s=>s.id===model.combatEntry.share);if(!sh){model.error=z.invalid;return}const ref=Number(sh.data?.stats?.REF),hp=Number(sh.data?.hp);addCombatant(String(sh.data?.name||''),Math.max(0,Math.min(20,Math.trunc(ref))),Math.max(-999,Math.min(999,Math.trunc(hp))));return}
+ if(action==='combat-add-share'){const found=model.shares.filter(s=>s?.id===model.combatEntry.share),sh=found.length===1?found[0]:null,v=shareValues(sh);if(!v){model.error=z.shareInvalid;return}addCombatant(v.name,v.ref,v.hp,sh.id);return}
+ if(action==='combat-link-share'){
+  if(model.combatFieldDrafts.length){model.error=z.sharePending;return}
+  const r=c.roster.find(x=>x.id===b.dataset.id),found=model.shares.filter(s=>s?.id===model.combatEntry.share),sh=found.length===1?found[0]:null,v=shareValues(sh);
+  if(!r||r.sheetLink!==undefined||!v||!validSheetLink({version:1,shareId:sh.id})){model.error=z.shareInvalid;return}
+  if(!confirmCurrent(z.linkConfirm+'\n'+r.name+' → '+v.name,b))return;
+  r.sheetLink={version:1,shareId:sh.id};model.combatTouched=true;return;
+ }
  if(action==='combat-remove'){const index=combatOrder(c).findIndex(r=>r.id===b.dataset.id);if(index<0||!confirmCurrent(z.removeConfirm,b))return;const wasCurrent=c.turnId===b.dataset.id;c.roster=c.roster.filter(r=>r.id!==b.dataset.id);model.combatFieldDrafts=model.combatFieldDrafts.filter(d=>d.id!==b.dataset.id);if(wasCurrent){const next=combatOrder(c);c.turnId=next[Math.min(index,next.length-1)]?.id||null}model.combatTouched=true;return}
  if(!c.roster.length)return;
  if(action==='combat-roll-one'){if(model.combatFieldDrafts.length){model.error=z.invalid;return}if(rollOneCombatant(c,b.dataset.id))model.combatTouched=true;return}
  if(action==='combat-roll'){rollCombat(c);model.combatTouched=true;return}
  if(action==='combat-reset'){c.round=1;c.turnId=combatOrder(c)[0]?.id||null;model.combatTouched=true;return}
  if(action==='combat-next'){const order=combatOrder(c),i=order.findIndex(r=>r.id===c.turnId);if(i<0)c.turnId=order[0].id;else if(i+1<order.length)c.turnId=order[i+1].id;else{if(c.round>=999999){model.error=z.limit;return}c.round++;c.turnId=order[0].id}model.combatTouched=true}
+}
+// Fetch the latest published copy before showing its values for explicit GM review.
+async function refreshCombatShare(b){
+ const z=CT[ctx.lang]||CT.en,c=model.draftCombat,owner=model.detail?.role==='owner',r=c?.roster.find(x=>x.id===b.dataset.id),id=model.selected;
+ if(!owner||!r||!validSheetLink(r.sheetLink))return;
+ if(model.combatFieldDrafts.length){model.error=z.sharePending;return}
+ const oldModel=model,oldCtx=ctx,root=box(),scope=model.scope,seq=model.seq;
+ let before;try{before=JSON.stringify([model,ctx.lang,ctx.characters,b.dataset])}catch{model.error=z.shareStale;return}
+ const current=()=>{try{return model===oldModel&&ctx===oldCtx&&box()===root&&root?.isConnected!==false&&b.isConnected!==false&&same(scope,seq)&&JSON.stringify([model,ctx.lang,ctx.characters,b.dataset])===before}catch{return false}};
+ if(!current()){model.error=z.shareStale;return}
+ const response=await request('/'+encodeURIComponent(id)+'/shares');
+ if(!current()){if(model===oldModel&&ctx===oldCtx)model.error=z.shareStale;return}
+ if(!Array.isArray(response.shares)){model.error=z.shareInvalid;return}
+ const found=response.shares.filter(x=>x?.id===r.sheetLink.shareId),share=found.length===1?found[0]:null,v=shareValues(share);
+ if(!v){model.error=z.shareInvalid;return}
+ const prompt=z.syncConfirm+'\n'+r.name+' → '+v.name+'\nREF '+r.ref+' → '+v.ref+' · HP '+r.hp+' → '+v.hp;
+ if(!confirmCurrent(prompt,b))return;
+ if(!current()){if(model===oldModel&&ctx===oldCtx)model.error=z.shareStale;return}
+ model.shares=response.shares;r.name=v.name;r.ref=v.ref;r.hp=v.hp;model.combatTouched=true;
 }
 async function action(action,b){
  const t=label(),id=model.selected;model.error='';model.message='';
@@ -175,6 +213,7 @@ async function action(action,b){
  if(action==='back'){if(dirty()&&!confirmCurrent(t.copyFirst,b))return;model.selected=null;model.detail=null;model.inviteLink='';await loadList();return}
  if(action==='open'){await loadDetail(b.dataset.id);return}
  if(!id||!model.detail)return;
+ if(action==='combat-refresh-share'){await refreshCombatShare(b);return}
  if(action.startsWith('combat-')){combatAction(action,b);return}
  if(action==='save-shared'){if(model.combatFieldDrafts.length){model.error=(CT[ctx.lang]||CT.en).invalid;return}const submittedCombat=model.combatTouched?JSON.stringify(model.draftCombat):null,draft={name:model.draftName,shared:{...model.detail.shared,description:model.draftDescription,...submittedCombat!==null?{combat:JSON.parse(submittedCombat)}:{}}};try{const out=await request('/'+id,'PUT',{revision:model.detail.revision,...draft});model.detail={...model.detail,...draft,revision:out.revision};if(submittedCombat!==null&&JSON.stringify(model.draftCombat)===submittedCombat)model.combatTouched=false;model.message=dirty()?t.savedWithEdits:t.saved}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict(draft);return}throw e}return}
  if(action==='save-notes'){const draft=model.draftNotes;try{let out=await request('/'+id+'/notes','PUT',{revision:model.notes.revision,notes:draft});model.notes={revision:out.revision,notes:draft};model.message=dirty()?t.savedWithEdits:t.saved}catch(e){if(e.status===409&&e.code==='revision_conflict'){preserveConflict({notes:draft});return}throw e}return}
