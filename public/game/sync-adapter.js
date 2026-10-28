@@ -4,7 +4,7 @@
 const ALLOWED=new Set(['synced','pending','offline','unavailable','unknown']);
 function clone(value){return JSON.parse(JSON.stringify(value))}
 function create(options){
- let controller=null,started=false,latestStatus={kind:'connecting'},queue=[],working=false,halted=false,emergencyDrafts=[],draftHold=false,downloaded=false,repaintRequested=false,incompatibleRemote=null,lastNotifiedScope=null;
+ let controller=null,started=false,latestStatus={kind:'connecting'},statusEpoch=0,queue=[],working=false,halted=false,emergencyDrafts=[],draftHold=false,downloaded=false,downloadedFingerprint=null,repaintRequested=false,incompatibleRemote=null,lastNotifiedScope=null;
  const initialIssue=options.initialIssue||null;
  let warningAcknowledged=false;try{warningAcknowledged=global.localStorage?.getItem('nightcity-red-sync-warning-ack-v1')==='1'}catch{}
  const app=options.app, mount=options.mount, status=options.status;
@@ -36,7 +36,7 @@ function create(options){
    if(!draftHold){captureDraft();draftHold=true;downloaded=false}halted=true;show();
  }
  function updateStatus(next){
-   latestStatus=next||{kind:'error'};
+   statusEpoch++;latestStatus=next||{kind:'error'};
    if(['conflict','account','backupError','unsupported','error','badData','tooLarge','unsupportedMedia','forbidden','signedout'].includes(latestStatus.kind)&&(queue.length||working))failClosed();
    show();
  }
@@ -82,11 +82,13 @@ function create(options){
    working=false;show();
    if(!halted&&repaintRequested&&queue.length===0){repaintRequested=false;await controller.refresh()}
  }
+ // Bind the release decision to the exact downloaded snapshots and account context.
+ function recoveryFingerprint(){return JSON.stringify([draftHold,halted,working,queue.map(x=>x.snapshot),emergencyDrafts,latestStatus,statusEpoch,controller?.scope,controller?.getConflict?.(),global.localStorage?.getItem('nightcity-red-sync-owner-v1'),options.read()])}
  function exportDraft(){
-   if(!emergencyDrafts.length)return;
-   let latest=clone(emergencyDrafts[emergencyDrafts.length-1]);
-   const file={...latest,format:'nightcity-red-backup',version:1,_completeSnapshot:latest,unpersistedDrafts:clone(emergencyDrafts)};
-   const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='night-city-unsaved-drafts.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);downloaded=true;show();
+   if(!emergencyDrafts.length)return;downloaded=false;downloadedFingerprint=null;
+   // Include any newer in-memory model and queued edits before exporting.
+   if(!captureDraft()){show();return}
+   try{const latest=clone(emergencyDrafts[emergencyDrafts.length-1]),current=clone(options.read());if(JSON.stringify(latest)!==JSON.stringify(current)){show();return}const file={...latest,format:'nightcity-red-backup',version:1,_completeSnapshot:latest,unpersistedDrafts:clone(emergencyDrafts)},stamp=recoveryFingerprint();const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='night-city-unsaved-drafts.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);if(recoveryFingerprint()!==stamp){captureDraft();show();return}downloadedFingerprint=stamp;downloaded=true;show()}catch{downloaded=false;downloadedFingerprint=null;show()}
  }
  status?.addEventListener('click',event=>{
   const a=event.target.closest('[data-adapter-action]')?.dataset.adapterAction;
@@ -101,8 +103,14 @@ function create(options){
     const data=clone(incompatibleRemote),file={...data,format:'nightcity-red-backup',version:1,_completeSnapshot:clone(data)};const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'})),anchor=document.createElement('a');anchor.href=u;anchor.download='night-city-incompatible-cloud.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
   }
   if(a==='review'&&draftHold&&downloaded&&!working&&!queue.length){
-    if(!confirm(word('Вы скачали копию. Разрешить выбор другой версии? Черновик останется доступным в этой вкладке до закрытия.','You downloaded a copy. Allow choosing another version? The draft remains available in this tab until it closes.')))return;
-    draftHold=false;halted=false;show();
+    // A confirmation may yield to new edits, an account change or sync events.
+    // Only the exact state the user downloaded can be released for review.
+    let before;try{before=recoveryFingerprint()}catch{captureDraft();downloaded=false;downloadedFingerprint=null;draftHold=true;halted=true;show();return}
+    if(!downloadedFingerprint||before!==downloadedFingerprint){captureDraft();downloaded=false;downloadedFingerprint=null;draftHold=true;halted=true;show();return}
+    let approved=false;try{approved=confirm(word('Вы скачали копию. Разрешить выбор другой версии? Черновик останется доступным в этой вкладке до закрытия.','You downloaded a copy. Allow choosing another version? The draft remains available in this tab until it closes.'))}catch{}
+    let unchanged=false;try{unchanged=draftHold&&downloaded&&!working&&!queue.length&&recoveryFingerprint()===before&&before===downloadedFingerprint}catch{}
+    if(!unchanged){captureDraft();downloaded=false;downloadedFingerprint=null;draftHold=true;halted=true;show();return}
+    if(!approved)return;draftHold=false;halted=false;downloadedFingerprint=null;show();
   }
  });
  // While a draft is in flight or awaiting download, cloud conflict choices cannot replace it.
