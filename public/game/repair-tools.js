@@ -34,6 +34,7 @@ function armorRepair(c,j,location){
  const records=items.filter(v=>obj(v)&&v.id===slot.recordId),defs=catalog.filter(v=>obj(v)&&v.id===slot.catalogId);
  if(records.length!==1||defs.length!==1)return null;
  const record=records[0],item=defs[0],quantity=Number(record.quantity),base=item.stats?.sp,price=item.price;
+ if(Object.hasOwn(record,'starterArmor')&&(typeof window.EquipmentTools?.starterArmorLocation!=='function'||window.EquipmentTools.starterArmorLocation(record)!==location))return null;
  const categories={10:'cheap',20:'everyday',50:'costly',100:'premium',500:'expensive',1000:'veryexpensive',5000:'luxury'};
  if(item.category!=='armor'||record.catalogId!==item.id||!num(quantity,1,100)||slot.piece>=quantity||!num(base,0,1000)||!num(price,1,1000000000)||j.category!==(categories[price]||(price>=10000?'superluxury':''))||(j.category==='superluxury'&&j.price!==price))return null;
  const locations=item.id==='armor-bodyweight-suit'?['head','body']:[location];

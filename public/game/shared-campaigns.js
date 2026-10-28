@@ -10,9 +10,14 @@ Object.assign(CT.ru,{roll:'Бросить инициативу всем',rollOne
 Object.assign(CT.en,{roll:'Roll initiative for all',rollOne:'Roll initiative',rollHelp:'Initiative: 1d10 + REF + bonus. Rolling for all starts the queue at round one. An individual roll keeps the round and current turn; ties use existing tie rolls and add any needed rolls (up to 12). Resolve remaining ties manually.'});
 Object.assign(CT.ru,{copyHelp:'При добавлении копируются имя, REF и HP и создаётся связь с опубликованной копией. Изменения применяются к бою только по подтверждению ведущего. Чтобы связать уже имеющегося участника, выберите копию ниже и нажмите «Связать выбранную копию» у участника.',link:'Связать выбранную копию',linked:'Связан с опубликованной копией',refreshShare:'Обновить из опубликованной копии',linkConfirm:'Связать участника с выбранной опубликованной копией?',syncConfirm:'Обновить участника из опубликованной копии? Инициатива, порядок хода и личный лист не меняются.',shareInvalid:'Опубликованная копия недоступна или в ней некорректные имя, REF или HP. Обновите её и повторите попытку.',shareStale:'Кампания или данные изменились во время загрузки. Повторите действие.',sharePending:'Сначала исправьте или подтвердите незавершённые числовые поля боя.'});
 Object.assign(CT.en,{copyHelp:'Adding a published character copies its name, REF and HP and keeps a link to that shared copy. Changes reach combat only after GM confirmation. To link an existing combatant, select a copy below and use “Link selected copy” on that combatant.',link:'Link selected copy',linked:'Linked to a published copy',refreshShare:'Update from published copy',linkConfirm:'Link this combatant to the selected published copy?',syncConfirm:'Update this combatant from the published copy? Initiative, turn order and the personal sheet do not change.',shareInvalid:'The published copy is unavailable or has an invalid name, REF or HP. Update it and try again.',shareStale:'The campaign or its data changed while loading. Please retry.',sharePending:'Correct or commit the unfinished numeric combat fields first.'});
+CT.ru.autoRefresh='Открытая кампания обновляется автоматически примерно каждые 15 секунд, пока вкладка видна. Обновление откладывается, пока фокус находится внутри панели. Изменения ведущего появляются после сохранения.';
+CT.en.autoRefresh='The open campaign refreshes automatically about every 15 seconds while this tab is visible. Refresh waits while focus is inside this panel. GM changes appear after they are saved.';
 CT.ru.linkUnknown='Связь с опубликованным листом имеет неподдерживаемый формат.';
 CT.en.linkUnknown='The published-sheet link has an unsupported format.';
-let generation=0,model={scope:null,open:false,selected:null,list:null,detail:null,notes:null,invites:[],shares:[],error:'',message:'',inviteLink:'',conflict:null,draftNew:'',draftName:'',draftDescription:'',draftNotes:'',draftCombat:null,combatTouched:false,combatFieldDrafts:[],combatEntry:{name:'',ref:'6',hp:'30',share:''},waitingRestore:false,busy:false,seq:0}, ctx=null;
+T.ru.accessLost='Кампания больше недоступна. Обновите список кампаний.';
+T.en.accessLost='This campaign is no longer accessible. Refresh the campaign list.';
+let generation=0,model={scope:null,open:false,selected:null,list:null,detail:null,notes:null,invites:[],shares:[],error:'',message:'',inviteLink:'',draftCharacter:'',conflict:null,draftNew:'',draftName:'',draftDescription:'',draftNotes:'',draftCombat:null,combatTouched:false,combatFieldDrafts:[],combatEntry:{name:'',ref:'6',hp:'30',share:''},waitingRestore:false,busy:false,seq:0}, ctx=null;
+let interactionEpoch=0,pollTimer=null,pollTask=null;
 // Keep unsaved campaign forms in memory only, keyed by the verified Site account.
 // They are not rendered until a fresh, matching /api/campaigns GET succeeds.
 const suspended=new Map();
@@ -20,9 +25,10 @@ const boundRoots=new WeakSet();
 const label=()=>T[ctx?.lang]||T.en;
 function token(){const m=location.hash.match(/^#invite=([0-9a-f]{64})$/);return m?m[1]:''}
 function reset(scope){
+ interactionEpoch++;cancelPollTimer();
  if(model.scope&&!model.waitingRestore)suspended.set(model.scope,model);
  const waitingRestore=!!scope&&suspended.has(scope);
- model={scope,open:waitingRestore||!!token(),selected:null,list:null,detail:null,notes:null,invites:[],shares:[],error:'',message:'',inviteLink:'',conflict:null,draftNew:'',draftName:'',draftDescription:'',draftNotes:'',draftCombat:null,combatTouched:false,combatFieldDrafts:[],combatEntry:{name:'',ref:'6',hp:'30',share:''},waitingRestore,busy:false,seq:++generation};
+ model={scope,open:waitingRestore||!!token(),selected:null,list:null,detail:null,notes:null,invites:[],shares:[],error:'',message:'',inviteLink:'',draftCharacter:'',conflict:null,draftNew:'',draftName:'',draftDescription:'',draftNotes:'',draftCombat:null,combatTouched:false,combatFieldDrafts:[],combatEntry:{name:'',ref:'6',hp:'30',share:''},waitingRestore,busy:false,seq:++generation};
  const root=box();if(root)root.inert=false;
 }
 function same(s,seq){return model.scope===s&&model.seq===seq&&ctx?.scope===s&&(!ctx.getScope||ctx.getScope()===s)}
@@ -86,6 +92,7 @@ function combatLinkHTML(r,z,owner){
 function combatHTML(owner){
  const z=CT[ctx.lang]||CT.en,c=model.draftCombat;let content=`<div class="shared-box shared-combat"><h3>${E(z.title)}</h3><p class="muted">${E(z.help)}</p>`;
  if(!c)return content+`<p class="shared-warning">${E(z.unsupported)}</p></div>`;
+ if(!owner)content+=`<p class="muted">${E(z.autoRefresh)}</p>`;
  const list=combatOrder(c),current=list.findIndex(r=>r.id===c.turnId);
  content+=`<p><strong>${E(z.round)} ${c.round}</strong> · ${E(z.turn)} ${current<0?'—':E(list[current].name)}</p><p class="muted">${E(z.rollHelp)}</p>`;
  if(owner)content+=`<div class="shared-actions">${btn('combat-roll',z.roll,list.length?'':'disabled')}${btn('combat-next',z.next,list.length?'':'disabled')}${btn('combat-reset',z.reset,list.length?'':'disabled')}</div>`;
@@ -117,13 +124,14 @@ function render(){
   if(owner&&model.notes)content+=`<div class="shared-box"><h3>${E(t.notes)}</h3><p class="muted">${E(t.private)}</p><label class="field"><textarea id="shared-notes" maxlength="50000">${E(model.draftNotes)}</textarea></label>${btn('save-notes',t.save)}</div>`;
   content+=`<div class="shared-box"><h3>${E(t.players)}</h3><div class="shared-member-list">${d.members.map((m,i)=>`<div class="shared-row"><span>${E(m.role==='owner'?t.owner:t.player)} #${i+1}${m.mine?' · '+E(t.you):''}</span>${m.role==='player'&&(owner||m.mine)?btn('remove-member',m.mine?t.leave:t.remove,`data-id="${E(m.id)}" data-mine="${m.mine?'1':'0'}"`):''}</div>`).join('')}</div></div>`;
   if(owner){content+=`<div class="shared-box"><h3>${E(t.invites)}</h3><p>${E(t.inviteHelp)}</p>${btn('invite',t.newInvite)}${model.inviteLink?`<p class="shared-warning">${E(t.inviteOnce)}</p><input class="shared-mono" readonly value="${E(model.inviteLink)}" aria-label="${E(t.inviteOnce)}">`:''}<div class="shared-invite-list">${model.invites.map(i=>`<div class="shared-row"><span>${E(i.revokedAt?t.revoked:i.usedAt?t.used:t.expires+' '+new Date(i.expiresAt).toLocaleDateString(ctx.lang))}</span>${!i.revokedAt&&!i.usedAt&&i.expiresAt>Date.now()?btn('revoke',t.revoke,`data-id="${E(i.id)}"`):''}</div>`).join('')}</div></div>`}
-  content+=`<div class="shared-box"><h3>${E(t.shares)}</h3>${model.shares.map(s=>`<div class="shared-row"><div><strong>${E(s.data?.name||'—')}</strong><p class="muted">${E(s.data?.role||'')} · HP ${E(s.data?.hp??'—')} · ${E(d.members.find(m=>m.id===s.memberId)?.role==='owner'?t.owner:t.player)} #${d.members.findIndex(m=>m.id===s.memberId)+1||'?'}</p><p class="muted">${E(Object.entries(s.data?.stats||{}).map(([k,v])=>k+' '+v).join(' · '))}</p></div>${s.mine?`<div class="shared-actions">${ctx.characters.length?btn('update-share',t.update,`data-id="${E(s.id)}"`):''}${btn('unshare',t.unshare,`data-id="${E(s.id)}"`)}</div>`:''}</div>`).join('')}<h3>${E(t.share)}</h3><p class="muted">${E(t.shareHelp)}</p><label class="field">${E(t.select)}<select id="shared-character">${ctx.characters.map(c=>`<option value="${E(c.id)}">${E(c.name)} · ${E(c.role)}</option>`).join('')}</select></label>${ctx.characters.length?btn('publish',t.publish):`<p>${E(t.noCharacter)}</p>`}</div>`;
+  content+=`<div class="shared-box"><h3>${E(t.shares)}</h3>${model.shares.map(s=>`<div class="shared-row"><div><strong>${E(s.data?.name||'—')}</strong><p class="muted">${E(s.data?.role||'')} · HP ${E(s.data?.hp??'—')} · ${E(d.members.find(m=>m.id===s.memberId)?.role==='owner'?t.owner:t.player)} #${d.members.findIndex(m=>m.id===s.memberId)+1||'?'}</p><p class="muted">${E(Object.entries(s.data?.stats||{}).map(([k,v])=>k+' '+v).join(' · '))}</p></div>${s.mine?`<div class="shared-actions">${ctx.characters.length?btn('update-share',t.update,`data-id="${E(s.id)}"`):''}${btn('unshare',t.unshare,`data-id="${E(s.id)}"`)}</div>`:''}</div>`).join('')}<h3>${E(t.share)}</h3><p class="muted">${E(t.shareHelp)}</p><label class="field">${E(t.select)}<select id="shared-character">${ctx.characters.map(c=>`<option value="${E(c.id)}" ${c.id===model.draftCharacter?'selected':''}>${E(c.name)} · ${E(c.role)}</option>`).join('')}</select></label>${ctx.characters.length?btn('publish',t.publish):`<p>${E(t.noCharacter)}</p>`}</div>`;
   if(owner)content+=`<div class="shared-actions">${btn('delete',t.delete)}</div>`;
  }
  root.innerHTML=content;
 }
-async function request(path,method='GET',body){
+async function request(path,method='GET',body,signal){
  const s=model.scope,seq=model.seq;const options={method,credentials:'same-origin',headers:{Accept:'application/json'}};
+ if(signal)options.signal=signal;
  if(method!=='GET'){options.headers['Content-Type']='application/json';options.body=JSON.stringify({scope:s,...body})}
  let response=await fetch('/api/campaigns'+path,options),data=await response.json().catch(()=>({}));
  if(!same(s,seq)||(method==='GET'&&response.ok&&data.scope!==s))throw Object.assign(new Error('account_changed'),{code:'account_changed'});
@@ -156,6 +164,43 @@ function preserveConflict(attempt){model.conflict=JSON.stringify({campaignName:m
 function dirtyModel(m){return !!m.detail&&(m.draftName!==m.detail.name||m.draftDescription!==(m.detail.shared?.description||'')||!!m.notes&&m.draftNotes!==m.notes.notes||m.combatTouched||m.combatFieldDrafts.length>0||!!m.combatEntry.name.trim())}
 function dirty(){return dirtyModel(model)}
 function unsaved(m){return !!m.conflict||!!m.draftNew.trim()||dirtyModel(m)}
+function cancelPollTimer(){if(pollTimer!==null&&typeof globalThis.clearTimeout==='function')globalThis.clearTimeout(pollTimer);pollTimer=null}
+function eligibleForPoll(){return !!ctx&&!!model.scope&&model.open&&!!model.selected&&model.detail?.role==='player'&&!model.busy&&!model.waitingRestore&&!model.conflict&&!dirtyModel(model)&&!!box()&&box().isConnected!==false}
+function pollVisible(){return document.hidden!==true&&document.visibilityState!=='hidden'&&navigator.onLine!==false}
+function pollInteracting(){const root=box(),focused=document.activeElement;return !!root&&!!focused&&typeof root.contains==='function'&&root.contains(focused)}
+function validPollDetail(detail,id){return !!detail&&typeof detail==='object'&&!Array.isArray(detail)&&detail.id===id&&detail.role==='player'&&typeof detail.name==='string'&&detail.name.length<=100&&Number.isSafeInteger(detail.revision)&&detail.revision>=1&&detail.shared&&typeof detail.shared==='object'&&!Array.isArray(detail.shared)&&Array.isArray(detail.members)&&detail.members.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.id==='string'&&['owner','player'].includes(m.role)&&typeof m.mine==='boolean')}
+function validPollShares(value){return Array.isArray(value)&&value.every(s=>s&&typeof s==='object'&&!Array.isArray(s)&&typeof s.id==='string'&&typeof s.memberId==='string'&&typeof s.mine==='boolean'&&s.data&&typeof s.data==='object'&&!Array.isArray(s.data)&&(!Object.hasOwn(s.data,'stats')||s.data.stats&&typeof s.data.stats==='object'&&!Array.isArray(s.data.stats)))}
+function schedulePoll(){
+ if(!eligibleForPoll()){cancelPollTimer();return}
+ if(pollTimer!==null||pollTask?.model===model||typeof globalThis.setTimeout!=='function')return;
+ pollTimer=globalThis.setTimeout(()=>{pollTimer=null;void pollPlayer()},15000);
+}
+async function pollPlayer(){
+ if(!eligibleForPoll()){schedulePoll();return}
+ if(!pollVisible()||pollInteracting()){schedulePoll();return}
+ const prior=model,priorCtx=ctx,root=box(),scope=model.scope,seq=model.seq,id=model.selected,epoch=interactionEpoch;
+ let fingerprint;try{fingerprint=JSON.stringify([model,ctx.lang,ctx.characters])}catch{schedulePoll();return}
+ const current=()=>{try{return model===prior&&ctx===priorCtx&&box()===root&&root?.isConnected!==false&&same(scope,seq)&&interactionEpoch===epoch&&eligibleForPoll()&&JSON.stringify([model,ctx.lang,ctx.characters])===fingerprint}catch{return false}};
+ const task={model:prior};pollTask=task;let timeout=null,controller=null;
+ try{
+  controller=typeof AbortController==='function'?new AbortController():null;
+  const work=Promise.all([request('/'+encodeURIComponent(id),'GET',undefined,controller?.signal),request('/'+encodeURIComponent(id)+'/shares','GET',undefined,controller?.signal)]);
+  const timed=new Promise((_,reject)=>{timeout=globalThis.setTimeout(()=>{controller?.abort();reject(new Error('poll_timeout'))},10000)});
+  const [detail,shares]=await Promise.race([work,timed]);
+  if(!current()||!pollVisible()||pollInteracting()||!validPollDetail(detail,id)||!Number.isSafeInteger(prior.detail.revision)||detail.revision<prior.detail.revision||!validPollShares(shares?.shares))return;
+  if(JSON.stringify([detail,shares.shares])===JSON.stringify([model.detail,model.shares]))return;
+  model.detail=detail;model.shares=shares.shares;model.draftName=detail.name;model.draftDescription=typeof detail.shared.description==='string'?detail.shared.description:'';
+  const combat=detail.shared.combat;model.draftCombat=combat===undefined?emptyCombat():validCombat(combat)?JSON.parse(JSON.stringify(combat)):null;model.combatTouched=false;model.combatFieldDrafts=[];
+  render();
+ }catch(e){
+  if(current()&&(e?.code==='account_changed'||e?.status===401||e?.status===403)){reset(null);render()}
+  else if(current()&&e?.status===404){model.selected=null;model.detail=null;model.notes=null;model.shares=[];model.invites=[];model.list=null;model.error=label().accessLost;render()}
+ }finally{
+  if(timeout!==null&&typeof globalThis.clearTimeout==='function')globalThis.clearTimeout(timeout);
+  controller?.abort();
+  if(pollTask===task)pollTask=null;schedulePoll();
+ }
+}
 function combatValue(v,min,max){if(typeof v!=='string'||!v.trim()||!/^-?\d+$/.test(v.trim()))return null;const n=Number(v);return validInteger(n,min,max)?n:null}
 function combatId(){return globalThis.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2)}
 function addCombatant(name,ref,hp,shareId){const c=model.draftCombat,z=CT[ctx.lang]||CT.en;
@@ -229,11 +274,12 @@ function mount(options){
  ctx=options;if(model.scope!==options.scope)reset(options.scope);render();const root=box();if(!root)return;root.inert=!!model.busy;
  if(!boundRoots.has(root)){
   boundRoots.add(root);
-  root.addEventListener('input',e=>{const target=e.target;if(target.id==='shared-new-name')model.draftNew=target.value;if(target.id==='shared-name')model.draftName=target.value;if(target.id==='shared-description')model.draftDescription=target.value;if(target.id==='shared-notes')model.draftNotes=target.value;if(model.detail?.role==='owner'){if(target.id==='shared-combat-name')model.combatEntry.name=target.value.slice(0,100);if(target.id==='shared-combat-ref')model.combatEntry.ref=target.value;if(target.id==='shared-combat-hp')model.combatEntry.hp=target.value;const key=target.dataset?.combatField,id=target.dataset?.id,entry=model.draftCombat?.roster.find(r=>r.id===id);if(entry&&['ref','bonus','initiative','hp'].includes(key)){const raw=String(target.value);clearFieldDraft(id,key);if(raw!==String(entry[key]))model.combatFieldDrafts.push({id,key,raw})}}});
-  root.addEventListener('change',e=>{const target=e.target;if(model.detail?.role!=='owner'||!model.draftCombat)return;if(target.id==='shared-combat-share'){model.combatEntry.share=target.value;return}const key=target.dataset.combatField,id=target.dataset.id;if(!key)return;const limits={ref:[0,20],bonus:[-99,99],initiative:[-999,999],hp:[-999,999]},range=limits[key],entry=model.draftCombat.roster.find(r=>r.id===id);if(!range||!entry)return;const n=combatValue(target.value,...range);if(n===null){clearFieldDraft(id,key);model.combatFieldDrafts.push({id,key,raw:String(target.value)});model.error=(CT[ctx.lang]||CT.en).invalid}else {model.error='';clearFieldDraft(id,key);if(entry[key]!==n){entry[key]=n;if(key==='initiative')entry.ties=[];model.combatTouched=true}}render()});
-  root.addEventListener('click',async e=>{const b=e.target.closest('[data-shared]');if(!b)return;e.stopPropagation();if(model.busy)return;if(ctx.getScope&&ctx.getScope()!==model.scope){reset(null);render();return}model.busy=true;root.inert=true;let seq=model.seq;try{await action(b.dataset.shared,b)}catch(err){if(model.seq===seq){const t=label();if(err.code==='account_changed'||err.status===401||err.status===403){reset(null);render();return}model.error=err.code==='invite_limit'?t.inviteLimit:err.code==='invalid_or_used_invite'?t.inviteFailed:!navigator.onLine?t.offline:t.error+' ('+(err.status||'network')+')'}}finally{if(model.seq===seq){root.inert=false;const current=box();if(current)current.inert=false;model.busy=false;render()}}});
+  root.addEventListener('input',e=>{interactionEpoch++;const target=e.target;if(target.id==='shared-new-name')model.draftNew=target.value;if(target.id==='shared-name')model.draftName=target.value;if(target.id==='shared-description')model.draftDescription=target.value;if(target.id==='shared-notes')model.draftNotes=target.value;if(model.detail?.role==='owner'){if(target.id==='shared-combat-name')model.combatEntry.name=target.value.slice(0,100);if(target.id==='shared-combat-ref')model.combatEntry.ref=target.value;if(target.id==='shared-combat-hp')model.combatEntry.hp=target.value;const key=target.dataset?.combatField,id=target.dataset?.id,entry=model.draftCombat?.roster.find(r=>r.id===id);if(entry&&['ref','bonus','initiative','hp'].includes(key)){const raw=String(target.value);clearFieldDraft(id,key);if(raw!==String(entry[key]))model.combatFieldDrafts.push({id,key,raw})}}});
+  root.addEventListener('change',e=>{interactionEpoch++;const target=e.target;if(target.id==='shared-character'){model.draftCharacter=String(target.value||'');return}if(model.detail?.role!=='owner'||!model.draftCombat)return;if(target.id==='shared-combat-share'){model.combatEntry.share=target.value;return}const key=target.dataset.combatField,id=target.dataset.id;if(!key)return;const limits={ref:[0,20],bonus:[-99,99],initiative:[-999,999],hp:[-999,999]},range=limits[key],entry=model.draftCombat.roster.find(r=>r.id===id);if(!range||!entry)return;const n=combatValue(target.value,...range);if(n===null){clearFieldDraft(id,key);model.combatFieldDrafts.push({id,key,raw:String(target.value)});model.error=(CT[ctx.lang]||CT.en).invalid}else {model.error='';clearFieldDraft(id,key);if(entry[key]!==n){entry[key]=n;if(key==='initiative')entry.ties=[];model.combatTouched=true}}render()});
+  root.addEventListener('click',async e=>{interactionEpoch++;const b=e.target.closest('[data-shared]');if(!b)return;e.stopPropagation();if(model.busy)return;if(ctx.getScope&&ctx.getScope()!==model.scope){reset(null);render();return}model.busy=true;root.inert=true;let seq=model.seq;try{await action(b.dataset.shared,b)}catch(err){if(model.seq===seq){const t=label();if(err.code==='account_changed'||err.status===401||err.status===403){reset(null);render();return}model.error=err.code==='invite_limit'?t.inviteLimit:err.code==='invalid_or_used_invite'?t.inviteFailed:!navigator.onLine?t.offline:t.error+' ('+(err.status||'network')+')'}}finally{if(model.seq===seq){root.inert=false;const current=box();if(current)current.inert=false;model.busy=false;render();schedulePoll()}}});
  }
- if(model.open&&model.list===null&&!model.busy&&model.scope){model.busy=true;root.inert=true;const seq=model.seq;loadList().catch(e=>{if(model.seq===seq){if(e.code==='account_changed'||e.status===401||e.status===403){reset(null);render();return}model.error=label().error+' ('+(e.status||'network')+')'}}).finally(()=>{if(model.seq===seq){root.inert=false;const current=box();if(current)current.inert=false;model.busy=false;render()}})}
+ if(model.open&&model.list===null&&!model.busy&&model.scope){model.busy=true;root.inert=true;const seq=model.seq;loadList().catch(e=>{if(model.seq===seq){if(e.code==='account_changed'||e.status===401||e.status===403){reset(null);render();return}model.error=label().error+' ('+(e.status||'network')+')'}}).finally(()=>{if(model.seq===seq){root.inert=false;const current=box();if(current)current.inert=false;model.busy=false;render();schedulePoll()}})}
+ schedulePoll();
 }
 let navigated=false;
 function shouldNavigate(){if(!navigated&&token()){navigated=true;return true}return false}
