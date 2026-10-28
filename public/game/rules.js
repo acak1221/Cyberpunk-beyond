@@ -252,3 +252,34 @@ for (const row of window.SKILL_REFERENCE) {
   const costEn=row.multiplier===2?' · ×2 creation and improvement cost':'';
   window.RULES.push({id,page:row.page,category:{ru:'Навыки',en:'Skills'},title:{ru:row.ruName,en:row.name},text:{ru:`${row.stat}${costRu}. ${row.ru}`,en:`${row.stat}${costEn}. ${row.en}`}});
 }
+
+// Medical support and cybernetic replacement: Corebook v1.22 pp. 223–226.
+const traumaReferenceRows = [
+ ['hospital-pricing',225,'Больница: стоимость лечения','Hospital treatment costs',
+  'За визит платят только за самую высокую DV стабилизации или Treatment, необходимых пациенту: DV 10 — 50 eb, DV 13 — 100 eb, DV 15 — 500 eb, DV 17 и выше — 1 000 eb. Остальные необходимые процедуры для начала естественного восстановления включены.',
+  'A visit is billed only for the highest DV Stabilization or Treatment the patient needs: DV 10 costs 50 eb, DV 13 costs 100 eb, DV 15 costs 500 eb, and DV 17 or higher costs 1,000 eb. Other procedures required to begin natural healing are included.'],
+ ['hospital-stay-payment',225,'Пребывание и оплата в больнице','Hospital stay and payment',
+  'Стационарная кровать стоит 100 eb за ночь. Если счёт нельзя оплатить при выписке, больница может предложить оплату в начале следующего месяца; просроченные долги могут передать взыскателям.',
+  'A hospital bed costs 100 eb per night. If the bill cannot be paid on discharge, the hospital can arrange payment at the start of the next month; overdue bills can lead to collection agents.'],
+ ['trauma-team-transfer',224,'Передача страховки Trauma Team','Transferring Trauma Team coverage',
+  'Обе страховки можно передать одному другу вместо себя, но не использовать одновременно для двух друзей или друга и владельца полиса. Для Silver хирургическое Treatment оплачивается отдельно по больничной цене; Executive включает его.',
+  'Either plan can cover one friend instead of the policyholder, but cannot cover two friends at once or a friend while already covering the policyholder. Silver charges hospital prices for surgical Treatment; Executive includes it.'],
+ ['trauma-team-call',224,'Как вызвать Trauma Team','Calling Trauma Team',
+  'Обычный вызов при ранении требует действия. Если карта зарегистрирована в Agent со связанным Biomonitor, вызов происходит без действия при HP ниже BODY или критической травме с утратой части тела. Карту можно зарегистрировать на Agent друга. После вызова бросьте 1d6: столько раундов до прибытия.',
+  'A normal call when injured takes an Action. With the card registered to an Agent linked to a Biomonitor, the Agent can call without an Action when HP is below BODY or a Critical Injury dismembers a body part. The card can be registered to a friend’s Agent. Roll 1d6 for the number of rounds until arrival.'],
+ ['trauma-team-response',224,'Прибытие Trauma Team','Trauma Team response',
+  'Команда из врача, медицинского ассистента, пилота и двух охранников прибывает на AV-4 и входит в начало очереди инициативы. Её участники используют Combat Number с 1d10 для атаки и защиты и не могут уклоняться от пуль.',
+  'A doctor, medical assistant, pilot and two security officers arrive in an AV-4 and enter at the top of the Initiative Queue. Members use Combat Number plus 1d10 for offense and defense and cannot dodge bullets.'],
+ ['replacement-parts',226,'Замена утраченных частей тела','Replacing lost body parts',
+  'При лечении утраченной части стандартная больничная замена — клонированная ткань пациента или медицинский киберпротез. Медицинский протез полностью функционален, но не имеет слотов для улучшений и не вызывает потери Humanity. Для полноценного киберимпланта отдельно оплатите Treatment травмы и сам имплант.',
+  'Standard hospital replacement of a lost part uses tissue cloned from the patient or medical-grade cyberware. Medical-grade cyberware restores function but has no upgrade slots and causes no Humanity Loss. For full cyberware, pay separately for Treatment of the injury and the implant.'],
+ ['found-cyberware',226,'Извлечение киберимплантов','Harvesting cyberware',
+  'Без повреждения импланты из тела может извлечь только Medtech; исключение — детали, снимаемые действием, например Chipware или конечности с Quick Change Mount. Извлечение и установка занимают по 4 часа, DV операции равна DV установки; провал уничтожает имплант и отнимает 2 часа работы.',
+  'Only a Medtech can harvest cyberware from a corpse intact, except pieces removable with an Action, such as Chipware or limbs with Quick Change Mounts. Harvesting and installation each take 4 hours; Surgery DV matches the installation DV. Failure destroys the cyberware and wastes 2 hours.'],
+ ['cyber-surgery-install',226,'Самостоятельная установка импланта','Installing recovered cyberware',
+  'При установке извлечённого импланта пациент всё равно теряет Humanity по обычным правилам. Операцию по установке себе можно выполнять только для импланта с типичной установкой Mall. В книге указаны Surgery DV: Mall 13, Clinic 15, Hospital 17.',
+  'A patient still suffers the normal Humanity Loss when recovered cyberware is installed. You can perform installation surgery on yourself only when the cyberware’s typical installation is Mall. The book lists Surgery DV 13 for Mall, 15 for Clinic, and 17 for Hospital.']
+];
+for (const [id,page,ruTitle,enTitle,ruText,enText] of traumaReferenceRows) {
+  window.RULES.push({id,page,category:{ru:'Лечение',en:'Healing'},title:{ru:ruTitle,en:enTitle},text:{ru:ruText,en:enText}});
+}
