@@ -8,4 +8,9 @@
 .getting-started li h3:before{content:'0' counter(guide) ' / ';color:var(--red)}
 .getting-started h3{font-size:14px;margin:0 0 7px}.getting-started p{margin:0 0 12px}.getting-started .btn{min-height:36px;padding:8px 12px}
 .getting-started-save{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.getting-started-directory{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.getting-started-directory>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:8px}
+.getting-started-directory button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:5px;padding:12px;color:#eee0d1;background:#171617;border:1px solid var(--border);cursor:pointer;font:inherit}
+.getting-started-directory button:hover{border-color:#eac878}.getting-started-directory button:focus-visible{outline:2px solid #eac878;outline-offset:2px}
+.getting-started-directory button span{color:#c6b8aa;font-size:12px;line-height:1.4}
 @media(max-width:700px){.getting-started ol{grid-template-columns:1fr}}

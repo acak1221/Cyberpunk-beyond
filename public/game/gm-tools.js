@@ -178,7 +178,25 @@ function npcWeaponHandle(b,ctx,lang){
  const name=lang==='ru'?(WEAPONS_RU[r.weapon]||r.weapon):r.weapon;
  out.textContent=`${name}: ${r.dice.join(' + ')} = ${r.total}. ${r.noCritical?t.flame:r.critical?t.critical:t.noCritical}`;return {handled:true};
 }
-function npcRosterHTML(n,i,t,l){let temp=NPC_TEMPLATES.find(x=>x.id===n.template);return `<article class="gm-card"><div class="gm-grid"><label class="field">${esc(t.name)}<input data-gm-index="${i}" data-gm-npc="name" maxlength="100" value="${esc(n.name)}"></label><label class="field">${esc(t.hp)}<input type="number" min="-999" max="999" data-gm-index="${i}" data-gm-npc="hp" value="${n.hp}"></label></div><p>${esc(t.type)}: ${esc(temp?.name[l]||n.template)} · ${esc(t.source)} ${temp?.page||''}</p>${temp?`<div class="gm-statline">${Object.entries(temp.stats).map(([k,v])=>`<span>${esc(k)} ${v}${temp.effectiveStats?.[k]!==undefined?` (${temp.effectiveStats[k]})`:''}</span>`).join('')}</div><p class="gm-note">${l==='ru'?'Шаблон (начальные значения)':'Template (starting values)'}: HP ${temp.hp} · ${esc(t.sp)} ${temp.armor.headSP}/${temp.armor.bodySP}</p>`:''}${temp?npcArmorHTML(n,temp,l)+npcDeathHTML(n,temp,l)+npcSkillHTML(n,temp,l)+npcWeaponHTML(n,temp,l):''}<label class="field">${esc(t.notes)}<textarea data-gm-index="${i}" data-gm-npc="notes" maxlength="5000">${esc(n.notes)}</textarea></label>${button('remove',t.remove,`data-index="${i}"`)}</article>`}
+function npcRosterHTML(n,i,t,l){let temp=NPC_TEMPLATES.find(x=>x.id===n.template);return `<article class="gm-card"><div class="gm-grid"><label class="field">${esc(t.name)}<input data-gm-index="${i}" data-gm-npc="name" maxlength="100" value="${esc(n.name)}"></label><label class="field">${esc(t.hp)}<input type="number" min="-999" max="999" data-gm-index="${i}" data-gm-npc="hp" value="${n.hp}"></label></div><p>${esc(t.type)}: ${esc(temp?.name[l]||n.template)} · ${esc(t.source)} ${temp?.page||''}</p>${temp?`<div class="gm-statline">${Object.entries(temp.stats).map(([k,v])=>`<span>${esc(k)} ${v}${temp.effectiveStats?.[k]!==undefined?` (${temp.effectiveStats[k]})`:''}</span>`).join('')}</div><p class="gm-note">${l==='ru'?'Шаблон (начальные значения)':'Template (starting values)'}: HP ${temp.hp} · ${esc(t.sp)} ${temp.armor.headSP}/${temp.armor.bodySP}</p>`:''}${temp?npcArmorHTML(n,temp,l)+npcDeathHTML(n,temp,l)+npcSkillHTML(n,temp,l)+npcWeaponHTML(n,temp,l):''}<label class="field">${esc(t.notes)}<textarea data-gm-index="${i}" data-gm-npc="notes" maxlength="5000">${esc(n.notes)}</textarea></label>${button('duplicate',l==='ru'?'Создать копию NPC':'Duplicate NPC',`data-index="${i}"`)} ${button('remove',t.remove,`data-index="${i}"`)}</article>`}
+// Copy only this personal roster entry, never a campaign. The existing state, including HP and effects, is intentional.
+function duplicateRoster(b,ctx,lang){
+ const w=ctx.workspace,scope=ctx.scope,root=b.closest?.('[data-gm-root]'),stale=NPC_ARMOR_TEXT[lang].stale;
+ const current=()=>{try{return root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-gm-root]')===root&&b.dataset.gm==='duplicate'&&ctx.isCurrent?.(w,scope)===true}catch{return false}};
+ if(!current()||!validWorkspace(w))return {handled:true,notify:stale};
+ const roster=w.roster,index=/^\d+$/.test(b.dataset.index||'')?Number(b.dataset.index):null,subject=index===null?null:roster[index];
+ if(!Number.isSafeInteger(index)||!subject||roster.filter(n=>n?.id===subject.id).length!==1)return {handled:true,notify:stale};
+ if(roster.length>=200)return {handled:true,notify:TX[lang].limit};
+ let snapshot,entries,copy;try{snapshot=JSON.stringify(w);entries=roster.slice();copy=JSON.parse(JSON.stringify(subject))}catch{return {handled:true,notify:stale}}
+ const confirmText=lang==='ru'?'Создать независимую копию NPC? Текущие HP, броня, состояние, эффекты и заметки будут скопированы.':'Create an independent NPC copy? Current HP, armor, state, effects and notes will be copied.';
+ if(!window.confirm(confirmText))return {handled:true};
+ let same=false;try{same=current()&&w.roster===roster&&roster.length===entries.length&&roster.every((n,i)=>n===entries[i])&&JSON.stringify(w)===snapshot&&b.dataset.index===String(index)}catch{}
+ if(!same)return {handled:true,notify:stale};
+ let id='';for(let attempt=0;attempt<3;attempt++){try{id=uid()}catch{id=''}if(typeof id==='string'&&id.length>0&&id.length<=160&&!roster.some(n=>n.id===id))break;id=''}
+ if(!id)return {handled:true,notify:stale};
+ const suffix=lang==='ru'?' (копия)':' (copy)';let base=subject.name.slice(0,100-suffix.length);if(/[\uD800-\uDBFF]$/.test(base))base=base.slice(0,-1);copy.id=id;copy.name=base+suffix;roster.push(copy);
+ return {handled:true,dirty:true,rerender:true};
+}
 function removeRoster(b,ctx,lang){
  const w=ctx.workspace,scope=ctx.scope,root=b.closest?.('[data-gm-root]'),stale=NPC_ARMOR_TEXT[lang].stale,op=b.dataset.gm;
  const current=()=>{try{return root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-gm-root]')===root&&b.dataset.gm===op&&ctx.isCurrent?.(w,scope)===true}catch{return false}};
@@ -202,6 +220,7 @@ function handle(event,ctx){const lang=ctx.lang==='ru'?'ru':'en',t=TX[lang],w=ctx
   if(op==='death-set'||op==='death-roll'||op==='death-stabilize'||op==='death-wake')return npcDeathHandle(b,ctx,lang);
   if(op==='roll'){w.roll=1+Math.floor(Math.random()*100);return {handled:true,dirty:true,rerender:true}}
   if(op==='add'){let template=NPC_TEMPLATES.find(x=>x.id===b.dataset.id);if(!template)return {handled:true,notify:t.invalid};if(w.roster.length>=200)return {handled:true,notify:t.limit};w.roster.push({id:uid(),template:template.id,name:template.name[lang],hp:template.hp,notes:''});return {handled:true,dirty:true,rerender:true}}
+  if(op==='duplicate')return duplicateRoster(b,ctx,lang);
   if(op==='remove'||op==='clear')return removeRoster(b,ctx,lang);
   return {handled:true};
  }
