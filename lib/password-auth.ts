@@ -11,7 +11,7 @@ let cachedAuth: ReturnType<typeof createPasswordAuth> | null = null;
 function service() {
  const url=databaseConnectionString(process.env);
  if(!url)return null;
- const config=postgresConnectionConfig(url);
+ const config=postgresConnectionConfig(url, process.env);
  if(!config)return null;
  if(cachedAuth)return cachedUrl===url?cachedAuth:null;
  cachedUrl=url; cachedAuth=createPasswordAuth(new Pool(config)); return cachedAuth;

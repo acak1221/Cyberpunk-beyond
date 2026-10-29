@@ -16,7 +16,7 @@ export function getDatabase() {
   const connectionString = databaseConnectionString(process.env);
   if (!connectionString) return null;
   // Use the Supabase transaction-pooler URL; TLS verification is mandatory.
-  const config = postgresConnectionConfig(connectionString);
+  const config = postgresConnectionConfig(connectionString, process.env);
   if (!config) return null;
   if (database && cachedUrl === connectionString) return database;
   // A running instance never silently switches databases while requests are in
