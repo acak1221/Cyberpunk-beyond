@@ -156,7 +156,29 @@ function npcSkillHandle(b,ctx,lang){
  out.textContent=`${label}: ${r.base} ${r.modifier<0?'−':'+'} ${Math.abs(r.modifier)} ${r.wound<0?'−':'+'} ${Math.abs(r.wound)} (${t.woundLabel}) + 1d10 ${r.first}${r.extra?(r.first===1?' − ':' + ')+r.extra:''} = ${r.total}`;
  return {handled:true};
 }
-function npcRosterHTML(n,i,t,l){let temp=NPC_TEMPLATES.find(x=>x.id===n.template);return `<article class="gm-card"><div class="gm-grid"><label class="field">${esc(t.name)}<input data-gm-index="${i}" data-gm-npc="name" maxlength="100" value="${esc(n.name)}"></label><label class="field">${esc(t.hp)}<input type="number" min="-999" max="999" data-gm-index="${i}" data-gm-npc="hp" value="${n.hp}"></label></div><p>${esc(t.type)}: ${esc(temp?.name[l]||n.template)} · ${esc(t.source)} ${temp?.page||''}</p>${temp?`<div class="gm-statline">${Object.entries(temp.stats).map(([k,v])=>`<span>${esc(k)} ${v}${temp.effectiveStats?.[k]!==undefined?` (${temp.effectiveStats[k]})`:''}</span>`).join('')}</div><p class="gm-note">${l==='ru'?'Шаблон (начальные значения)':'Template (starting values)'}: HP ${temp.hp} · ${esc(t.sp)} ${temp.armor.headSP}/${temp.armor.bodySP}</p>`:''}${temp?npcArmorHTML(n,temp,l)+npcDeathHTML(n,temp,l)+npcSkillHTML(n,temp,l):''}<label class="field">${esc(t.notes)}<textarea data-gm-index="${i}" data-gm-npc="notes" maxlength="5000">${esc(n.notes)}</textarea></label>${button('remove',t.remove,`data-index="${i}"`)}</article>`}
+const NPC_WEAPON_TEXT={ru:{title:'УРОН ОРУЖИЯ NPC',weapon:'Оружие из шаблона',roll:'Бросить урон',note:'Используйте после подтверждённого попадания. Бросок не расходует боеприпасы и не меняет HP или броню. Особые свойства, боеприпасы, поджог, тип атаки и эффекты смертельного ранения учитывайте отдельно.',critical:'Две или более шестёрки: возможное критическое ранение. Определите ранение и добавьте +5 напрямую к HP отдельно.',noCritical:'По кубикам критического ранения нет.',flame:'Огнемёт не вызывает критического ранения по кубикам; проверьте поджог цели.',invalid:'Проверьте оружие и параметры NPC.',stale:'Форма, NPC или аккаунт изменились.'},en:{title:'NPC WEAPON DAMAGE',weapon:'Weapon from template',roll:'Roll damage',note:'Use after a confirmed hit. This roll does not spend ammunition or change HP or armor. Handle special properties, ammunition, fire, attack type and Mortally Wounded effects separately.',critical:'Two or more sixes: possible Critical Injury. Determine the injury and apply +5 directly to HP separately.',noCritical:'No Critical Injury from the dice.',flame:'A flamethrower cannot cause a Critical Injury from its dice; check whether the target catches fire.',invalid:'Check the weapon and NPC data.',stale:'The form, NPC or account changed.'}};
+function npcWeaponRoll(temp,index,rng=Math.random){
+ if(!temp||!Array.isArray(temp.weapons)||!Number.isSafeInteger(index)||index<0||index>=temp.weapons.length)return null;
+ const weapon=temp.weapons[index],match=typeof weapon?.damage==='string'?weapon.damage.trim().match(/^(\d{1,2})d6$/i):null,count=match?Number(match[1]):0;
+ if(!weapon||typeof weapon.name!=='string'||!weapon.name.trim()||count<1||count>20||typeof rng!=='function')return null;
+ const dice=Array.from({length:count},()=>1+Math.floor(rng()*6));if(dice.some(x=>!Number.isSafeInteger(x)||x<1||x>6))return null;
+ const noCritical=temp.id==='pyro'&&weapon.name==='Flamethrower';return {weapon:weapon.name,dice,total:dice.reduce((a,b)=>a+b,0),noCritical,critical:!noCritical&&dice.filter(x=>x===6).length>=2};
+}
+function npcWeaponHTML(n,temp,l){const t=NPC_WEAPON_TEXT[l],weapons=Array.isArray(temp.weapons)?temp.weapons:[];return `<details data-gm-weapon data-npc-id="${esc(n.id)}"><summary>${esc(t.title)}</summary><p class="gm-note">${esc(t.note)}</p><label class="field">${esc(t.weapon)}<select data-npc-weapon="index">${weapons.map((weapon,i)=>`<option value="${i}">${esc(l==='ru'?(WEAPONS_RU[weapon.name]||weapon.name):weapon.name)} · ${esc(weapon.damage)}</option>`).join('')}</select></label>${button('npc-weapon-roll',t.roll)}<div data-npc-weapon-result role="status"></div></details>`}
+function npcWeaponHandle(b,ctx,lang){
+ const t=NPC_WEAPON_TEXT[lang],w=ctx.workspace,root=b.closest?.('[data-gm-weapon]');
+ const current=()=>{try{return root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-gm-weapon]')===root&&ctx.isCurrent?.(w,ctx.scope)===true}catch{return false}};
+ if(!current())return {handled:true,notify:t.stale};const matches=w?.roster?.filter(x=>x?.id===root.dataset.npcId)||[];
+ if(matches.length!==1)return {handled:true,notify:t.stale};const n=matches[0],temps=NPC_TEMPLATES.filter(x=>x.id===n.template),temp=temps.length===1?temps[0]:null,field=root.querySelector('[data-npc-weapon="index"]'),out=root.querySelector('[data-npc-weapon-result]'),raw=field?.value;
+ if(!out||typeof raw!=='string'||!/^\d+$/.test(raw)){return {handled:true,notify:t.invalid}}
+ let sig;try{sig=JSON.stringify(w)}catch{return {handled:true,notify:t.invalid}}const r=npcWeaponRoll(temp,Number(raw));
+ if(!r){out.textContent=t.invalid;return {handled:true}}
+ let unchanged=false;try{unchanged=current()&&JSON.stringify(w)===sig&&w.roster.filter(x=>x?.id===n.id).length===1&&w.roster.includes(n)&&field.value===raw}catch{}
+ if(!unchanged){out.textContent=t.stale;return {handled:true}}
+ const name=lang==='ru'?(WEAPONS_RU[r.weapon]||r.weapon):r.weapon;
+ out.textContent=`${name}: ${r.dice.join(' + ')} = ${r.total}. ${r.noCritical?t.flame:r.critical?t.critical:t.noCritical}`;return {handled:true};
+}
+function npcRosterHTML(n,i,t,l){let temp=NPC_TEMPLATES.find(x=>x.id===n.template);return `<article class="gm-card"><div class="gm-grid"><label class="field">${esc(t.name)}<input data-gm-index="${i}" data-gm-npc="name" maxlength="100" value="${esc(n.name)}"></label><label class="field">${esc(t.hp)}<input type="number" min="-999" max="999" data-gm-index="${i}" data-gm-npc="hp" value="${n.hp}"></label></div><p>${esc(t.type)}: ${esc(temp?.name[l]||n.template)} · ${esc(t.source)} ${temp?.page||''}</p>${temp?`<div class="gm-statline">${Object.entries(temp.stats).map(([k,v])=>`<span>${esc(k)} ${v}${temp.effectiveStats?.[k]!==undefined?` (${temp.effectiveStats[k]})`:''}</span>`).join('')}</div><p class="gm-note">${l==='ru'?'Шаблон (начальные значения)':'Template (starting values)'}: HP ${temp.hp} · ${esc(t.sp)} ${temp.armor.headSP}/${temp.armor.bodySP}</p>`:''}${temp?npcArmorHTML(n,temp,l)+npcDeathHTML(n,temp,l)+npcSkillHTML(n,temp,l)+npcWeaponHTML(n,temp,l):''}<label class="field">${esc(t.notes)}<textarea data-gm-index="${i}" data-gm-npc="notes" maxlength="5000">${esc(n.notes)}</textarea></label>${button('remove',t.remove,`data-index="${i}"`)}</article>`}
 function removeRoster(b,ctx,lang){
  const w=ctx.workspace,scope=ctx.scope,root=b.closest?.('[data-gm-root]'),stale=NPC_ARMOR_TEXT[lang].stale,op=b.dataset.gm;
  const current=()=>{try{return root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-gm-root]')===root&&b.dataset.gm===op&&ctx.isCurrent?.(w,scope)===true}catch{return false}};
@@ -175,6 +197,7 @@ function removeRoster(b,ctx,lang){
 function handle(event,ctx){const lang=ctx.lang==='ru'?'ru':'en',t=TX[lang],w=ctx.workspace,el=event.target;if(faceHandle(event,lang))return {handled:true};const b=el.closest?.('[data-gm]');
  if(event.type==='click'&&b){const op=b.dataset.gm;
   if(op==='npc-skill-roll')return npcSkillHandle(b,ctx,lang);
+  if(op==='npc-weapon-roll')return npcWeaponHandle(b,ctx,lang);
   if(op==='armor-set'||op==='armor-damage')return npcArmorHandle(b,ctx,lang);
   if(op==='death-set'||op==='death-roll'||op==='death-stabilize'||op==='death-wake')return npcDeathHandle(b,ctx,lang);
   if(op==='roll'){w.roll=1+Math.floor(Math.random()*100);return {handled:true,dirty:true,rerender:true}}
@@ -183,11 +206,12 @@ function handle(event,ctx){const lang=ctx.lang==='ru'?'ru':'en',t=TX[lang],w=ctx
   return {handled:true};
  }
  if(event.type==='input'||event.type==='change'){
+  if(el.dataset?.npcWeapon){const root=el.closest?.('[data-gm-weapon]'),out=root?.querySelector?.('[data-npc-weapon-result]');if(out)out.textContent='';return {handled:true}}
   if(el.dataset?.npcSkill){const root=el.closest?.('[data-gm-skill]'),out=root?.querySelector?.('[data-npc-skill-result]');if(out)out.textContent='';return {handled:true}}
   let key=el.dataset?.gmField;if(key){if(key==='time'&&['day','evening','midnight'].includes(el.value))w.time=el.value;else if(key==='zone'&&['corporate','moderate','combat','executive'].includes(el.value))w.zone=el.value;else if(key==='party')w.party=clamp(el.value,1,20);else if(key==='roll')w.roll=el.value===''?null:clamp(el.value,1,100);else return {handled:true};return {handled:true,dirty:true,rerender:event.type==='change'}}
   key=el.dataset?.gmNpc;if(key){let n=w.roster?.[Number(el.dataset.gmIndex)];if(!n||!['name','hp','notes'].includes(key))return {handled:true};n[key]=key==='hp'?clamp(el.value,-999,999):String(el.value).slice(0,key==='notes'?5000:100);if(key==='hp'){const result=el.closest?.('.gm-card')?.querySelector?.('[data-npc-skill-result]');if(result)result.textContent=''}return {handled:true,dirty:true,rerender:key==='hp'&&event.type==='change'}}
  }
  return {handled:false};
 }
-window.GMTools={ENCOUNTERS,NPC_TEMPLATES,initial,validWorkspace,matches,render,handle,faceDown,recognition,npcSkillBase,npcSkillRoll};
+window.GMTools={ENCOUNTERS,NPC_TEMPLATES,initial,validWorkspace,matches,render,handle,faceDown,recognition,npcSkillBase,npcSkillRoll,npcWeaponRoll};
 })();
