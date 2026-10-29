@@ -107,7 +107,7 @@ function combatHtml(a,l,characters){
 }
 function render(ctx){
  const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=Array.isArray(ctx.architectures)?ctx.architectures:[],a=all.find(x=>x.id===selected);let html=`<div class="net-tools" data-net-root><div class="page-header"><div><div class="overline">NETRUNNING / COREBOOK 197–211</div><h1>${esc(z.title)}</h1><p>${esc(z.intro)}</p></div>${button('new','＋ '+z.create)}</div>`;
- if(!a){html+=`<div class="campaign-grid">${all.length?all.map(x=>`<article class="card"><div class="card-heading"><span>NET ARCHITECTURE</span><span>${Array.isArray(x.floors)?x.floors.length:0}</span></div><h2>${esc(x.name||z.unknown)}</h2><p>${esc(x.access||'')}</p>${button('open',z.openArch,`data-id="${esc(x.id)}"`)}</article>`).join(''):`<div class="empty"><p>${esc(z.none)}</p></div>`}</div></div>`;return html}
+ if(!a){html+=`<div class="campaign-grid">${all.length?all.map(x=>`<article class="card"><div class="card-heading"><span>NET ARCHITECTURE</span><span>${Array.isArray(x.floors)?x.floors.length:0}</span></div><h2>${esc(x.name||z.unknown)}</h2><p>${esc(x.access||'')}</p>${button('open',z.openArch,`data-id="${esc(x.id)}"`)}${button('duplicate',l==='ru'?'Создать копию':'Duplicate',`data-id="${esc(x.id)}" aria-label="${esc((l==='ru'?'Создать копию: ':'Duplicate: ')+(x.name||z.unknown))}"`)}</article>`).join(''):`<div class="empty"><p>${esc(z.none)}</p></div>`}</div></div>`;return html}
  const floors=Array.isArray(a.floors)?a.floors:[];
  html+=`${button('back','← '+z.back)}<section class="card"><div class="net-grid">${input(z.name,'field="name"',a.name,'maxlength="100"')}${input(z.access,'field="access"',a.access,'maxlength="200"')}${input(z.rank,'field="rank"',a.rank,'type="number" min="1" max="10"')}${input(z.modifier,'field="modifier"',a.modifier,'type="number" min="-99" max="99"')}${input(z.dv,'field="dv"',a.dv,'type="number" min="-99" max="999"')}${input(z.current,'field="current"',a.current,'maxlength="80"')}</div><label class="field">${esc(z.notes)}<textarea data-net-field="notes" maxlength="10000">${esc(a.notes)}</textarea></label><p class="net-note">${esc(z.turnHelp)}</p><strong>${esc(z.turn)}: ${clamp(a.remaining,0,99)} / ${actions(a.rank)}</strong><div class="net-actions">${button('reset',z.reset)}${button('spend',z.spend)}${button('refund',z.refund)}${button('roll',z.roll)}</div><p class="net-note">${esc(z.diceHelp)}</p>${lastRoll?`<div class="net-result" role="status">${esc(lastRoll)}</div>`:''}<p class="net-note">${esc(z.saveNote)}</p></section>`;
  html+=combatHtml(a,l,ctx.characters);
@@ -139,9 +139,25 @@ function confirmedNetAction(b,ctx,lang,all,a,op,i,j,f,entry){
  else {const [per,spd,atk,def,rez]=ICE[entry.preset];Object.assign(entry,{name:entry.preset,per,spd,atk,def,maxRez:rez,rez,state:'waiting'})}
  combatResult=null;return {handled:true,dirty:true,rerender:true};
 }
+function duplicateArchitecture(b,ctx,l,all){
+ const scope=lastScope,epoch=scopeEpoch,selection=selected,root=b.closest?.('[data-net-root]'),id=b.dataset.id,source=all?.find(x=>x?.id===id),index=all?.indexOf(source),stale=l==='ru'?'Данные, аккаунт или форма изменились. Повторите действие.':'The data, account or form changed. Please retry.';
+ const current=()=>{try{return !!scope&&lastScope===scope&&scopeEpoch===epoch&&selected===selection&&selection===null&&ctx.architectures===all&&ctx.isCurrent?.(all,scope)===true&&root?.isConnected===true&&b.isConnected===true&&b.closest?.('[data-net-root]')===root&&b.dataset.net==='duplicate'&&b.dataset.id===id}catch{return false}};
+ if(!current()||!validArchitectures(all)||!source||all.filter(x=>x.id===id).length!==1)return {handled:true,notify:stale};
+ if(all.length>=100)return {handled:true,notify:t[l].limit};
+ const objects=value=>{const refs=[],stack=[value];while(stack.length){const x=stack.pop();if(x&&typeof x==='object'){refs.push(x);for(const v of Object.values(x))stack.push(v)}}return refs};let signature,refs;try{signature=JSON.stringify(all);refs=objects(all)}catch{return {handled:true,notify:stale}}
+ if(!window.confirm(l==='ru'?'Создать отдельную копию? Этажи, заметки, текущий REZ и состояние ICE будут скопированы как есть.':'Create an independent copy? Floors, notes, current REZ and ICE states will be copied as they are.'))return {handled:true};
+ let unchanged=false;try{if(current()&&JSON.stringify(all)===signature){const now=objects(all);unchanged=now.length===refs.length&&now.every((x,n)=>x===refs[n])&&all[index]===source}}catch{}
+ if(!unchanged)return {handled:true,notify:stale};
+ let identifier;for(let i=0;i<3;i++){const candidate=uid();if(typeof candidate==='string'&&candidate.length>0&&candidate.length<=160&&!all.some(x=>x.id===candidate)){identifier=candidate;break}}
+ if(!identifier)return {handled:true,notify:stale};
+ let copy;try{copy=JSON.parse(JSON.stringify(source))}catch{return {handled:true,notify:stale}}copy.id=identifier;
+ const suffix=l==='ru'?' (копия)':' (copy)';let prefix=(source.name||t[l].unknown).slice(0,200-suffix.length);if(/[\uD800-\uDBFF]$/.test(prefix))prefix=prefix.slice(0,-1);copy.name=prefix+suffix;
+ if(!validArchitectures([copy]))return {handled:true,notify:stale};all.unshift(copy);selected=copy.id;lastRoll=null;resetCombat();return {handled:true,dirty:true,rerender:true,notify:l==='ru'?'Копия создана с текущим состоянием.':'Copy created with its current state.'};
+}
 function handle(ev,ctx){
  const l=ctx.lang==='ru'?'ru':'en',z=t[l],all=ctx.architectures,el=ev.target,b=el.closest('[data-net]'),a=all.find(x=>x.id===selected);
  if(ev.type==='click'&&b){const op=b.dataset.net,i=Number(b.dataset.index),j=Number(b.dataset.entry),f=a?.floors?.[i],entry=f?.entries?.[j];
+  if(op==='duplicate')return duplicateArchitecture(b,ctx,l,all);
   if(op==='new'){if(all.length>=100)return {handled:true,notify:z.limit};let n=newArchitecture(l);all.unshift(n);selected=n.id;lastRoll=null;resetCombat();return {handled:true,dirty:true,rerender:true}}
   if(op==='open'){selected=b.dataset.id;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
   if(op==='back'){selected=null;lastRoll=null;resetCombat();return {handled:true,rerender:true}}

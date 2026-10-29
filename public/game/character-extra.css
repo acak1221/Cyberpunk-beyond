@@ -7,6 +7,10 @@
 .cx-grid .field { min-width: 0; }
 .cx-section > .field { margin-top: 14px; }
 .cx-entry { padding: 14px; margin-bottom: 12px; background: #151517; border: 1px solid #3b3737; }
+.cx-entry[data-inventory-row][hidden] { display:none !important; }
+.inventory-filter { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr)); gap:10px; margin:12px 0; align-items:end; }
+.inventory-filter p { margin:0; color:#c7b8aa; font-size:12px; }
+@media print { .inventory-filter { display:none !important; } .cx-entry[data-inventory-row][hidden] { display:block !important; } }
 .cx-entry-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom: 12px; color:#eee2d5; font-size:12px; }
 .cx-entry-heading .cx-button, .cx-log .cx-button { padding:5px 7px; border:0; color:#be8c83; background:transparent; font-size:10px; }
 .cx-entry-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:14px; }
