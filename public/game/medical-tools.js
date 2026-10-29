@@ -24,6 +24,18 @@ Object.assign(D.ru,{practitioner:'Кто стабилизирует',practitione
 Object.assign(D.en,{practitioner:'Who stabilizes',practitionerManual:'External practitioner — enter values manually',practitionerValues:'Values from sheet',practitionerHelp:'You may select the patient as well. TECH and the selected First Aid or Paramedic come from that sheet. Enter wound penalties, LUCK, equipment and other conditions in the modifier manually. p. 222.',practitionerInvalid:'The practitioner sheet is unavailable or its TECH / selected skill is invalid. Correct the sheet or choose manual entry.',practitionerStale:'The practitioner sheet changed or is unavailable. Roll stabilization again.',treatmentManual:'Choose the treating character separately below; manual values are retained.',treatPractitioner:'Who treats the critical injury',treatPractitionerHelp:'TECH and the selected skill come from the sheet; Surgery is calculated from a Medtech’s Medicine. Quick Fix can be performed on yourself; Treatment requires another person. Enter penalties, LUCK, and circumstances manually.'});
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const validInt=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
+// Return the primary Medtech rank, or the uniquely owned rank in a compatible multiclass record.
+function medtechRank(c){
+ const validRank=n=>Number.isSafeInteger(n)&&n>=1&&n<=10, obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+ if(!obj(c))return null;
+ if(c.role==='medtech')return validRank(c.rank)?c.rank:null;
+ const roles=new Set(['rockerboy','solo','netrunner','tech','medtech','media','exec','lawman','fixer','nomad']),a=c.extra?.advancement;
+ if(!roles.has(c.role)||!obj(a)||a.primaryRole!==c.role||!Array.isArray(a.additionalRoles)||!roles.has(a.latestRole))return null;
+ const seen=new Set([c.role]);let rank=null;
+ for(const r of a.additionalRoles){if(!obj(r)||!roles.has(r.role)||seen.has(r.role))return null;const raw=r.rank,n=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw):NaN;if(!validRank(n))return null;seen.add(r.role);if(r.role==='medtech')rank=n}
+ return seen.has(a.latestRole)?rank:null;
+}
+
 const tx=lang=>D[lang==='en'?'en':'ru'];
 const mk=()=>({selected:'',practitioner:'',tech:'6',skill:'2',modifier:'0',method:'First Aid',days:'1',restDate:'',antibodies:false,location:'body',injury:'2',treatment:'quick',cyber:false,self:false,treatSkill:'',treatPractitioner:'',highest:'13',nights:'0',result:'',pending:null,treatResult:'',treatResultProof:null});
 let scope=null,scopeEpoch=0,ui=mk();const drafts=new Map();
@@ -58,7 +70,7 @@ function linkedTreatmentPractitioner(ctx,choice,requireCurrent=true){
  if(matches.length!==1||patients.length!==1||!choice||!['First Aid','Paramedic','Cybertech','Surgery'].includes(choice.skill))return {kind:'invalid'};
  const c=matches[0],patient=patients[0],numeric=(v,min,max)=>{if(typeof v==='string'&&!/^\d+$/.test(v.trim()))return null;if(typeof v!=='number'&&typeof v!=='string')return null;const n=Number(v);return validInt(n,min,max)?n:null},tech=numeric(c.stats?.TECH,0,20);
  if(tech===null||ui.treatment==='treat'&&(ui.self||c===patient))return {kind:'invalid'};
- let level;if(choice.skill==='Surgery'){const v=c.extra?.roleTools?.medtech?.values,rank=c.rank;if(c.role!=='medtech'||!validInt(rank,1,10)||!v||typeof v!=='object'||Array.isArray(v))return {kind:'invalid'};const surgery=v.surgery??0,pharma=v.pharma??0,cryo=v.cryo??0;if(!validInt(surgery,1,10)||!validInt(pharma,0,5)||!validInt(cryo,0,5)||surgery+pharma+cryo>rank)return {kind:'invalid'};level=Math.min(10,surgery*2)}else {if(!c.skills||typeof c.skills!=='object'||Array.isArray(c.skills))return {kind:'invalid'};level=numeric(c.skills[choice.skill],0,10);if(level===null)return {kind:'invalid'}}
+ let level;if(choice.skill==='Surgery'){const v=c.extra?.roleTools?.medtech?.values,rank=medtechRank(c);if(rank===null||!v||typeof v!=='object'||Array.isArray(v))return {kind:'invalid'};const surgery=v.surgery??0,pharma=v.pharma??0,cryo=v.cryo??0;if(!validInt(surgery,1,10)||!validInt(pharma,0,5)||!validInt(cryo,0,5)||surgery+pharma+cryo>rank)return {kind:'invalid'};level=Math.min(10,surgery*2)}else {if(!c.skills||typeof c.skills!=='object'||Array.isArray(c.skills))return {kind:'invalid'};level=numeric(c.skills[choice.skill],0,10);if(level===null)return {kind:'invalid'}}
  try{if(requireCurrent&&(typeof ctx.isCurrent!=='function'||!isCurrent(ctx,c)||!isCurrent(ctx,patient)))return {kind:'invalid'};const signature=JSON.stringify(c),patientSignature=JSON.stringify(patient);return typeof signature==='string'&&typeof patientSignature==='string'?{kind:'linked',character:c,patient,tech,level,signature,patientSignature}:{kind:'invalid'}}catch{return {kind:'invalid'}}
 }
 function linkedPractitionerCurrent(ctx,pending){

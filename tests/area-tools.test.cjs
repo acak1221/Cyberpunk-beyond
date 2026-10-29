@@ -17,6 +17,27 @@ test('shotgun shell requires a successful check and visible targets',()=>{
  assert.equal(A.resolveTarget({...base,type:'shell',hit:true,target:{...target,cover:5}}).status,'invalid');
  assert.equal(A.resolveTarget({...base,type:'shell',hit:true,target:{...target,ref:8,dodge:'yes',evasion:19}}).status,'dodged');
 });
+test('a tie favors the defender against shotgun shells but not against explosions',()=>{
+ const defending={...target,ref:8,dodge:'yes'};
+ for(const type of ['shell','blast']){
+  assert.equal(A.resolveTarget({...base,type,target:{...defending,evasion:17}}).status,'hit');
+  assert.equal(A.resolveTarget({...base,type,target:{...defending,evasion:18}}).status,type==='shell'?'dodged':'hit');
+  assert.equal(A.resolveTarget({...base,type,target:{...defending,evasion:19}}).status,'dodged');
+ }
+ assert.match(A.render('ru'),/При ничьей уклонение от дроби удаётся, а от взрыва — нет/);
+ assert.match(A.render('en'),/A tie evades shotgun shells, but not an explosion/);
+});
+test('the area calculator displays the tied shotgun dodge in both languages',()=>{
+ for(const lang of ['ru','en']){
+  const output={innerHTML:''};
+  const row={querySelector:s=>({value:({'[data-area-name]':'Target','[data-area-ref]':'8','[data-area-dodge]':'yes','[data-area-evasion]':'18','[data-area-sp]':'11','[data-area-cover]':'0'})[s]})};
+  const container={querySelectorAll:()=>[row]},values={'[data-area-type]':'shell','[data-area-attack]':'18','[data-area-dv]':'13','[data-area-dice]':'6,4,1'};
+  const root={querySelector:s=>s==='[data-area-targets]'?container:s==='[data-area-result]'?output:{value:values[s]}};
+  const button={dataset:{areaAction:'calculate'},closest:()=>root};
+  assert.equal(A.handle({type:'click',target:{closest:()=>button}},lang),true);
+  assert.match(output.innerHTML,lang==='ru'?/Уклонение удалось/:/Dodge succeeded/);
+ }
+});
 test('two sixes add direct critical damage even when armor blocks the ordinary damage',()=>{
  const r=A.resolveTarget({...base,damage:12,sixes:2,target:{...target,sp:20}});assert.equal(r.status,'hit');assert.equal(r.penetration,0);assert.equal(r.bonus,5);assert.equal(r.total,5);assert.equal(r.spAfter,20);
 });

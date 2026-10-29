@@ -38,6 +38,17 @@ function config(r,ui,patient){const self=ui.practitioner?ui.practitioner===patie
 function name(r,l){return window.MedicalTools?.INJURIES?.[r.location]?.[r.score-2]?.[l==='ru'?0:1]||'?'}
 function effect(r,l){return window.CombatTools?.INJURIES?.[r.location]?.[r.score-2]?.effect?.[l]||''}
 function num(v,min,max){if(typeof v!=='string'||!/^\-?\d+$/.test(v.trim()))return null;const n=Number(v);return whole(n,min,max)?n:null}
+// Return the primary Medtech rank, or the uniquely owned rank in a compatible multiclass record.
+function medtechRank(c){
+ const validRank=n=>Number.isSafeInteger(n)&&n>=1&&n<=10, obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+ if(!obj(c))return null;
+ if(c.role==='medtech')return validRank(c.rank)?c.rank:null;
+ const roles=new Set(['rockerboy','solo','netrunner','tech','medtech','media','exec','lawman','fixer','nomad']),a=c.extra?.advancement;
+ if(!roles.has(c.role)||!obj(a)||a.primaryRole!==c.role||!Array.isArray(a.additionalRoles)||!roles.has(a.latestRole))return null;
+ const seen=new Set([c.role]);let rank=null;
+ for(const r of a.additionalRoles){if(!obj(r)||!roles.has(r.role)||seen.has(r.role))return null;const raw=r.rank,n=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw):NaN;if(!validRank(n))return null;seen.add(r.role);if(r.role==='medtech')rank=n}
+ return seen.has(a.latestRole)?rank:null;
+}
 function linkedPractitioner(ctx,patient,ui,choice,requireCurrent=true){
  if(!ui.practitioner)return {kind:'manual'};
  const list=Array.isArray(ctx.characters)?ctx.characters:[],hits=list.filter(x=>object(x)&&x.id===ui.practitioner);
@@ -46,8 +57,8 @@ function linkedPractitioner(ctx,patient,ui,choice,requireCurrent=true){
  if(tech===null||ui.method==='treat'&&c.id===patient.id)return {kind:'invalid'};
  let level;
  if(choice.skill==='Surgery'){
-  const v=c.extra?.roleTools?.medtech?.values,rank=c.rank;
-  if(c.role!=='medtech'||!whole(rank,1,10)||!object(c.extra)||!object(c.extra.roleTools)||!object(c.extra.roleTools.medtech)||!object(v))return {kind:'invalid'};
+  const v=c.extra?.roleTools?.medtech?.values,rank=medtechRank(c);
+  if(rank===null||!object(c.extra)||!object(c.extra.roleTools)||!object(c.extra.roleTools.medtech)||!object(v))return {kind:'invalid'};
   const surgery=v.surgery??0,pharma=v.pharma??0,cryo=v.cryo??0;
   if(!whole(surgery,1,10)||!whole(pharma,0,5)||!whole(cryo,0,5)||surgery+pharma+cryo>rank)return {kind:'invalid'};
   level=Math.min(10,2*surgery);
