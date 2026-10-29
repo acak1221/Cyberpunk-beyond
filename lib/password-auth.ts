@@ -2,14 +2,14 @@ import 'server-only';
 import { Pool } from 'pg';
 import { cookies } from 'next/headers';
 import { createPasswordAuth } from './password-auth-core.mjs';
-import { postgresConnectionConfig } from './postgres-connection-config.mjs';
+import { databaseConnectionString, postgresConnectionConfig } from './postgres-connection-config.mjs';
 import { safeReturnTo, siteOrigin } from './supabase-auth-flow.mjs';
 
 export const SESSION_COOKIE_NAME = 'nc_session';
 let cachedUrl: string | undefined;
 let cachedAuth: ReturnType<typeof createPasswordAuth> | null = null;
 function service() {
- const url=process.env.DATABASE_URL?.trim();
+ const url=databaseConnectionString(process.env);
  if(!url)return null;
  const config=postgresConnectionConfig(url);
  if(!config)return null;

@@ -1,7 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
-import { postgresConnectionConfig } from '../lib/postgres-connection-config.mjs';
+import { databaseConnectionString, postgresConnectionConfig } from '../lib/postgres-connection-config.mjs';
+
+test('explicit database URL takes precedence over marketplace configuration', () => {
+  const explicit = 'postgres://user:password@primary.example.test/db';
+  const marketplace = 'postgres://user:password@pooler.example.test:6543/db?sslmode=require&supa=base-pooler.x';
+  assert.equal(databaseConnectionString({ DATABASE_URL: ` ${explicit} `, cyberpunk_POSTGRES_URL: marketplace }), explicit);
+  assert.equal(databaseConnectionString({ DATABASE_URL: 'invalid', cyberpunk_POSTGRES_URL: marketplace }), 'invalid');
+  assert.equal(postgresConnectionConfig(databaseConnectionString({ DATABASE_URL: 'invalid', cyberpunk_POSTGRES_URL: marketplace })), null);
+  assert.equal(databaseConnectionString({ DATABASE_URL: ' ', cyberpunk_POSTGRES_URL: ` ${marketplace} ` }), marketplace);
+  assert.equal(databaseConnectionString({}), null);
+  const config = postgresConnectionConfig(databaseConnectionString({ cyberpunk_POSTGRES_URL: marketplace }));
+  const client = new pg.Client(config);
+  assert.equal(client.connectionParameters.ssl.rejectUnauthorized, true);
+  assert.equal(client.connectionParameters.sslnegotiation, 'postgres');
+});
 
 test('database pool requires verified TLS and keeps a single connection', () => {
   for (const url of ['postgresql://user:secret@example.test:6543/db', 'postgresql://user:secret@example.test:6543/db?sslmode=require', 'postgresql://user:secret@example.test:6543/db?sslmode=verify-full']) {
