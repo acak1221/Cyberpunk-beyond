@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npx next build --webpack",
+  "rewrites": [
+    { "source": "/signin-with-chatgpt", "destination": "/auth/signin" }
+  ]
+}

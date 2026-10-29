@@ -1,0 +1,13 @@
+export function language(value: unknown): 'ru' | 'en';
+export function safeReturnTo(value: unknown): string;
+export function siteOrigin(value: unknown, requestUrl: string, production?: boolean): string | null;
+export function isSameOrigin(request: Request): boolean;
+export function secureCookieOptions(options: Record<string, unknown> | undefined, production?: boolean): Record<string, any>;
+export function allowedEmail(email: unknown, allowlist: unknown): boolean;
+export function displayNotice(key: string, lang: string): string;
+type AuthClientFactory = () => Promise<any>;
+export function verifiedIdentity(client: AuthClientFactory, allowlist?: string): Promise<{userId:string;email:string;displayName:string;fullName:null} | null>;
+export function signIn(request: Request, client: AuthClientFactory, allowlist?: string): Promise<Response>;
+export function signUp(request: Request, client: AuthClientFactory, baseUrl: string | undefined, production?: boolean, allowlist?: string): Promise<Response>;
+export function callback(request: Request, client: AuthClientFactory, allowlist?: string): Promise<Response>;
+export function signOut(request: Request, client: AuthClientFactory): Promise<Response>;

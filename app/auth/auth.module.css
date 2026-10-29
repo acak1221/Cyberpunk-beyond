@@ -1,0 +1,9 @@
+.frame{min-height:100vh;display:grid;place-items:center;padding:28px 16px;background:#11110f;color:#f0e7dc;font-family:Inter,system-ui,sans-serif}
+.card{width:min(100%,440px);padding:28px;background:#1b1918;border:1px solid #534940;box-shadow:0 20px 60px #0006}
+.top{display:flex;justify-content:space-between;align-items:center;color:#e3b95c;font-size:12px;font-weight:800;letter-spacing:.1em}
+.top nav{display:flex;gap:12px}.top a,.links a{color:#e8c77e;text-decoration:underline;text-underline-offset:3px}
+.top a[aria-current]{color:#fff}.card h1{margin:26px 0 10px;font-size:28px}.card p{color:#d1c4b7;line-height:1.5}.card form{display:grid;gap:16px;margin-top:22px}
+.card label{display:grid;gap:7px;color:#eadfd1;font-size:14px;font-weight:600}.card input:not([type=hidden]){width:100%;box-sizing:border-box;padding:12px;color:#fff;background:#111;border:1px solid #786b5d;border-radius:2px;font:inherit}
+.card button{padding:12px;border:1px solid #deae54;background:#e5c36f;color:#1a1511;font:inherit;font-weight:800;cursor:pointer}.card :is(a,button,input):focus-visible{outline:3px solid #e5c36f;outline-offset:3px}
+.card .hint{font-size:13px;margin:0}.card .notice{padding:10px;border-left:3px solid #e5c36f;background:#302923}.links{display:grid;gap:12px;margin-top:24px;font-size:14px}
+.card h2{margin:28px 0 8px;font-size:20px}.inviteList{display:grid;gap:12px;list-style:none;padding:0;margin:20px 0}.inviteList li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:12px;border:1px solid #534940;color:#d1c4b7;font-size:13px}.inviteList form{display:block;margin:0}.inviteList button{padding:7px 10px;font-size:13px;background:transparent;color:#e8c77e}

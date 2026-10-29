@@ -1,6 +1,5 @@
-import { env } from 'cloudflare:workers';
-import { getChatGPTUser } from '../../chatgpt-auth';
+import { getIdentity, getDatabase } from '@platform-runtime';
 import { createCampaignService } from '../../../lib/campaign-service.mjs';
 export function handleCampaign(request: Request) {
-  return createCampaignService({getIdentity:getChatGPTUser,getDatabase:()=>env.DB}).handle(request);
+  return createCampaignService({getIdentity,getDatabase}).handle(request);
 }

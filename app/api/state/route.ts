@@ -1,14 +1,13 @@
-import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getIdentity, getDatabase } from "@platform-runtime";
 import { createStateService } from "../../../lib/state-service.mjs";
 
 export const dynamic = "force-dynamic";
 
 function service() {
-  // Auth headers are provided by Sites dispatch. Never use a user ID from a request body.
+  // Identity is verified by the selected server runtime, never by request body.
   return createStateService({
-    getIdentity: getChatGPTUser,
-    getDatabase: () => env.DB,
+    getIdentity,
+    getDatabase,
   });
 }
 export async function GET(request: Request) { return service().get(request); }

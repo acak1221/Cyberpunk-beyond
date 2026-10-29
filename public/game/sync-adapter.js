@@ -4,7 +4,7 @@
 const ALLOWED=new Set(['synced','pending','offline','unavailable','unknown']);
 function clone(value){return JSON.parse(JSON.stringify(value))}
 function create(options){
- let controller=null,started=false,latestStatus={kind:'connecting'},statusEpoch=0,queue=[],working=false,halted=false,emergencyDrafts=[],draftHold=false,downloaded=false,downloadedFingerprint=null,repaintRequested=false,incompatibleRemote=null,lastNotifiedScope=null;
+ let controller=null,started=false,latestStatus={kind:'connecting'},statusEpoch=0,queue=[],working=false,halted=false,emergencyDrafts=[],draftHold=false,downloaded=false,downloadedFingerprint=null,repaintRequested=false,incompatibleRemote=null,lastNotifiedScope=null,authProvider=null,providerPending=false;
  const initialIssue=options.initialIssue||null;
  let warningAcknowledged=false;try{warningAcknowledged=global.localStorage?.getItem('nightcity-red-sync-warning-ack-v1')==='1'}catch{}
  const app=options.app, mount=options.mount, status=options.status;
@@ -26,6 +26,8 @@ function create(options){
     let unsupportedRaw=null;if(latestStatus.kind==='unsupported'&&!initialIssue){try{unsupportedRaw=global.localStorage?.getItem('nightcity-red-v1')??null}catch{}}
     status.innerHTML=`${warningAcknowledged?'':`<p class="sync-adapter-note">${word('Перед работой закройте или обновите все старые вкладки сайта: прежняя версия не защищает совместную запись.','Close or reload all older site tabs before editing: older versions do not coordinate writes.')} <button type="button" data-adapter-action="dismiss-warning">${word('Понятно','Understood')}</button></p>`}${(!started||!controller||queue.length||working||draftHold||halted||!mount?.querySelector('.sync-status'))?`<p class="sync-adapter-state" role="status">${stateLabel()}</p>`:''}${unverifiedOwner()?`<div class="sync-adapter-draft" role="alert"><p>${word('Не удалось подтвердить владельца локальных данных. Редактирование остановлено; исходная копия не изменена. Скачайте её и повторите вход или синхронизацию.','The local data owner could not be verified. Editing is paused and the original copy is unchanged. Download it and retry sign-in or sync.')}</p>${typeof ownerRaw==='string'?`<button type="button" data-adapter-action="download-legacy">${word('Скачать исходные данные','Download original data')}</button>`:''}</div>`:''}${latestStatus.kind==='signedout'?`<p class="sync-signin"><a href="/signin-with-chatgpt?return_to=%2Fgame%2Findex.html" target="_top">${word('Войти в аккаунт','Sign in')}</a></p>`:''}${latestStatus.kind==='unsupported'&&!initialIssue?`<div class="sync-adapter-draft" role="alert"><p>${word('Безопасное сохранение в этом браузере недоступно. Редактирование остановлено; исходная локальная копия не изменена.','Safe saving is unavailable in this browser. Editing is disabled; the original local copy has not been changed.')}</p>${typeof unsupportedRaw==='string'?`<button type="button" data-adapter-action="download-legacy">${word('Скачать исходные данные','Download original data')}</button>`:''}</div>`:''}${initialIssue?`<div class="sync-adapter-draft" role="alert"><p>${word('Локальные данные повреждены или несовместимы. Они не изменены; редактирование и синхронизация остановлены. Скачайте исходную копию для восстановления.','Local data is damaged or incompatible. It has not been changed; editing and sync are stopped. Download the original copy for recovery.')}</p>${typeof initialIssue.raw==='string'?`<button type="button" data-adapter-action="download-legacy">${word('Скачать исходные данные','Download original data')}</button>`:''}</div>`:''}${incompatibleRemote?`<div class="sync-adapter-draft" role="alert"><p>${word('Другая копия несовместима с этой версией и не применена к открытым данным. Скачайте её для проверки.','Another copy is incompatible with this version and was not applied to the open data. Download it for review.')}</p><button type="button" data-adapter-action="download-incompatible">${word('Скачать другую копию','Download other copy')}</button></div>`:''}${draft?`<div class="sync-adapter-draft" role="alert"><p>${word('Последние изменения ещё не подтверждены локальным хранилищем. Черновик остаётся в этой вкладке; скачайте копию до закрытия.','Recent edits have not been confirmed by local storage. The draft remains in this tab; download a copy before closing it.')}</p><button type="button" data-adapter-action="download">${word('Скачать черновик и историю снимков','Download draft and snapshot history')}</button>${draftHold?`<button type="button" data-adapter-action="review" ${downloaded&&!working&&!queue.length?'':'disabled'}>${word('Я скачал копию — перейти к разбору','I saved a copy — review the conflict')}</button>`:''}</div>`:''}`;
    }
+   // Do not offer navigation away while writes or unresolved drafts remain.
+   if(status&&authProvider==='supabase'&&canEdit()&&latestStatus.kind==='synced'&&!queue.length&&!working&&!draftHold&&!halted&&!emergencyDrafts.length){const account=document.createElement('p');account.className='sync-signin';const link=document.createElement('a');link.href='/auth/account';link.target='_top';link.setAttribute('data-adapter-account','');link.textContent=word('Аккаунт и выход','Account and sign out');account.appendChild(link);status.appendChild(account)}
    setPanelText();
    const currentScope=getScope();if(currentScope!==lastNotifiedScope){lastNotifiedScope=currentScope;options.onScopeChange?.(currentScope)}
  }
@@ -35,10 +37,15 @@ function create(options){
  function failClosed(){
    if(!draftHold){captureDraft();draftHold=true;downloaded=false}halted=true;show();
  }
+ function discoverProvider(){
+   if(!canEdit()||authProvider||providerPending||typeof global.fetch!=='function')return;
+   providerPending=true;
+   Promise.resolve().then(()=>global.fetch('/api/auth/provider',{method:'GET',credentials:'same-origin',cache:'no-store'})).then(r=>r?.ok?r.json():null).then(x=>{if(['sites','supabase'].includes(x?.provider)){authProvider=x.provider;show()}}).catch(()=>{}).finally(()=>{providerPending=false});
+ }
  function updateStatus(next){
    statusEpoch++;latestStatus=next||{kind:'error'};
    if(['conflict','account','backupError','unsupported','error','badData','tooLarge','unsupportedMedia','forbidden','signedout'].includes(latestStatus.kind)&&(queue.length||working))failClosed();
-   show();
+   show();if(started&&latestStatus.kind==='synced')discoverProvider();
  }
  function apply(next){
    // An async refresh must never replace data the SPA has not durably saved.
@@ -52,7 +59,11 @@ function create(options){
    if(initialIssue){latestStatus={kind:'badData'};started=true;halted=true;show();return null}
    try{
      controller=await global.CloudSync.start({mount,language:lang,read:()=>clone(options.read()),apply,validate:options.validate,onIncompatibleRemote:data=>{incompatibleRemote=clone(data);show()},onExternalApplyFailure:previous=>{emergencyDrafts.push(clone(previous));draftHold=true;halted=true;downloaded=false;show()},canApplyExternal:()=>canEdit()&&!working&&queue.length===0&&!draftHold&&!halted,canApplyAfterConflict:()=>{try{const scope=controller?.scope;return started&&latestStatus.kind==='conflict'&&!working&&queue.length===0&&!draftHold&&!halted&&typeof scope==='string'&&scope.length>=8&&scope.length<=512&&global.localStorage?.getItem('nightcity-red-sync-owner-v1')===scope}catch{return false}},onStatus:updateStatus,debounceMs:600});
-     latestStatus=controller.getStatus();started=true;show();return controller;
+     latestStatus=controller.getStatus();started=true;show();
+     // This optional discovery is deliberately after sync initialization and
+     // never blocks it. Sites, old deployments and network errors are safe.
+     discoverProvider();
+     return controller;
    }catch(err){latestStatus={kind:'error'};started=true;halted=true;show();options.onFailure?.(err);return null}
  }
  function save(snapshot){
@@ -91,6 +102,13 @@ function create(options){
    try{const latest=clone(emergencyDrafts[emergencyDrafts.length-1]),current=clone(options.read());if(JSON.stringify(latest)!==JSON.stringify(current)){show();return}const file={...latest,format:'nightcity-red-backup',version:1,_completeSnapshot:latest,unpersistedDrafts:clone(emergencyDrafts)},stamp=recoveryFingerprint();const u=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='night-city-unsaved-drafts.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);if(recoveryFingerprint()!==stamp){captureDraft();show();return}downloadedFingerprint=stamp;downloaded=true;show()}catch{downloaded=false;downloadedFingerprint=null;show()}
  }
  status?.addEventListener('click',event=>{
+  const account=event.target.closest?.('[data-adapter-account]');
+  if(account?.hasAttribute?.('data-adapter-account')){
+    const safe=()=>account.isConnected===true&&status.contains(account)&&authProvider==='supabase'&&canEdit()&&latestStatus.kind==='synced'&&!queue.length&&!working&&!draftHold&&!halted&&!emergencyDrafts.length;
+    const scope=getScope();if(!safe()){event.preventDefault();return}
+    let ok=false;try{ok=confirm(word('При переходе временные несохранённые поля могут быть потеряны. Открыть управление аккаунтом?','Temporary unsaved fields may be lost when leaving this page. Open account settings?'))}catch{}
+    if(!ok||!safe()||scope!==getScope())event.preventDefault();return;
+  }
   const a=event.target.closest('[data-adapter-action]')?.dataset.adapterAction;
   if(a==='dismiss-warning'){warningAcknowledged=true;try{global.localStorage?.setItem('nightcity-red-sync-warning-ack-v1','1')}catch{}show();return}
   if(a==='download')exportDraft();

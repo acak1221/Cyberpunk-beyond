@@ -23,6 +23,12 @@
       }
     ],
     "paths": {
+      "@game-guard": [
+        "./lib/game-guard-sites.ts"
+      ],
+      "@platform-runtime": [
+        "./lib/platform-runtime.ts"
+      ],
       "@/*": [
         "./*"
       ]
