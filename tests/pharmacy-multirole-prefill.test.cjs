@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const window={};vm.runInNewContext(fs.readFileSync('public/game/pharmacy-tools.js','utf8'),{window,Math,JSON,Object,Array,Number,String,Set});
+const skill=window.PharmacyTools.sheetMedicalSkill;
+function character(){return {role:'fixer',rank:8,extra:{advancement:{primaryRole:'fixer',latestRole:'medtech',additionalRoles:[{role:'medtech',rank:3}]},roleTools:{medtech:{values:{surgery:1,pharma:1,cryo:1}}}}}}
+test('prefill uses the additional Medtech rank and rejects incompatible or unowned allocations',()=>{let c=character();assert.equal(skill(c),2);c.extra.advancement.additionalRoles[0].rank=2;assert.equal(skill(c),null);c.extra.advancement.additionalRoles.push({role:'medtech',rank:3});assert.equal(skill(c),null);c=character();c.extra.advancement.primaryRole='solo';assert.equal(skill(c),null);c=character();c.extra.advancement.additionalRoles=[];c.extra.advancement.latestRole='fixer';assert.equal(skill(c),null);c=character();c.role='medtech';c.rank=3;assert.equal(skill(c),2);c.extra.roleTools.medtech.values.pharma='1';assert.equal(skill(c),null)});
