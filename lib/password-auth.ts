@@ -3,7 +3,8 @@ import { Pool } from 'pg';
 import { cookies } from 'next/headers';
 import { createPasswordAuth } from './password-auth-core.mjs';
 import { databaseConnectionString, postgresConnectionConfig } from './postgres-connection-config.mjs';
-import { safeReturnTo, siteOrigin } from './supabase-auth-flow.mjs';
+import { safeReturnTo } from './supabase-auth-flow.mjs';
+import { allowedPasswordRequestOrigin } from './password-request-origin.mjs';
 
 export const SESSION_COOKIE_NAME = 'nc_session';
 let cachedUrl: string | undefined;
@@ -30,7 +31,7 @@ export async function getAccountOverview() {
 const header={'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'};
 function redirect(url: string) { return new Response(null,{status:303,headers:{...header,Location:url}}); }
 function page(path: string,lang: string,returnTo: string,notice: string) { const q=new URLSearchParams({lang,return_to:returnTo,notice}); return path+'?'+q; }
-function allowedOrigin(request:Request) { try { const url=new URL(request.url); const expected=siteOrigin(process.env.APP_BASE_URL,request.url,process.env.NODE_ENV==='production'); const origin=request.headers.get('origin'); return !!expected && url.origin===expected && !!origin && origin===expected; } catch {return false;} }
+function allowedOrigin(request:Request) { return allowedPasswordRequestOrigin(request,process.env.APP_BASE_URL,process.env.NODE_ENV==='production'); }
 async function fields(request:Request) { if(!allowedOrigin(request))return null; const kind=request.headers.get('content-type')?.split(';')[0]; if(kind!=='application/x-www-form-urlencoded')return null; const body=await request.text(); if(body.length>4096)return null; return new URLSearchParams(body); }
 function parameters(f:URLSearchParams) { return {lang:f.get('lang')==='en'?'en':'ru',returnTo:safeReturnTo(f.get('return_to'))}; }
 async function setSession(token:string,expires:number) { const store=await cookies(); store.set(SESSION_COOKIE_NAME,token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',expires:new Date(expires)}); }
