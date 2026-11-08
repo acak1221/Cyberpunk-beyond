@@ -271,3 +271,13 @@ body {
   .data-menu > summary { width: 100%; justify-content: center; }
   .data-menu-panel { position: static; width: 100%; margin-top: 6px; box-shadow: none; }
 }
+
+/* Phones: stats as a compact 5-column block instead of ten tall boxes */
+@media (max-width: 650px) {
+  .stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .stats-grid .stat { padding: 8px 4px; }
+  .stats-grid .stat input:not([type='checkbox']):not([type='radio']) { min-height: 40px; margin-top: 4px; padding: 4px 2px; font-size: 20px; }
+  .stats-grid .stat span, .stats-grid .stat label { font-size: 9px; letter-spacing: .02em; }
+  .stats-grid .stat input { text-align: center; -moz-appearance: textfield; appearance: textfield; }
+  .stats-grid .stat input::-webkit-inner-spin-button, .stats-grid .stat input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+}
