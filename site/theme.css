@@ -254,3 +254,20 @@ body {
   .sheet-quick-rolls button { min-height: 40px; padding: 6px 10px; font-size: 11px; }
   .sheet-quick-rolls b { font-size: 17px; }
 }
+
+/* Characters: import/export grouped in one menu */
+.data-menu { position: relative; }
+.data-menu > summary { list-style: none; cursor: pointer; user-select: none; }
+.data-menu > summary::-webkit-details-marker { display: none; }
+.data-menu[open] > summary { border-color: var(--red); background: #302321; }
+.data-menu-panel { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; width: min(340px, calc(100vw - 32px)); display: grid; gap: 2px; padding: 6px; background: #1e1c1c; border: 1px solid #5a4743; box-shadow: 0 18px 40px rgba(0, 0, 0, .55); }
+.data-menu-item { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; color: var(--text); background: transparent; border: 0; text-align: left; cursor: pointer; }
+.data-menu-item:hover, .data-menu-item:focus-within { background: #2c2524; }
+.data-menu-item b { font-size: 13px; }
+.data-menu-item small { color: var(--muted); font-size: 11px; }
+.data-menu-item.danger b { color: #ff9b8f; }
+@media (max-width: 650px) {
+  .data-menu { width: 100%; }
+  .data-menu > summary { width: 100%; justify-content: center; }
+  .data-menu-panel { position: static; width: 100%; margin-top: 6px; box-shadow: none; }
+}

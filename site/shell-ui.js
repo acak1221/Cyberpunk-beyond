@@ -17,7 +17,9 @@ doc.addEventListener('click',e=>{
  if(shell==='install'){e.preventDefault();global.PWA?.install();return}
  if(root.classList.contains('nav-open'))setOpen(false);
 },true);
-doc.addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('nav-open')){setOpen(false);doc.querySelector('.menu-toggle')?.focus()}});
+// Close open dropdown menus (details.data-menu) on outside click or Escape.
+doc.addEventListener('click',e=>{for(const m of doc.querySelectorAll('details.data-menu[open]'))if(!m.contains(e.target))m.open=false});
+doc.addEventListener('keydown',e=>{if(e.key!=='Escape')return;for(const m of doc.querySelectorAll('details.data-menu[open]')){m.open=false;m.querySelector('summary')?.focus()}if(root.classList.contains('nav-open')){setOpen(false);doc.querySelector('.menu-toggle')?.focus()}});
 global.addEventListener('popstate',()=>setOpen(false));
 global.matchMedia?.('(min-width: 821px)').addEventListener?.('change',e=>{if(e.matches)setOpen(false)});
 global.ShellUI={setOpen};
