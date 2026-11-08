@@ -35,7 +35,7 @@ function vitals(c){
 function hud(c){
  if(!c)return '';
  const ru=lang()==='ru',v=vitals(c),w={full:ru?'Без ранений':'Unhurt',light:ru?'Лёгкое ранение':'Lightly wounded',serious:ru?'Тяжёлое ранение · −2':'Seriously wounded · −2',mortal:ru?'Смертельное ранение · −4':'Mortally wounded · −4'}[v.wound];
- return `<div class="sheet-hud" data-wound="${v.wound}"><button type="button" class="hud-chip hud-hp" data-hud-jump="sheet-vitals" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip" data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small></button></div>`;
+ return `<div class="sheet-hud" data-wound="${v.wound}">${global.Portrait?.html(c,'hud-avatar',{small:true})||''}<button type="button" class="hud-chip hud-hp" data-hud-jump="sheet-vitals" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip" data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small></button></div>`;
 }
 function extras(c){
  if(!c)return '';

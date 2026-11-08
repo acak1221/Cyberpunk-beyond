@@ -54,7 +54,7 @@ function cleanSummary(x){
 }
 function memberPayload(){
  const st=app?.getState?.();const c=session.characterId?st?.characters?.find(x=>x.id===session.characterId):null;
- return {name:clip(session.name,40),role:session.role,character:characterSummary(c)};
+ const thumb=global.Portrait?.thumb?.(c)||'';return {name:clip(session.name,40),role:session.role,character:characterSummary(c),...(thumb?{portrait:thumb}:{})};
 }
 function combatPayload(){
  if(session.role!=='gm'||!session.campaignId)return null;
@@ -76,7 +76,7 @@ function publishCombat(force=false){
  else{combat=null;transport?.publish('c',new Uint8Array(0),true)}
  refresh();
 }
-function self(d){members.set(session.memberId,{...d,at:Date.now(),me:true});refresh()}
+function self(d){members.set(session.memberId,{...d,portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',at:Date.now(),me:true});refresh()}
 const seen=new Set();
 async function receive(p){
  const sub=p.topic.slice(base.length+1);
@@ -94,7 +94,7 @@ async function receive(p){
   if(Date.now()-at>FORGET_AFTER)return;
   if(!members.has(m.from)&&members.size>=MAX_MEMBERS)return;
   const d=m.d;
-  members.set(m.from,{name:clip(d.name,40)||'?',role:d.role==='gm'?'gm':'player',character:cleanSummary(d.character),at:when});
+  members.set(m.from,{name:clip(d.name,40)||'?',role:d.role==='gm'?'gm':'player',character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',at:when});
   refresh();
  }else if(m.t==='combat'&&sub==='c'){
   const d=m.d;if(!Array.isArray(d.order))return;
@@ -137,7 +137,7 @@ function woundOf(c){return c.hp<1?'mortal':c.hp<Math.ceil(c.max/2)?'serious':c.h
 function presence(m){if(m.me)return `<span class="room-dot on"></span>${esc(t('you'))}`;const age=Date.now()-m.at;return age<ONLINE_FOR?`<span class="room-dot on"></span>${esc(t('online'))}`:`<span class="room-dot"></span>${esc(t('offline'))} · ${Math.max(1,Math.round(age/60000))} ${esc(t('ago'))}`}
 function memberCard(id,m){
  const c=m.character;
- const head=`<div class="room-member-head"><strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}<small>${presence(m)}</small></div>`;
+ const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}<small>${presence(m)}</small></div>`;
  if(!c)return `<article class="room-member ${m.me?'me':''}">${head}<p class="room-muted">${esc(t('observer'))}</p></article>`;
  const pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100))),w=woundOf(c);
  return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div></dl></article>`;
