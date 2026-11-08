@@ -56,3 +56,6 @@ test('changing selected addiction or tracked data during roll confirmation inval
 test('addiction therapy does not require or warn about the Humanity maximum',()=>{
  const x=setup();delete x.c.extra.equipment.maxHumanity;x.field('type','addiction');assert.doesNotMatch(M.render(x.ctx),/Humanity maximum is not set/);x.field('type','standard');assert.match(M.render(x.ctx),/Humanity maximum is not set/);
 });
+test('addiction outcome note is shown only for addiction treatment',()=>{
+ const x=setup();x.field('type','standard');assert.doesNotMatch(M.render(x.ctx),/one addiction is removed/);x.field('type','addiction');assert.match(M.render(x.ctx),/one addiction is removed/);
+});
