@@ -2,7 +2,7 @@
 (function(global){
 'use strict';
 const doc=global.document;
-let deferredPrompt=null,waiting=null;
+let deferredPrompt=null,waiting=null,updateRequested=false;
 const ru=()=>(doc.documentElement.lang||'ru')!=='en';
 
 function toast(text,actionLabel,onAction){
@@ -16,12 +16,13 @@ function toast(text,actionLabel,onAction){
 }
 function offerUpdate(worker){
  waiting=worker;
- toast(ru()?'Доступна новая версия помощника.':'A new version is available.',ru()?'Обновить':'Update',()=>{waiting?.postMessage('skip-waiting')});
+ toast(ru()?'Доступна новая версия помощника.':'A new version is available.',ru()?'Обновить':'Update',()=>{updateRequested=true;waiting?.postMessage('skip-waiting')});
 }
 function register(){
  if(!('serviceWorker' in navigator)||!doc.documentElement.dataset.build)return;
  let reloading=false;
- navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading)return;reloading=true;global.location.reload()});
+ // The very first install also fires controllerchange (clients.claim); reload only when the user asked to update.
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading||!updateRequested)return;reloading=true;global.location.reload()});
  navigator.serviceWorker.register('sw.js').then(reg=>{
   if(reg.waiting&&navigator.serviceWorker.controller)offerUpdate(reg.waiting);
   reg.addEventListener('updatefound',()=>{

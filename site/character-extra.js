@@ -79,7 +79,7 @@
     const roles=advancementRoles(c);if(roles){
       add('role',c.role,(ru?'Роль: ':'Role: ')+ABILITIES[c.role][ru?1:0]+' ('+c.rank+')');
       for(const r of roles.additionalRoles)add('role',r.role,(ru?'Роль: ':'Role: ')+ABILITIES[r.role][ru?1:0]+' ('+r.rank+')');
-      for(const role of Object.keys(ABILITIES))if(role!==c.role&&!roles.additionalRoles.some(r=>r.role===role))add('newrole',role,(ru?'Новая роль: ':'New role: ')+role+' / '+ABILITIES[role][ru?1:0]);
+      for(const role of Object.keys(ABILITIES))if(role!==c.role&&!roles.additionalRoles.some(r=>r.role===role))add('newrole',role,(ru?'Новая роль: ':'New role: ')+(window.ROLES?.find?.(r=>r.id===role)?.name?.[ru?'ru':'en']||role)+' / '+ABILITIES[role][ru?1:0]);
     }
     return list;
   }
