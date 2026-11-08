@@ -10,11 +10,12 @@ const TABS=[
  ['gear','Снаряжение','Gear','◇'],
  ['role','Роль','Role','✳'],
  ['life','Жизнь','Life','⌁'],
+ ['netrun','NETRUN','NETRUN','⌬'],
  ['all','Весь лист','Full sheet','☰'],
 ];
 const IDS=new Set(TABS.map(t=>t[0]));
 // Which tab owns each jump-nav target, so links into the sheet still land somewhere visible.
-const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life'};
+const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun'};
 let current='main',lastCharacter=null;
 const STATS=['INT','REF','DEX','TECH','COOL','WILL','LUCK','MOVE','BODY','EMP'];
 try{const saved=global.localStorage?.getItem(KEY);if(IDS.has(saved))current=saved}catch{}
@@ -22,7 +23,8 @@ try{const saved=global.localStorage?.getItem(KEY);if(IDS.has(saved))current=save
 function lang(){return global.document.documentElement.lang==='en'?'en':'ru'}
 function bar(){
  const ru=lang()==='ru';
- return `<div class="sheet-tabs" role="tablist" aria-label="${ru?'Разделы листа':'Sheet sections'}">${TABS.map(([id,r,e,icon])=>`<button type="button" role="tab" data-sheet-tab="${id}" aria-selected="${id===current}" class="${id===current?'active':''}"><span aria-hidden="true">${icon}</span>${ru?r:e}</button>`).join('')}</div>`;
+ const net=global.NetrunTab?.interfaceRank?.(lastCharacter)>0;
+ return `<div class="sheet-tabs" role="tablist" aria-label="${ru?'Разделы листа':'Sheet sections'}">${TABS.filter(([id])=>id!=='netrun'||net).map(([id,r,e,icon])=>`<button type="button" role="tab" data-sheet-tab="${id}" aria-selected="${id===current}" class="${id===current?'active':''}"><span aria-hidden="true">${icon}</span>${ru?r:e}</button>`).join('')}</div>`;
 }
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 const html=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -62,10 +64,12 @@ function apply(c){
  const doc=global.document,layout=doc.querySelector('.sheet-layout');
  if(!layout)return;
  if(c)lastCharacter=c;
+ if(current==='netrun'&&!(global.NetrunTab?.interfaceRank?.(lastCharacter)>0))current='main';
  layout.dataset.activeTab=current;
  let dock=doc.querySelector('.sheet-dock'),tabs=dock?.querySelector('.sheet-tabs');
  let more=doc.querySelector('.sheet-extras');
- if(!dock||!more||more.nextElementSibling!==layout||dock.nextElementSibling!==more){
+ const wantNet=global.NetrunTab?.interfaceRank?.(lastCharacter)>0,hasNet=!!dock?.querySelector('[data-sheet-tab="netrun"]');
+ if(!dock||!more||more.nextElementSibling!==layout||dock.nextElementSibling!==more||wantNet!==hasNet){
   dock?.remove();more?.remove();
   layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${current}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div>${bar()}</div><div class="sheet-extras" data-active-tab="${current}">${extras(lastCharacter)}</div>`);
  }else{

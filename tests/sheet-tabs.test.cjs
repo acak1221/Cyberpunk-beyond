@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const site=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 
 test('every sheet section the tabs rely on exists in the sheet markup',()=>{
- const markup=['app.js','character-extra.js'].map(site).join('\n');
+ const markup=['app.js','character-extra.js','agent-notes.js'].map(site).join('\n');
  const css=site('theme.css'),tabs=site('sheet-tabs.js');
  const ids=new Set([...css.matchAll(/#(sheet-[a-z-]+|reload-tools-mount)/g)].map(m=>m[1]));
  for(const m of tabs.matchAll(/'((?:sheet-[a-z-]+)|reload-tools-mount)':'/g))ids.add(m[1]);
@@ -13,9 +13,9 @@ test('every sheet section the tabs rely on exists in the sheet markup',()=>{
 test('every tab has a matching visibility rule and a label in both languages',()=>{
  const css=site('theme.css'),tabs=site('sheet-tabs.js');
  const list=[...tabs.matchAll(/\['([a-z]+)','([^']+)','([^']+)','[^']+'\]/g)];
- assert.deepEqual(list.map(m=>m[1]),['main','skills','combat','gear','role','life','all']);
+ assert.deepEqual(list.map(m=>m[1]),['main','skills','combat','gear','role','life','netrun','all']);
  for(const [,id,ru,en] of list){
-  assert.ok(ru&&en&&ru!==en,`tab ${id} needs RU and EN labels`);
+  assert.ok(ru&&en&&(ru!==en||id==='netrun'),`tab ${id} needs RU and EN labels`);
   if(id!=='all')assert.match(css,new RegExp(`data-active-tab="${id}"\\] \\.sheet-primary`),`tab ${id} has no visibility rule`);
  }
 });
