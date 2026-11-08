@@ -111,7 +111,8 @@
 .sheet-layout[data-active-tab="role"] .sheet-primary > :not(.cx-root, #sheet-role, .hustle-tools) { display: none; }
 .sheet-layout[data-active-tab="role"] .cx-root > :not(#sheet-role-ability) { display: none; }
 
-.sheet-layout[data-active-tab="life"] .sheet-primary > :not(.cx-root, .lifestyle-tools, .drug-tools, #sheet-notes) { display: none; }
+.sheet-layout[data-active-tab="life"] .sheet-primary > :not(.cx-root, .lifestyle-tools, .drug-tools, #sheet-agent, #sheet-notes) { display: none; }
+.sheet-layout[data-active-tab="netrun"] .sheet-primary > :not(#sheet-netrun, #sheet-role) { display: none; }
 .sheet-layout[data-active-tab="life"] .cx-root > :not(#sheet-ip, #sheet-lifepath) { display: none; }
 
 @media (max-width: 1100px) {
@@ -281,3 +282,62 @@ body {
   .stats-grid .stat input { text-align: center; -moz-appearance: textfield; appearance: textfield; }
   .stats-grid .stat input::-webkit-inner-spin-button, .stats-grid .stat input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 }
+
+/* ---------- Character portraits ---------- */
+.sheet-header { align-items: center; }
+.sheet-header .sheet-title { flex: 1 1 auto; min-width: 0; }
+.portrait-box { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.portrait-frame { width: 112px; height: 112px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(135deg, #4c2925, #1d1a1a); border: 1px solid #6b3a35; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+.portrait-frame img { width: 100%; height: 100%; object-fit: cover; }
+.portrait-frame span { color: #df5a4b88; font: 800 64px/1 var(--display); }
+.portrait-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; }
+.portrait-button { color: var(--yellow); background: none; border: 0; padding: 2px 0; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.portrait-button.subtle { color: var(--muted); }
+.char-art-photo { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; opacity: .75; filter: saturate(.85) contrast(1.05); }
+.char-art-photo ~ .char-art-glyph { display: none; }
+.char-art-photo ~ .char-art-grid { z-index: 1; }
+.char-art-photo ~ .char-index, .char-art-photo ~ .char-dot { z-index: 2; }
+.hud-avatar { width: 36px; height: 36px; object-fit: cover; border: 1px solid var(--border); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+.room-avatar { width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--border); }
+@media (max-width: 650px) {
+  .sheet-header { flex-direction: row; flex-wrap: wrap; gap: 14px; }
+  .portrait-frame { width: 84px; height: 84px; }
+  .portrait-frame span { font-size: 48px; }
+  .hud-avatar { width: 32px; height: 32px; }
+}
+@media print { .portrait-actions { display: none !important; } }
+
+/* ---------- NETRUN tab ---------- */
+.netrun-lead { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.netrun-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.netrun-stats div { padding: 10px 12px; background: #1d1b1c; border: 1px solid var(--border); }
+.netrun-stats small { display: block; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.netrun-stats b { font: 800 30px/1 var(--display); color: var(--yellow); }
+.netrun-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.netrun-ability { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 58px; padding: 10px 12px; color: var(--text); background: #1b2023; border: 1px solid #2f4a52; text-align: left; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px)); }
+.netrun-ability:hover { background: #20292d; border-color: #4f8796; }
+.netrun-ability b { display: block; font-size: 14px; }
+.netrun-ability small { display: block; color: var(--muted); font-size: 11px; line-height: 1.3; }
+.netrun-ability em { color: #7fd6e8; font: 800 20px/1 var(--display); font-style: normal; }
+.netrun-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+
+/* ---------- Contacts & goals ---------- */
+.agent-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; }
+.agent-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.agent-h small { color: var(--muted); font-size: 11px; letter-spacing: 0; text-transform: none; }
+.agent-empty { color: var(--muted); font-size: 13px; }
+.agent-goals { display: grid; gap: 6px; margin-bottom: 10px; }
+.agent-goal { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.agent-goal.done input[data-agent-field="text"] { color: var(--muted); text-decoration: line-through; }
+.agent-contacts { display: grid; gap: 10px; margin-bottom: 10px; }
+.agent-contact { padding: 12px; background: #1b1a1b; border: 1px solid var(--border); border-left: 3px solid #5d5754; }
+.agent-contact[data-relation="friend"], .agent-contact[data-relation="ally"], .agent-contact[data-relation="family"] { border-left-color: var(--green); }
+.agent-contact[data-relation="fixer"], .agent-contact[data-relation="employer"], .agent-contact[data-relation="informant"] { border-left-color: var(--yellow); }
+.agent-contact[data-relation="enemy"], .agent-contact[data-relation="rival"] { border-left-color: var(--red); }
+.agent-contact[data-relation="lover"] { border-left-color: #d36fa5; }
+.agent-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.agent-remove { margin-top: 6px; color: var(--muted); background: none; border: 0; font-size: 11px; cursor: pointer; }
+.agent-remove:hover { color: #ff9b8f; }
+.agent-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 900px) { .agent-columns { grid-template-columns: 1fr; } }
+@media (max-width: 650px) { .agent-contact-grid { grid-template-columns: 1fr; } }

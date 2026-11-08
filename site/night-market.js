@@ -36,6 +36,8 @@ function categoryOf(item){
  if(['weapon','armor','ammo','attachment'].includes(c))return 'weapons';
  if(c==='cyberware')return FASHIONWARE.has(id)?'clothing':'cyberware';
  if(c==='fashion')return 'clothing';
+ // Programs, cyberdeck hardware and Black ICE are Personal Electronics stock (pp. 338–339).
+ if(c==='programs')return 'electronics';
  return null;
 }
 function pool(category,cap,catalog){const list=Array.isArray(catalog)?catalog:(typeof window!=='undefined'&&Array.isArray(window.CATALOG)?window.CATALOG:[]);const max=tierMax(cap);return list.filter(i=>categoryOf(i)===category&&i.price<=max)}

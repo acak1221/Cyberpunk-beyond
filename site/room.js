@@ -8,10 +8,10 @@ const doc=global.document,te=new TextEncoder(),td=new TextDecoder();
 const SESSION_KEY='nightcity-red-room-v1',BROKERS_KEY='nightcity-red-room-brokers';
 const ALPHABET='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const HEARTBEAT=45000,ONLINE_FOR=130000,FORGET_AFTER=6*3600*1000,MAX_MEMBERS=30,MAX_FEED=40,MAX_BYTES=48000;
-const T={ru:{nav:'Игра онлайн',over:'05 / ONLINE ROOM',title:'ИГРА ОНЛАЙН',lead:'Комната связывает телефоны и компьютеры ведущего и игроков: все видят состояние персонажей, порядок инициативы и броски в реальном времени.',how:'Без регистрации и без базы данных. Данные шифруются кодом комнаты прямо на устройстве и передаются через несколько бесплатных публичных серверов-ретрансляторов одновременно — если один недоступен, работают остальные. Ваши листы остаются у вас; в комнату уходит только сводка выбранного персонажа.',gm:'Я ведущий',gmLead:'Создайте комнату и отправьте ссылку игрокам в чат.',player:'Я игрок',playerLead:'Откройте ссылку от ведущего или введите код комнаты.',name:'Ваше имя в комнате',namePh:'Например, Мастер или Ви',campaign:'Кампания для трекера инициативы',noCampaign:'Не показывать инициативу',create:'Создать комнату',code:'Код комнаты',codePh:'XXXX-XXXX-XXXX',character:'Персонаж, которого видят другие',noCharacter:'Без персонажа (наблюдатель)',join:'Войти в комнату',badCode:'Проверьте код: 12 символов, например K7RQ-M2XA-PZ9E.',needName:'Введите имя.',room:'КОМНАТА',copy:'Скопировать ссылку',copied:'Ссылка скопирована. Отправьте её игрокам.',share:'Поделиться',leave:'Покинуть',leaveConfirm:'Покинуть комнату? Другие перестанут видеть ваш статус.',you:'Вы',asGM:'ведущий',asPlayer:'игрок',servers:'Серверы связи',online:'в сети',offline:'нет связи',ago:'мин назад',team:'КОМАНДА',noTeam:'Пока здесь только вы. Отправьте ссылку игрокам.',observer:'наблюдает',initiative:'ИНИЦИАТИВА',round:'Раунд',noCombat:'Ведущий ещё не показал инициативу.',rolls:'БРОСКИ',noRolls:'Бросков пока нет. Броски с листа и со страницы «Кубики» появятся здесь у всех.',broadcast:'Показывать мои броски другим',toasts:'Всплывающие уведомления о бросках других',connecting:'Подключение…',noNetwork:'Нет связи ни с одним сервером. Проверьте интернет — подключение восстановится само.',crit:'КРИТ',fumble:'ПРОВАЛ',unsupported:'Этот браузер не поддерживает шифрование для комнат. Обновите браузер.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'голова',body:'тело',turn:'ходит',gmBadge:'ВЕДУЩИЙ',newCode:'Будет создан новый код комнаты.',tip:'Совет: добавьте сайт на главный экран телефона — так комната откроется как приложение.'},
- en:{nav:'Online play',over:'05 / ONLINE ROOM',title:'ONLINE PLAY',lead:'A room links the GM and players across phones and computers: everyone sees character status, initiative order and rolls in real time.',how:'No sign-up and no database. Data is encrypted with the room code on your device and relayed through several free public relay servers at once — if one is down, the others carry on. Your sheets stay with you; only a summary of the chosen character is shared.',gm:'I am the GM',gmLead:'Create a room and send the link to your players.',player:'I am a player',playerLead:'Open the GM\'s link or type the room code.',name:'Your name in the room',namePh:'For example, GM or V',campaign:'Campaign for the initiative tracker',noCampaign:'Don\'t share initiative',create:'Create room',code:'Room code',codePh:'XXXX-XXXX-XXXX',character:'Character others can see',noCharacter:'No character (observer)',join:'Join room',badCode:'Check the code: 12 characters, e.g. K7RQ-M2XA-PZ9E.',needName:'Enter a name.',room:'ROOM',copy:'Copy link',copied:'Link copied. Send it to your players.',share:'Share',leave:'Leave',leaveConfirm:'Leave the room? Others will stop seeing your status.',you:'You',asGM:'GM',asPlayer:'player',servers:'Relay servers',online:'online',offline:'offline',ago:'min ago',team:'CREW',noTeam:'Only you so far. Send the link to your players.',observer:'watching',initiative:'INITIATIVE',round:'Round',noCombat:'The GM has not shared initiative yet.',rolls:'ROLLS',noRolls:'No rolls yet. Rolls from sheets and the Dice page show up here for everyone.',broadcast:'Show my rolls to others',toasts:'Pop-up notices for other people\'s rolls',connecting:'Connecting…',noNetwork:'No relay server reachable. Check your connection — it reconnects automatically.',crit:'CRIT',fumble:'FUMBLE',unsupported:'This browser cannot encrypt room traffic. Please update it.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'head',body:'body',turn:'acting',gmBadge:'GM',newCode:'A new room code will be generated.',tip:'Tip: add the site to your phone\'s home screen so the room opens like an app.'}};
+const T={ru:{nav:'Игра онлайн',over:'05 / ONLINE ROOM',title:'ИГРА ОНЛАЙН',lead:'Комната связывает телефоны и компьютеры ведущего и игроков: все видят состояние персонажей, порядок инициативы и броски в реальном времени.',how:'Без регистрации и без базы данных. Данные шифруются кодом комнаты прямо на устройстве и передаются через несколько бесплатных публичных серверов-ретрансляторов одновременно — если один недоступен, работают остальные. Ваши листы остаются у вас; в комнату уходит только сводка выбранного персонажа.',gm:'Я ведущий',gmLead:'Создайте комнату и отправьте ссылку игрокам в чат.',player:'Я игрок',playerLead:'Откройте ссылку от ведущего или введите код комнаты.',name:'Ваше имя в комнате',namePh:'Например, Мастер или Ви',campaign:'Кампания для трекера инициативы',noCampaign:'Не показывать инициативу',create:'Создать комнату',code:'Код комнаты',codePh:'XXXX-XXXX-XXXX',character:'Персонаж, которого видят другие',noCharacter:'Без персонажа (наблюдатель)',join:'Войти в комнату',badCode:'Проверьте код: 12 символов, например K7RQ-M2XA-PZ9E.',needName:'Введите имя.',room:'КОМНАТА',copy:'Скопировать ссылку',copied:'Ссылка скопирована. Отправьте её игрокам.',share:'Поделиться',leave:'Покинуть',leaveConfirm:'Покинуть комнату? Другие перестанут видеть ваш статус.',you:'Вы',asGM:'ведущий',asPlayer:'игрок',servers:'Серверы связи',online:'в сети',offline:'нет связи',ago:'мин назад',team:'КОМАНДА',noTeam:'Пока здесь только вы. Отправьте ссылку игрокам.',observer:'наблюдает',initiative:'ИНИЦИАТИВА',round:'Раунд',noCombat:'Ведущий ещё не показал инициативу.',rolls:'БРОСКИ',noRolls:'Бросков пока нет. Броски с листа и со страницы «Кубики» появятся здесь у всех.',broadcast:'Показывать мои броски другим',toasts:'Всплывающие уведомления о бросках других',connecting:'Подключение…',noNetwork:'Нет связи ни с одним сервером. Проверьте интернет — подключение восстановится само.',crit:'КРИТ',fumble:'ПРОВАЛ',unsupported:'Этот браузер не поддерживает шифрование для комнат. Обновите браузер.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'голова',body:'тело',turn:'ходит',gmBadge:'ВЕДУЩИЙ',clocks:'СЧЁТЧИКИ',newCode:'Будет создан новый код комнаты.',tip:'Совет: добавьте сайт на главный экран телефона — так комната откроется как приложение.'},
+ en:{nav:'Online play',over:'05 / ONLINE ROOM',title:'ONLINE PLAY',lead:'A room links the GM and players across phones and computers: everyone sees character status, initiative order and rolls in real time.',how:'No sign-up and no database. Data is encrypted with the room code on your device and relayed through several free public relay servers at once — if one is down, the others carry on. Your sheets stay with you; only a summary of the chosen character is shared.',gm:'I am the GM',gmLead:'Create a room and send the link to your players.',player:'I am a player',playerLead:'Open the GM\'s link or type the room code.',name:'Your name in the room',namePh:'For example, GM or V',campaign:'Campaign for the initiative tracker',noCampaign:'Don\'t share initiative',create:'Create room',code:'Room code',codePh:'XXXX-XXXX-XXXX',character:'Character others can see',noCharacter:'No character (observer)',join:'Join room',badCode:'Check the code: 12 characters, e.g. K7RQ-M2XA-PZ9E.',needName:'Enter a name.',room:'ROOM',copy:'Copy link',copied:'Link copied. Send it to your players.',share:'Share',leave:'Leave',leaveConfirm:'Leave the room? Others will stop seeing your status.',you:'You',asGM:'GM',asPlayer:'player',servers:'Relay servers',online:'online',offline:'offline',ago:'min ago',team:'CREW',noTeam:'Only you so far. Send the link to your players.',observer:'watching',initiative:'INITIATIVE',round:'Round',noCombat:'The GM has not shared initiative yet.',rolls:'ROLLS',noRolls:'No rolls yet. Rolls from sheets and the Dice page show up here for everyone.',broadcast:'Show my rolls to others',toasts:'Pop-up notices for other people\'s rolls',connecting:'Connecting…',noNetwork:'No relay server reachable. Check your connection — it reconnects automatically.',crit:'CRIT',fumble:'FUMBLE',unsupported:'This browser cannot encrypt room traffic. Please update it.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'head',body:'body',turn:'acting',gmBadge:'GM',clocks:'CLOCKS',newCode:'A new room code will be generated.',tip:'Tip: add the site to your phone\'s home screen so the room opens like an app.'}};
 
-let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false;
+let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,clocks=[],lastClocks='',feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false;
 
 const lang=()=>{try{return app?.getState?.().lang==='en'?'en':'ru'}catch{return 'ru'}};
 const t=k=>T[lang()][k]??T.ru[k]??k;
@@ -54,7 +54,7 @@ function cleanSummary(x){
 }
 function memberPayload(){
  const st=app?.getState?.();const c=session.characterId?st?.characters?.find(x=>x.id===session.characterId):null;
- return {name:clip(session.name,40),role:session.role,character:characterSummary(c)};
+ const thumb=global.Portrait?.thumb?.(c)||'';return {name:clip(session.name,40),role:session.role,character:characterSummary(c),...(thumb?{portrait:thumb}:{})};
 }
 function combatPayload(){
  if(session.role!=='gm'||!session.campaignId)return null;
@@ -63,6 +63,9 @@ function combatPayload(){
  const turn=int(camp.turnIndex,0,500);
  return {campaign:clip(camp.name,80),round:int(camp.round||1,1,9999),order:roster.slice(0,40).map((r,i)=>({name:clip(r.kind==='pc'?(st.characters.find(c=>c.id===r.characterId)?.name||'?'):r.name,60),pc:r.kind==='pc',init:int(r.initiative),current:i===turn}))};
 }
+
+function cleanClocks(list){return Array.isArray(list)?list.slice(0,12).filter(x=>x&&typeof x==='object').map(x=>{const size=int(x.size,2,12);return {name:clip(x.name,60),size,filled:int(x.filled,0,size)}}):[]}
+function clocksPayload(){if(session?.role!=='gm')return [];try{return cleanClocks(global.GMExtras?.sharedClocks?.(app?.getState?.()))}catch{return []}}
 
 /* ---------- Networking ---------- */
 async function send(sub,type,data,retain=false){
@@ -76,13 +79,19 @@ function publishCombat(force=false){
  else{combat=null;transport?.publish('c',new Uint8Array(0),true)}
  refresh();
 }
-function self(d){members.set(session.memberId,{...d,at:Date.now(),me:true});refresh()}
+function publishClocks(force=false){
+ if(!session||session.role!=='gm')return;const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;lastClocks=s;clocks=d;
+ if(d.length)send('k','clocks',{list:d},true);else transport?.publish('k',new Uint8Array(0),true);
+ refresh();
+}
+function self(d){members.set(session.memberId,{...d,portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',at:Date.now(),me:true});refresh()}
 const seen=new Set();
 async function receive(p){
  const sub=p.topic.slice(base.length+1);
  if(!p.payload.length){ // a cleared retained message: member left or GM stopped sharing
   if(sub.startsWith('m/')){const id=sub.slice(2);if(id!==session?.memberId){members.delete(id);refresh()}}
   else if(sub==='c'){combat=null;refresh()}
+  else if(sub==='k'){clocks=[];refresh()}
   return;
  }
  let m;try{m=await open(p.payload)}catch{return}
@@ -94,12 +103,14 @@ async function receive(p){
   if(Date.now()-at>FORGET_AFTER)return;
   if(!members.has(m.from)&&members.size>=MAX_MEMBERS)return;
   const d=m.d;
-  members.set(m.from,{name:clip(d.name,40)||'?',role:d.role==='gm'?'gm':'player',character:cleanSummary(d.character),at:when});
+  members.set(m.from,{name:clip(d.name,40)||'?',role:d.role==='gm'?'gm':'player',character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',at:when});
   refresh();
  }else if(m.t==='combat'&&sub==='c'){
   const d=m.d;if(!Array.isArray(d.order))return;
   combat={campaign:clip(d.campaign,80),round:int(d.round,1,9999),order:d.order.slice(0,40).map(r=>({name:clip(r?.name,60),pc:!!r?.pc,init:int(r?.init),current:!!r?.current})),from:m.from,at:when};
   refresh();
+ }else if(m.t==='clocks'&&sub==='k'){
+  clocks=cleanClocks(m.d.list);refresh();
  }else if(m.t==='roll'&&sub==='e'){
   const d=m.d,item={who:clip(d.who,40),character:clip(d.character,60),label:clip(d.label,80),detail:clip(d.detail,200),total:int(d.total,-999,9999),crit:['crit','fumble'].includes(d.crit)?d.crit:'',at:Date.now(),mine:false};
   feed.unshift(item);feed=feed.slice(0,MAX_FEED);refresh();
@@ -111,15 +122,15 @@ async function connect(){
  if(!session)return;
  disconnect(false);
  try{({topic:base,key}=await deriveRoom(session.code))}catch{app?.notify?.(t('unsupported'));session=null;saveSession();refresh();return}
- members=new Map();combat=null;feed=[];lastMember='';lastCombat='';
- transport=global.RoomTransport.create({topic:base,brokers:brokers(),onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){publishMember(true);publishCombat(true)}refresh()}});
- publishMember(true);publishCombat(true);
- heartbeat=setInterval(()=>{publishMember(true);if(session?.role==='gm')publishCombat(true);refresh()},HEARTBEAT);
+ members=new Map();combat=null;clocks=[];feed=[];lastMember='';lastCombat='';lastClocks='';
+ transport=global.RoomTransport.create({topic:base,brokers:brokers(),onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){publishMember(true);publishCombat(true);publishClocks(true)}refresh()}});
+ publishMember(true);publishCombat(true);publishClocks(true);
+ heartbeat=setInterval(()=>{publishMember(true);if(session?.role==='gm'){publishCombat(true);publishClocks(true)}refresh()},HEARTBEAT);
  refresh();
 }
 function disconnect(clear=true){
  clearInterval(heartbeat);heartbeat=null;
- if(transport&&clear&&session){transport.publish('m/'+session.memberId,new Uint8Array(0),true);if(session.role==='gm')transport.publish('c',new Uint8Array(0),true)}
+ if(transport&&clear&&session){transport.publish('m/'+session.memberId,new Uint8Array(0),true);if(session.role==='gm'){transport.publish('c',new Uint8Array(0),true);transport.publish('k',new Uint8Array(0),true)}}
  const tr=transport;transport=null;key=null;
  if(tr)setTimeout(()=>tr.close(),clear?400:0);
 }
@@ -132,12 +143,18 @@ function toast(item){
  box.prepend(el);while(box.children.length>3)box.lastChild.remove();
  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),400)},5200);
 }
+// A segmented progress clock as inline SVG (numbers only, no user text inside).
+function clockSvg(size,filled){
+ const r=26,c=30,parts=[];
+ for(let i=0;i<size;i++){const a0=(i/size)*2*Math.PI-Math.PI/2,a1=((i+1)/size)*2*Math.PI-Math.PI/2,x0=c+r*Math.cos(a0),y0=c+r*Math.sin(a0),x1=c+r*Math.cos(a1),y1=c+r*Math.sin(a1);parts.push(`<path d="M${c},${c} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" class="${i<filled?'on':''}"/>`)}
+ return `<svg class="room-clock-svg" viewBox="0 0 60 60" aria-hidden="true">${parts.join('')}</svg>`;
+}
 function roleName(id){const r=global.ROLES?.find?.(x=>x.id===id);return r?.name?.[lang()]||id||''}
 function woundOf(c){return c.hp<1?'mortal':c.hp<Math.ceil(c.max/2)?'serious':c.hp<c.max?'light':'full'}
 function presence(m){if(m.me)return `<span class="room-dot on"></span>${esc(t('you'))}`;const age=Date.now()-m.at;return age<ONLINE_FOR?`<span class="room-dot on"></span>${esc(t('online'))}`:`<span class="room-dot"></span>${esc(t('offline'))} · ${Math.max(1,Math.round(age/60000))} ${esc(t('ago'))}`}
 function memberCard(id,m){
  const c=m.character;
- const head=`<div class="room-member-head"><strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}<small>${presence(m)}</small></div>`;
+ const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}<small>${presence(m)}</small></div>`;
  if(!c)return `<article class="room-member ${m.me?'me':''}">${head}<p class="room-muted">${esc(t('observer'))}</p></article>`;
  const pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100))),w=woundOf(c);
  return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div></dl></article>`;
@@ -157,7 +174,7 @@ function roomView(){
  return `<div class="room-banner ${netStatus.online?'ok':'bad'}"><div><small>${esc(t('room'))}</small><strong class="room-code">${esc(formatCode(session.code))}</strong></div><div class="room-banner-actions"><button type="button" class="btn primary" data-room-action="copy">⧉ ${esc(t('copy'))}</button>${global.navigator?.share?`<button type="button" class="btn ghost" data-room-action="share">↗ ${esc(t('share'))}</button>`:''}<button type="button" class="btn ghost" data-room-action="leave">✕ ${esc(t('leave'))}</button></div><p class="room-net"><span class="room-dot ${netStatus.online?'on':''}"></span>${esc(t('servers'))}: ${net}${netStatus.total&&!netStatus.online?` — ${esc(t('noNetwork'))}`:''}</p></div>
  <section class="card room-me"><div class="card-heading"><span>${esc(t('you'))}: ${esc(session.name)} · ${esc(t(session.role==='gm'?'asGM':'asPlayer'))}</span><span>SETTINGS</span></div><div class="room-me-grid"><label class="field">${esc(t('character'))}${charSelect}</label>${campSelect}</div><label class="room-check"><input type="checkbox" data-room-field="broadcast" ${session.broadcastRolls!==false?'checked':''}> ${esc(t('broadcast'))}</label><label class="room-check"><input type="checkbox" data-room-field="toasts" ${session.toasts!==false?'checked':''}> ${esc(t('toasts'))}</label></section>
  <div class="room-columns"><section class="card room-team"><div class="card-heading"><span>${esc(t('team'))}</span><span>${list.length}</span></div>${list.length>1?'':`<p class="room-muted">${esc(t('noTeam'))}</p>`}<div class="room-members">${list.map(([id,m])=>memberCard(id,m)).join('')}</div></section>
- <div class="room-side"><section class="card room-combat"><div class="card-heading"><span>${esc(t('initiative'))}</span><span>${combat?`${esc(t('round'))} ${combat.round}`:'—'}</span></div>${combat?`<p class="room-muted">${esc(combat.campaign)}</p><ol class="room-order">${combat.order.map(r=>`<li class="${r.current?'current':''} ${r.pc?'pc':'npc'}"><b>${r.init}</b><span>${esc(r.name)}</span>${r.current?`<em>${esc(t('turn'))}</em>`:''}</li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noCombat'))}</p>`}</section>
+ <div class="room-side">${clocks.length?`<section class="card room-clocks"><div class="card-heading"><span>${esc(t('clocks'))}</span><span>${clocks.length}</span></div><div class="room-clock-list">${clocks.map(k=>`<div class="room-clock">${clockSvg(k.size,k.filled)}<div><b>${esc(k.name)}</b><small>${k.filled} / ${k.size}</small></div></div>`).join('')}</div></section>`:''}<section class="card room-combat"><div class="card-heading"><span>${esc(t('initiative'))}</span><span>${combat?`${esc(t('round'))} ${combat.round}`:'—'}</span></div>${combat?`<p class="room-muted">${esc(combat.campaign)}</p><ol class="room-order">${combat.order.map(r=>`<li class="${r.current?'current':''} ${r.pc?'pc':'npc'}"><b>${r.init}</b><span>${esc(r.name)}</span>${r.current?`<em>${esc(t('turn'))}</em>`:''}</li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noCombat'))}</p>`}</section>
  <section class="card room-feed"><div class="card-heading"><span>${esc(t('rolls'))}</span><span>${feed.length}</span></div>${feed.length?`<ol class="room-rolls">${feed.map(r=>`<li class="${r.crit} ${r.mine?'mine':''}"><b class="room-roll-total">${esc(r.total)}</b><div><strong>${esc(r.who)}${r.character?` · ${esc(r.character)}`:''}</strong><span>${esc(r.label)}${r.crit?` · <em>${esc(t(r.crit))}</em>`:''}</span><small>${esc(r.detail)} · ${new Date(r.at).toLocaleTimeString(lang()==='ru'?'ru-RU':'en-GB',{hour:'2-digit',minute:'2-digit'})}</small></div></li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noRolls'))}</p>`}</section></div></div>`;
 }
 function inner(){
@@ -219,7 +236,7 @@ doc.addEventListener?.('visibilitychange',()=>{if(doc.visibilityState==='visible
 global.Room={
  attach(api){app=api;session=loadSession();if(pendingCode&&session&&pendingCode===session.code)pendingCode=null;refresh();if(session)connect()},
  render,pill:renderPill,label:()=>t('nav'),
- changed(){if(!session)return;clearTimeout(changeTimer);changeTimer=setTimeout(()=>{publishMember();publishCombat()},400)},
+ changed(){if(!session)return;clearTimeout(changeTimer);changeTimer=setTimeout(()=>{publishMember();publishCombat();publishClocks()},400)},
  roll({label,detail,total,character}){
   if(!session)return;
   const text=String(detail||''),crit=/Критический успех|Critical Success/i.test(text)?'crit':/Критический провал|Critical Failure/i.test(text)?'fumble':'';
@@ -228,6 +245,6 @@ global.Room={
   if(session.broadcastRolls!==false)send('e','roll',item,false);
  },
  active:()=>!!session,
- _test:{normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open},
+ _test:{cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open},
 };
 })(window);

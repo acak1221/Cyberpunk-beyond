@@ -1,4 +1,4 @@
-/* GM-facing summaries adapted from the supplied Corebook v1.22, pp. 412–424. */
+/* GM-facing summaries adapted from the supplied Corebook v1.22, pp. 412–425. */
 (function(){
 'use strict';
 // [inclusive low, inclusive high, printed page, Russian title, English title, Russian summary, English summary]
@@ -61,7 +61,8 @@ midnight:[
 [75,79,424,'Война за территорию','Turf war','Две стороны определяются раздельными бросками 1d10; варианты и снаряжение — стр. 424. Изменённые Boosters.','Roll 1d10 separately for each side; factions and equipment are on p. 424. Modified Boosters.'],
 [80,87,424,'Поджигатели','Arsonists','Поджигатель с огнемётом ведёт группу и поджигает квартал. Pyro и Boosters.','A flamethrower-wielding leader and gang burn down the block. Pyro and Boosters.'],
 [88,92,424,'Война за территорию','Turf war','Две группировки определяются раздельными 1d10; варианты и снаряжение — стр. 424. Изменённые Boosters.','Roll 1d10 separately for each faction; options and equipment are on p. 424. Modified Boosters.'],
-[93,99,424,'Крупная преступная операция','Major criminal operation','Шесть соло Scagattalia разгружают наркотики; реакцию определяет 1d10. Security Officers с кибернетикой.','Six Scagattalia Solos unload drugs; roll 1d10 for their response. Security Officers with cyberware.']
+[93,99,424,'Крупная преступная операция','Major criminal operation','Шесть соло Scagattalia разгружают наркотики; реакцию определяет 1d10. Security Officers с кибернетикой.','Six Scagattalia Solos unload drugs; roll 1d10 for their response. Security Officers with cyberware.'],
+[100,100,425,'Киберпсих в ярости','Cyberpsycho rage','Одинокий, напичканный имплантами киберпсих срывается на прохожем и замечает персонажей; Psycho Squad прибудет через 1d6 + 1 раунд. Шаблон Cyberpsycho.','A heavily chromed lone cyberpsycho lashes out at a bystander and notices the characters; Psycho Squad arrives in 1d6 + 1 rounds. Use the Cyberpsycho template.']
 ]};
 
 // NPC templates are listed separately from the encounter index. Their values
@@ -109,7 +110,7 @@ function faceHandleClick(event,lang){const b=event.type==='click'?event.target?.
 function render(ctx){
  const lang=ctx.lang==='ru'?'ru':'en',t=TX[lang],w=ctx.workspace;let html=`<div class="gm-tools" data-gm-root><div class="page-header"><div><div class="overline">REFEREE / COREBOOK 412–424</div><h1>${esc(t.title)}</h1><p>${esc(t.intro)}</p></div></div>`;
  html+=`<section class="card"><div class="card-heading"><span>${esc(t.encounters)}</span><span>417–424</span></div><p class="gm-note">${esc(t.refs)}</p><div class="gm-grid"><label class="field">${esc(t.time)}<select data-gm-field="time">${['day','evening','midnight'].map(x=>option(x,t[x],w.time)).join('')}</select></label><label class="field">${esc(t.zone)}<select data-gm-field="zone">${['corporate','moderate','combat','executive'].map(x=>option(x,t[x],w.zone)).join('')}</select></label><label class="field">${esc(t.party)}<input type="number" min="1" max="20" value="${w.party}" data-gm-field="party"></label><label class="field">${esc(t.result)}<input type="number" min="1" max="100" value="${w.roll??''}" data-gm-field="roll"></label></div><p class="gm-note">${esc(t['zone'+w.zone[0].toUpperCase()+w.zone.slice(1)])}</p><div class="gm-actions">${button('roll',t.roll)}</div>`;
- if(w.roll!==null){let found=matches(w.time,w.roll);if(w.time==='evening'&&w.roll===72)html+=`<p class="gm-warning">${esc(t.overlap)}</p>`;if(w.time==='midnight'&&w.roll===100)html+=`<p class="gm-warning">${esc(t.missing)}</p>`;html+=found.length?found.map(row=>encounterHTML(row,t,lang)).join(''):`<p class="gm-note">${esc(t.none)}</p>`}
+ if(w.roll!==null){let found=matches(w.time,w.roll);if(w.time==='evening'&&w.roll===72)html+=`<p class="gm-warning">${esc(t.overlap)}</p>`;html+=found.length?found.map(row=>encounterHTML(row,t,lang)).join(''):`<p class="gm-note">${esc(t.none)}</p>`}
  html+=`<details><summary>${esc(t.all)}</summary>${ENCOUNTERS[w.time].map(row=>encounterHTML(row,t,lang)).join('')}</details></section>`;
  html+=faceRender(lang);
  html+=`<section class="card"><div class="card-heading"><span>${esc(t.templates)}</span><span>412–416</span></div><p class="gm-note">${esc(t.templatesHelp)}</p><div class="gm-grid">${NPC_TEMPLATES.map(n=>npcTemplateHTML(n,t,lang)).join('')}</div></section>`;

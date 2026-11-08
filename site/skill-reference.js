@@ -1,5 +1,5 @@
-/* Skills quick reference: check formula and critical d10 (pp. 128–129), DV ladder (p. 130),
-   skill list with linked STATs and ×2 skills (pp. 130–141); basic skills / creation costs p. 90.
+/* Skills quick reference: check formula (p. 128), DV ladder (p. 129), critical d10 and modifiers (p. 130),
+   skill list with linked STATs and ×2 skills (pp. 130–142); basic skills / creation costs p. 90.
    Descriptions are short paraphrases written for this app, not book text. View-only, no storage. */
 (function(){
 'use strict';

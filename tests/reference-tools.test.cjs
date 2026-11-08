@@ -77,7 +77,7 @@ test('skill reference handle updates the list without touching other data',()=>{
 
 test('streetslang: bilingual entries with valid topics and Corebook pages',()=>{
  assert(SL.TERMS.length>=30);assert.equal(new Set(SL.TERMS.map(t=>t[0])).size,SL.TERMS.length);
- for(const t of SL.TERMS){assert(Object.hasOwn(SL.TOPICS,t[1]),t[0]);assert(Number.isInteger(t[2])&&t[2]>=24&&t[2]<=340,t[0]);for(const i of [3,4,5])assert(t[i].trim(),t[0])}
+ for(const t of SL.TERMS){assert(Object.hasOwn(SL.TOPICS,t[1]),t[0]);assert(Number.isInteger(t[2])&&(t[2]===0||t[2]>=24&&t[2]<=340),t[0]); /* 0 = common slang that is not in the corebook glossary */for(const i of [3,4,5])assert(t[i].trim(),t[0])}
  assert.equal(SL.filter('preem','all').length,1);assert.equal(SL.filter('eurodollars','all')[0][0],'Eddies');assert.equal(SL.filter('евродоллар','all')[0][0],'Eddies');
  assert(SL.filter('','net').every(t=>t[1]==='net'));
  SL.reset();assert(SL.render('ru').includes('УЛИЧНЫЙ СЛЕНГ'));assert(SL.render('en').includes('STREETSLANG'));

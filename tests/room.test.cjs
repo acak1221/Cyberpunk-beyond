@@ -80,3 +80,14 @@ test('the MQTT parser handles packets split across and packed into frames',()=>{
  parse(all.subarray(0,5));parse(all.subarray(5,200));parse(all.subarray(200));
  assert.deepEqual(out.map(p=>[p.topic,p.payload.length,p.retain]),[['t/x',300,false],['t/y',3,true]]);
 });
+
+test('shared clocks are sanitised and drawn as numbered segments only',()=>{
+ const R=loadRoom().Room._test;
+ const list=R.cleanClocks([{name:'<b>Тревога</b>'.repeat(20),size:99,filled:50},{name:'Погоня',size:'4',filled:-3},null,'x',...Array.from({length:20},(_,i)=>({name:'c'+i,size:6,filled:i}))]);
+ assert.equal(list.length,10); // only the first 12 entries are read; null and 'x' are dropped
+ assert.equal(list[0].name.length,60);assert.equal(list[0].size,12);assert.equal(list[0].filled,12);
+ assert.deepEqual(plain(list[1]),{name:'Погоня',size:4,filled:0});
+ assert.ok(list.length<=12);
+ const svg=R.clockSvg(6,2);assert.equal((svg.match(/<path /g)||[]).length,6);assert.equal((svg.match(/class="on"/g)||[]).length,2);assert.ok(!/[<>]b>/.test(svg));
+ assert.deepEqual(plain(R.cleanClocks('nope')),[]);
+});
