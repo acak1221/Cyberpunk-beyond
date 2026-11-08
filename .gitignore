@@ -7,3 +7,6 @@ coverage/
 .vercel
 .netlify
 .claude/
+
+# Stray screenshots from local QA (icons live in site/icons/)
+/site/*.png
