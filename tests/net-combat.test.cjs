@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
 const math=Object.create(Math);math.random=()=>0.5;
-const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/game/net-tools.js'),'utf8'),ctx);
+const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../site/net-tools.js'),'utf8'),ctx);
 const N=ctx.window.NetTools;
 const sequence=(...rolls)=>{let i=0;return ()=>{assert(i<rolls.length,'unexpected extra roll');return (rolls[i++]-1)/10+0.001}};
 const base={rank:4,atk:2,def:6,opponent:5,spd:6,speed:2,attackMod:0,defendMod:0,kind:'antiProgram',target:'program'};

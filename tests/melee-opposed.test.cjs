@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/grapple-tools.js');const g=window.GrappleTools;
+global.window={};require('../site/grapple-tools.js');const g=window.GrappleTools;
 const seq=values=>{let i=0;return ()=>{assert.ok(i<values.length,'unexpected die');return values[i++]}};
 test('Brawling, Melee Weapon and trained Martial Arts roll both DEX-based checks; ties favor the defender',()=>{
  const side={dex:6,skill:2,modifier:0};for(const type of ['Brawling','Melee Weapon','Martial Arts']){const r=g.meleeCheck(type,side,side,seq([0.4,0.4]));assert.equal(r.initiator.total,13);assert.equal(r.opponent.total,13);assert.equal(r.win,false);assert.equal(r.type,type);assert.equal(g.meleeCheck(type,{...side,dex:7},side,seq([0.4,0.4])).win,true)}

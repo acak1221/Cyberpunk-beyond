@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/catalog.js');require('../public/game/catalog-extra.js');
+global.window={};require('../site/catalog.js');require('../site/catalog-extra.js');
 const gear=id=>{const list=window.CATALOG.filter(x=>x.id===id);assert.equal(list.length,1);return list[0]};
 test('each core gear entry has bilingual effects and a source description page',()=>{
  const items=window.CATALOG.filter(x=>x.id.startsWith('gear-'));assert.equal(items.length,53);

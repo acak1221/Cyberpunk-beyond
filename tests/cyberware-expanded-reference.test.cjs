@@ -1,8 +1,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const window={},context=vm.createContext({window});
-vm.runInContext(fs.readFileSync(__dirname+'/../public/game/catalog.js','utf8'),context);
+vm.runInContext(fs.readFileSync(__dirname+'/../site/catalog.js','utf8'),context);
 const baseline=new Map(window.CATALOG.map(x=>[x.id,JSON.stringify({price:x.price,stats:x.stats})]));
-vm.runInContext(fs.readFileSync(__dirname+'/../public/game/catalog-extra.js','utf8'),context);
+vm.runInContext(fs.readFileSync(__dirname+'/../site/catalog-extra.js','utf8'),context);
 const get=id=>{const found=window.CATALOG.filter(x=>x.id===id);assert.equal(found.length,1,id);return found[0]};
 const ids=['cyberware-shift-tacts','cyberware-skinwatch','cyberware-cybereye','cyberware-color-shift','cyberware-virtuality','cyberware-cyberaudio-suite','cyberware-audio-recorder-implant','cyberware-internal-agent','cyberware-radio-scanner-implant','cyberware-radar-detector-implant','cyberware-scrambler-implant','cyberware-gills','cyberware-toxin-binders','cyberware-standard-hand','cyberware-big-knucks','cyberware-rippers','cyberware-scratchers','cyberware-slice-n-dice','cyberware-tool-hand','cyberware-wolvers','cyberware-shoulder-cam','cyberware-standard-foot','cyberware-talon-foot','cyberware-plastic-covering','cyberware-realskinn-covering','cyberware-artificial-shoulder-mount'];
 test('expanded cyberware has bilingual descriptions, accurate book pages, and unchanged price and loss',()=>{for(const id of ids){const x=get(id);assert.ok(x.details.ru.length>65,id);assert.ok(x.details.en.length>65,id);assert.ok(x.page>=358&&x.page<=367,id);assert.equal(JSON.stringify({price:x.price,stats:x.stats}),baseline.get(id),id)}});

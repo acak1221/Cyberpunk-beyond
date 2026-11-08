@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('public/game/campaigns.js','utf8');
+const source=fs.readFileSync('site/campaigns.js','utf8');
 function setup(lang='en'){
  let saves=0,valid=true;const notices=[],window={};const c={id:'c',name:'Campaign',notes:'private',round:2,turnIndex:0,extra:{future:true},roster:[{id:'npc',kind:'npc',name:'Enemy',ref:6,hp:20,initiative:12,other:'kept'},{id:'pc',kind:'pc',characterId:'p',initiative:7}]};const p={id:'p',name:'Player',hp:30,stats:{REF:5}};
  const ctx={lang,scope:'account',campaigns:[c],characters:[p],isCurrent:x=>valid&&x===c,save:()=>saves++,render:()=>{},notify:x=>notices.push(x)};

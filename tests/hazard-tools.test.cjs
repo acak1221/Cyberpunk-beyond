@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/hazard-tools.js');const H=window.HazardTools;
+global.window={};require('../site/hazard-tools.js');const H=window.HazardTools;
 test('fire and drowning do direct damage by intensity and BODY',()=>{
  assert.equal(H.directFire('mild'),2);assert.equal(H.directFire('strong'),4);assert.equal(H.directFire('deadly'),6);assert.equal(H.directFire('constructor'),null);assert.equal(H.drowning(8),8);assert.equal(H.drowning(''),null);
 });

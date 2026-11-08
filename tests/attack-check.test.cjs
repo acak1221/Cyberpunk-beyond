@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');
+global.window={};require('../site/combat-tools.js');
 const combat=window.CombatTools;
 const ranged={kind:'ranged',weapon:'assault',distance:'14',stat:'8',skill:'6',mod:'0',aim:false,defense:'range',ref:'8',dex:'6',evasion:'6',defmod:'0'};
 const dice=(...pips)=>()=>{assert.ok(pips.length,'unexpected additional die');return (pips.shift()-0.5)/10};

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const root=path.join(__dirname,'..','public','game'),w={};w.window=w;vm.createContext(w);for(const f of ['catalog.js','catalog-extra.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),w,{filename:f});
+const root=path.join(__dirname,'..','site'),w={};w.window=w;vm.createContext(w);for(const f of ['catalog.js','catalog-extra.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),w,{filename:f});
 const item=id=>{const x=w.CATALOG.find(r=>r.id===id);assert.ok(x,id);return x};
 test('street drugs expose primary duration, resistance and clinically distinct addiction effects in both languages',()=>{
  const cases=[['black-lace',50,24,17,/REF.*2/i,/REF.*2/i],['blue-glass',20,4,15,/Action/i,/Action/i],['boost',50,24,17,/INT.*2/i,/INT.*2/i],['smash',10,4,15,/Dance.*Contortionist.*Conversation.*Human Perception.*Persuasion.*Acting/i,/Dance.*Contortionist.*Conversation.*Human Perception.*Persuasion.*Acting/i],['synthcoke',20,4,15,/REF.*2/i,/REF.*2/i]];

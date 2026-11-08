@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/character-extra.js');
+global.window={};require('../site/character-extra.js');
 const X=window.CharacterExtra;
 function person(weapon){return {name:'Tester',role:'solo',stats:{REF:5,EMP:6,LUCK:6},skills:{Handgun:4},extra:{luck:3,luckUse:1,modifier:0,weapons:[{id:'w',name:'Pistol',skill:'Handgun',stat:'REF',capacity:10,usesAmmo:true,...weapon}]}}}
 function attack(c,isCurrent=()=>true){return X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'attack',cxIndex:'0'}})}},c,'en',{isCurrent})}

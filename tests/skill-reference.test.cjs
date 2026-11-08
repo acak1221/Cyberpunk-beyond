@@ -4,8 +4,8 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
-const ruleSource=fs.readFileSync(path.join(root,'public/game/rules.js'),'utf8');
-const appSource=fs.readFileSync(path.join(root,'public/game/app.js'),'utf8');
+const ruleSource=fs.readFileSync(path.join(root,'site/rules.js'),'utf8');
+const appSource=fs.readFileSync(path.join(root,'site/app.js'),'utf8');
 function load(){const ctx={window:{}};vm.runInNewContext(ruleSource,ctx);return ctx.window;}
 const sheetSkills=vm.runInNewContext(appSource.match(/const SKILLS = (\[[\s\S]*?\n\]);/)[1]);
 test('every character-sheet skill has one bilingual rule with the matching STAT and cost',()=>{

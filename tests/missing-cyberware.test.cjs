@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const ctx={window:{},console};vm.createContext(ctx);
-for(const f of ['catalog.js','catalog-extra.js','character-extra.js','equipment-tools.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/game',f),'utf8'),ctx,{filename:f});
+for(const f of ['catalog.js','catalog-extra.js','character-extra.js','equipment-tools.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../site',f),'utf8'),ctx,{filename:f});
 const C=ctx.window.CATALOG,M=ctx.window.EquipmentTools;
 const cases=[
  ['cyberware-bug-detector',100,113,'Mall','1d6/2',2,3,100],

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');require('../public/game/area-tools.js');const A=window.AreaTools,range=window.CombatTools.rangeDV;
+global.window={};require('../site/combat-tools.js');require('../site/area-tools.js');const A=window.AreaTools,range=window.CombatTools.rangeDV;
 function values(rng){let i=0;return ()=>{assert.ok(i<rng.length,'unexpected random draw');return rng[i++]}}
 test('launchers and thrown grenades use the Corebook range table; shotgun shells use DV13',()=>{
  const b={type:'blast',method:'grenade',stat:6,skill:4,modifier:0,distance:10};

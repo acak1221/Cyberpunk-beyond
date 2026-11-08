@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={confirm:()=>true};require('../public/game/drug-tools.js');const D=window.DrugTools;
+global.window={confirm:()=>true};require('../site/drug-tools.js');const D=window.DrugTools;
 const person=()=>({id:'p',hp:30,humanity:55,stats:{WILL:6},skills:{'Resist Torture/Drugs':6},extra:{notes:'keep',cash:100,other:{future:true}}});
 function setup(c){D.setScope(null);D.setScope('scope-a');D.render(c,'en');const root={isConnected:true},current={yes:true};return {root,current,field(key,value){const target={dataset:{drugField:key},value,closest:s=>s==='[data-drug-root]'?root:null};return D.handle({type:'change',target},c,'en',{isCurrent:()=>current.yes})},act(op){const b={isConnected:true,dataset:{drugAction:op},closest:s=>s==='[data-drug-root]'?root:null},target={closest:s=>s==='[data-drug-root]'?root:s==='[data-drug-action]'?b:null};return D.handle({type:'click',target},c,'en',{isCurrent:()=>current.yes})}}}
 test('doses extend game duration and never change unrelated character resources',()=>{

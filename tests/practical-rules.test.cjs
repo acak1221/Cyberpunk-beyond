@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const scope = {window: {}};
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'game', 'rules.js'), 'utf8'), scope);
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'site', 'rules.js'), 'utf8'), scope);
 const rules = scope.window.RULES;
 const entry = id => { const matches = rules.filter(r => r.id === id); assert.equal(matches.length, 1, id); return matches[0]; };
 

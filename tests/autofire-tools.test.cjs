@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');require('../public/game/autofire-tools.js');
+global.window={};require('../site/combat-tools.js');require('../site/autofire-tools.js');
 const {calculate,render,handle}=window.AutofireTools;
 const input={weapon:'assault',attack:21,defense:17,sp:11,die1:4,die2:6};
 test('assault rifle example: margin 4, 2d6 10, damage 40 before SP',()=>{let r=calculate(input);assert.equal(r.multiplier,4);assert.equal(r.damage,40);assert.equal(r.penetration,29);assert.equal(r.spAfter,10);assert.equal(r.critical,false)});

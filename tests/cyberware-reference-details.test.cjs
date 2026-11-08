@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/catalog.js');require('../public/game/catalog-extra.js');
+global.window={};require('../site/catalog.js');require('../site/catalog-extra.js');
 const get=id=>{const matches=window.CATALOG.filter(x=>x.id===id);assert.equal(matches.length,1);return matches[0]};
 test('teleoptics includes single shots, distance, vision, and stacking limits in both languages',()=>{
  const x=get('cyberware-teleoptics');assert.equal(x.page,361);assert.match(x.details.en,/single-shot/);assert.match(x.details.en,/51 m\/yd/);assert.match(x.details.en,/Sniping Scope/);assert.match(x.details.en,/800/);assert.match(x.details.ru,/одиночному/);assert.match(x.details.ru,/51/);

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const m={window:{},Math,Number,String,Array,Object,Set,globalThis:{}};vm.runInNewContext(fs.readFileSync(__dirname+'/../public/game/gm-tools.js','utf8'),m);const G=m.window.GMTools;
+const m={window:{},Math,Number,String,Array,Object,Set,globalThis:{}};vm.runInNewContext(fs.readFileSync(__dirname+'/../site/gm-tools.js','utf8'),m);const G=m.window.GMTools;
 const person=(cool,rep,coward=false,modifier=0)=>({cool,rep,coward,modifier});
 function rng(...values){return ()=>values.shift()}
 test('Facedown ties leave both uncertain; cowardice subtracts reputation',()=>{let r=G.faceDown(person(6,4),person(10,0),rng(.4,.4));assert.equal(r.winner,'tie');assert.equal(r.a.total,15);r=G.faceDown(person(6,4,true),person(6,0),rng(.4,.4));assert.equal(r.a.total,7);assert.equal(r.b.total,11);assert.equal(r.winner,'b')});

@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 function setup(op='remove'){
  let hook=()=>true,scope='owner',confirmCalls=0,currentWorkspace;
  const c={window:{confirm:()=>{confirmCalls++;return hook()}},globalThis:{},Math,Number,String,Array,Object,Set,JSON};
- vm.runInNewContext(fs.readFileSync(__dirname+'/../public/game/gm-tools.js','utf8'),c);
+ vm.runInNewContext(fs.readFileSync(__dirname+'/../site/gm-tools.js','utf8'),c);
  const G=c.window.GMTools,w=G.initial();
  w.roster.push({id:'a',template:'bodyguard',name:'First',hp:20,notes:'keep A',future:{x:1}},{id:'b',template:'pyro',name:'Second',hp:15,notes:'keep B'});currentWorkspace=w;
  const root={isConnected:true},b={dataset:{gm:op,index:'0'},isConnected:true,closest:s=>s==='[data-gm-root]'?root:null},target={closest:s=>s==='[data-gm]'?b:null},ctx={lang:'en',workspace:w,scope,isCurrent:(x,s)=>x===currentWorkspace&&scope===s};

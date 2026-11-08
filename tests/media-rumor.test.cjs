@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(__dirname+'/../public/game/role-tools.js','utf8');
+const source=fs.readFileSync(__dirname+'/../site/role-tools.js','utf8');
 function setup(){
  let rolls=[],current=true;const math=Object.create(Math);math.random=()=>{assert.ok(rolls.length,'unexpected random draw');return rolls.shift()};
  const context={window:{},Math:math,Date,globalThis:{}};vm.runInNewContext(source,context);

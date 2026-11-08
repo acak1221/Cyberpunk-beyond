@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/vehicle-tools.js');
+global.window={};require('../site/vehicle-tools.js');
 const {MANEUVERS,check,render,handle}=window.VehicleTools;
 test('driving threshold uses REF plus skill, independent of modifiers',()=>{
  let rolls=0;const die=()=>{rolls++;return 5};

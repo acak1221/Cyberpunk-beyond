@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/medical-tools.js');const M=window.MedicalTools;
+global.window={};require('../site/medical-tools.js');const M=window.MedicalTools;
 let sequence=0;
 function setup(){
  const account='account-'+(++sequence);M.setScope(null);M.setScope(account);

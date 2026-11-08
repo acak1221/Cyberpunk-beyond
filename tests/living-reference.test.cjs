@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const scope={window:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../public/game/rules.js'),'utf8'),scope);const rules=scope.window.RULES;
+const scope={window:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../site/rules.js'),'utf8'),scope);const rules=scope.window.RULES;
 const entry=id=>{const v=rules.filter(r=>r.id===id);assert.equal(v.length,1,id);return v[0]};
 const ids=['living-monthly-food','living-kibble','living-generic','living-good','living-fresh','sleep-deprivation','sleep-crowded','sleep-outdoors','housing-street-car','housing-cube','housing-cargo','housing-studio','housing-two-bedroom','housing-corp','housing-upscale','housing-executive'];
 test('housing and lifestyle reference entries have both languages and correct source pages',()=>{for(const id of ids){const r=entry(id);assert(r.page>=377&&r.page<=380);for(const lang of ['ru','en'])for(const field of ['title','category','text'])assert(r[field][lang].trim(),`${id}/${field}/${lang}`)}assert.equal(new Set(rules.map(r=>r.id)).size,rules.length)});

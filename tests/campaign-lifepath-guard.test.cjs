@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const root=path.join(__dirname,'../public/game');
+const root=path.join(__dirname,'../site');
 function setup(file){const s={console,Math,Date,confirm:()=>true,document:{querySelector:()=>null},crypto:{randomUUID:()=>Math.random().toString(36)}};s.window=s;vm.createContext(s);vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),s);return s}
 const action=(attr,value,id)=>({type:'click',target:{closest:selector=>selector===`[data-${attr}-action]`||attr==='lp'&&value==='apply'&&selector==='[data-lp-action="apply"]'?{dataset:{[attr==='campaign'?'campaignAction':'lpAction']:value,id}}:null}});
 test('campaign delete and participant removal reject detached or changed snapshots',()=>{

@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
-function load(samples=[],counter=null){let cursor=0;const math=Object.create(Math);math.random=()=>{if(counter)counter.count++;return samples.length?samples[cursor++]:0.5};const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/game/net-tools.js'),'utf8'),ctx);return ctx.window.NetTools}
+function load(samples=[],counter=null){let cursor=0;const math=Object.create(Math);math.random=()=>{if(counter)counter.count++;return samples.length?samples[cursor++]:0.5};const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../site/net-tools.js'),'utf8'),ctx);return ctx.window.NetTools}
 const seq=(...dice)=>{let i=0;return ()=>{assert(i<dice.length);return (dice[i++]-1)/10+0.001}};
 const base={mode:'slide',target:'program',rank:7,per:6,attackMod:0,defendMod:0,slideReady:true,slidePursuing:true};
 const click=(op,extra={})=>({type:'click',target:{closest:()=>({dataset:{net:op,...extra}})}});

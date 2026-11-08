@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(__dirname+'/../public/game/role-tools.js','utf8');
+const source=fs.readFileSync(__dirname+'/../site/role-tools.js','utf8');
 function setup(random=()=>0.5){const math=Object.create(Math);math.random=random;const context={window:{},Math:math,Date,globalThis:{}};vm.runInNewContext(source,context);return context.window.RoleTools}
 function character(ability,dv=10){return {role:'netrunner',rank:4,extra:{roleTools:{netrunner:{values:{netAbility:ability,netDv:dv,eyeDeeDv:'yes'},team:[]}}}}}
 function roll(T,c,lang='en'){T.handle({type:'click',target:{closest:()=>({dataset:{rtAction:'net-roll'}})}},c,lang);return c.extra.roleTools.netrunner.last}

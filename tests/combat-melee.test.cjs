@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const sandbox={window:{},Math};vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(__dirname+'/../public/game/combat-tools.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync(__dirname+'/../site/combat-tools.js','utf8'),sandbox);
 const combat=sandbox.window.CombatTools;
 
 test('melee weapons and martial arts halve SP rounded up, but ablate the original SP',()=>{

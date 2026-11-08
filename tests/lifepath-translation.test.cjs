@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
-const root=path.join(__dirname,'..','public','game');
+const root=path.join(__dirname,'..','site');
 function setup(){const s={console,Math,Date,confirm:()=>true,crypto:{randomUUID:()=>Math.random().toString(36)}};s.window=s;vm.createContext(s);for(const f of ['lifepath.js','character-extra.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),s,{filename:f});return s}
 test('generated Lifepath switches languages and preserves manual edits and legacy data',()=>{
  const s=setup(),p=s.Lifepath,c={role:'solo',rank:4,stats:{LUCK:6},skills:{},extra:{life:{friends:'A manually written friend'}}};

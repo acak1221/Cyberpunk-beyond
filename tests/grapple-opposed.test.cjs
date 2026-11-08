@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/grapple-tools.js');
+global.window={};require('../site/grapple-tools.js');
 const g=window.GrappleTools;
 const seq=values=>{let i=0;return ()=>{assert.ok(i<values.length,'unexpected die');return values[i++]}};
 test('opposed Grab rolls both DEX + Brawling checks and ties favor the defender',()=>{

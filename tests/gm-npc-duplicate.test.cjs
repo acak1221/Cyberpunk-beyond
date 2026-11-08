@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/gm-tools.js');const G=window.GMTools;
+global.window={};require('../site/gm-tools.js');const G=window.GMTools;
 function setup(){
  const w=G.initial(),n={id:'source',template:'bodyguard',name:'Guard',hp:-2,notes:'private',armorTrack:{version:1,head:4,body:5,unknown:{keep:true}},deathTrack:{version:1,base:1,penalty:3,dead:false,lastRoll:{die:4,total:6,success:true}},future:{values:[{value:1}]}};w.roster=[n];let active=true;
  const root={isConnected:true},b={isConnected:true,dataset:{gm:'duplicate',index:'0'},closest:s=>s==='[data-gm-root]'?root:s==='[data-gm]'?b:null},ctx={lang:'en',workspace:w,scope:'account',isCurrent:(space,scope)=>active&&space===w&&scope==='account'};

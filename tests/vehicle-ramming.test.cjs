@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/vehicle-tools.js');
+global.window={};require('../site/vehicle-tools.js');
 const {dodgeRam,ramDamage,render,handle}=window.VehicleTools;
 test('a pedestrian dodges at DV 13, ties fail, and critical dice modify the total once',()=>{
  assert.deepEqual(dodgeRam({dex:6,evasion:4,modifier:0},()=>3),{first:3,extra:0,total:13,dv:13,success:false});

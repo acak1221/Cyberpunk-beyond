@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/book-search.js');
+global.window={};require('../site/book-search.js');
 const {create}=window.BookSearch;
 const file={arrayBuffer:async()=>new Uint8Array([1]).buffer};
 function loader(pages){let calls=0;const load=async()=>{calls++;return {promise:Promise.resolve({numPages:pages.length,getPage:async n=>({getTextContent:async()=>({items:[{str:pages[n-1]}]}),cleanup(){}}),destroy(){}}),destroy(){}}};load.calls=()=>calls;return load}
