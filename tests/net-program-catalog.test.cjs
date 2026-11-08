@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
-function load(){const math=Object.create(Math);math.random=()=>0.5;const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);for(const f of ['catalog.js','catalog-extra.js','net-tools.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/game',f),'utf8'),ctx);return ctx.window}
+function load(){const math=Object.create(Math);math.random=()=>0.5;const ctx={window:{confirm:()=>true},Math:math};vm.createContext(ctx);for(const f of ['catalog.js','catalog-extra.js','net-tools.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../site',f),'utf8'),ctx);return ctx.window}
 const click=(op,extra={})=>({type:'click',target:{closest:()=>({dataset:{net:op,...extra}})}});
 const edit=(key,value)=>({type:'change',target:{dataset:{netCombat:key},value,closest:()=>null}});
 function setup(){const W=load(),N=W.NetTools;N.setScope('owner-a');const x={lang:'en',architectures:[]};N.handle(click('new'),x);return {W,N,x}}

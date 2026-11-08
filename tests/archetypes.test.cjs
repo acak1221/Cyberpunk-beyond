@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-global.window={};require('node:vm').runInThisContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'../public/game/archetypes.js'),'utf8'));const a=window.Archetypes;
+global.window={};require('node:vm').runInThisContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'../site/archetypes.js'),'utf8'));const a=window.Archetypes;
 assert.equal(a.roleIds.length,10);
 const losses={rockerboy:9,solo:14,netrunner:14,tech:12,medtech:12,media:10,lawman:10,exec:12,fixer:16,nomad:14};
 for(const role of a.roleIds){

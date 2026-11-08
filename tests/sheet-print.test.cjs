@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const code=fs.readFileSync('public/game/sheet-print.js','utf8');
+const code=fs.readFileSync('site/sheet-print.js','utf8');
 function harness(values){
  const events={},children=[];
  const fields=values.map(value=>({value,classes:new Set(),classList:{add(x){this.owner.classes.add(x)},remove(x){this.owner.classes.delete(x)}},insertAdjacentElement(where,node){assert.equal(where,'afterend');children.push(node)}}));

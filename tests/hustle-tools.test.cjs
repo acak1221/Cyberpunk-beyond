@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-let counter=0;const ctx={window:{confirm:()=>true},crypto:{randomUUID:()=>`roll-${++counter}`},Math,Date};vm.createContext(ctx);vm.runInContext(fs.readFileSync(__dirname+'/../public/game/hustle-tools.js','utf8'),ctx);const H=ctx.window.HustleTools;
+let counter=0;const ctx={window:{confirm:()=>true},crypto:{randomUUID:()=>`roll-${++counter}`},Math,Date};vm.createContext(ctx);vm.runInContext(fs.readFileSync(__dirname+'/../site/hustle-tools.js','utf8'),ctx);const H=ctx.window.HustleTools;
 const c=()=>({id:'c',role:'solo',rank:4,extra:{cash:100}}),ev=(action)=>({type:'click',target:{closest:()=>({dataset:{hustle:action}})}});
 test('all 60 book entries map to exact rank-band payouts and bilingual text',()=>{
  const bands={zero:[0,100,300],low:[100,200,500],mid:[200,300,600],high:[300,500,800]};

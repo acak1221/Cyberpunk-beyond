@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={confirm:()=>true};require('../public/game/character-extra.js');const X=window.CharacterExtra;
+global.window={confirm:()=>true};require('../site/character-extra.js');const X=window.CharacterExtra;
 function person(base,current){return {name:'Doc',role:'solo',hp:0,stats:{BODY:8,LUCK:5},skills:{},extra:{baseDeathPenalty:base,deathPenalty:current}}}
 function roll(c,isCurrent=()=>true){return X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'death-save'}})}},c,'en',{isCurrent})}
 test('Death Save includes base injuries, then increases the current penalty by one',()=>{const c=person(2,2);const first=roll(c);assert.equal(first.roll.penalty,2);assert.equal(c.extra.deathPenalty,3);const second=roll(c);assert.equal(second.roll.penalty,3);assert.equal(c.extra.deathPenalty,4)});

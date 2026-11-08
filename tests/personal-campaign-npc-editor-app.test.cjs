@@ -1,10 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const src=name=>fs.readFileSync(__dirname+'/../public/game/'+name,'utf8');
+const src=name=>fs.readFileSync(__dirname+'/../site/'+name,'utf8');
 function harness(){
  const npc={id:'npc',kind:'npc',name:'Merc',ref:6,hp:12,initiative:10,bonus:2,order:1},pc={id:'pc',name:'Rook',role:'solo',rank:4,stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{Handgun:4},hp:27,humanity:52,head:7,bodyArmor:8};
  const data={characters:[pc],campaigns:[{id:'job',name:'Job',notes:'private',round:3,turnIndex:0,roster:[npc]}],gmWorkspace:{time:'day',zone:'moderate',party:4,roll:null,roster:[]}},saved=[];
  let scope='alice';const node=()=>({innerHTML:'',listeners:{},addEventListener(k,f){this.listeners[k]=f},setAttribute(){}}),nodes={'#app':node(),'#sync-root':node(),'#sync-adapter-status':node(),'#app-notice':{textContent:'',classList:{add(){},remove(){}}}};
- const w={Book:{handle:()=>false},ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}}],CharacterExtra:{specializationCost:()=>0},SyncAdapter:{create(){return{start(){},stateLabel:()=>'',getScope:()=>scope,canEdit:()=>true,save:s=>{saved.push(JSON.parse(JSON.stringify(s)));return Promise.resolve({ok:true})}}}}};
+ const w={Book:{handle:()=>false},ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}}],CharacterExtra:{specializationCost:()=>0},LocalStore:{create(){return{start(){},stateLabel:()=>'',getScope:()=>scope,canEdit:()=>true,save:s=>{saved.push(JSON.parse(JSON.stringify(s)));return Promise.resolve({ok:true})}}}}};
  const context={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:()=>JSON.stringify(data)},globalThis:{crypto:{randomUUID:()=> 'unique'}},console,Math,JSON,Set,Number,String,Array,Object,Promise,setTimeout:()=>0,clearTimeout(){},confirm:()=>true};
  vm.createContext(context);for(const file of ['combat-tools.js','damage-apply.js','gm-tools.js','campaigns.js'])vm.runInContext(src(file),context);vm.runInContext(src('app.js')+'\nwindow.qa={snapshot:snapshotAppState,enter:()=>{state.view="campaigns";window.Campaigns.setScope("alice");render()}};',context);w.qa.enter();
  const open={isConnected:true,dataset:{campaignAction:'open',id:'job'},closest:s=>s==='[data-campaign-action]'?open:null};nodes['#app'].listeners.click({type:'click',target:{closest:s=>s==='[data-campaign-action]'?open:null}});

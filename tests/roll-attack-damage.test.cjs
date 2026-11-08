@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');
+global.window={};require('../site/combat-tools.js');
 const C=window.CombatTools,dice=(...pips)=>()=>{assert(pips.length,'unexpected die');return (pips.shift()-.5)/6};
 const input={count:'3',sp:'11',type:'standard',location:'body'};
 test('damage roll counts the dice, applies armor and ablates once when penetrated',()=>{

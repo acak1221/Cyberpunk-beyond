@@ -1,8 +1,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 global.window={};
-require('../public/game/catalog.js');
-require('../public/game/catalog-extra.js');
+require('../site/catalog.js');
+require('../site/catalog-extra.js');
 const get=id=>{const all=window.CATALOG.filter(x=>x.id==='ammo-'+id+'-ammunition');assert.equal(all.length,1);return all[0]};
 test('poison, biotoxin, EMP and flashbang replace ordinary damage',()=>{
  for(const id of ['poison','biotoxin','emp','flashbang']){const entry=get(id);assert.match(entry.details.en,/no (?:ordinary )?damage/);assert.match(entry.details.ru,/не наносит/);assert.match(entry.details.en,/DV1[35]/);}

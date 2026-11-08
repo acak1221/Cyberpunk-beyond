@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function setup(op){
  let hook=()=>true,scope='owner',calls=0,currentAll;const c={window:{confirm:()=>{calls++;return hook()}},Math,Number,String,Array,Object,Set,JSON,Date};
- vm.runInNewContext(fs.readFileSync(__dirname+'/../public/game/net-tools.js','utf8'),c);
+ vm.runInNewContext(fs.readFileSync(__dirname+'/../site/net-tools.js','utf8'),c);
  const N=c.window.NetTools;N.setScope(scope);const a=N.newArchitecture('en'),other=N.newArchitecture('en');a.id='a';other.id='b';a.floors[0].id='floor-a';a.floors.push(N.newFloor('2'));a.floors[1].id='floor-b';const entry=N.newEntry();Object.assign(entry,{id:'ice',type:'ice',preset:'Hellhound',notes:'keep'});a.floors[0].entries.push(entry);const arch=[a,other],ctx={lang:'en',architectures:arch,isCurrent:(xs,s)=>currentAll===xs&&scope===s};currentAll=arch;
  const root={isConnected:true},button={dataset:{net:op,index:'0',entry:'0'},isConnected:true,closest:s=>s==='[data-net-root]'?root:null},target={closest:s=>s==='[data-net]'?button:null};
  N.handle({type:'click',target:{closest:s=>s==='[data-net]'?{dataset:{net:'open',id:'a'}}:null}},ctx);

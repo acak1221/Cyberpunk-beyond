@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const context={window:{confirm:()=>true},globalThis:{crypto:{randomUUID:()=>Math.random().toString(36).slice(2)}},Math,Number,String,Array,Object,Set};
-vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../public/game/gm-tools.js'),'utf8'),context);const G=context.window.GMTools;
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../site/gm-tools.js'),'utf8'),context);const G=context.window.GMTools;
 test('encounter ranges reflect the PDF, including both evening 72 results and missing midnight 100',()=>{
  for(let n=1;n<=100;n++)assert.equal(G.matches('day',n).length,1,'day '+n);
  for(let n=1;n<=100;n++)assert.equal(G.matches('evening',n).length,n===72?2:1,'evening '+n);

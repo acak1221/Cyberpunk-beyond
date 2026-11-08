@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=n=>fs.readFileSync(__dirname+'/../public/game/'+n,'utf8');
+const source=n=>fs.readFileSync(__dirname+'/../site/'+n,'utf8');
 function setup(suit=false){
  let uid=0;const w={confirm:()=>true,CATALOG:[{id:suit?'armor-bodyweight-suit':'armor-light',category:'armor',price:100,stats:{sp:11},name:{en:'Light armor',ru:'Броня'}}]};
  const v={window:w,globalThis:{crypto:{randomUUID:()=>String(++uid)},addEventListener(){}},console,JSON,Number,Object,Array,Set,Date,Math};vm.createContext(v);for(const f of ['equipment-tools.js','repair-tools.js'])vm.runInContext(source(f),v);

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/gm-tools.js');const G=window.GMTools;
+global.window={};require('../site/gm-tools.js');const G=window.GMTools;
 const template=id=>G.NPC_TEMPLATES.find(x=>x.id===id);
 function rng(...values){let i=0;return ()=>{assert.ok(i<values.length,'unexpected random draw');return values[i++]}}
 test('printed NPC skill bases include STAT and use the printed armored variant',()=>{

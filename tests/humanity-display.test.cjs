@@ -1,8 +1,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const code=fs.readFileSync(__dirname+'/../public/game/app.js','utf8');
+const code=fs.readFileSync(__dirname+'/../site/app.js','utf8');
 function harness(){
  const node=()=>({innerHTML:'',textContent:'',addEventListener(){},setAttribute(){}}),nodes={'#app':node(),'#sync-root':node(),'#sync-adapter-status':node(),'[data-calc="max-humanity"]':node(),'[data-calc="base-humanity"]':node()};
- const window={ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'},description:{ru:'',en:''}}],CharacterExtra:{render:()=>'',specializationCost:()=>0},EquipmentTools:{render:()=>'',setScope(){}},RoleTools:{render:()=>'',refresh(){}},SyncAdapter:{create(){return {stateLabel:()=>'',start(){},getScope:()=>null}}}};
+ const window={ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'},description:{ru:'',en:''}}],CharacterExtra:{render:()=>'',specializationCost:()=>0},EquipmentTools:{render:()=>'',setScope(){}},RoleTools:{render:()=>'',refresh(){}},LocalStore:{create(){return {stateLabel:()=>'',start(){},getScope:()=>null}}}};
  const context={window,document:{querySelector:s=>nodes[s]||null,documentElement:{lang:''},title:''},localStorage:{getItem:()=>null},globalThis:{crypto:{randomUUID:()=> 'x'}},console,Math,JSON,Set,Number,String,Array,Object,Promise};
  vm.runInNewContext(code+'\nwindow.qa={sheet,refreshSheet,lang:x=>{state.lang=x}};',context);return {window,nodes};
 }

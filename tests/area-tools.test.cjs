@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/area-tools.js');const A=window.AreaTools;
+global.window={};require('../site/area-tools.js');const A=window.AreaTools;
 const base={type:'blast',attack:18,hit:true,damage:20,sixes:0};
 const target={ref:6,dodge:'no',evasion:0,sp:11,cover:0};
 test('cover survives only when HP exceeds the blast; destroyed cover does not reduce the damage',()=>{

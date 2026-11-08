@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-global.window={};require('../public/game/check-modifiers.js');
+global.window={};require('../site/check-modifiers.js');
 const {conditions,calculate,render,handle}=window.CheckModifiers;
 test('the Corebook examples have their printed modifier values',()=>{
  assert.deepEqual(Object.fromEntries(Object.entries(conditions).map(([k,v])=>[k,v.value])),{lowLight:-1,firstTime:-1,complex:-2,tools:-2,poorSleep:-2,stress:-2,exhausted:-4,sedated:-4,secret:-4,obscured:-4});

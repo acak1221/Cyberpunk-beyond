@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function setup(){
  let next=0,scope='owner',hook=()=>true,seen='',active;const c={window:{confirm:s=>{seen=s;return hook()}},crypto:{randomUUID:()=>`generated-${++next}`},Math,Number,String,Array,Object,Set,JSON,Date};
- vm.runInNewContext(fs.readFileSync(__dirname+'/../public/game/net-tools.js','utf8'),c);const N=c.window.NetTools;N.setScope(scope);
+ vm.runInNewContext(fs.readFileSync(__dirname+'/../site/net-tools.js','utf8'),c);const N=c.window.NetTools;N.setScope(scope);
  const a=N.newArchitecture('en');a.id='main';a.name='Arasaka';a.current='B2';a.remaining=1;a.notes='Keep guard alert';a.future={ref:'floor-1',deep:{n:1}};a.floors[0].id='floor-1';a.floors[0].branch='north';const ice=N.newEntry();Object.assign(ice,{id:'ice-1',type:'ice',name:'Hellhound',preset:'Hellhound',state:'pursuing',rez:7,maxRez:20,notes:'alarm'});a.floors[0].entries.push(ice);
  const architectures=[a],ctx={lang:'en',architectures,isCurrent:(xs,s)=>active===xs&&s===scope};active=architectures;
  const root={isConnected:true},button={dataset:{net:'duplicate',id:'main'},isConnected:true,closest:s=>s==='[data-net-root]'?root:null},target={closest:s=>s==='[data-net]'?button:null};

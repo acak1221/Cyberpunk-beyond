@@ -5,7 +5,7 @@ const fs=require('node:fs');
 
 const window={},context=vm.createContext({window});
 for(const file of ['catalog.js','catalog-extra.js'])
-  vm.runInContext(fs.readFileSync(`${__dirname}/../public/game/${file}`,'utf8'),context);
+  vm.runInContext(fs.readFileSync(`${__dirname}/../site/${file}`,'utf8'),context);
 const hardware=id=>{
   const matches=window.CATALOG.filter(item=>item.id===`extra-deck-${id}`);
   assert.equal(matches.length,1,id);

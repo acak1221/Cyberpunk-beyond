@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('public/game/campaigns.js','utf8');
+const source=fs.readFileSync('site/campaigns.js','utf8');
 const makeTemplate=(id='boosterganger')=>({id,name:{ru:'Бустергангер',en:'Boosterganger'},stats:{REF:6},hp:20,page:412});
 function setup(lang='en',templates=[makeTemplate()]){
  let saveCount=0,renderCount=0,current=true,next=0;const window={GMTools:{NPC_TEMPLATES:templates}}, notices=[];

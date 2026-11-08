@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/character-extra.js');
+global.window={};require('../site/character-extra.js');
 const X=window.CharacterExtra;
 function person(){return {name:'Tester',role:'solo',stats:{DEX:7,REF:5,EMP:6,LUCK:6},skills:{'Martial Arts':0,Handgun:4},humanity:60,extra:{luck:5,luckUse:2,modifier:0,specializations:[{id:'karate',name:'Martial Arts (Karate)',stat:'DEX',level:6,cost:2}],weapons:[{id:'w1',name:'Karate strike',skill:'Martial Arts',stat:'REF',modifier:0,ammo:5,ammoCost:1,capacity:5,usesAmmo:true,skillSpecializationId:'karate',future:{untouched:true}}]}}}
 function attack(c){return X.handle({type:'click',target:{closest:()=>({dataset:{cxAction:'attack',cxIndex:'0'}})}},c,'en',{isCurrent:()=>true})}

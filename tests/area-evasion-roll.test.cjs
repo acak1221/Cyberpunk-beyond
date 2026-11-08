@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/area-tools.js');const A=window.AreaTools;
+global.window={};require('../site/area-tools.js');const A=window.AreaTools;
 function values(rng){let i=0;return ()=>{assert.ok(i<rng.length,'unexpected random draw');return rng[i++]}}
 test('Evasion requires REF 8 and uses a single extra die for natural 1 and 10',()=>{
  const input={ref:8,dex:6,skill:4,modifier:-2};

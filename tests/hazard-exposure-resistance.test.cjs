@@ -1,5 +1,5 @@
 const { test }=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/hazard-tools.js');const H=window.HazardTools;
+global.window={};require('../site/hazard-tools.js');const H=window.HazardTools;
 
 test('exposure roll is available in both languages and applies only to the result',()=>{
  for(const lang of ['ru','en']){const html=H.render(lang);assert.match(html,/data-hz-action="exposure"/);assert.match(html,/1d6/)}

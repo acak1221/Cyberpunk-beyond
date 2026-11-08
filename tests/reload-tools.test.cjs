@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const base=__dirname+'/../public/game/';
+const base=__dirname+'/../site/';
 function setup(){const w={},ctx={window:w,console,Math,Date,globalThis:{crypto:{randomUUID:()=> 'uuid'}}};w.confirm=()=>true;vm.createContext(ctx);for(const f of ['catalog.js','catalog-extra.js','equipment-tools.js','reload-tools.js'])vm.runInContext(fs.readFileSync(base+f,'utf8'),ctx,{filename:f});w.ReloadTools.setScope('account-a');return w}
 function character(){return {id:'person',extra:{cash:600,unrelated:{x:9},weapons:[{id:'pistol',catalogId:'weapon-medium-pistol',name:'Pistol',capacity:12,ammo:0,usesAmmo:true,other:'keep'}],items:[{id:'ammo',catalogId:'ammo-basic-ammunition',name:'Basic',quantity:30,ammoType:'medium-pistol',purchase:{itemId:'ammo-basic-ammunition',ammoType:'medium-pistol',perPack:10,quantity:3,ammoCount:30,total:30},other:'keep'}]}}}
 const good={isCurrent:()=>true},clone=x=>JSON.parse(JSON.stringify(x));

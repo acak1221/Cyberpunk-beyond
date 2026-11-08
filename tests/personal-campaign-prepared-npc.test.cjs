@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('public/game/campaigns.js','utf8');
+const source=fs.readFileSync('site/campaigns.js','utf8');
 function setup(lang='en'){
  let saves=0,renders=0,current=true,next=0,onConfirm=()=>true;const messages=[];
  const template={id:'boost',name:{ru:'Бустер',en:'Booster'},stats:{REF:6},hp:30,page:412};

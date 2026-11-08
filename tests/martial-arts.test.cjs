@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 global.window={};
-require('../public/game/martial-arts.js');
+require('../site/martial-arts.js');
 const {moves,render}=window.MartialArts;
 test('all corebook forms and moves have bilingual descriptions and source pages',()=>{
  assert.equal(moves.length,9);

@@ -1,0 +1,47 @@
+/* Installable, offline-capable app shell. Only built copies (with data-build) register the worker. */
+(function(global){
+'use strict';
+const doc=global.document;
+let deferredPrompt=null,waiting=null;
+const ru=()=>(doc.documentElement.lang||'ru')!=='en';
+
+function toast(text,actionLabel,onAction){
+ let box=doc.querySelector('#pwa-toast');
+ if(!box){box=doc.createElement('div');box.id='pwa-toast';box.className='pwa-toast';box.setAttribute('role','status');doc.body.appendChild(box)}
+ box.innerHTML='';
+ const span=doc.createElement('span');span.textContent=text;box.appendChild(span);
+ if(actionLabel){const b=doc.createElement('button');b.type='button';b.className='btn primary';b.textContent=actionLabel;b.addEventListener('click',onAction);box.appendChild(b)}
+ const close=doc.createElement('button');close.type='button';close.className='pwa-toast-close';close.setAttribute('aria-label',ru()?'Закрыть':'Close');close.textContent='×';close.addEventListener('click',()=>box.classList.remove('visible'));box.appendChild(close);
+ box.classList.add('visible');
+}
+function offerUpdate(worker){
+ waiting=worker;
+ toast(ru()?'Доступна новая версия помощника.':'A new version is available.',ru()?'Обновить':'Update',()=>{waiting?.postMessage('skip-waiting')});
+}
+function register(){
+ if(!('serviceWorker' in navigator)||!doc.documentElement.dataset.build)return;
+ let reloading=false;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading)return;reloading=true;global.location.reload()});
+ navigator.serviceWorker.register('sw.js').then(reg=>{
+  if(reg.waiting&&navigator.serviceWorker.controller)offerUpdate(reg.waiting);
+  reg.addEventListener('updatefound',()=>{
+   const worker=reg.installing;if(!worker)return;
+   worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)offerUpdate(worker)});
+  });
+  // Check for a fresh version when the app regains focus (e.g. reopened on a phone).
+  doc.addEventListener('visibilitychange',()=>{if(doc.visibilityState==='visible')reg.update().catch(()=>{})});
+ }).catch(()=>{});
+}
+global.addEventListener('beforeinstallprompt',e=>{
+ e.preventDefault();deferredPrompt=e;
+ doc.documentElement.classList.add('pwa-installable');
+ global.dispatchEvent(new CustomEvent('pwa-installable'));
+});
+global.addEventListener('appinstalled',()=>{deferredPrompt=null;doc.documentElement.classList.remove('pwa-installable')});
+global.PWA={
+ canInstall:()=>!!deferredPrompt,
+ async install(){if(!deferredPrompt)return false;const e=deferredPrompt;deferredPrompt=null;doc.documentElement.classList.remove('pwa-installable');e.prompt();try{const r=await e.userChoice;return r?.outcome==='accepted'}catch{return false}},
+ isStandalone:()=>global.matchMedia?.('(display-mode: standalone)').matches||global.navigator.standalone===true,
+};
+if(doc.readyState==='complete')register();else global.addEventListener('load',register);
+})(window);

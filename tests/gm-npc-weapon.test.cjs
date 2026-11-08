@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/gm-tools.js');const G=window.GMTools;
+global.window={};require('../site/gm-tools.js');const G=window.GMTools;
 const temp=id=>G.NPC_TEMPLATES.find(t=>t.id===id);
 function rng(...v){let i=0;return ()=>{assert.ok(i<v.length,'unexpected roll');return v[i++]}}
 test('NPC weapon damage uses printed dice and counts original sixes',()=>{const r=G.npcWeaponRoll(temp('bodyguard'),0,rng(0,0.99,0.3,0.99,0.5));assert.deepEqual(r.dice,[1,6,2,6,4]);assert.equal(r.total,19);assert.equal(r.critical,true);assert.equal(r.noCritical,false)});

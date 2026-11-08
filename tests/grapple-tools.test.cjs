@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/grapple-tools.js');
+global.window={};require('../site/grapple-tools.js');
 const g=window.GrappleTools;
 test('BODY damage tiers and cyberarm minimum follow Corebook p. 176',()=>{
  for(const [body,normal,cyber] of [[0,1,2],[4,1,2],[5,2,2],[6,2,2],[7,3,3],[10,3,3],[11,4,4]]){assert.equal(g.brawlingDice(body,false),normal);assert.equal(g.brawlingDice(body,true),cyber)}

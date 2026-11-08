@@ -1,5 +1,5 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm'),path=require('path');
-const base=path.join(__dirname,'../public/game');
+const base=path.join(__dirname,'../site');
 global.window=global;global.confirm=()=>true;
 const source=fs.readFileSync(path.join(base,'app.js'),'utf8');const m=source.match(/const SKILLS = \[[\s\S]*?\n\];/);assert(m);const skills=vm.runInThisContext(m[0]+';SKILLS');
 vm.runInThisContext(fs.readFileSync(path.join(base,'archetypes.js'),'utf8'),{filename:'archetypes.js'});vm.runInThisContext(fs.readFileSync(path.join(base,'rules.js'),'utf8'),{filename:'rules.js'});vm.runInThisContext(fs.readFileSync(path.join(base,'catalog.js'),'utf8'),{filename:'catalog.js'});vm.runInThisContext(fs.readFileSync(path.join(base,'quick-builder.js'),'utf8'),{filename:'quick-builder.js'});

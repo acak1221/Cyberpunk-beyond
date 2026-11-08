@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');
+global.window={};require('../site/combat-tools.js');
 const C=window.CombatTools,base={kind:'cover',hp:'10',damage:'15',attack:'normal',cyber:false};
 test('a shield that absorbs or is destroyed by a blast follows cover and cannot be combined with a dodge',()=>{
  for(const lang of ['en','ru']){

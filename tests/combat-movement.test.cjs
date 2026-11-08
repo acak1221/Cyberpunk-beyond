@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');const C=window.CombatTools;
+global.window={};require('../site/combat-tools.js');const C=window.CombatTools;
 test('normal Move and Run provide separate Move Actions with correct per-action distances',()=>{
  const normal=C.movementPlan({move:'6',prone:false,action:'none'}),run=C.movementPlan({move:6,prone:false,action:'run'});
  assert.equal(normal.first,12);assert.equal(normal.extra,0);assert.equal(normal.total,12);assert.equal(normal.swim,6);assert.equal(normal.runningJump,6);assert.equal(normal.standingJump,3);

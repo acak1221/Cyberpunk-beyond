@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');require('../public/game/equipment-tools.js');require('../public/game/medical-tools.js');require('../public/game/damage-apply.js');
+global.window={};require('../site/combat-tools.js');require('../site/equipment-tools.js');require('../site/medical-tools.js');require('../site/damage-apply.js');
 const D=window.DamageApply,E=window.EquipmentTools;
 const make=()=>({id:'a',hp:40,head:11,bodyArmor:11,extra:{equipment:{armor:{body:{recordId:'vest',piece:0,catalogId:'armor-light'}},armorHistory:[{recordId:'vest',piece:0,location:'body',sp:11,unknown:'keep'}],future:{x:1}},injuries:'old'}});
 const args=(type='standard',location='body',raw=15,critical=false)=>({type,location,raw,critical});

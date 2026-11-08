@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const root=__dirname+'/../public/game/',w={},scope={window:w,console,Math,Date,globalThis:{crypto:{randomUUID:()=>Math.random().toString(36)}}};vm.createContext(scope);
+const root=__dirname+'/../site/',w={},scope={window:w,console,Math,Date,globalThis:{crypto:{randomUUID:()=>Math.random().toString(36)}}};vm.createContext(scope);
 for(const f of ['catalog.js','catalog-extra.js','character-extra.js'])vm.runInContext(fs.readFileSync(root+f,'utf8'),scope,{filename:f});
 const expected={
  'weapon-constitution-arms-hurricane':['5d6','Shoulder Arms',2,16,'Slug or Shotgun Shell'],

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('public/game/campaigns.js','utf8');
+const source=fs.readFileSync('site/campaigns.js','utf8');
 function setup(){
  let saves=0,renders=0,allowed=true;const messages=[],math=Object.create(Math);math.random=()=>0.25;
  const npc={id:'n',kind:'npc',name:'Merc',ref:6,hp:12,initiative:11,bonus:2,order:2,notes:{future:true}},pc={id:'p',name:'Player',stats:{REF:4},hp:18},pcEntry={id:'p1',kind:'pc',characterId:'p',initiative:15,bonus:0,order:1};

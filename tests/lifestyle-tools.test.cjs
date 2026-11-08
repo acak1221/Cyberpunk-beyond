@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 global.window={};
-require('../public/game/lifestyle-tools.js');
+require('../site/lifestyle-tools.js');
 const L=window.LifestyleTools;
 const character=()=>({extra:{cash:2000,other:{preserve:true}}});
 test('prices and separate monthly payments follow the corebook',()=>{

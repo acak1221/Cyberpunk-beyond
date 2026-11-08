@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(__dirname+'/../public/game/medical-tools.js','utf8');
+const source=fs.readFileSync(__dirname+'/../site/medical-tools.js','utf8');
 function setup(confirmResult=true){let rolls=[],confirmCalls=[];let math=Object.create(Math);math.random=()=>rolls.length?rolls.shift():0.5;const w={confirm:message=>{confirmCalls.push(message);return confirmResult}};vm.runInNewContext(source,{window:w,Math:math,Number,String,JSON,Array,Object,Set});w.MedicalTools.setScope('account-a');return{m:w.MedicalTools,rolls,confirmCalls,w}}
 const patient=()=>({id:'p',name:'<Patient>',hp:20,stats:{BODY:8,WILL:6},extra:{baseDeathPenalty:2,deathPenalty:4,unchanged:'secret'}});
 const event=op=>{const root={isConnected:true},button={isConnected:true,dataset:{medAction:op},closest:s=>s==='[data-med-root]'?root:null};return {type:'click',target:{closest:s=>s==='[data-med-action]'?button:null},root,button}};

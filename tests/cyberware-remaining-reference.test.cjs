@@ -1,8 +1,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const window={},ctx=vm.createContext({window});
-vm.runInContext(fs.readFileSync(__dirname+'/../public/game/catalog.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync(__dirname+'/../site/catalog.js','utf8'),ctx);
 const before=new Map(window.CATALOG.map(x=>[x.id,JSON.stringify({price:x.price,stats:x.stats})]));
-vm.runInContext(fs.readFileSync(__dirname+'/../public/game/catalog-extra.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync(__dirname+'/../site/catalog-extra.js','utf8'),ctx);
 const get=id=>{const a=window.CATALOG.filter(x=>x.id===id);assert.equal(a.length,1,id);return a[0]};
 const ids=['cyberware-biomonitor','cyberware-olfactory-boost','cyberware-chyron','cyberware-dartgun-cybereye','cyberware-microoptics','cyberware-radio-communicator-implant','cyberware-cybersnake','cyberware-nasal-filters','cyberware-radar-sonar-implant','cyberware-cyberarm','cyberware-subdermal-grip','cyberware-cyberleg','cyberware-superchrome-covering','cyberware-multioptic-mount'];
 test('all remaining selected cyberware cards have bilingual reference text and retain original mechanical data',()=>{for(const id of ids){const c=get(id);assert.ok(c.details.ru.length>65,id);assert.ok(c.details.en.length>65,id);assert.ok(c.page>=358&&c.page<=367,id);assert.equal(JSON.stringify({price:c.price,stats:c.stats}),before.get(id),id)}});

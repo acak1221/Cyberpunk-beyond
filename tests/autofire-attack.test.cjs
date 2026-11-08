@@ -1,4 +1,4 @@
-const {test}=require('node:test'),assert=require('node:assert/strict');global.window={};require('../public/game/combat-tools.js');require('../public/game/autofire-tools.js');const A=window.AutofireTools;
+const {test}=require('node:test'),assert=require('node:assert/strict');global.window={};require('../site/combat-tools.js');require('../site/autofire-tools.js');const A=window.AutofireTools;
 const input={weapon:'assault',distance:'14',ref:'8',skill:'6',mod:'0',defenseKind:'range',targetRef:'8',dex:'6',evasion:'6',targetMod:'0'};
 const dice=(...rolls)=>()=>{assert(rolls.length,'unexpected dice');return (rolls.shift()-0.5)/10};
 test('attack check uses Autofire range and inserts a normal d10',()=>{let r=A.attackCheck(input,dice(7));assert.equal(r.attack,21);assert.equal(r.defense,17);assert.equal(r.hit,true);assert.equal(r.attackDice.first,7);assert.equal(r.defenseDice,null)});

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');const C=window.CombatTools;
+global.window={};require('../site/combat-tools.js');const C=window.CombatTools;
 const base={raw:'15',sp:'11',type:'standard',target:'leg',critical:false,healthy:'yes',skull:false,relation:''};
 test('aimed leg needs attack damage to penetrate body armor and an unbroken leg',()=>{assert.equal(C.aimedDamage({...base,healthy:''}),null);let q=C.aimedDamage(base);assert.equal(q.penetrating,4);assert.equal(q.spAfter,10);assert.equal(q.leg,true);assert.equal(q.bonus,5);assert.equal(q.total,9);q=C.aimedDamage({...base,raw:'11',critical:true});assert.equal(q.leg,false);assert.equal(q.penetrating,0);assert.equal(q.spAfter,11);assert.equal(q.bonus,5);assert.equal(q.total,5);q=C.aimedDamage({...base,healthy:'no'});assert.equal(q.leg,false);assert.equal(q.total,4)});
 test('GM chooses whether two simultaneous injury causes are the same or distinct',()=>{assert.equal(C.aimedDamage({...base,critical:true}),null);let one=C.aimedDamage({...base,critical:true,relation:'same'}),two=C.aimedDamage({...base,critical:true,relation:'separate'});assert.equal(one.bonus,5);assert.equal(one.total,9);assert.equal(two.bonus,10);assert.equal(two.total,14)});

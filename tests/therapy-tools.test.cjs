@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/therapy-tools.js');const M=window.TherapyTools;
+global.window={};require('../site/therapy-tools.js');const M=window.TherapyTools;
 const person=()=>({id:'a',name:'V',humanity:30,stats:{EMP:6},extra:{equipment:{maxHumanity:38,unknown:{keep:true}},other:'untouched'}});
 const sequence=values=>()=>values.shift();
 function setup(){M.setScope(null);M.setScope('account-test');const c=person(),ctx={lang:'en',characters:[c],isCurrent:(x,s)=>x===c&&s==='account-test'},root={isConnected:true},button={isConnected:true,dataset:{therapyAction:'roll'},closest:s=>s==='[data-therapy-root]'?root:null},event={type:'click',target:{closest:s=>s==='[data-therapy-action]'?button:null}};M.render(ctx);return {c,ctx,root,button,event,field(key,value){return M.handle({type:'change',target:{dataset:{therapyField:key},value,checked:value===true}},ctx)}}}
@@ -33,7 +33,7 @@ test('addiction treatment has no automatic changes to character data',()=>{
  const x=setup(),oldRandom=Math.random,before=JSON.stringify(x.c);Math.random=()=>.99;try{window.confirm=()=>true;x.field('type','addiction');x.field('tech','8');x.field('skill','6');x.field('ack',true);const r=M.handle(x.event,x.ctx);assert.equal(r.dirty,undefined);assert.equal(JSON.stringify(x.c),before);const html=M.render(x.ctx);assert.match(html,/one addiction/);assert.doesNotMatch(html,/data-therapy-action="apply"/);}finally{Math.random=oldRandom}
 });
 
-require('../public/game/drug-tools.js');
+require('../site/drug-tools.js');
 const addictionRecord=(extra={})=>({status:'resolved',remainingHours:0,addicted:true,yearVulnerability:false,lastCheck:null,...extra});
 function addictionSetup(){const x=setup();x.c.extra.streetDrugs={version:1,records:{boost:addictionRecord({unknown:'preserved'}),smash:addictionRecord()},unknownRoot:{keep:true}};x.field('type','addiction');x.field('drug','boost');x.field('tech','8');x.field('skill','6');x.field('ack',true);return x}
 function rollSuccess(x){window.confirm=()=>true;const old=Math.random;Math.random=()=>.99;try{return M.handle(x.event,x.ctx)}finally{Math.random=old}}

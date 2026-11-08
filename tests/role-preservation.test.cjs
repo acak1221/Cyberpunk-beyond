@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(__dirname+'/../public/game/role-tools.js','utf8');
+const source=fs.readFileSync(__dirname+'/../site/role-tools.js','utf8');
 function make(){const ctx={window:{},console,Math,Date,confirm:()=>true,globalThis:{crypto:{randomUUID:()=> 'new'}}};vm.runInNewContext(source,ctx);return ctx}
 const character=()=>({id:'char',role:'exec',rank:4,stats:{COOL:6,LUCK:6},skills:{},humanity:60,extra:{roleTools:{exec:{values:{},team:Array.from({length:301},(_,i)=>({id:'member-'+i,name:'Member '+i,loyalty:4}))}}}});
 test('rendering an Exec with more than 300 team members preserves every record',()=>{let m=make(),c=character();m.window.RoleTools.render(c,'en');assert.equal(c.extra.roleTools.exec.team.length,301);assert.equal(c.extra.roleTools.exec.team[300].id,'member-300')});

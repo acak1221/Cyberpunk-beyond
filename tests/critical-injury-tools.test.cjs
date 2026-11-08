@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={confirm:()=>true};require('../public/game/medical-tools.js');require('../public/game/combat-tools.js');require('../public/game/critical-injury-tools.js');
+global.window={confirm:()=>true};require('../site/medical-tools.js');require('../site/combat-tools.js');require('../site/critical-injury-tools.js');
 const C=window.CriticalInjuryTools;
 let count=0;
 function setup(){const c={id:'patient',name:'Nova',hp:30,stats:{BODY:8,WILL:6},extra:{injuries:'existing notes',baseDeathPenalty:2,deathPenalty:3}},scope='scope-'+(++count);C.setScope(scope);const ctx={lang:'en',characters:[c],view:'medical',isCurrent:x=>x===c};const root={isConnected:true,dataset:{ciView:'medical'}};const field=(key,value)=>C.handle({type:'change',target:{dataset:{ciField:key},value,checked:value===true,closest:s=>s==='[data-ci-root]'?root:null}},ctx);const click=(action,key)=>{const button={dataset:{ciAction:action,ciId:key},isConnected:true,closest:s=>s==='[data-ci-root]'?root:null};return C.handle({type:'click',target:{closest:s=>s==='[data-ci-root]'?root:s==='[data-ci-action]'?button:null}},ctx)};const render=()=>C.render(ctx);render();return {c,ctx,root,field,click,render}}

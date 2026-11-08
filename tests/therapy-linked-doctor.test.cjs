@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/therapy-tools.js');const M=window.TherapyTools;
+global.window={};require('../site/therapy-tools.js');const M=window.TherapyTools;
 function setup(){
  M.setScope(null);M.setScope('account');
  const patient={id:'p',name:'Patient',role:'solo',rank:4,humanity:20,stats:{EMP:6},extra:{equipment:{maxHumanity:60},other:'keep'}};

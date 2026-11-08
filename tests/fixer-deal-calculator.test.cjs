@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const context={window:{},globalThis:{},Math,Date,JSON,Number,String,Object,Array,Set};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/game/role-tools.js'),'utf8'),context);const R=context.window.RoleTools;
+const context={window:{},globalThis:{},Math,Date,JSON,Number,String,Object,Array,Set};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../site/role-tools.js'),'utf8'),context);const R=context.window.RoleTools;
 const base={rank:10,deal:'percent10',direction:'buy',priceChange:'decrease',unit:'100',quantity:'1',category:'other',danger:false,success:true},q=x=>R.quoteFixerDeal({...base,...x});
 test('all six Operator deals use exact rank and amounts',()=>{
  for(const [deal,rank] of [['percent10',1],['bonus',3],['job20',5],['installments',7],['percent20',9],['dangerous',10]]){const args={deal,rank,direction:'buy',quantity:deal==='bonus'?5:1,category:'luxury',danger:true};assert.equal(q(args).ok,true);if(rank>1)assert.equal(q({...args,rank:rank-1}).reason,'rank')}

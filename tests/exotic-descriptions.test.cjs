@@ -1,8 +1,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 global.window={};
-require('../public/game/catalog.js');
-require('../public/game/catalog-extra.js');
+require('../site/catalog.js');
+require('../site/catalog-extra.js');
 const get=id=>{const list=window.CATALOG.filter(x=>x.id===id);assert.equal(list.length,1);return list[0]};
 test('Air Pistol and Battleglove describe their nonstandard handling',()=>{
  const air=get('weapon-air-pistol'),glove=get('weapon-battleglove');assert.equal(air.page,347);assert.equal(glove.page,347);

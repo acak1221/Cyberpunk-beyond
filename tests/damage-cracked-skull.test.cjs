@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={};require('../public/game/combat-tools.js');require('../public/game/equipment-tools.js');require('../public/game/damage-apply.js');const D=window.DamageApply;
+global.window={};require('../site/combat-tools.js');require('../site/equipment-tools.js');require('../site/damage-apply.js');const D=window.DamageApply;
 const injury=(status='active',id='skull')=>({id,location:'head',score:9,status,detail:'',future:'keep'});
 const make=(status='active')=>({id:'p',hp:40,head:11,bodyArmor:11,extra:{criticalInjuries:{version:1,entries:[injury(status)],future:'keep'},future:{preserve:true}}});
 const args=(patch={})=>({type:'standard',location:'head',raw:15,critical:true,source:'attack',...patch});
