@@ -6,3 +6,4 @@ coverage/
 .env*
 .vercel
 .netlify
+.claude/
