@@ -1,0 +1,25 @@
+/* Night Market, Skills & Difficulty, Streetslang (night-market.js, skill-reference.js, streetslang.js). */
+.night-market,.skill-reference,.streetslang{margin:20px 0;overflow-wrap:anywhere}
+.night-market .nm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.night-market .nm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.night-market .nm-note,.skill-reference .sr-note,.skill-reference .sr-legend{font-size:.86rem;line-height:1.55;color:#aaa398}
+.night-market .nm-rolls{color:#e9c66d}
+.night-market .nm-stall{border:1px solid #555149;padding:12px 14px;margin:12px 0}
+.night-market .nm-stall-head{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.night-market .nm-items{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.night-market .nm-items li{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;border-top:1px solid #3a3731;padding-top:6px}
+.night-market .nm-price{font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:#d4cbc0;white-space:nowrap}
+.night-market .nm-swap{padding:4px 10px}
+.night-market .nm-plain textarea{width:100%;max-width:100%;box-sizing:border-box;margin-top:8px}
+.skill-reference .sr-table-wrap{overflow-x:auto;max-width:100%}
+.skill-reference .sr-table{width:100%;border-collapse:collapse;font-size:.9rem}
+.skill-reference .sr-table th,.skill-reference .sr-table td{border-bottom:1px solid #3a3731;padding:6px 8px;text-align:left;vertical-align:top}
+.skill-reference .sr-dv td,.skill-reference .sr-dv th{text-align:center;overflow-wrap:normal;word-break:normal;hyphens:auto}
+.skill-reference .sr-dv td:first-child,.skill-reference .sr-dv th:first-child{text-align:left}
+.skill-reference .sr-dv input{width:5.5em}
+.skill-reference .sr-en,.streetslang .slang-ru{color:#aaa398;font-size:.85em}
+.skill-reference .sr-toolbar,.streetslang .sr-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}
+.streetslang .slang-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:0}
+.streetslang .slang-item{border:1px solid #3a3731;padding:10px 12px}
+.streetslang dd{margin:6px 0 0;line-height:1.5}
+@media (max-width:560px){.night-market .nm-items li{grid-template-columns:1fr auto}.night-market .nm-items li .rule-source{grid-column:1}}

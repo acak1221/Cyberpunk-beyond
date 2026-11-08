@@ -189,3 +189,11 @@
 .skill-roll span { font-size: 13px; opacity: .8; }
 .skill-roll b { color: #f6e2bb; font: 800 16px/1 var(--display); letter-spacing: .02em; }
 .skill-row { grid-template-columns: minmax(0, 1fr) 58px auto; }
+
+/* ---------- Dice: one-tap damage dice ---------- */
+.quick-dice { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.quick-dice small { display: block; margin-bottom: 9px; color: var(--muted); font-size: 11px; }
+.quick-dice > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.quick-die { min-height: 44px; color: var(--text); background: #2a2120; border: 1px solid #6b3a35; font: 800 18px/1 var(--display); letter-spacing: .04em; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px)); }
+.quick-die:hover { background: #3a2624; border-color: var(--red); }
+.quick-die:active { transform: translateY(1px); }
