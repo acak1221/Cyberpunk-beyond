@@ -159,8 +159,8 @@ netrunner:{loss:14,items:[I('Interface Plugs','Interface Plugs'),I('Neural Link'
 tech:{loss:12,items:[I('Киберглаз','Cybereye'),I('MicroOptics','MicroOptics'),I('Skinwatch','Skinwatch'),I('Tool Hand','Tool Hand')]},
 medtech:{loss:12,items:[I('Биомонитор','Biomonitor'),I('Киберглаз','Cybereye'),C(I('Носовые фильтры','Nasal Filters'),I('Toxin Binders','Toxin Binders')),I('TeleOptics','TeleOptics')]},
 media:{loss:10,items:[C(I('Усиленный слух','Amplified Hearing'),I('Voice Stress Analyzer','Voice Stress Analyzer')),I('Кибераудиосистема','Cyberaudio Suite'),I('Светящаяся татуировка','Light Tattoo')]},
-lawman:{loss:10,items:[I('Скрытая кобура','Hidden Holster'),I('Подкожный карман','Subdermal Pocket'),C(I('Биомонитор','Biomonitor'),I('Tech Hair','Tech Hair'))]},
-exec:{loss:12,items:[I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),C(I('Toxin Binders','Toxin Binders'),I('Носовые фильтры','Nasal Filters'))]},
+lawman:{loss:10,items:[I('Скрытая кобура','Hidden Holster'),I('Подкожный карман','Subdermal Pocket')]},
+exec:{loss:12,items:[C(I('Биомонитор','Biomonitor'),I('Tech Hair','Tech Hair')),I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),C(I('Toxin Binders','Toxin Binders'),I('Носовые фильтры','Nasal Filters'))]},
 fixer:{loss:16,items:[I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),I('Подкожный карман','Subdermal Pocket'),C(I('Voice Stress Analyzer','Voice Stress Analyzer'),I('Усиленный слух','Amplified Hearing'))]},
 nomad:{loss:14,items:[C(I('Interface Plugs','Interface Plugs'),I('Wolvers','Wolvers')),I('Neural Link','Neural Link')]}
 };
