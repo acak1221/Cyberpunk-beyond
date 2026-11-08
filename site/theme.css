@@ -145,3 +145,14 @@
   .backup-strip { flex-wrap: wrap; }
   .backup-strip .btn { width: 100%; justify-content: center; }
 }
+
+/* ---------- Roll result toast ---------- */
+.app-notice.roll-notice { display: flex; align-items: center; gap: 16px; min-width: min(320px, calc(100vw - 32px)); padding: 12px 18px 12px 12px; white-space: normal; border-color: #6b5446; background: #1f1b19; }
+.roll-notice .roll-total { flex: 0 0 auto; min-width: 64px; padding: 6px 10px; color: #111; background: var(--yellow); font: 800 38px/1 var(--display); text-align: center; transform: skew(-6deg); }
+.roll-notice .roll-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; white-space: pre-wrap; color: #efe5d8; font-size: 13px; }
+.roll-notice .roll-flag { color: var(--yellow); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.roll-notice.crit { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow), 0 12px 42px #000a; }
+.roll-notice.fumble { border-color: var(--red); }
+.roll-notice.fumble .roll-total { color: #fff; background: var(--red); }
+.roll-notice.fumble .roll-flag { color: #ff8a80; }
+@media (max-width: 820px) { .app-notice { left: 16px; right: 16px; max-width: none; } }
