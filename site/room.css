@@ -85,3 +85,12 @@
   .room-pill .room-pill-label { display: none; }
   .room-toasts { top: 64px; }
 }
+
+/* Shared GM clocks */
+.room-clock-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.room-clock { display: flex; align-items: center; gap: 10px; padding: 8px; background: #1d1b1c; }
+.room-clock-svg { flex: 0 0 auto; width: 52px; height: 52px; }
+.room-clock-svg path { fill: #2d2627; stroke: #111; stroke-width: 1.5; }
+.room-clock-svg path.on { fill: var(--red); }
+.room-clock b { display: block; font-size: 13px; }
+.room-clock small { color: var(--muted); font: 800 14px/1 var(--display); }
