@@ -386,7 +386,7 @@ kbd { color: #77716b; font: inherit; }
 }
 .sheet-print-text { display:none; }
 @media print {
-  #sync-root, #sync-adapter-status, #app-notice { display:none !important; }
+  #store-status, #app-notice { display:none !important; }
   .app-shell, .sheet-layout .cx-root { display:block; min-height:0; }
   .sheet-layout button { display:none !important; }
   .sheet-jump-nav, .sheet-layout .sheet-skill-filter { display:none !important; }
