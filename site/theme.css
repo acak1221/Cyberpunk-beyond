@@ -120,6 +120,7 @@
 /* Sheet dock: HUD chips, stat strip and tabs stay in reach while scrolling */
 .sheet-dock { position: sticky; top: 0; z-index: 30; margin: 0 0 18px; padding: 10px 0 0; background: rgba(16, 16, 18, .96); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .sheet-dock .sheet-tabs { margin: 0; }
+.sheet-extras:not(:empty) { margin: -6px 0 14px; }
 .sheet-hud { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .hud-chip { display: inline-flex; align-items: baseline; gap: 6px; min-height: 36px; padding: 7px 12px; color: var(--text); background: var(--panel); border: 1px solid var(--border); font-size: 12px; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
 .hud-chip:hover { border-color: #84534c; background: var(--panel-hover); }
@@ -134,7 +135,7 @@
 .sheet-hud[data-wound="mortal"] .hud-hp { color: #fff; border-color: var(--red); background: var(--red-dark); }
 .sheet-hud[data-wound="mortal"] .hud-hp em, .sheet-hud[data-wound="mortal"] .hud-hp small, .sheet-hud[data-wound="mortal"] .hud-hp span { color: #fff; }
 .sheet-stat-strip { display: none; grid-template-columns: repeat(10, minmax(0, 1fr)); margin-bottom: 8px; border: 1px solid var(--border); background: var(--panel); }
-.sheet-dock[data-active-tab="skills"] .sheet-stat-strip, .sheet-dock[data-active-tab="combat"] .sheet-stat-strip { display: grid; }
+.sheet-extras[data-active-tab="skills"] .sheet-stat-strip, .sheet-extras[data-active-tab="combat"] .sheet-stat-strip { display: grid; }
 .sheet-stat-strip div { padding: 5px 2px; text-align: center; border-right: 1px solid var(--border); }
 .sheet-stat-strip div:nth-child(even) { background: #241c1b; }
 .sheet-stat-strip div:last-child { border-right: 0; }
@@ -149,7 +150,7 @@
   .sheet-stat-strip b { font-size: 15px; }
 }
 @media print {
-  .sheet-dock { display: none !important; }
+  .sheet-dock, .sheet-extras { display: none !important; }
   .sheet-layout .sheet-primary > *, .sheet-layout .cx-root > *, .sheet-layout .sheet-aside { display: revert !important; }
 }
 
@@ -236,4 +237,20 @@ body {
   .btn { min-height: 44px; }
   .page-header h1, .page-head h1 { font-size: clamp(34px, 11vw, 52px); }
   .hero h1 { font-size: clamp(38px, 12vw, 56px); }
+}
+
+/* Combat tab: one-tap defensive and initiative rolls */
+.sheet-quick-rolls { display: none; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+.sheet-extras[data-active-tab="combat"] .sheet-quick-rolls { display: grid; }
+.sheet-quick-rolls button {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 8px 12px;
+  color: #fff6ec; background: var(--red-dark); border: 1px solid var(--red); text-align: left; font-size: 12px; font-weight: 700;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.sheet-quick-rolls button:hover { background: #b83431; }
+.sheet-quick-rolls b { font: 800 20px/1 var(--display); color: #fff; white-space: nowrap; }
+@media (max-width: 820px) {
+  .sheet-quick-rolls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sheet-quick-rolls button { min-height: 40px; padding: 6px 10px; font-size: 11px; }
+  .sheet-quick-rolls b { font-size: 17px; }
 }

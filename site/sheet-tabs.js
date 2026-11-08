@@ -35,12 +35,28 @@ function vitals(c){
 function hud(c){
  if(!c)return '';
  const ru=lang()==='ru',v=vitals(c),w={full:ru?'Без ранений':'Unhurt',light:ru?'Лёгкое ранение':'Lightly wounded',serious:ru?'Тяжёлое ранение · −2':'Seriously wounded · −2',mortal:ru?'Смертельное ранение · −4':'Mortally wounded · −4'}[v.wound];
- return `<div class="sheet-hud" data-wound="${v.wound}"><button type="button" class="hud-chip hud-hp" data-hud-jump="sheet-vitals" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip" data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small></button></div><div class="sheet-stat-strip" aria-label="${ru?'Характеристики':'Statistics'}">${STATS.map(k=>`<div><small>${k}</small><b>${html(c?.stats?.[k]??'—')}</b></div>`).join('')}</div>`;
+ return `<div class="sheet-hud" data-wound="${v.wound}"><button type="button" class="hud-chip hud-hp" data-hud-jump="sheet-vitals" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip" data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small></button></div>`;
+}
+function extras(c){
+ if(!c)return '';
+ const ru=lang()==='ru';
+ return `${quickRolls(c)}<div class="sheet-stat-strip" aria-label="${ru?'Характеристики':'Statistics'}">${STATS.map(k=>`<div><small>${k}</small><b>${html(c?.stats?.[k]??'—')}</b></div>`).join('')}</div>`;
+}
+function quickRolls(c){
+ const ru=lang()==='ru',st=c?.stats||{},sk=c?.skills||{},sign=n=>(n<0?'−':'+')+Math.abs(n);
+ const rolls=[
+  ['[data-action="initiative-roll"]',ru?'Инициатива':'Initiative',sign(num(st.REF)),'1d10 + REF'],
+  ['[data-action="skill-roll"][data-skill="Evasion"]',ru?'Уклонение':'Evasion',sign(num(st.DEX)+num(sk.Evasion)),'1d10 + DEX + '+(ru?'Уклонение':'Evasion')],
+  ['[data-action="skill-roll"][data-skill="Brawling"]',ru?'Рукопашный бой':'Brawling',sign(num(st.DEX)+num(sk.Brawling)),'1d10 + DEX + '+(ru?'Рукопашный бой':'Brawling')],
+  ['[data-cx-action="death-save"]',ru?'Спасбросок от смерти':'Death Save','≤ '+num(st.BODY),ru?'1d10 не выше BODY (с учётом штрафа)':'1d10 at or under BODY (minus penalty)'],
+ ];
+ return `<div class="sheet-quick-rolls">${rolls.map(([target,label,total,hint])=>`<button type="button" data-proxy-roll="${html(target)}" title="${html(hint)}"><span>${html(label)}</span><b>${html(total)}</b></button>`).join('')}</div>`;
 }
 function refreshHud(c){
  lastCharacter=c||lastCharacter;
  const dock=global.document.querySelector('.sheet-dock');if(!dock||!lastCharacter)return;
  const old=dock.querySelector('.sheet-hud-wrap');if(old)old.innerHTML=hud(lastCharacter);
+ const more=global.document.querySelector('.sheet-extras');if(more)more.innerHTML=extras(lastCharacter);
 }
 function apply(c){
  const doc=global.document,layout=doc.querySelector('.sheet-layout');
@@ -48,11 +64,12 @@ function apply(c){
  if(c)lastCharacter=c;
  layout.dataset.activeTab=current;
  let dock=doc.querySelector('.sheet-dock'),tabs=dock?.querySelector('.sheet-tabs');
- if(!dock||dock.nextElementSibling!==layout){
-  dock?.remove();
-  layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${current}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div>${bar()}</div>`);
+ let more=doc.querySelector('.sheet-extras');
+ if(!dock||!more||more.nextElementSibling!==layout||dock.nextElementSibling!==more){
+  dock?.remove();more?.remove();
+  layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${current}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div>${bar()}</div><div class="sheet-extras" data-active-tab="${current}">${extras(lastCharacter)}</div>`);
  }else{
-  dock.dataset.activeTab=current;
+  dock.dataset.activeTab=current;more.dataset.activeTab=current;
   refreshHud();
   for(const b of tabs.querySelectorAll('[data-sheet-tab]')){const on=b.dataset.sheetTab===current;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))}
  }
@@ -68,6 +85,9 @@ function select(id,{scroll=true}={}){
 global.document.addEventListener('click',e=>{
  const tab=e.target.closest?.('.sheet-tabs [data-sheet-tab]');
  if(tab){select(tab.dataset.sheetTab);return}
+ const proxy=e.target.closest?.('[data-proxy-roll]');
+ // Re-use the sheet's own roll buttons so every rule, modifier and check stays in one place.
+ if(proxy){const target=global.document.querySelector('.sheet-layout '+proxy.dataset.proxyRoll);if(target&&!target.disabled)target.click();return}
  const hudJump=e.target.closest?.('[data-hud-jump]');
  if(hudJump){const id=hudJump.dataset.hudJump;select(OWNER[id]||'main',{scroll:false});global.document.getElementById(id)?.scrollIntoView({block:'start'});return}
  // A jump-nav link in "full sheet" mode, or any in-app link to a hidden section, reveals its tab first.
