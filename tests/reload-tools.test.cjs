@@ -32,7 +32,7 @@ test('scope change, detached character, and data changes during confirmation pre
 });
 test('different account drafts are isolated and custom names are escaped in both languages',()=>{
  const w=setup(),c=character();c.extra.weapons[0].name='<img src=x>';select(w,c,'weapon','pistol');select(w,c,'ammo','ammo');let ru=w.ReloadTools.render(c,'ru'),en=w.ReloadTools.render(c,'en');assert(ru.includes('&lt;img'));assert(!en.includes('<img'));assert(en.includes('12 units'));
- w.ReloadTools.setScope('account-b');assert(!w.ReloadTools.render(c,'en').includes('12 units'));w.ReloadTools.setScope(null);assert(w.ReloadTools.render(c,'en').includes('Wait until account'));w.ReloadTools.setScope('account-a');assert(w.ReloadTools.render(c,'en').includes('12 units'));
+ w.ReloadTools.setScope('account-b');assert(!w.ReloadTools.render(c,'en').includes('12 units'));w.ReloadTools.setScope(null);assert(w.ReloadTools.render(c,'en').includes('data is still loading'));w.ReloadTools.setScope('account-a');assert(w.ReloadTools.render(c,'en').includes('12 units'));
 });
 test('last confirmed reload is an explicit historical receipt, including after manual ammo edits',()=>{
  const w=setup(),c=character();select(w,c,'weapon','pistol');select(w,c,'ammo','ammo');assert.equal(click(w,c).dirty,true);

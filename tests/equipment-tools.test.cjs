@@ -147,5 +147,6 @@ test('starting cyberware cannot charge Humanity a second time',()=>{
  const out=M.prepare(c,rec.id,'creation','included',true,'en');
  assert.equal(out.reason,'alreadyInstalled'); assert.equal(copy(c),before);
  assert(M.render(c,'en').includes('Starting implant is already installed'));
+ assert(M.render(c,'en').includes('Installed: 1 / 1'),'starting implants count as installed');
  M.setScope('local');
 });
