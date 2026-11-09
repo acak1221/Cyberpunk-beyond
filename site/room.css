@@ -117,3 +117,9 @@ html.ui-native .room-incoming li { border: 0; border-radius: 12px; }
 html.ui-native.ui-light .room-alert { color: #3d2b0f; background: #fff3dc; }
 html.ui-native.ui-light .room-alert.soft { color: #5b5750; background: #fff; }
 html.ui-native.ui-light .room-incoming li { background: rgba(0, 0, 0, .04); }
+.room-send-status { margin: 0; padding: 8px 10px; color: var(--text); font-size: 13px; line-height: 1.45; background: rgba(255, 255, 255, .04); border-left: 3px solid var(--yellow); }
+.room-send-status[data-state="sent"], .room-send-status[data-state="received"], .room-send-status[data-state="accepted"] { border-left-color: var(--green); }
+.room-send-status[data-state="timeout"], .room-send-status[data-state="big"], .room-send-status[data-state="failed"] { border-left-color: var(--red); }
+.room-order li span.room-none { color: var(--muted); font-weight: 400; font-style: italic; }
+html.ui-native .room-send-status { border-radius: 4px 10px 10px 4px; }
+html.ui-native.ui-light .room-send-status { background: rgba(0, 0, 0, .04); }
