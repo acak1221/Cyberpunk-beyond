@@ -52,7 +52,7 @@ function createParser(onPacket){
 
 // One broker connection with automatic reconnect.
 function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl}){
- let ws=null,timer=null,ping=null,closed=false,attempt=0,ready=false;
+ let ws=null,timer=null,ping=null,probeTimer=null,closed=false,attempt=0,ready=false,lastRx=0;
  const id='ncr'+Math.random().toString(36).slice(2,12)+Date.now().toString(36).slice(-6);
  function status(s){ready=s==='online';onStatus?.(broker.url,s)}
  function open(){
@@ -64,19 +64,27 @@ function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl}){
    if(p.type===2){if(p.body[1]===0){attempt=0;status('online');ws.send(encode.subscribe(1,topic+'/#'))}else{status('refused');ws.close()}}
    else if(p.type===3)onMessage(p);
   });
-  ws.onopen=()=>{ws.send(encode.connect({clientId:id,username:broker.username,password:broker.password}));clearInterval(ping);ping=setInterval(()=>{try{ws.readyState===1&&ws.send(encode.ping())}catch{}},KEEPALIVE*1000*0.75)};
-  ws.onmessage=e=>{try{parse(new Uint8Array(e.data))}catch{try{ws.close()}catch{}}};
-  ws.onclose=()=>{clearInterval(ping);if(!closed){status('offline');retry()}};
+  ws.onopen=()=>{lastRx=Date.now();ws.send(encode.connect({clientId:id,username:broker.username,password:broker.password}));clearInterval(ping);ping=setInterval(()=>{
+   // A socket can stay "open" after a phone sleeps or the network changes while nothing arrives any more.
+   if(Date.now()-lastRx>KEEPALIVE*1500){drop();return}
+   try{ws.readyState===1&&ws.send(encode.ping())}catch{}
+  },KEEPALIVE*1000*0.5)};
+  ws.onmessage=e=>{lastRx=Date.now();try{parse(new Uint8Array(e.data))}catch{try{ws.close()}catch{}}};
+  ws.onclose=()=>{clearInterval(ping);clearTimeout(probeTimer);if(!closed){status('offline');retry()}};
   ws.onerror=()=>{};
  }
  function retry(){clearTimeout(timer);attempt++;timer=setTimeout(open,Math.min(30000,1000*2**Math.min(attempt,5))+Math.random()*500)}
+ // Close a silent socket and reconnect right away instead of waiting for the backoff.
+ function drop(){clearInterval(ping);clearTimeout(probeTimer);const old=ws;ws=null;if(old){old.onclose=null;try{old.close()}catch{}}if(closed)return;status('offline');attempt=0;clearTimeout(timer);timer=setTimeout(open,200)}
+ // Ask the broker for a reply; if nothing comes back quickly the connection is dead.
+ function probe(){if(closed)return;if(!ready||ws?.readyState!==1){clearTimeout(timer);drop();return}const sent=Date.now();try{ws.send(encode.ping())}catch{drop();return}clearTimeout(probeTimer);probeTimer=setTimeout(()=>{if(lastRx<sent)drop()},6000)}
  open();
  return {
   url:broker.url,
   online:()=>ready&&ws?.readyState===1,
   send(bytes){if(ready&&ws?.readyState===1){ws.send(bytes);return true}return false},
-  close(){closed=true;clearTimeout(timer);clearInterval(ping);try{if(ws?.readyState===1)ws.send(encode.disconnect());ws?.close()}catch{}},
-  reconnectNow(){if(closed||ready)return;clearTimeout(timer);try{ws?.close()}catch{}open()},
+  close(){closed=true;clearTimeout(timer);clearInterval(ping);clearTimeout(probeTimer);try{if(ws?.readyState===1)ws.send(encode.disconnect());ws?.close()}catch{}},
+  reconnectNow:probe,
  };
 }
 

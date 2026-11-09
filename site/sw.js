@@ -2,21 +2,29 @@
 const VERSION = '__BUILD__';
 const PRECACHE = __PRECACHE__;
 const APP_CACHE = 'nc-red-app-' + VERSION;
-const RUNTIME_CACHE = 'nc-red-runtime-v1';
+// Files cached on first use (the PDF reader) belong to one version; fonts are shared across versions.
+const RUNTIME_CACHE = 'nc-red-runtime-' + VERSION;
+const FONT_CACHE = 'nc-red-fonts-v1';
+// The app cannot start without these; everything else may be fetched later.
+const CORE = new Set(['./', 'index.html', 'nc-red.js', 'nc-red.css']);
 const FONT_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(APP_CACHE);
-    // Bypass the HTTP cache so a new version never precaches stale files.
-    await cache.addAll(PRECACHE.map(url => new Request(url, { cache: 'reload' })));
+    // Bypass the HTTP cache so a new version never precaches stale files. One missing
+    // icon must not block the update, but a missing core file must.
+    const results = await Promise.allSettled(PRECACHE.map(url => cache.add(new Request(url, { cache: 'reload' }))));
+    const failedCore = PRECACHE.filter((url, i) => results[i].status === 'rejected' && CORE.has(url));
+    if (failedCore.length) throw new Error('precache failed: ' + failedCore.join(', '));
   })());
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const names = await caches.keys();
-    await Promise.all(names.filter(name => name.startsWith('nc-red-app-') && name !== APP_CACHE).map(name => caches.delete(name)));
+    const keep = new Set([APP_CACHE, RUNTIME_CACHE, FONT_CACHE]);
+    await Promise.all(names.filter(name => name.startsWith('nc-red-') && !keep.has(name)).map(name => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -30,8 +38,8 @@ async function fromCache(request, cacheName) {
   return cache.match(request, { ignoreSearch: true });
 }
 
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
+async function staleWhileRevalidate(request, cacheName = RUNTIME_CACHE) {
+  const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   const network = fetch(request).then(response => {
     if (response && (response.ok || response.type === 'opaque')) cache.put(request, response.clone());
@@ -46,7 +54,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   if (FONT_HOSTS.has(url.hostname)) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(staleWhileRevalidate(request, FONT_CACHE));
     return;
   }
   if (url.origin !== self.location.origin) return;

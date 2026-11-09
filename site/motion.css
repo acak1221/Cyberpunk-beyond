@@ -153,3 +153,8 @@
 .room-order li.current { animation: turn-glow 2.4s ease-in-out infinite; }
 @keyframes turn-glow { 50% { box-shadow: inset 3px 0 0 var(--red), 0 0 16px rgba(227, 66, 60, .2); } }
 .room-code { text-shadow: 0 0 22px rgba(242, 201, 76, .35); }
+
+/* Dice tumble into the roll card one after another. */
+@keyframes die-in { from { opacity: 0; transform: translateY(-6px) rotate(-90deg) scale(.6); } to { opacity: 1; transform: none; } }
+.app-notice.roll-notice.visible .roll-dice .die { animation: die-in .32s cubic-bezier(.2, .8, .3, 1.3) both; animation-delay: calc(var(--i, 0) * 45ms + 80ms); }
+@media (prefers-reduced-motion: reduce) { .app-notice.roll-notice.visible .roll-dice .die { animation: none; } }

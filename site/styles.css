@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
-
+/* Fonts are linked from index.html (non-blocking). */
 :root {
   color-scheme: dark;
   --bg: #101012;
@@ -419,3 +418,5 @@ kbd { color: #77716b; font: inherit; }
 .pwa-toast.visible{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 .pwa-toast .btn{padding:8px 12px}
 .pwa-toast-close{background:none;border:0;color:inherit;font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+.pwa-chip{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:999;min-height:36px;padding:6px 14px;color:#fff;background:var(--red,#e6463c);border:0;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.35);font:600 13px var(--body,Inter,system-ui,sans-serif);cursor:pointer}
+@media (max-width:960px){.pwa-chip{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}

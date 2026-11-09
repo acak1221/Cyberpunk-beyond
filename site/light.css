@@ -1,0 +1,497 @@
+/* Light theme for the clean look. Applies only with html.ui-native.ui-light (set by theme-switch.js);
+   the cyberpunk look always stays dark. Loaded after native.css. */
+
+html.ui-native.ui-light {
+  color-scheme: light;
+  --bg: #f2f2f4;
+  --panel: #ffffff;
+  --panel-2: #ececf0;
+  --panel-hover: #e3e3e9;
+  --border: rgba(0, 0, 0, .14);
+  --muted: #5c5c66;
+  --text: #17171a;
+  --red: #c8211a;
+  --red-dark: #9a1810;
+  --yellow: #8a5a00;
+  --green: #11763a;
+  background: var(--bg);
+}
+html.ui-native.ui-light body { color: var(--text); background: var(--bg); }
+html.ui-native.ui-light ::selection { color: #fff; background: rgba(215, 38, 28, .75); }
+html.ui-native.ui-light :is(button, a, input, select, textarea):focus-visible { outline-color: var(--red); }
+
+/* ---------- Theme switch (mirrors .ui-style-switch) ---------- */
+.ui-theme-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--muted); }
+.ui-theme-switch span { width: 100%; margin-bottom: 2px; }
+.ui-theme-switch button { flex: 1 1 0; min-height: 30px; padding: 4px 8px; color: var(--muted); background: transparent; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ui-theme-switch button.active { color: var(--text); background: var(--panel-2); border-color: var(--red); }
+html.ui-native .ui-theme-switch { padding: 2px; background: var(--panel-2); border-radius: 10px; gap: 2px; }
+html.ui-native .ui-theme-switch span { display: none; }
+html.ui-native .ui-theme-switch button { border: 0; border-radius: 8px; }
+html.ui-native .ui-theme-switch button.active { background: #3a3a40; color: var(--text); }
+html.ui-native.ui-light .ui-theme-switch button.active, html.ui-native.ui-light .ui-style-switch button.active, html.ui-native.ui-light .lang-switch button.selected { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
+/* the theme switch means nothing in the cyberpunk look */
+html:not(.ui-native) .ui-theme-switch { display: none; }
+
+/* ---------- Module stylesheets: hardcoded dark-theme colours remapped for light ---------- */
+/* area-tools.css */
+html.ui-native.ui-light .area-target { border:  1px solid var(--line, #ccc7c2); }
+html.ui-native.ui-light .area-result { background:  rgba(0,0,0,0.04); }
+
+/* autofire-tools.css */
+html.ui-native.ui-light .autofire-result { border: 1px solid #cec6c0; }
+
+/* book-search.css */
+html.ui-native.ui-light .book-search-hit { border-top:  1px solid var(--border, #ccc6c1); }
+
+/* book-toc.css */
+html.ui-native.ui-light .book-toc button:hover, html.ui-native.ui-light .book-toc button:focus-visible { color: #8a5a00; }
+
+/* builder.css */
+html.ui-native.ui-light .builder-progress button { color: #5e554f; background: #ececec; border: 1px solid #cac4c5; }
+html.ui-native.ui-light .builder-progress button span { color: #7e251b; }
+html.ui-native.ui-light .builder-progress button.active { color: #1b1307; background: #f0eae9; }
+html.ui-native.ui-light .builder-progress button i { color: #856514; }
+html.ui-native.ui-light .builder-panel .card-heading { color: #846515; }
+html.ui-native.ui-light .builder-help { color: #61564c; }
+html.ui-native.ui-light .builder-info, html.ui-native.ui-light .builder-derived { background: #ececec; }
+html.ui-native.ui-light .builder-info strong { color: #1b140a; }
+html.ui-native.ui-light .builder-derived strong { color: #221609; }
+html.ui-native.ui-light .builder-meter { border: 1px solid #c7bbb2; background: #f3f2f1; color: #856514; }
+html.ui-native.ui-light .builder-stat { background: #ececec; }
+html.ui-native.ui-light .builder-skill { border-bottom: 1px solid #c8c6c8; }
+html.ui-native.ui-light .builder-skill small { color: #685f5a; }
+html.ui-native.ui-light .builder-specific { color: #5e554f; }
+html.ui-native.ui-light .builder-extra { border: 1px solid #cdc5c1; background: #ececec; }
+html.ui-native.ui-light .builder-remove { color: #731f16; }
+html.ui-native.ui-light .builder-validation, html.ui-native.ui-light .builder-current-errors { background: #f0e9e7; color: #53340f; }
+html.ui-native.ui-light .builder-validation button { color: #53340f; }
+html.ui-native.ui-light .builder-success { background: #e9f0ec; color: #244e2e; }
+html.ui-native.ui-light .builder-overview div { background: #ececec; }
+html.ui-native.ui-light .builder-overview span { color: #5e554f; }
+html.ui-native.ui-light .builder-budget div { background: #f2eeed; border: 1px solid #cbb8af; }
+html.ui-native.ui-light .builder-budget b { color: #856514; }
+html.ui-native.ui-light .builder-nav { color: #5d5550; }
+
+/* character-extra.css */
+html.ui-native.ui-light .cx-section .cx-help { color: #5e564f; }
+html.ui-native.ui-light .cx-entry { background:  #ececec; border:  1px solid #c9c5c5; }
+html.ui-native.ui-light .inventory-filter p { color: #554638; }
+html.ui-native.ui-light .cx-entry-heading { color: #2a1e11; }
+html.ui-native.ui-light .cx-entry-heading .cx-button, html.ui-native.ui-light .cx-log .cx-button { color: #643c35; }
+html.ui-native.ui-light .cx-button { color: #845e15; background: #efece9; border: 1px solid #c8bbb1; }
+html.ui-native.ui-light .cx-button:hover { color: #201503; background: #ede3df; }
+html.ui-native.ui-light .cx-role strong { color: #2c1c0c; }
+html.ui-native.ui-light .cx-role span { color: #816018; background: #f0ebe4; }
+html.ui-native.ui-light .cx-log { border-bottom: 1px solid #c9c5c7; }
+html.ui-native.ui-light .cx-log > span { color: #2c231a; }
+html.ui-native.ui-light .cx-log small { color: #696059; }
+html.ui-native.ui-light .cx-log b { color: #816018; }
+html.ui-native.ui-light .cx-empty { color: #68605a !important; }
+html.ui-native.ui-light .cx-native { background: #ececec; border: 1px solid #cac4c5; }
+
+/* check-modifiers.css */
+html.ui-native.ui-light .check-modifiers .cm-note { color: #554739; }
+
+/* combat-navigation.css */
+html.ui-native.ui-light .combat-navigation a { border:  1px solid var(--border, #cdc7c1); }
+
+/* combat-tools.css */
+html.ui-native.ui-light .combat-check { color: #2a2218; }
+html.ui-native.ui-light .combat-result { border: 1px solid #ccc1c2; background: #ececec; color: #281e11; }
+html.ui-native.ui-light .combat-result>span { color: #695530; }
+html.ui-native.ui-light .combat-result>p { color: #2f261b; }
+html.ui-native.ui-light .combat-result>small { color: #856214; }
+html.ui-native.ui-light .combat-tool-card p.combat-note { color: #5e5650; }
+
+/* critical-injury-tools.css */
+html.ui-native.ui-light .ci-record { border-top:  1px solid var(--border, #ccc6c1); }
+
+/* equipment-tools.css */
+html.ui-native.ui-light .et-hint { color: #5e564f; }
+html.ui-native.ui-light .et-entry { background: #ececec; border: 1px solid #c9c5c5; }
+html.ui-native.ui-light .et-entry strong { color: #2a1f13; }
+html.ui-native.ui-light .et-entry small { color: #61574c; }
+html.ui-native.ui-light .et-root button { color: #845e15; background: #efece9; border: 1px solid #c8bbb1; }
+html.ui-native.ui-light .et-root button:hover { color: #201503; background: #ede3df; }
+html.ui-native.ui-light .et-grid label, html.ui-native.ui-light .et-max label { color: #62564b; }
+html.ui-native.ui-light .et-max, html.ui-native.ui-light .et-slot { background: #ececec; border: 1px solid #cfc4bf; }
+html.ui-native.ui-light .et-slot > span { color: #5c4b3a; }
+html.ui-native.ui-light .et-preview { background: #f0ece8; color: #443115; }
+html.ui-native.ui-light .et-preview p { color: #49361c; }
+html.ui-native.ui-light .et-removal { border: 1px solid #c8b5b1; background: #f2efee; }
+
+/* getting-started.css */
+html.ui-native.ui-light .getting-started summary { color: #2e2011; }
+html.ui-native.ui-light .getting-started>p, html.ui-native.ui-light .getting-started p { color: #554739; }
+html.ui-native.ui-light .getting-started li { background: #ececec; }
+html.ui-native.ui-light .getting-started-directory button { color: #2e2011; background: #ececec; }
+html.ui-native.ui-light .getting-started-directory button span { color: #554739; }
+
+/* gm-extras.css */
+html.ui-native.ui-light .gm-extras .gx-note { color: #5f594e; }
+html.ui-native.ui-light .gm-extras .gx-mono { color: #3f362b; }
+html.ui-native.ui-light .gm-extras .gx-clock { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .gm-extras .gx-tool { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .gm-extras .gx-entry { border-top: 1px solid #ccc8c2; }
+html.ui-native.ui-light .gm-extras .gx-flavor { color: #3f362b; }
+html.ui-native.ui-light .gm-extras .gx-dl dt { color: #5f594e; }
+html.ui-native.ui-light .gm-extras .gx-die { color: #8a5a00; }
+html.ui-native.ui-light .gm-extras .gx-answer.yes { color: #11763a; }
+html.ui-native.ui-light .gm-extras .gx-weather { border-top: 1px solid #ccc8c2; }
+html.ui-native.ui-light .gm-extras .gx-weather.main { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .gm-extras .gx-hint { color: #3f362b; }
+
+/* gm-tools.css */
+html.ui-native.ui-light .gm-tools .gm-note { color: #5f594e; }
+html.ui-native.ui-light .gm-tools .gm-card { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .gm-tools .gm-statline span { border: 1px solid #ccc8c2; }
+html.ui-native.ui-light .gm-tools .gm-warning { color: #856514; }
+
+/* hazard-tools.css */
+html.ui-native.ui-light .hazard-grid section { border: 1px solid var(--border,#ccc6c1); }
+
+/* hustle-tools.css */
+html.ui-native.ui-light .hustle-tools .hustle-help { color: #625a4c; }
+html.ui-native.ui-light .hustle-tools .hustle-warning { color: #8a5d0f; }
+html.ui-native.ui-light .hustle-tools .hustle-result { border:  1px solid #cdc9c0; background:  #f2f1ef; }
+
+/* lifepath.css */
+html.ui-native.ui-light .lp-result { color: #261d13; }
+html.ui-native.ui-light .lp-card .lp-empty { color: #67605b; }
+html.ui-native.ui-light .lp-card .lp-select { color: #61564d; }
+html.ui-native.ui-light .lp-card .lp-roll { color: #846515; }
+html.ui-native.ui-light .lp-hint { color: #5e554f; }
+html.ui-native.ui-light .lp-banner { background: #f3f0f0; }
+html.ui-native.ui-light .lp-banner strong { color: #21160a; }
+
+/* medical-tools.css */
+html.ui-native.ui-light .medical-tools .medical-note { color: #5f594e; }
+html.ui-native.ui-light .medical-tools .medical-warning { color: #856514; }
+
+/* motion.css */
+html.ui-native.ui-light .boot-screen { background: var(--panel); }
+html.ui-native.ui-light .boot-lines { color: #423426; }
+html.ui-native.ui-light .boot-ok { color: #11763a !important; }
+html.ui-native.ui-light .boot-bar { background:  #ececec; }
+html.ui-native.ui-light .nav-item:hover .nav-icon { color: #8d140c; }
+html.ui-native.ui-light .nav-item:hover .nav-arrow { color: #8a5a00; }
+
+/* native.css */
+html.ui-native.ui-light .empty { border:  1px dashed rgba(0,0,0,0.17); }
+html.ui-native.ui-light .sidebar { background:  #ececec; border-right:  1px solid rgba(0,0,0,0.14); }
+html.ui-native.ui-light .nav-item { color: #151519; }
+html.ui-native.ui-light .nav-item:hover { background:  rgba(0,0,0,0.05); }
+html.ui-native.ui-light .nav-icon { color: #53535b; }
+html.ui-native.ui-light .sidebar-bottom { border-top:  1px solid rgba(0,0,0,0.14); }
+html.ui-native.ui-light .ui-style-switch button.active { background:  #ececec; }
+html.ui-native.ui-light .lang-switch button.selected { background:  #ececec; }
+html.ui-native.ui-light .bottom-nav { border-top:  1px solid rgba(0,0,0,0.14); }
+html.ui-native.ui-light .bottom-nav button { color: #5d5d64; }
+html.ui-native.ui-light .hero { background: var(--panel); }
+html.ui-native.ui-light .hero p { color: #52525c; }
+html.ui-native.ui-light .char-art { background: var(--panel); }
+html.ui-native.ui-light .sheet-tabs button { color: #52525c; }
+html.ui-native.ui-light .agent-contact { border-left:  3px solid #cac6c4; }
+html.ui-native.ui-light :is(.app-notice, .pwa-toast) { background:  #ececec; }
+html.ui-native.ui-light .app-notice.roll-notice { background:  #ececec; }
+html.ui-native.ui-light .data-menu-panel { background:  #ececec; }
+html.ui-native.ui-light .badge, html.ui-native.ui-light .tag, html.ui-native.ui-light .pill { color: #14141a; }
+html.ui-native.ui-light .saved-indicator span:last-child { color: #2b6e40; }
+
+/* net-tools.css */
+html.ui-native.ui-light .net-tools .net-floor { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .net-tools .net-entry { border-top: 1px solid #ccc8c2; }
+html.ui-native.ui-light .net-tools .net-note { color: #5f594e; }
+
+/* quick-builder.css */
+html.ui-native.ui-light .quick-progress button { border: 1px solid var(--border,#c6c8c8); }
+html.ui-native.ui-light .quick-stat-result span { border: 1px solid #c7c7c7; }
+html.ui-native.ui-light .quick-skill { border: 1px solid #c7c7c7; }
+html.ui-native.ui-light .quick-package>div { border: 1px solid #c7c7c7; }
+
+/* reference-tools.css */
+html.ui-native.ui-light .night-market .nm-note, html.ui-native.ui-light .skill-reference .sr-note, html.ui-native.ui-light .skill-reference .sr-legend { color: #5f594e; }
+html.ui-native.ui-light .night-market .nm-rolls { color: #856514; }
+html.ui-native.ui-light .night-market .nm-stall { border: 1px solid #cbc8c3; }
+html.ui-native.ui-light .night-market .nm-items li { border-top: 1px solid #ccc8c2; }
+html.ui-native.ui-light .night-market .nm-price { color: #3f362b; }
+html.ui-native.ui-light .skill-reference .sr-table th, html.ui-native.ui-light .skill-reference .sr-table td { border-bottom: 1px solid #ccc8c2; }
+html.ui-native.ui-light .skill-reference .sr-en, html.ui-native.ui-light .streetslang .slang-ru { color: #5f594e; }
+html.ui-native.ui-light .streetslang .slang-item { border: 1px solid #ccc8c2; }
+
+/* reload-tools.css */
+html.ui-native.ui-light .reload-warning { color: #62180e; }
+
+/* repair-tools.css */
+html.ui-native.ui-light .repair-tools .repair-warning { color: #886511; }
+html.ui-native.ui-light .repair-tools .repair-job { border-top: 1px solid #cbc9c2; }
+
+/* role-tools.css */
+html.ui-native.ui-light .rt-help { color: #5f564e; }
+html.ui-native.ui-light .rt-mini { border: 1px solid #cbc3c4; background: #ececec; }
+html.ui-native.ui-light .rt-mini strong { color: #5f554e; }
+html.ui-native.ui-light .rt-mini span { color: #281e11; }
+html.ui-native.ui-light .rt-section { border-top: 1px solid #cbc3c4; }
+html.ui-native.ui-light .rt-subhead { color: #826517; }
+html.ui-native.ui-light .rt-field { color: #62564b; }
+html.ui-native.ui-light .rt-button { border: 1px solid #cec1c0; background: #ececec; color: #291d0e; }
+html.ui-native.ui-light .rt-button:hover { background: #ede6e6; }
+html.ui-native.ui-light .rt-danger { color: #6e1e16; }
+html.ui-native.ui-light .rt-warning { background: #efe6e4; color: #583d0f; }
+html.ui-native.ui-light .rt-checklist label { color: #4c4237; }
+html.ui-native.ui-light .rt-checklist strong { color: #221a0e; }
+html.ui-native.ui-light .rt-team-entry { border: 1px solid #cbc3c4; }
+html.ui-native.ui-light .rt-last { color: #856514; }
+html.ui-native.ui-light .rt-last:not(:empty) { background: #f4f2f0; }
+
+/* room.css */
+html.ui-native.ui-light .room-banner { background:  #f3efee; border:  1px solid #d3aaa6; }
+html.ui-native.ui-light .room-code { color: #8a5a00; }
+html.ui-native.ui-light .room-net { color: #4d4136; }
+html.ui-native.ui-light .room-check { color: #3b3127; }
+html.ui-native.ui-light .room-member { background:  #ececec; }
+html.ui-native.ui-light .room-member.me { border-color:  #cbb9af; }
+html.ui-native.ui-light .room-member[data-wound="mortal"] { background:  #f6eceb; }
+html.ui-native.ui-light .room-hp { color: #3b3127; }
+html.ui-native.ui-light .room-hp-bar { background:  #ececec; }
+html.ui-native.ui-light .room-stats div { background:  #ececec; }
+html.ui-native.ui-light .room-order li { background:  #ececec; }
+html.ui-native.ui-light .room-order li.npc span { color: #64352c; }
+html.ui-native.ui-light .room-order li.current { background:  #f0eae9; }
+html.ui-native.ui-light .room-order li.current b { color: #8a5a00; }
+html.ui-native.ui-light .room-order li em { color: #8a5a00; }
+html.ui-native.ui-light .room-rolls li { background:  #ececec; }
+html.ui-native.ui-light .room-rolls li.mine { background:  #f3f2f0; }
+html.ui-native.ui-light .room-rolls em { color: #8a5a00; }
+html.ui-native.ui-light .room-pill { background:  #ececec; }
+html.ui-native.ui-light .room-pill.ok { border-color:  #b2c8bb; }
+html.ui-native.ui-light .room-toast { color: #23190d; background:  #f4f2f1; border:  1px solid #cbb9af; }
+html.ui-native.ui-light .room-clock { background:  #ececec; }
+
+/* styles.css */
+html.ui-native.ui-light .sidebar { background:  #ececec; border-right:  1px solid #c8c6c7; }
+html.ui-native.ui-light .nav-label, html.ui-native.ui-light .section-label, html.ui-native.ui-light .eyebrow, html.ui-native.ui-light .overline { color: #8a5a00; }
+html.ui-native.ui-light .nav-item, html.ui-native.ui-light .sidebar nav a, html.ui-native.ui-light .sidebar nav button { color: #5d5651; }
+html.ui-native.ui-light .nav-item:hover, html.ui-native.ui-light .sidebar nav a:hover, html.ui-native.ui-light .sidebar nav button:hover { background:  #ececec; }
+html.ui-native.ui-light .nav-item.active, html.ui-native.ui-light .nav-item[aria-current='page'], html.ui-native.ui-light .sidebar nav a.active, html.ui-native.ui-light .sidebar nav button.active { color: #201707; background:  #f0eae9; }
+html.ui-native.ui-light .topbar { border-bottom:  1px solid #c8c6c8; }
+html.ui-native.ui-light .topbar small, html.ui-native.ui-light .breadcrumbs { color: #66615c; }
+html.ui-native.ui-light p { color: #5f574e; }
+html.ui-native.ui-light .hero { background: var(--panel); border:  1px solid #ccadad; }
+html.ui-native.ui-light .hero h1, html.ui-native.ui-light .hero h2 { color: #110b01; }
+html.ui-native.ui-light .hero p { color: #49352e; }
+html.ui-native.ui-light .hero .eyebrow, html.ui-native.ui-light .hero .overline { color: #8a5a00; }
+html.ui-native.ui-light .card.interactive:hover, html.ui-native.ui-light a.card:hover, html.ui-native.ui-light button.card:hover { border-color:  #cfafab; background:  #ececec; }
+html.ui-native.ui-light .badge, html.ui-native.ui-light .tag, html.ui-native.ui-light .pill { color: #826117; background:  #f0ebe4; border:  1px solid #cfc1ab; }
+html.ui-native.ui-light .badge.red, html.ui-native.ui-light .tag.red { color: #5d1109; background:  #f0e5e5; border-color:  #d2a8a8; }
+html.ui-native.ui-light .badge.green { color: #2c5e37; background:  #e6efe9; border-color:  #afcab6; }
+html.ui-native.ui-light .empty, html.ui-native.ui-light .empty-state { background:  #ececec; border:  1px dashed #c9c4c5; }
+html.ui-native.ui-light .btn.secondary, html.ui-native.ui-light .button.secondary, html.ui-native.ui-light .btn-secondary, html.ui-native.ui-light .btn.outline { color: #1e170d; border-color:  #cbc5c3; }
+html.ui-native.ui-light .btn.secondary:hover, html.ui-native.ui-light .button.secondary:hover, html.ui-native.ui-light .btn-secondary:hover, html.ui-native.ui-light .btn.outline:hover { background:  #ececec; }
+html.ui-native.ui-light .btn.ghost, html.ui-native.ui-light .btn-ghost { color: #60574d; }
+html.ui-native.ui-light .btn.ghost:hover, html.ui-native.ui-light .btn-ghost:hover { background:  #ececec; }
+html.ui-native.ui-light .field label, html.ui-native.ui-light label, html.ui-native.ui-light .field-label { color: #62564b; }
+html.ui-native.ui-light input:not([type='checkbox']):not([type='radio']), html.ui-native.ui-light select, html.ui-native.ui-light textarea, html.ui-native.ui-light .input, html.ui-native.ui-light .search { color: #120e07; background:  #ececec; border:  1px solid #c9c4c6; }
+html.ui-native.ui-light .tab, html.ui-native.ui-light .tabs button { color: #5d5750; }
+html.ui-native.ui-light .stat, html.ui-native.ui-light .stat-card { background:  #ececec; border:  1px solid #c8c6c7; }
+html.ui-native.ui-light .stat label, html.ui-native.ui-light .stat-name, html.ui-native.ui-light .stat-label { color: #5f574e; }
+html.ui-native.ui-light .stat strong, html.ui-native.ui-light .stat-value { color: #181108; }
+html.ui-native.ui-light th, html.ui-native.ui-light td { border-bottom:  1px solid #c8c5c8; }
+html.ui-native.ui-light th { color: #5e574f; }
+html.ui-native.ui-light td { color: #2a2319; }
+html.ui-native.ui-light dialog, html.ui-native.ui-light .modal { background:  #ececec; border:  1px solid #cec2bf; }
+html.ui-native.ui-light .nav-icon { color: #5b5652; }
+html.ui-native.ui-light .nav-item.active .nav-icon { color: #8d140c; }
+html.ui-native.ui-light .sidebar-bottom p { color: #66605c; }
+html.ui-native.ui-light .status, html.ui-native.ui-light .saved-indicator { color: #54634b; }
+html.ui-native.ui-light .top-context { color: #5d5750; }
+html.ui-native.ui-light .top-context strong { color: #2a2219; }
+html.ui-native.ui-light .lang-switch { border:  1px solid #c9c6c5; background:  #ececec; }
+html.ui-native.ui-light .lang-switch button { color: #67605b; }
+html.ui-native.ui-light .lang-switch button.selected { color: #150c02; background:  #e5dddb; }
+html.ui-native.ui-light .content > .eyebrow { color: #53483c; }
+html.ui-native.ui-light .footer { border-top:  1px solid #c8c6c8; }
+html.ui-native.ui-light .hero { background:  #f2ebeb; }
+html.ui-native.ui-light .hero-label { color: #8a610f; }
+html.ui-native.ui-light .hero .btn.ghost { color: #1e150a; }
+html.ui-native.ui-light .hero-art { background: var(--panel); }
+html.ui-native.ui-light .hero-sun::before { background: var(--panel); }
+html.ui-native.ui-light .hero-cross { color: #896110; }
+html.ui-native.ui-light .hero-big { color: #855d14; }
+html.ui-native.ui-light .hero-big span { color: #7a271f; }
+html.ui-native.ui-light .hero-coordinate { color: #704929; }
+html.ui-native.ui-light .hero-side { color: #5e483b; }
+html.ui-native.ui-light .hero-bottom { color: #624437; }
+html.ui-native.ui-light .section-head .btn.subtle { color: #4e4337; border-color:  #cdc5c1; }
+html.ui-native.ui-light .empty-icon { border:  1px solid #d2aaa7; }
+html.ui-native.ui-light .char-art { background: var(--panel); }
+html.ui-native.ui-light .char-art-glyph { color: #822217; }
+html.ui-native.ui-light .char-index { color: #673023; }
+html.ui-native.ui-light .char-dot { color: #8b5b0e; }
+html.ui-native.ui-light .char-body h3 { color: #191107; }
+html.ui-native.ui-light .char-kicker span { color: #5d5750; }
+html.ui-native.ui-light .char-meta { color: #66615c; }
+html.ui-native.ui-light .char-meta strong { color: #2d2519; }
+html.ui-native.ui-light .btn.text-button { color: #846315; }
+html.ui-native.ui-light .quick-card { color: #19130b; background:  #ececec; }
+html.ui-native.ui-light .quick-card:hover { background:  #ececec; }
+html.ui-native.ui-light .quick-card small { color: #68615a; }
+html.ui-native.ui-light .quick-icon { color: #835d16; background:  #efeae5; }
+html.ui-native.ui-light .quick-arrow { color: #5e4726; }
+html.ui-native.ui-light .source-strip { background:  #ececec; }
+html.ui-native.ui-light .source-strip strong { color: #4f3622; }
+html.ui-native.ui-light .source-strip p { color: #60554d; }
+html.ui-native.ui-light .header-actions .btn.ghost, html.ui-native.ui-light .file-label { color: #34281a; border-color:  #ccc5c2; }
+html.ui-native.ui-light .header-marker { color: #7e211b; }
+html.ui-native.ui-light .countbar { color: #60564e; }
+html.ui-native.ui-light .countbar b { color: #6a6058; }
+html.ui-native.ui-light .rules-toolbar .search { color: #514536; }
+html.ui-native.ui-light .result-count { color: #67615b; }
+html.ui-native.ui-light .rule-card { background:  #ececec; border:  1px solid #c8c5c6; }
+html.ui-native.ui-light .rule-top, html.ui-native.ui-light .rule-bottom { color: #696159; }
+html.ui-native.ui-light .rule-bottom { border-top:  1px solid #cac5c4; }
+html.ui-native.ui-light .card-heading { color: #463627; }
+html.ui-native.ui-light .card-heading > span:last-child { color: #6b5f57; }
+html.ui-native.ui-light .dice-visual { color: #7d241c; }
+html.ui-native.ui-light .dice-visual span { color: #855d14; }
+html.ui-native.ui-light .dice-grid .btn.ghost { color: #2f2317; border-color:  #cfc4bf; }
+html.ui-native.ui-light .text-link { color: #624837; }
+html.ui-native.ui-light .history-row { border-bottom:  1px solid #c9c5c7; }
+html.ui-native.ui-light .history-row strong { color: #282017; }
+html.ui-native.ui-light .history-row small { color: #696159; }
+html.ui-native.ui-light .history-row b { color: #8a5a00; }
+html.ui-native.ui-light .back-link { color: #534639; }
+html.ui-native.ui-light .stat span { color: #64564a; }
+html.ui-native.ui-light .stat input:not([type='checkbox']):not([type='radio']) { border-color:  #cac5c4; }
+html.ui-native.ui-light .budget-line { color: #795c20; background:  #f1ede8; }
+html.ui-native.ui-light .budget-line.good { color: #325d35; background:  #e9f0ec; }
+html.ui-native.ui-light .skill-row { border-bottom:  1px solid #c9c5c7; }
+html.ui-native.ui-light .sheet-jump-nav button { border: 1px solid #ccc4c2; color: #372616; background: #ececec; }
+html.ui-native.ui-light .skill-row strong { color: #272018; }
+html.ui-native.ui-light .skill-row small { color: #67605a; }
+html.ui-native.ui-light .skill-roll { color: #815b18; background:  #efece9; border:  1px solid #c9bab0; }
+html.ui-native.ui-light .skill-roll:hover { background:  #ece2dd; }
+html.ui-native.ui-light .help { color: #68605a; }
+html.ui-native.ui-light .delete-button { color: #762a23; }
+html.ui-native.ui-light .delete-button:hover { color: #671208; }
+html.ui-native.ui-light .hp-display { background:  #f0ecec; }
+html.ui-native.ui-light .hp-display > span, html.ui-native.ui-light .hp-display > small { color: #594940; }
+html.ui-native.ui-light .hp-display input:not([type='checkbox']):not([type='radio']) { color: #180c02; }
+html.ui-native.ui-light .hp-display i { color: #594940; }
+html.ui-native.ui-light .condition-rows > div { color: #60564e; }
+html.ui-native.ui-light .condition-rows strong { color: #20190f; }
+html.ui-native.ui-light .note-card { color: #7d5b1c; background:  #f1eee9; }
+html.ui-native.ui-light .note-card p { color: #5b4f3e; }
+html.ui-native.ui-light .combatant { background: #ececec; border: 1px solid #c9c5c7; }
+html.ui-native.ui-light .combatant.current { background: #f1ecec; }
+html.ui-native.ui-light .catalog-meta { color: #745325; }
+html.ui-native.ui-light .catalog-foot strong { color: #8a5a00; }
+html.ui-native.ui-light .app-notice { color: #120e07; background: #efebe9; }
+html.ui-native.ui-light .combatant label small { color: #8a5a00; }
+html.ui-native.ui-light .rule-source { color: #553921; }
+html.ui-native.ui-light .rule-source:hover { color: #8e150b; }
+html.ui-native.ui-light .book-hint { background: #f3f0ee; }
+html.ui-native.ui-light .book-hint>span { color: #8a5a00; }
+html.ui-native.ui-light .book-frame { background: #ececec; }
+html.ui-native.ui-light .store-status { background: #f7f4f3; border-bottom: 1px solid var(--border,#c8b9b1); }
+html.ui-native.ui-light .store-issue { color: #291c0b; }
+html.ui-native.ui-light .pwa-toast { color: #291c0b; background: #f5f3f2; }
+
+/* theme.css */
+@media (max-width: 820px) {
+  html.ui-native.ui-light .bottom-nav button { color: #5c5751; }
+}
+html.ui-native.ui-light .sheet-tabs button { color: #5f574f; }
+html.ui-native.ui-light .sheet-tabs button span { color: #66605c; }
+html.ui-native.ui-light .sheet-tabs button.active { background:  #f0eae9; }
+html.ui-native.ui-light .hud-chip span { color: #8a5a00; }
+html.ui-native.ui-light .sheet-hud[data-wound="light"] .hud-hp { border-color:  #d7c4a2; }
+html.ui-native.ui-light .sheet-hud[data-wound="serious"] .hud-hp { background:  #f4eceb; }
+html.ui-native.ui-light .sheet-hud[data-wound="serious"] .hud-hp em { color: #681308; }
+html.ui-native.ui-light .sheet-stat-strip div:nth-child(even) { background:  #f3efef; }
+html.ui-native.ui-light .backup-strip { background:  #ececec; }
+html.ui-native.ui-light .backup-strip.warn { background:  #f5f2ee; }
+html.ui-native.ui-light .backup-strip .source-symbol { color: #11763a; }
+html.ui-native.ui-light .backup-strip.warn .source-symbol { color: #8a5a00; }
+html.ui-native.ui-light .backup-strip strong { color: #3d2d19; }
+html.ui-native.ui-light .backup-strip p { color: #61564c; }
+html.ui-native.ui-light .app-notice.roll-notice { border-color:  #cbb9af; background:  #f4f2f1; }
+html.ui-native.ui-light .roll-notice .roll-body { color: #271d10; }
+html.ui-native.ui-light .roll-notice .roll-flag { color: #8a5a00; }
+html.ui-native.ui-light .roll-notice.fumble .roll-flag { color: #75120a; }
+html.ui-native.ui-light .skill-roll b { color: #443009; }
+html.ui-native.ui-light .quick-die { background:  #f1edec; border:  1px solid #d3aaa6; }
+html.ui-native.ui-light .quick-die:hover { background:  #efe6e5; }
+html.ui-native.ui-light .card:hover { border-color:  #cac4c5; }
+html.ui-native.ui-light .data-menu[open] > summary { background:  #f0eae9; }
+html.ui-native.ui-light .data-menu-panel { background:  #ececec; border:  1px solid #cfc2bf; }
+html.ui-native.ui-light .data-menu-item:hover, html.ui-native.ui-light .data-menu-item:focus-within { background:  #efeceb; }
+html.ui-native.ui-light .data-menu-item.danger b { color: #681308; }
+html.ui-native.ui-light .portrait-frame { background: var(--panel); border:  1px solid #d3aaa6; }
+html.ui-native.ui-light .portrait-frame span { color: #822217; }
+html.ui-native.ui-light .portrait-button { color: #8a5a00; }
+html.ui-native.ui-light .netrun-stats div { background:  #ececec; }
+html.ui-native.ui-light .netrun-stats b { color: #8a5a00; }
+html.ui-native.ui-light .netrun-ability { background:  #eff2f3; border:  1px solid #abc6cf; }
+html.ui-native.ui-light .netrun-ability:hover { background:  #ebeff1; }
+html.ui-native.ui-light .netrun-ability em { color: #176e80; }
+html.ui-native.ui-light .agent-contact { background:  #ececec; border-left:  3px solid #cac6c4; }
+html.ui-native.ui-light .agent-remove:hover { color: #681308; }
+
+/* therapy-tools.css */
+html.ui-native.ui-light .therapy-result { border:  1px solid var(--border, #c7bbb2); }
+
+/* vehicle-tools.css */
+html.ui-native.ui-light .vehicle-result { border: 1px solid #cdc7c1; background: #ececec; }
+html.ui-native.ui-light .vehicle-tools details { border-top: 1px solid #ccc7c2; }
+
+/* weapon-reference.css */
+html.ui-native.ui-light .weapon-quality>div, html.ui-native.ui-light .weapon-attachments>div { background: #ececec; border: 1px solid #c9c5c9; }
+html.ui-native.ui-light .weapon-quality strong, html.ui-native.ui-light .weapon-attachments strong { color: #1a140b; }
+html.ui-native.ui-light .weapon-reference details { border-top: 1px solid #c9c5c7; }
+html.ui-native.ui-light .weapon-reference details summary { color: #856514; }
+html.ui-native.ui-light .weapon-attachments small { color: #775922; }
+
+/* ---------- Shell ---------- */
+html.ui-native.ui-light .ui-theme-switch button.active, html.ui-native.ui-light .ui-style-switch button.active, html.ui-native.ui-light .lang-switch button.selected { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
+html.ui-native.ui-light :is(.ui-theme-switch, .ui-style-switch, .lang-switch) { background: #e4e4e9; border-color: transparent; }
+html.ui-native.ui-light .sidebar { background: #fbfbfc; border-right-color: var(--border); }
+html.ui-native.ui-light .brand-mark { color: #fff; }
+html.ui-native.ui-light .nav-group-label, html.ui-native.ui-light .nav-label, html.ui-native.ui-light .sidebar-bottom p, html.ui-native.ui-light .footer { color: var(--muted); }
+html.ui-native.ui-light .nav-item { color: #2c2c32; }
+html.ui-native.ui-light .nav-item:hover { color: var(--text); background: rgba(0, 0, 0, .06); }
+html.ui-native.ui-light .nav-item.active { color: var(--red-dark); background: rgba(215, 38, 28, .1); }
+html.ui-native.ui-light .nav-icon { color: #5c5c66; }
+html.ui-native.ui-light .nav-item.active .nav-icon { color: var(--red-dark); }
+html.ui-native.ui-light .sidebar-bottom { border-top-color: var(--border); }
+html.ui-native.ui-light .bottom-nav { background: rgba(251, 251, 252, .94); border-top-color: var(--border); }
+html.ui-native.ui-light .bottom-nav button { color: #55555f; }
+html.ui-native.ui-light .bottom-nav button.active { color: var(--red-dark); }
+html.ui-native.ui-light .topbar { background: rgba(242, 242, 244, .92); border-bottom-color: var(--border); }
+html.ui-native.ui-light .sheet-dock { background: rgba(242, 242, 244, .95); }
+html.ui-native.ui-light .nav-backdrop { background: rgba(0, 0, 0, .35); }
+html.ui-native.ui-light .btn.primary, html.ui-native.ui-light .btn-primary { color: #fff; background-color: var(--red); }
+html.ui-native.ui-light :is(.btn.primary, .btn-primary):hover { background-color: #bd1f16; }
+html.ui-native.ui-light .badge, html.ui-native.ui-light .tag, html.ui-native.ui-light .pill { color: #2c2c32; }
+html.ui-native.ui-light .sheet-tabs button { color: #2c2c32; }
+html.ui-native.ui-light .sheet-tabs button.active { color: #fff; background: var(--red); }
+html.ui-native.ui-light .empty { border-color: rgba(0, 0, 0, .18); }
+html.ui-native.ui-light :is(.app-notice, .pwa-toast, .app-notice.roll-notice) { background: #fff; color: var(--text); box-shadow: 0 12px 34px rgba(0, 0, 0, .22), 0 0 0 1px var(--border); }
+html.ui-native.ui-light .data-menu-panel { background: #fff; box-shadow: 0 12px 34px rgba(0, 0, 0, .2), 0 0 0 1px var(--border); }
+html.ui-native.ui-light .card, html.ui-native.ui-light .rule-card, html.ui-native.ui-light .catalog-card { box-shadow: 0 1px 2px rgba(0, 0, 0, .05); }
+html.ui-native.ui-light .agent-contact { border-left-color: #8b8b94; }
+/* the hero keeps its dark accent card */
+html.ui-native.ui-light .hero { color: #fff8ed; }
+html.ui-native.ui-light .hero h1 { color: #fff8ed; }
+html.ui-native.ui-light .char-art { background: linear-gradient(135deg, #f3d3d0, #e1e1e8); }
+html.ui-native.ui-light .saved-indicator span:last-child { color: var(--green); }
+
+/* ---------- Form controls ---------- */
+html.ui-native.ui-light :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { color: var(--text); background: #fff; border: 1px solid rgba(0, 0, 0, .24); }
+html.ui-native.ui-light :is(input, textarea)::placeholder { color: #767680; }
+html.ui-native.ui-light :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(215, 38, 28, .18); }
+html.ui-native.ui-light :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--red); }
+
+/* ---------- Manual fixes ---------- */
+html.ui-native.ui-light .quick-progress button.active { color: var(--red-dark); border-color: var(--red); }

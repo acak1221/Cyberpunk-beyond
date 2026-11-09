@@ -125,6 +125,19 @@ function handle(e,c,lang,options={}){
  const d=draft(c),t=text(lang),el=e?.target;if(!el)return {handled:false};
  if((e.type==='input'||e.type==='change')&&el.dataset?.reloadField){const k=el.dataset.reloadField;if(!d||!['weapon','ammo'].includes(k))return {handled:true};const v=String(el.value||'');if(v&&!validId(v))return {handled:true};d[k]=v;if(k==='weapon')d.ammo='';return {handled:true,rerender:e.type==='change'};}
  const b=e.type==='click'?el.closest?.('[data-reload]'):null;if(!b)return {handled:false};if(!d)return {handled:true,notify:t.scope};
+ if(b.dataset.reload==='quick'){
+  // Row shortcut on the weapon list: same quote/confirm/commit path as the reload section, using the first stocked compatible ammo.
+  let ok=false;try{ok=b.isConnected===true&&typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}if(!ok)return {handled:true,notify:t.stale};
+  const w=lookup(c,'weapons',b.dataset.weaponId),profile=weaponProfile(w);if(!w||!profile)return {handled:true,notify:t.invalid};
+  if(w.ammo!==0)return {handled:true,notify:t.occupied};
+  const pick=(Array.isArray(c?.extra?.items)?c.extra.items:[]).find(a=>a&&lookup(c,'items',a.id)===a&&ammunition(c,a)&&profile.types.includes(a.ammoType)&&a.quantity>=w.capacity);
+  if(!pick)return {handled:true,notify:t.need};
+  const before=quote(c,w.id,pick.id,lang);if(!before.ok)return {handled:true,notify:before.message};
+  const q=before.quote;if(!window.confirm(`${t.confirm} ${q.capacity} ${t.rounds}: ${q.itemName} · ${q.typeName}? ${t.action}`))return {handled:true};
+  try{ok=b.isConnected===true&&options.isCurrent(c,scope)===true}catch{ok=false}if(!ok||draft(c)!==d)return {handled:true,notify:t.stale};
+  const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
+  d.weapon=w.id;d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
+ }
  const root=b.closest?.('[data-reload-root]'),connected=()=>!!root&&root.isConnected===true&&b.isConnected===true&&b.closest?.('[data-reload-root]')===root;
  if(!connected())return {handled:true,notify:t.stale};
  let current=false;try{current=typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}if(!current)return {handled:true,notify:t.stale};
@@ -151,5 +164,5 @@ function handle(e,c,lang,options={}){
  if(!window.confirm(prompt))return {handled:true};if(!connected()||draft(c)!==d||d.weapon!==q.weaponId||d.ammo!==q.ammoId)return {handled:true,notify:t.stale};const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
  d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
 }
-window.ReloadTools={WEAPONS,setScope,quote,commit,quoteUnload,commitUnload,render,handle,validReceipt};
+window.ReloadTools={WEAPONS,weaponProfile,setScope,quote,commit,quoteUnload,commitUnload,render,handle,validReceipt};
 })();

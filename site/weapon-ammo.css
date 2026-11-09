@@ -1,0 +1,15 @@
+.wa-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.wa-counter{position:relative;display:inline-grid;place-items:center;width:46px;height:46px}
+.wa-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--wa-c,var(--green,#84b799)) calc(var(--wa-pct,0)*1%),rgba(128,128,128,.28) 0);-webkit-mask:radial-gradient(circle,transparent 58%,#000 60%);mask:radial-gradient(circle,transparent 58%,#000 60%)}
+.wa-counter b{position:relative;font:700 13px/1 var(--body,system-ui);color:var(--text,#f4efe6);text-align:center}
+.wa-counter b small{font-size:9px;font-weight:500;color:var(--muted,#a19b96)}
+.wa-row[data-wa-state=low] .wa-counter{--wa-c:var(--yellow,#e9c66d)}
+.wa-row[data-wa-state=empty] .wa-counter{--wa-c:var(--red,#e3423c)}
+.wa-warn{font-size:12px;font-weight:700;color:var(--red,#e3423c)}
+.wa-warn.wa-low{color:var(--yellow,#e9c66d)}
+.wa-btn:disabled{opacity:.45;cursor:not-allowed}
+.skill-row:has(.ipq-btn){grid-template-columns:minmax(0,1fr) 58px auto 34px}
+.ipq-btn{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;font:700 18px/1 var(--body,system-ui);color:var(--green,#84b799);background:transparent;border:1px solid var(--border,#373637);border-radius:8px;cursor:pointer}
+.ipq-btn:hover{border-color:var(--green,#84b799);background:rgba(132,183,153,.12)}
+.ipq-btn.is-short{color:var(--muted,#a19b96);opacity:.6}
+html:not(.ui-native) .ipq-btn{border-radius:0;background:#242021}
