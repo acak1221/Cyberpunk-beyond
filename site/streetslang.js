@@ -19,7 +19,7 @@ const TERMS=Object.freeze([
 ['Cyberpsycho','people',230,'киберпсих','Человек, сорвавшийся в насилие из-за потери человечности.','Someone driven to violence by loss of Humanity.'],
 ['Ripperdoc','people',24,'риппердок','Подпольный хирург, ставящий киберимпланты.','Back-alley surgeon who installs cyberware.'],
 ['Exotic','people',24,'экзот','Человек с биоскульптурой, придающей звериные черты.','Person bodysculpted with animal-like features.'],
-['Handle','people',24,'хэндл, прозвище','Уличное имя, под которым тебя знают.','Street name you are known by.'],
+['Handle','people',24,'хэндл, прозвище','Уличное имя, под которым вас знают.','Street name you are known by.'],
 ['Reclaimers','people',283,'реклеймеры','Группы, возвращающие к жизни заброшенные районы.','Groups bringing abandoned areas back to life.'],
 ['Preem','talk',0,'прим','Отличный, первоклассный (от «premium»).','Excellent, top quality (from “premium”).'],
 ['Nova','talk',0,'нова','Круто, классно.','Cool, great.'],

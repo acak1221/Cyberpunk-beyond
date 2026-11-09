@@ -56,6 +56,7 @@ h1, h2, h3, .display { font-family: var(--display); text-transform: uppercase; l
 h1 { font-size: clamp(38px, 4.2vw, 61px); font-weight: 800; }
 h2 { font-size: 28px; font-weight: 700; }
 h3 { font-size: 21px; font-weight: 700; }
+.page-header h1, .char-body h3, .campaign-grid h2 { overflow-wrap: anywhere; } /* handles, campaign and NET names can be one long word: wrap it, never widen the page; book titles keep whole words */
 p { color: #bcb5ad; }
 .muted, .subtle, .hint, .help-text { color: var(--muted); }
 .small, small { font-size: 11px; }

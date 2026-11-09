@@ -40,15 +40,23 @@ function recase(el){
  const whole=CAPS.test(full);let first=true;
  for(const n of nodes){let v=sentenceCase(n.nodeValue,whole);if(first&&/\p{L}/u.test(v)){v=v.replace(/\p{L}/u,c=>c.toUpperCase());first=false}if(v!==n.nodeValue)n.nodeValue=v}
 }
-const PAGE=/^(?:(?:СТР|PP?)\.?\s*)?\d{1,3}(?:\s*[–\-,/]\s*\d{1,3})*(?:,\s*\d{1,3}(?:[–\-]\d{1,3})?)*$/i;
+// Page references must be marked: the text starts with a page marker ("СТР. 78–80", "PP. 172") or the
+// module flags bare page numbers with data-page-ref. Counters such as "63 / 62", "4 / 300" or "2" stay as they are.
+const PAGES=/^\d{1,3}(?:\s*[–\-,/·]\s*\d{1,3})*$/,MARKED=/^(?:СТР|PP?)\.\s*(.+)$/i;
+function pageRef(text,explicit,isRu){
+ const t=String(text??'').trim(),m=MARKED.exec(t),list=m?m[1]:explicit?t:'';
+ if(!PAGES.test(list))return null;
+ const pages=list.replace(/\s*[,/·]\s*/g,', ');
+ return (isRu?'стр. ':/[,–\-]/.test(pages)?'pp. ':'p. ')+pages;
+}
 
 function scan(scope){
  if(!scope||!isNative())return;
  for(const el of scope.querySelectorAll(CASE)){if(el.dataset.nxCase)continue;el.dataset.nxCase='1';recase(el)}
  for(const s of scope.querySelectorAll('.card-heading > span:last-child:not([data-nx])')){
-  s.dataset.nx='1';const t=s.textContent.trim();
+  s.dataset.nx='1';const t=s.textContent.trim(),page=pageRef(t,s.hasAttribute('data-page-ref'),ru());
   if(DECO.test(t))s.classList.add('nx-deco');
-  else if(PAGE.test(t)){s.classList.add('nx-page');if(/^\d/.test(t))s.textContent=(ru()?'стр. ':'p. ')+t.replace(/\s*\/\s*/g,', ')}
+  else if(page){s.classList.add('nx-page');s.textContent=page}
  }
  // Catalog: keep search and category up front; who-to-buy-for and purchase options fold away.
  for(const bar of scope.querySelectorAll('.catalog-toolbar:not([data-nx])')){
@@ -82,5 +90,5 @@ let queued=false;
 function schedule(){if(queued)return;queued=true;global.requestAnimationFrame(()=>{queued=false;scan(doc.querySelector('#app'));paintSwitch()})}
 function start(){const app=doc.querySelector('#app');if(!app)return;new MutationObserver(schedule).observe(app,{childList:true,subtree:true});schedule()}
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start);else start();
-global.NativeUI={setStyle,isNative,scan,sentenceCase};
+global.NativeUI={setStyle,isNative,scan,sentenceCase,pageRef};
 })(window);
