@@ -283,7 +283,7 @@ function render(lang){
  // On boot app.js renders the first view before it defines window.App, so saved clocks are not
  // readable yet: re-render this group once the bridge exists.
  if(!appState()&&!lateRender&&typeof setTimeout==='function'&&typeof document!=='undefined'){lateRender=true;setTimeout(()=>{lateRender=false;const r=document.querySelector?.('[data-gx-root]');if(r&&appState())rerender(r)},0)}
- return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p>${renderClocks(l,t)}${renderTables(l,t)}${renderWeather(l,t)}</div>`;
+ return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p>${renderClocks(l,t)}${renderTables(l,t)}${renderWeather(l,t)}${window.NpcLibrary?.render?.(l)||''}</div>`;
 }
 
 // ---------- events ----------
