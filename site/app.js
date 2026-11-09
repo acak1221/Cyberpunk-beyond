@@ -452,11 +452,11 @@ render=function(){renderView();window.SheetTabs?.apply?.(state.view==='sheet'?ac
 // change before the render, the edit-time baseline follows what the render left.
 const renderSheets=render;render=function(){const clean=state.characters.filter(c=>c&&typeof c==='object'&&sheetMarks.get(c.id)===sheetPrint(c));renderSheets.apply(this,arguments);for(const c of clean)if(state.characters.includes(c))sheetMarks.set(c.id,sheetPrint(c))};
 // The second tap of a double tap must not press what the first tap's new view put under the finger (after «New blank sheet»
-// the sheet's Link button would open the share sheet): a click at the spot of the previous click, within 400 ms of the view
-// change that click caused, is dropped. Clicks elsewhere, later or from the keyboard are untouched.
+// the sheet's Link button would open the share sheet): every click at the spot of the click that changed the view, within
+// 400 ms of that change, is dropped, so a third quick tap is dropped too. Clicks elsewhere, later or from the keyboard pass.
 let viewShown='',viewChange=null,lastPress=null;
 const renderViewChange=render;render=function(){renderViewChange.apply(this,arguments);const key=state.view+'|'+(state.view==='sheet'?state.active:'');if(!renderQueued&&key!==viewShown){viewShown=key;viewChange={at:Date.now(),after:lastPress}}};
-window.addEventListener?.('click',e=>{if(!(e.detail>0))return;const now=Date.now(),last=lastPress;lastPress={x:e.clientX,y:e.clientY,at:now};if(last&&viewChange?.after===last&&now-viewChange.at<400&&now-last.at<600&&Math.abs(e.clientX-last.x)<24&&Math.abs(e.clientY-last.y)<24&&e.target?.closest?.('#app')){e.preventDefault();e.stopImmediatePropagation()}},true);
+window.addEventListener?.('click',e=>{if(!(e.detail>0))return;const now=Date.now(),last=lastPress;if(last&&viewChange?.after===last&&now-viewChange.at<400&&now-last.at<600&&Math.abs(e.clientX-last.x)<24&&Math.abs(e.clientY-last.y)<24&&e.target?.closest?.('#app')){e.preventDefault();e.stopImmediatePropagation();return}lastPress={x:e.clientX,y:e.clientY,at:now}},true);
 if(typeof window.addEventListener==='function')window.addEventListener('popstate',()=>{if(!applyRoute())return;routeApplying=true;try{render()}finally{routeApplying=false}window.scrollTo?.(0,0)});
 applyRoute();
 markSheets(); // The loaded sheets are the starting point for edit times; loading never writes.
@@ -467,10 +467,11 @@ window.App={getState:()=>state,active:()=>active()||null,save:()=>save(),render:
  setView(view){if(!ROUTE_VIEWS.has(view)||view==='sheet')return false;state.view=view;render();window.scrollTo?.(0,0);return true},
  open(id){if(!state.characters.some(c=>c.id===id))return false;state.active=id;state.view='sheet';render();window.scrollTo?.(0,0);return true},check(base,label,{wounds=true}={}){const c=active(),mod=wounds&&c?woundPenalty(c):0,out=checkRoll(Number(base)||0,0,mod,String(label||''));notify(`${label}: ${out.total}\n${state.history[0]?.detail||''}`);return out},dice(n,sides,label){const count=Math.max(1,Math.min(20,Math.floor(Number(n))||1)),f=Math.max(2,Math.min(100,Math.floor(Number(sides))||6)),rolls=Array.from({length:count},()=>d(f)),total=rolls.reduce((a,b)=>a+b,0);pushRoll(`${label||''} ${count}d${f}`.trim(),rolls.join(' + '),total,rolls.map(v=>({v,s:f})));notify(`${label||''} ${count}d${f}: ${rolls.join(' · ')}`.trim());return total}};
 // The store starts before the first render, so the first render already has the edit scope that the damage, drug and critical
-// injury blocks need. A later change of scope (Start fresh after unreadable data) redraws the whole view.
-let booted=false;
+// injury blocks need. A later change of scope (Start fresh after unreadable data) redraws the whole view. The first view is
+// drawn even when the store failed to load or to start: the app stays readable, and without a store save() reports an error.
+let booted=false;try{
 syncAdapter=window.LocalStore.create({app:document.querySelector('#app'),status:document.querySelector('#store-status'),language:()=>state.lang,read:snapshotAppState,apply:applySyncedSnapshot,validate:validateSnapshot,initialIssue:legacyIssue,isNewer:x=>Number.isSafeInteger(x?.schemaVersion)&&x.schemaVersion>SCHEMA_VERSION,onPersistence:()=>{if(state.view==='overview')render()},onScopeChange:scope=>{appScopeEpoch++;window.RoleTools?.setScope?.(scope);window.Campaigns?.setScope?.(scope);window.SkillFilter?.reset(state.view==='sheet'?document.querySelector('.skills-list')?.closest('.card'):null,state.view==='sheet'?active():null,state.lang,scope,appScopeEpoch);window.InventoryFilter?.reset(state.view==='sheet'?document.querySelector('#sheet-items'):null,state.view==='sheet'?active():null,state.lang,scope,appScopeEpoch);window.NetTools?.setScope(scope);window.MedicalTools?.setScope(scope);window.RepairTools?.setScope(scope);window.ReloadTools?.setScope(scope);window.Lifepath?.setScope(scope);if(booted)render();},onFailure:()=>notify(tr('storageError')+(state.bin.length||state.quarantine.length||syncAdapter?.copies?.().length?' '+tr('storageFreeHint'):''))});
-syncAdapter.start();booted=true;
+syncAdapter.start()}catch(error){globalThis.console?.error?.(error)}finally{booted=true}
 render();
 window.Room?.attach?.({getState:()=>state,notify,rerender:()=>render()});
 

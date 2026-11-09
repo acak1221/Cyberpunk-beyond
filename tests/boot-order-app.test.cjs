@@ -83,7 +83,13 @@ test('a second tap at the same spot right after a view change is dropped, other 
  assert.equal(first.stopped,false);assert.equal(h.state().view,'sheet');assert.equal(h.state().characters.length,2);
  clock.now+=120;const ghost=tap(h,{action:'share-link'},204,297,2); // the sheet's Link button is now under the finger
  assert.equal(ghost.stopped,true);assert.equal(ghost.defaultPrevented,true);assert.equal(h.state().view,'sheet');
+ clock.now+=110;const third=tap(h,{action:'share-link'},198,303,3); // an impatient third tap is dropped too
+ assert.equal(third.stopped,true,'third tap');assert.equal(h.state().view,'sheet');
  clock.now+=60;assert.equal(tap(h,{action:'navigate',view:'rules'},40,80).stopped,false,'a tap elsewhere goes through');assert.equal(h.state().view,'rules');
+ // Every tap at that spot stays dropped for 400 ms after the view change, however many there are; the next one goes through.
+ const many=boot({hash:'#/characters',clock}),start=clock.now;tap(many,{action:'new-blank'},200,300);
+ for(const at of [100,200,300,390]){clock.now=start+at;assert.equal(tap(many,{action:'share-link'},202,298,2).stopped,true,'tap at '+at+' ms')}
+ clock.now=start+420;assert.equal(tap(many,{action:'navigate',view:'rules'},202,298,2).stopped,false,'tap at 420 ms');assert.equal(many.state().view,'rules');
  // The same spot works again after 400 ms, and a keyboard press is never dropped.
  const later=boot({hash:'#/characters',clock});tap(later,{action:'new-blank'},200,300);clock.now+=450;
  assert.equal(tap(later,{action:'navigate',view:'rules'},200,300,2).stopped,false,'after 400 ms');assert.equal(later.state().view,'rules');
@@ -92,4 +98,18 @@ test('a second tap at the same spot right after a view change is dropped, other 
  // Taps that keep the view (switching the language back and forth) are never dropped.
  const same=boot({hash:'#/dice',clock});tap(same,{action:'lang',lang:'en'},200,300);clock.now+=100;
  assert.equal(tap(same,{action:'lang',lang:'ru'},200,300,2).stopped,false,'same view');assert.equal(same.state().lang,'ru');
+});
+
+test('the first view is drawn and the bridge defined when the store fails to load or to start',async()=>{
+ const adapter=o=>({start(){o.onScopeChange('local');throw new Error('start')},save:()=>Promise.resolve({ok:true}),flush:()=>({ok:true}),canEdit:()=>true,getScope:()=>'local',stateLabel:()=>'',hasQueued:()=>false,refreshLanguage(){},copies:()=>[]});
+ const failing={'no store module':{skip:['local-store.js']},'create throws':{store:{create(){throw new Error('create')}}},'start throws':{store:{create:adapter}}};
+ for(const [label,options] of Object.entries(failing)){
+  const h=boot({hash:'#/sheet/v1',...options}),stored=label==='start throws';
+  assert.equal(h.app.writes.length,1,label);assert.match(h.app.innerHTML,/class="app-shell"/,label);assert.match(h.app.innerHTML,/Vee/,label);
+  assert.equal(typeof h.w.App?.open,'function',label);assert.equal(h.state().view,'sheet',label);
+  // Without a store nothing is changed and save() reports the error; a store that started keeps working.
+  assert.equal((await h.w.App.save()).ok,stored,label);
+  const before=h.state().history.length;h.click(h.button({action:'skill-roll',skill:'Evasion'}));assert.equal(h.state().history.length,before+(stored?1:0),label+': skill roll');
+  for(const view of ['rules','characters','overview']){h.click(h.button({action:'navigate',view}));assert.equal(h.state().view,view,label+' → '+view);assert.match(h.app.innerHTML,/class="app-shell"/,label+' → '+view)}
+ }
 });
