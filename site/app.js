@@ -214,7 +214,7 @@ function routeFromHash(){const m=/^#\/([a-z-]+)(?:\/(.+))?$/.exec(typeof locatio
 function currentRoute(){return state.view==='sheet'&&state.active?'#/sheet/'+encodeURIComponent(state.active):'#/'+state.view}
 function applyRoute(){const r=routeFromHash();if(!r||r.view===state.view&&(r.view!=='sheet'||r.active===state.active))return false;state.view=r.view;state.active=r.active;state.query='';return true}
 const renderView=render;
-render=function(){renderView();window.SheetTabs?.apply?.(state.view==='sheet'?active():null);if(routeApplying||typeof history==='undefined'||typeof location==='undefined')return;const next=currentRoute();if(location.hash!==next){try{history[location.hash?'pushState':'replaceState'](null,'',next)}catch{}}};
+render=function(){renderView();window.SheetTabs?.apply?.(state.view==='sheet'?active():null);window.Motion?.afterRender?.(state.view+'|'+(state.view==='sheet'?state.active:''));if(routeApplying||typeof history==='undefined'||typeof location==='undefined')return;const next=currentRoute();if(location.hash!==next){try{history[location.hash?'pushState':'replaceState'](null,'',next)}catch{}}};
 if(typeof window.addEventListener==='function')window.addEventListener('popstate',()=>{if(!applyRoute())return;routeApplying=true;try{render()}finally{routeApplying=false}window.scrollTo?.(0,0)});
 applyRoute();
 render();
