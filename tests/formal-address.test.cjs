@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const SITE=path.join(__dirname,'../site');
 // Lifepath tables and the book's own chapter titles keep the corebook's voice ("Что у тебя при себе").
 const BOOK_VOICE=new Set(['lifepath.js','book-toc.js']);
-const files=fs.readdirSync(SITE).filter(f=>f.endsWith('.js')&&!BOOK_VOICE.has(f));
+const files=fs.readdirSync(SITE).filter(f=>/\.(js|html)$/.test(f)&&!BOOK_VOICE.has(f));
 const src=Object.fromEntries(files.map(f=>[f,fs.readFileSync(path.join(SITE,f),'utf8')]));
 const WORD=/(?<![А-Яа-яЁё])[А-Яа-яЁё]{3,}(?![А-Яа-яЁё])/g;
 function hits(words){const out=[];for(const [f,t] of Object.entries(src))for(const m of t.matchAll(WORD)){const w=m[0].toLowerCase();if(words.has(w))out.push(`${f}: …${t.slice(Math.max(0,m.index-40),m.index+w.length+20).replace(/\s+/g,' ')}…`)}return out}
@@ -15,6 +15,14 @@ test('Russian interface text addresses the user formally (no informal imperative
  for(const t of Object.values(src))for(const m of t.matchAll(/(?<![А-Яа-яЁё])([А-Яа-яЁё]{3,}[иьй])те(сь)?(?![А-Яа-яЁё])/g))informal.add((m[1]+(m[2]?'сь':'')).toLowerCase());
  assert.deepEqual(hits(informal),[]);
 });
+test('Russian interface text has no informal -ай/-яй/-уй imperatives even without a formal twin',()=>{
+ // «покупай», «вычитай», «Перераспределяй», «обновляй», «атакуй», «оставайся»: the formal form ends in -те.
+ // Nouns with the same ending are listed here; add a new one only after checking it is not a verb.
+ const NOUNS=new Set(['случай','обычай','урожай','сарай','трамвай','каравай','попугай','негодяй','лентяй','горностай','китай','шанхай','дубай']);
+ const IMP=/(?<![А-Яа-яЁё])[А-Яа-яЁё]{3,}(?:ай|яй|уй|юй)(?:ся)?(?![А-Яа-яЁё])/g,out=[];for(const [f,t] of Object.entries(src))for(const m of t.matchAll(IMP)){const w=m[0].toLowerCase();if(!NOUNS.has(w))out.push(`${f}: …${t.slice(Math.max(0,m.index-40),m.index+w.length+20).replace(/\s+/g,' ')}…`)}
+ assert.deepEqual(out,[]);
+ for(const w of ['Не покупай родной','повторно не вычитай.','Перераспределяй до','Трекер обновляй','Атакуй','Оставайся на месте'])assert.ok([...w.matchAll(IMP)].some(m=>!NOUNS.has(m[0].toLowerCase())),`the check catches «${w}»`);
+});
 test('Russian interface text has no informal pronouns or "ты" verb forms',()=>{
  assert.deepEqual(hits(new Set(['ты','тебя','тебе','тобой','твой','твоя','твоё','твое','твои','твоего','твоей','твоих','твоим','твоими','твою'])),[]);
  const verbs=[];for(const [f,t] of Object.entries(src))for(const m of t.matchAll(/(?<![А-Яа-яЁё])[а-яё]{2,}(?:ешь|ишь|ёшь)(?:ся)?(?![А-Яа-яЁё])/gi))verbs.push(`${f}: ${m[0]}`);
@@ -25,4 +33,6 @@ test('creation wizards use the formal forms',()=>{
  const b=src['builder.js'],q=src['quick-builder.js'];
  assert.match(b,/Распределите ровно 62 очка/);assert.match(b,/Распределите 86 очков/);assert.match(b,/Перед созданием проверьте:/);
  assert.match(q,/Подтвердите стартовое снаряжение/);assert.match(q,/Распределите 86 очков/);assert.match(q,/проверьте их эффекты/);
+ assert.equal(b.match(/Не покупайте родной язык повторно/g).length,2);assert.match(q,/повторно не вычитайте\./);
+ assert.match(src['role-tools.js'],/Перераспределяйте до инициативы/);assert.match(src['role-tools.js'],/Трекер обновляйте вручную/);
 });
