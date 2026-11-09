@@ -7,11 +7,12 @@
 const doc=global.document,root=doc.documentElement;
 const reduce=()=>!!global.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const EASE='cubic-bezier(.2,.75,.25,1)';
+const calm=()=>root.classList.contains('ui-native'); // clean look: shorter, subtler motion
 const REVEAL='.page-header,.hero,.section-head,.card,.quick-card,.character-card,.backup-strip,.source-strip,.room-banner,.room-member,.sheet-dock,.sheet-extras,.empty,.getting-started,.countbar';
 let lastKey=null,io=null,lastHp=null,lastHpKey=null;
 
 function animate(el,frames,opts){try{return el.animate?.(frames,opts)}catch{return null}}
-function rise(el,i){return animate(el,[{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'none'}],{duration:460,delay:Math.min(i,12)*45,easing:EASE,fill:'backwards'})}
+function rise(el,i){const c=calm();return animate(el,[{opacity:0,transform:`translateY(${c?6:16}px)`},{opacity:1,transform:'none'}],{duration:c?240:460,delay:Math.min(i,12)*(c?22:45),easing:EASE,fill:'backwards'})}
 function wipe(el){return animate(el,[{clipPath:'inset(0 100% 0 0)',opacity:.4},{clipPath:'inset(0 0 0 0)',opacity:1}],{duration:560,delay:80,easing:EASE,fill:'backwards'})}
 
 // Reveal the top-level blocks of a freshly opened view; blocks below the fold animate as they scroll in.
@@ -21,7 +22,7 @@ function revealView(){
  const blocks=[...content.querySelectorAll(REVEAL)].filter(el=>el.offsetParent!==null&&!el.parentElement?.closest(REVEAL));
  const vh=global.innerHeight||800,below=[];let i=0;
  for(const el of blocks){if(el.getBoundingClientRect().top<vh)rise(el,i++);else below.push(el)}
- for(const h of content.querySelectorAll('.page-header h1,.hero h1'))wipe(h);
+ if(!calm())for(const h of content.querySelectorAll('.page-header h1,.hero h1'))wipe(h);
  if(below.length&&'IntersectionObserver' in global){
   for(const el of below)el.classList.add('rv-wait');
   io=new IntersectionObserver(entries=>{let k=0;for(const e of entries){if(!e.isIntersecting)continue;io?.unobserve(e.target);e.target.classList.remove('rv-wait');rise(e.target,k++)}},{rootMargin:'0px 0px -30px 0px'});
@@ -100,7 +101,7 @@ function decorateHero(){
 // A short boot screen, once per browser session.
 function boot(){
  let shown=false;try{shown=global.sessionStorage?.getItem('nc-boot')==='1';global.sessionStorage?.setItem('nc-boot','1')}catch{}
- if(shown||reduce())return;
+ if(shown||reduce()||calm())return;
  const ru=(root.lang||'ru')!=='en';
  const el=doc.createElement('div');el.className='boot-screen';el.setAttribute('aria-hidden','true');
  el.innerHTML=`<div class="boot-inner"><div class="boot-mark">NC</div><div class="boot-lines"><span>NIGHT CITY // RED</span><span>${ru?'ПОДКЛЮЧЕНИЕ К СЕТИ…':'JACKING IN…'}</span><span class="boot-ok">${ru?'ДОСТУП ОТКРЫТ':'ACCESS GRANTED'}</span></div><div class="boot-bar"><i></i></div></div>`;
