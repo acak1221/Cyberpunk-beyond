@@ -10,12 +10,28 @@ function rules(css){
 const decl=(body,prop)=>{const m=new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`).exec(body);return m?m[1].trim():null};
 const ORDER=[...site('index.html').matchAll(/<link rel="stylesheet" href="([^":]+\.css)"/g)].map(m=>m[1]);
 
-test('headings wrap long handles and campaign names instead of widening the page',()=>{
- const r=rules(site('styles.css')).find(([sel,body])=>sel.split(',').map(s=>s.trim()).join()==='h1,h2,h3,h4'&&decl(body,'overflow-wrap'));
- assert.ok(r,'a base rule for h1–h4 sets overflow-wrap');
- // "anywhere" (not "break-word") also lowers the min-content width, which flex and grid parents
- // (the phone page header, campaign cards) need to stay inside the screen.
- assert.equal(decl(r[1],'overflow-wrap'),'anywhere');
+test('headings that hold a handle, campaign or NET name wrap it instead of widening the page',()=>{
+ const base=rules(site('styles.css'));
+ // Sheet and campaign titles (.page-header h1), character cards, campaign and NET architecture cards.
+ for(const want of ['.page-header h1','.char-body h3','.campaign-grid h2']){
+  const r=base.find(([sel,body])=>sel.split(',').map(s=>s.trim()).includes(want)&&decl(body,'overflow-wrap'));
+  assert.ok(r,want);
+  // "anywhere" (not "break-word") also lowers the min-content width, which flex and grid parents
+  // (the phone page header, campaign cards) need to stay inside the screen.
+  assert.equal(decl(r[1],'overflow-wrap'),'anywhere',want);
+ }
+});
+test('book headings keep whole words: no stylesheet lets every heading break anywhere',()=>{
+ // Russian titles fall back from Barlow Condensed (no Cyrillic) to Impact or a sans-serif and may be a few
+ // pixels wider than a rule card or an NPC template card; splitting «ХАРАКТЕРИСТИКИ» mid-word is worse.
+ for(const f of ORDER)for(const [sel,body] of rules(site(f))){
+  const v=decl(body,'overflow-wrap')||decl(body,'word-wrap')||decl(body,'word-break');
+  if(!v||v==='normal')continue;
+  for(const s of sel.split(',').map(s=>s.trim())){
+   assert.doesNotMatch(s,/^(?:html(?:\.[\w-]+)*\s+)?h[1-6]$/,`${f}: ${s} sets ${v} on every heading`);
+   assert.doesNotMatch(s,/(?:rule-card|catalog-card|gm-card)\b.*\bh3$/,`${f}: ${s} splits book titles`);
+  }
+ }
 });
 test('no stylesheet switches heading wrapping back off',()=>{
  for(const f of ORDER)for(const [sel,body] of rules(site(f))){
