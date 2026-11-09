@@ -20,7 +20,7 @@ test('room codes are 12 unambiguous characters and survive formatting',()=>{
 test('a room code derives a stable private topic and a key that only it can open',async()=>{
  const R=loadRoom().Room._test;
  const a=await R.deriveRoom('K7RQM2XAPZ9E'),b=await R.deriveRoom('K7RQM2XAPZ9E'),c=await R.deriveRoom('K7RQM2XAPZ9F');
- assert.equal(a.topic,b.topic);assert.notEqual(a.topic,c.topic);assert.match(a.topic,/^ncred\/v1\/[0-9a-f]{24}$/);assert.ok(!a.topic.includes('K7RQ'));
+ assert.equal(a.topic,b.topic);assert.notEqual(a.topic,c.topic);assert.match(a.topic,/^ncred\/v2\/[0-9a-f]{24}$/);assert.ok(!a.topic.includes('K7RQ'));
  R.setKey(a.key);const sealed=await R.seal({hello:'мир'});
  assert.deepEqual(plain(await R.open(sealed)),{hello:'мир'});
  R.setKey(c.key);await assert.rejects(()=>R.open(sealed));
@@ -90,4 +90,38 @@ test('shared clocks are sanitised and drawn as numbered segments only',()=>{
  assert.ok(list.length<=12);
  const svg=R.clockSvg(6,2);assert.equal((svg.match(/<path /g)||[]).length,6);assert.equal((svg.match(/class="on"/g)||[]).length,2);assert.ok(!/[<>]b>/.test(svg));
  assert.deepEqual(plain(R.cleanClocks('nope')),[]);
+});
+
+test('room state ignores stale copies, keyless clears and honours encrypted leave markers',async()=>{
+ const R=loadRoom().Room._test;
+ const room=await R.deriveRoom('K7RQM2XAPZ9E');R.setKey(room.key);R.setSession({code:'K7RQM2XAPZ9E',role:'player',name:'V',memberId:'me'},room.topic);
+ let n=0;const msg=async(sub,t,d,at,retain=true)=>({topic:room.topic+'/'+sub,retain,payload:await R.seal({v:2,id:'m'+(n++),from:'gm1',t,at,d})});
+ const now=Date.now();
+ await R.receive(await msg('c','combat',{campaign:'A',round:3,order:[{name:'Ганг',init:12}]},now-1000));
+ assert.equal(R.state().combat.round,3);
+ await R.receive(await msg('c','combat',{campaign:'A',round:1,order:[]},now-60000)); // an older retained copy from another relay
+ assert.equal(R.state().combat.round,3);
+ await R.receive({topic:room.topic+'/c',retain:true,payload:new Uint8Array(0)}); // anyone can send an empty retained message
+ assert.ok(R.state().combat);
+ await R.receive(await msg('c','cleared',{},now-500));
+ assert.equal(R.state().combat,null);
+ await R.receive(await msg('k','clocks',{list:[{name:'Тревога',size:4,filled:2}]},now-13*3600*1000)); // left over from an old session
+ assert.equal(R.state().clocks.length,0);
+ await R.receive(await msg('m/gm1','member',{name:'GM',role:'gm'},now-2000));
+ assert.equal(R.members().get('gm1').name,'GM');
+ await R.receive(await msg('m/gm1','member',{name:'Old name',role:'gm'},now-90000));
+ assert.equal(R.members().get('gm1').name,'GM');
+ await R.receive(await msg('m/gm1','left',{},now-100));
+ assert.equal(R.members().has('gm1'),false);
+ const old=await R.seal({v:1,id:'legacy',from:'gm1',t:'member',at:now,d:{name:'v1'}});
+ await R.receive({topic:room.topic+'/m/gm1',retain:true,payload:old});
+ assert.equal(R.members().has('gm1'),false);
+});
+
+test('room codes are drawn without modulo bias',()=>{
+ const R=loadRoom().Room._test,counts=new Map();
+ for(let i=0;i<400;i++)for(const ch of R.newCode())counts.set(ch,(counts.get(ch)||0)+1);
+ assert.equal(counts.size,31);
+ const values=[...counts.values()],mean=4800/31;
+ assert.ok(Math.min(...values)>mean*0.6&&Math.max(...values)<mean*1.4);
 });

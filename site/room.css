@@ -94,3 +94,12 @@
 .room-clock-svg path.on { fill: var(--red); }
 .room-clock b { display: block; font-size: 13px; }
 .room-clock small { color: var(--muted); font: 800 14px/1 var(--display); }
+
+/* Room notices */
+.room-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; padding: 12px 14px; color: var(--text); background: #2b2117; border: 1px solid #6b5a3a; }
+.room-alert p { margin: 0; }
+.room-alert div { display: flex; flex-wrap: wrap; gap: 8px; }
+.room-alert.soft { display: block; color: #e5d8c4; background: #22201c; border-color: #4a443b; font-size: 13px; }
+.room-pending { color: var(--yellow); }
+html.ui-native .room-alert { border: 0; border-radius: 14px; background: #2a2418; }
+html.ui-native .room-alert.soft { background: var(--panel); color: var(--muted, #b9b2a7); }
