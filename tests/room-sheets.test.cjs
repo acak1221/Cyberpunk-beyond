@@ -5,16 +5,18 @@ const zipOK=(()=>{try{new CompressionStream('deflate-raw');new DecompressionStre
 
 // One browser tab: its own module state, optionally sharing localStorage with another tab of the same device.
 function loadRoom({store=new Map(),timers=null,lang='ru'}={}){
- const document={addEventListener(){},querySelector:()=>null,visibilityState:'visible'};
+ const listeners={},document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
  // Long timers (the 30 s wait for a GM receipt) are either collected to be fired by the test or do not keep node running.
  const later=(f,ms)=>{if(timers&&ms>=1000){timers.push(f);return timers.length}const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},navigator:{},btoa,atob,Response,Blob,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
  const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[];
  R.setApp({getState:()=>({lang,characters:window.chars||[],campaigns:window.camps||[]}),notify:m=>notices.push(m)});
- R.setTransport({publish:(sub,bytes)=>{sent.push({sub,bytes});return 1}});
- return {window,R,notices,sent,store};
+ R.setTransport({publish:(sub,bytes)=>{sent.push({sub,bytes});return 1},close(){}});
+ // Presses a room button the way a click on the page does.
+ const press=async action=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action}}:null}})};
+ return {window,R,notices,sent,store,press};
 }
 const CODE='K7RQM2XAPZ9E';
 async function room(){
@@ -24,8 +26,8 @@ async function room(){
  gm.window.App={save(){},render(){},importCharacter(c,{sourceKey}){const old=gm.window.chars.find(x=>x.extra?.sourceKey===sourceKey);const id=old?old.id:'gm-copy-'+(imported.size+1);const copy={...c,id,extra:{...(c.extra||{}),sourceKey}};if(old)gm.window.chars[gm.window.chars.indexOf(old)]=copy;else gm.window.chars.push(copy);imported.set(sourceKey,id);return {ok:true,id,updated:!!old}}};
  return {r,gm};
 }
-function player(r,{store,memberId='p1',character,sheets='zj',timers,gmPub}){
- const p=loadRoom({store,timers});p.R.setKey(r.key);p.R.setSession({code:CODE,role:'player',name:'Аня',memberId,characterId:character.id},r.topic);
+function player(r,{store,memberId='p1',character,sheets='zj',timers,gmPub,lang}){
+ const p=loadRoom({store,timers,lang});p.R.setKey(r.key);p.R.setSession({code:CODE,role:'player',name:'Аня',memberId,characterId:character.id},r.topic);
  p.window.chars=[character];p.R.members().set('gm1',{name:'Мастер',role:'gm',pub:gmPub,sheets,at:Date.now()});
  return p;
 }
@@ -71,7 +73,7 @@ test('a long sheet is compressed to fit; one that still does not fit is refused 
  let seed=7,story='';const rnd=()=>(seed=(seed*1103515245+12345)%2147483648)/2147483648;while(story.length<70000)story+=words[Math.floor(rnd()*words.length)]+' ';
  const long={...V,notes:story};assert.ok(new TextEncoder().encode(JSON.stringify(long)).length>120000);
  const legacy=await player(r,{character:long,gmPub:pub,sheets:''}).R.sheetPacket('gm1',{pub,sheets:''},long,'x');
- assert.ok(legacy.length>160000,'uncompressed, the GM would drop this packet');
+ assert.equal(legacy.enc,'');assert.ok(legacy.bytes.length>160000,'uncompressed, the GM would drop this packet');
  const p=player(r,{character:long,gmPub:pub});
  await p.R.sendSheet();assert.equal(p.sent.length,1);assert.ok(p.sent[0].bytes.length<=160000);
  assert.equal(p.R.sheetState().state,'waiting');
@@ -81,9 +83,20 @@ test('a long sheet is compressed to fit; one that still does not fit is refused 
  const big=player(r,{character:{...V,notes:noise},gmPub:pub});
  await big.R.sendSheet();assert.equal(big.sent.length,0);
  assert.equal(big.R.sheetState().state,'big');assert.match(big.notices.at(-1),/^Лист слишком большой для отправки через комнату: \d+ КБ после сжатия, а можно не больше 156 КБ\./);
- // An older GM page (no compression) gets the old form only when it fits, otherwise the same clear refusal.
- const old=player(r,{character:long,gmPub:pub,sheets:''});await old.R.sendSheet();
- assert.equal(old.sent.length,0);assert.equal(old.R.sheetState().state,'big');
+ // An older GM page (no compression) gets the old form only when it fits; otherwise the player is told the GM's page is the obstacle,
+ // not asked to cut notes that would fit once the GM reloads.
+ for(const [lang,gmMsg,hereMsg] of [['ru',/^Лист слишком большой для приложения ведущего: \d+ КБ, а можно не больше 156 КБ\. Его страница не принимает сжатые листы — попросите ведущего обновить страницу/,/^Лист слишком большой для отправки без сжатия: \d+ КБ, а можно не больше 156 КБ\. Этот браузер не умеет сжимать листы/],['en',/^The sheet is too big for the GM's app: \d+ KB, the limit is 156 KB\. Their page does not accept compressed sheets — ask the GM to reload the page/,/^The sheet is too big to send uncompressed: \d+ KB, the limit is 156 KB\. This browser cannot compress sheets/]]){
+  for(const sheets of ['','j']){ // an old GM page, or a GM browser that cannot decompress
+   const old=player(r,{character:long,gmPub:pub,sheets,lang});
+   await old.R.sendSheet();
+   assert.equal(old.sent.length,0);assert.equal(old.R.sheetState().state,'big');assert.equal(old.R.sheetState().why,'gm');
+   assert.match(old.notices.at(-1),gmMsg);assert.ok(!/после сжатия|after compression/.test(old.notices.at(-1)));
+   assert.match(old.R.roomView(),/class="room-send-status" data-state="big"/);
+  }
+  // A current GM page, but this browser cannot compress.
+  const here=player(r,{character:long,gmPub:pub,lang});delete here.window.CompressionStream;
+  await here.R.sendSheet();assert.equal(here.sent.length,0);assert.equal(here.R.sheetState().why,'here');assert.match(here.notices.at(-1),hereMsg);
+ }
 });
 
 test('the player waits for the GM receipt, then the acceptance, and is told when no receipt comes',{skip:!zipOK},async()=>{
@@ -107,6 +120,12 @@ test('the player waits for the GM receipt, then the acceptance, and is told when
  assert.equal(q.R.sheetState().state,'sent');assert.equal(q.notices.at(-1),'Лист отправлен. Подтверждение придёт, когда ведущий его примет.');
  await q.R.receive({topic:r.topic+'/e',retain:false,payload:await gm.R.seal({v:2,id:'ack1',from:'gm1',t:'sheet-ack',at:Date.now(),d:{to:'p1',name:'Ви'}})});
  assert.equal(q.R.sheetState().state,'accepted');
+ // Leaving the room while still waiting ends the wait: no warning later, wherever the player is by then.
+ const wt=[],lw=player(r,{character:V,gmPub:pub,timers:wt});
+ await lw.R.sendSheet();assert.equal(lw.R.sheetState().state,'waiting');assert.equal(wt.length,1);
+ await lw.press('leave');assert.equal(lw.window.Room.active(),false);assert.equal(lw.R.sheetState(),null);
+ const before=lw.notices.length;wt.forEach(f=>f());
+ assert.equal(lw.notices.length,before);assert.ok(!lw.notices.some(n=>n.startsWith('Ведущий пока не подтвердил')));
 });
 
 test('GM pages still read sheets from older players and drop compressed bombs',{skip:!zipOK},async()=>{
@@ -146,16 +165,18 @@ test('room views show translated role names and no «?» for a missing character
   const {R,window}=loadRoom({lang});const r=await R.deriveRoom(CODE);R.setKey(r.key);
   R.setSession({code:CODE,role:'gm',name:'GM',memberId:'gm1',campaignId:'c1'},r.topic);
   window.chars=[{id:'n1',name:'Нокс',role:'fixer'}];window.camps=[{id:'c1',name:'A',round:1,turnIndex:0,roster:[{id:'r1',kind:'pc',characterId:'deleted',initiative:15},{id:'r2',kind:'pc',characterId:'n1',initiative:12},{id:'r3',kind:'npc',name:'Бандит',initiative:9}]}];
-  const order=R.combatPayload().order;assert.deepEqual(plain(order.map(x=>x.name)),['','Нокс','Бандит']);
+  // The deleted character's row keeps a visible name for older pages (they show the name as is) and is flagged for newer ones.
+  const order=R.combatPayload().order;assert.deepEqual(plain(order.map(x=>x.name)),['—','Нокс','Бандит']);assert.deepEqual(plain(order.map(x=>!!x.none)),[true,false,false]);
   const card=R.memberCard('p1',{name:'Аня',role:'player',character:R.cleanSummary({name:'Ви',role:'solo',hp:10,max:40}),at:Date.now()});
   assert.ok(card.includes(`<span>${solo} · `)||card.includes(`<span>${solo}<`),card);assert.ok(!/>solo</.test(card));
   const empty=R.memberCard('p2',{name:'Боб',role:'player',character:null,at:Date.now()});
   assert.ok(empty.includes('<strong>Боб</strong>')&&empty.includes(none)&&!empty.includes('?'));
-  await R.receive({topic:r.topic+'/c',retain:false,payload:await R.seal({v:2,id:'c'+lang,from:'gm0',t:'combat',at:Date.now(),d:{campaign:'A',round:1,order:[{name:'',pc:true,init:15,current:true},{name:'Нокс',pc:true,init:12}]}})});
+  await R.receive({topic:r.topic+'/c',retain:false,payload:await R.seal({v:2,id:'c'+lang,from:'gm0',t:'combat',at:Date.now(),d:{campaign:'A',round:1,order:[{name:'—',pc:true,none:true,init:15,current:true},{name:'Нокс',pc:true,init:12},{name:'Бандит',none:true,init:9}]}})});
   await R.ensureGMKeys();
   await R.receive({topic:r.topic+'/e',retain:false,payload:await R.seal({v:2,id:'s'+lang,from:'p1',t:'sheet',at:Date.now(),d:{to:'gm1',...await R.sealFor(plain(R.gmPub()),{id:'v1',name:'Ви',role:'solo'})}})});
   const view=R.roomView();
-  assert.ok(view.includes(`<span class="room-none">${none}</span>`));assert.ok(!view.includes('<span>?</span>'));
+  assert.ok(view.includes(`<span class="room-none">${none}</span>`));assert.ok(!view.includes('<span>?</span>')&&!view.includes('<span>—</span>'));
+  assert.equal(view.split('room-none').length,2);assert.ok(view.includes('<span>Нокс</span>')&&view.includes('<span>Бандит</span>')); // only a player row can be «no character»
   assert.ok(view.includes(` · ${solo}</small>`)&&!view.includes(' · solo</small>'));
   // Counts in card headings are not page references, so the clean look must not turn them into «стр. N».
   assert.ok(view.includes('<span data-nx>1</span></div><ul>')&&/<span data-nx>\d+<\/span>/.test(view.split('room-team')[1]));
