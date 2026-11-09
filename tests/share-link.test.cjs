@@ -1,12 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const plain=x=>JSON.parse(JSON.stringify(x));
-function load(hash='',{lang='ru',App,ROLES}={}){
+function load(hash='',{lang='ru',App,ROLES,now=Date.UTC(2026,10,10,12,0)}={}){
  let replaced=null;const dialogs=[];
+ // The module reads this device's clock; tests pin it so their dates stay valid on any day.
+ class Clock extends Date{static now(){return now}}
  // A <dialog> stand-in: tests choose a button by closing it with that button's value.
  const createElement=tag=>{const el={tag,className:'',innerHTML:'',returnValue:'',listeners:{},addEventListener(t,f){el.listeners[t]=f},showModal(){el.open=true},remove(){el.removed=true},dispatchEvent(){el.listeners.close?.()},close(v){el.returnValue=v;el.listeners.close()}};dialogs.push(el);return el};
  const document={documentElement:{lang},readyState:'complete',addEventListener(){},createElement,body:{appendChild(){}}};
  const window={document,location:{hash,pathname:'/app/',search:'',origin:'https://example.test'},history:{replaceState:(a,b,u)=>{replaced=u}},addEventListener(){},navigator:{},btoa,atob,Blob,Response,CompressionStream,DecompressionStream,matchMedia:()=>({matches:false}),App,ROLES};
- vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','site','share-link.js'),'utf8'),{window,TextEncoder,TextDecoder,Uint8Array,JSON,String,Array,Object,Error,Promise,Number,Date,setTimeout,Event:class{}});
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','site','share-link.js'),'utf8'),{window,TextEncoder,TextDecoder,Uint8Array,JSON,String,Array,Object,Error,Promise,Number,Date:Clock,setTimeout,Event:class{}});
  return {S:window.ShareLink,replaced:()=>replaced,dialogs};
 }
 // An App stand-in that records imports and notices; `match` is what findImport reports for any sheet.
@@ -102,6 +104,19 @@ test('an old link for a sheet edited here since: the dialog warns, and Keep both
  assert.deepEqual(app.calls[1],['import',{open:true,copy:true}]);assert.deepEqual(app.notices,['The character was added as a separate sheet.']);
  app=fakeApp({match});({S,dialogs}=load('',{App:app,ROLES}));done=S.offer(sheet,{kind:'link'});dialogs[0].close('cancel');
  assert.equal(await done,null);assert.equal(app.calls.length,1);assert.deepEqual(app.notices,[]);
+});
+
+test('a link time more than a day ahead of this clock is not believed: it reads as unknown and is never marked newer',async()=>{
+ const now=Date.UTC(2026,10,10,12,0),match={id:'local-id',name:'Ви',updatedAt:Date.UTC(2026,10,9,20,0)};
+ let {S,dialogs}=load('',{App:fakeApp({match}),ROLES,now}),done=S.offer({...sheet,extra:{uid:'U',updatedAt:1e15}},{kind:'link'});
+ const html=dialogs[0].innerHTML;
+ assert.match(html,/<span>В ссылке<\/span><b>время изменения неизвестно<\/b>/);assert.doesNotMatch(html,/33658/);
+ assert.match(html,/share-import-verdict warn">Версия на этом устройстве новее/);assert.match(html,/value="update" class="btn ghost"/);
+ dialogs[0].close('cancel');await done;
+ // A clock a few minutes ahead is normal: that time is shown and compared.
+ ({S,dialogs}=load('',{App:fakeApp({match}),ROLES,now}));done=S.offer({...sheet,extra:{uid:'U',updatedAt:now+10*60000}},{kind:'link'});
+ assert.match(dialogs[0].innerHTML,/share-import-version is-newer"><span>В ссылке<\/span>/);assert.match(dialogs[0].innerHTML,/value="update" class="btn primary"/);
+ dialogs[0].close('cancel');await done;
 });
 
 test('a character file asks only when the character is already here, and failures are explained',async()=>{

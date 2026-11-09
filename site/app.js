@@ -177,7 +177,7 @@ function restoreFromBin(entryId){
  const e=state.bin.find(x=>x.id===entryId);if(!e)return {ok:false,reason:'missing'};
  const c=JSON.parse(JSON.stringify(e.character));let ok=false;try{ok=validateCharacter(c)}catch{}if(!ok)return {ok:false,reason:'invalid'};
  if(typeof c.id!=='string'||!c.id||state.characters.some(x=>x.id===c.id))c.id=uniqueId(new Set(state.characters.map(x=>x.id)));
- const list=[...state.characters];list.splice(Math.min(Number.isSafeInteger(e.index)&&e.index>=0?e.index:0,list.length),0,c);state.characters=list;
+ const list=[...state.characters];list.splice(Math.min(Number.isSafeInteger(e.index)&&e.index>=0?e.index:0,list.length),0,c);state.characters=list;keepEditTimes([c]);
  for(const r of Array.isArray(e.roster)?e.roster:[]){
   const k=state.campaigns.find(x=>x?.id===r?.campaignId);
   if(!k||!Array.isArray(k.roster)||!r.entry||typeof r.entry!=='object'||typeof r.entry.id!=='string'||k.roster.some(x=>x?.id===r.entry.id))continue;
@@ -243,7 +243,7 @@ function setAsideSection(){
 }
 // Adds the readable characters and campaigns of a backup, an archive or a set-aside copy next to the current data, with new ids.
 function importableCampaign(x){return !!x&&typeof x.name==='string'&&(x.notes===undefined||typeof x.notes==='string')&&Array.isArray(x.roster)&&x.roster.every(r=>r&&['pc','npc'].includes(r.kind)&&(r.ties===undefined||Array.isArray(r.ties)&&r.ties.every(v=>Number.isInteger(v)&&v>=-999&&v<=999))&&(r.name===undefined||typeof r.name==='string'))}
-function addArchive(x){const ids=new Map(),chars=x.characters.map(c=>{const id=safeId();ids.set(c.id,id);return {...newCharacter(),...c,id,stats:{...newCharacter().stats,...c.stats},skills:{...newCharacter().skills,...c.skills}}}),readable=x.campaigns.filter(importableCampaign),campaigns=readable.map(k=>{const copy={...k,id:safeId(),notes:k.notes||'',roster:k.roster.map(r=>({...r,id:safeId(),characterId:r.kind==='pc'?(ids.get(r.characterId)||(state.characters.some(c=>c.id===r.characterId)?r.characterId:'')):r.characterId}))};pruneRoster(copy,r=>r.kind==='pc'&&!r.characterId);return copy});state.characters.unshift(...chars);state.campaigns.unshift(...campaigns);return {characters:chars.length,campaigns:campaigns.length,skipped:x.campaigns.length-readable.length}}
+function addArchive(x){const ids=new Map(),chars=x.characters.map(c=>{const id=safeId();ids.set(c.id,id);const o={...newCharacter(),...c,id,stats:{...newCharacter().stats,...c.stats},skills:{...newCharacter().skills,...c.skills}};o.extra={...o.extra,uid:sheetUid(c)};return o}),readable=x.campaigns.filter(importableCampaign),campaigns=readable.map(k=>{const copy={...k,id:safeId(),notes:k.notes||'',roster:k.roster.map(r=>({...r,id:safeId(),characterId:r.kind==='pc'?(ids.get(r.characterId)||(state.characters.some(c=>c.id===r.characterId)?r.characterId:'')):r.characterId}))};pruneRoster(copy,r=>r.kind==='pc'&&!r.characterId);return copy});state.characters.unshift(...chars);keepEditTimes(chars);state.campaigns.unshift(...campaigns);return {characters:chars.length,campaigns:campaigns.length,skipped:x.campaigns.length-readable.length}}
 // A file with several records ("Import backup", or a backup chosen in "Import"): readable records are added, the rest reported.
 // Sections from the "unreadable records" download (setAside) that read correctly now go back to their place. A section that already
 // holds other data is replaced only after asking; the matching set-aside record is dropped. Anything else counts as skipped.
@@ -335,16 +335,20 @@ function validPicture(p,max){return typeof p==='string'&&p.length<=max&&/^data:i
 // Every character has a permanent uid, the same on every device (ids stay local to one browser), and extra.updatedAt, the time of
 // its latest edit. Each save compares every sheet with how it looked at the previous save, so only a real change moves updatedAt;
 // a render or a save that changes nothing does not. Older sheets take their uid from their id, or from the link or room they came from.
+// A new edit time is always later than the previous one, even when it came from a device whose clock runs ahead, and a time more
+// than a day ahead of this device's clock (a wrong clock or a crafted link) is not believed, so it cannot keep a sheet "newest".
 const sheetMarks=new Map();
 function validUid(u){return typeof u==='string'&&u.length>0&&u.length<=160}
 function sheetUid(c){const x=c?.extra;if(validUid(x?.uid))return x.uid;const m=typeof x?.sourceKey==='string'?/^(?:link|room:[^:]*):(.+)$/.exec(x.sourceKey):null;return m&&validUid(m[1])?m[1]:validUid(c?.id)?c.id:''}
-function editTime(c){const t=c?.extra?.updatedAt;return Number.isFinite(t)&&t>0&&t<=864e13?t:null}
+function editTime(c){const t=c?.extra?.updatedAt;return Number.isFinite(t)&&t>0&&t<=Date.now()+864e5?t:null}
 function sheetPrint(c){const x=c.extra;return JSON.stringify(c,function(k,v){return this===x&&(k==='uid'||k==='updatedAt')?undefined:v})}
 // A uid stays unique on this device: when two sheets share one (a duplicate, or the same backup imported twice), the sheet seen
 // at an earlier save keeps it, then a sheet whose uid is its own id, and the other one gets a new uid.
 function claimUids(){const list=state.characters.filter(c=>c&&typeof c==='object'),seen=new Set(),rank=c=>sheetMarks.has(c.id)?0:sheetUid(c)===c.id?1:2;for(const c of [...list].sort((a,b)=>rank(a)-rank(b))){if(!c.extra||typeof c.extra!=='object'||Array.isArray(c.extra))c.extra={};let u=sheetUid(c);if(!validUid(u)||seen.has(u))u=validUid(c.id)&&!seen.has(c.id)?c.id:uniqueId(seen);if(c.extra.uid!==u)c.extra.uid=u;seen.add(u)}return list}
 function markSheets(){sheetMarks.clear();for(const c of claimUids())sheetMarks.set(c.id,sheetPrint(c))}
-function stampEdits(now=Date.now()){const ids=new Set();for(const c of claimUids()){ids.add(c.id);const print=sheetPrint(c),was=sheetMarks.get(c.id);sheetMarks.set(c.id,print);if(was===undefined?!editTime(c):was!==print)c.extra.updatedAt=now}for(const id of sheetMarks.keys())if(!ids.has(id))sheetMarks.delete(id)}
+// Sheets added from a backup, a kept copy or the bin are not edits: they keep their own edit time, or stay without one (older).
+function keepEditTimes(list){claimUids();for(const c of list){if(!editTime(c))delete c.extra.updatedAt;sheetMarks.set(c.id,sheetPrint(c))}}
+function stampEdits(now=Date.now()){const ids=new Set();for(const c of claimUids()){ids.add(c.id);const print=sheetPrint(c),was=sheetMarks.get(c.id);sheetMarks.set(c.id,print);if(was===undefined?!editTime(c):was!==print)c.extra.updatedAt=Math.max(now,(editTime(c)||0)+1)}for(const id of sheetMarks.keys())if(!ids.has(id))sheetMarks.delete(id)}
 // The local sheet an import would update: the same character by uid, else an earlier import from the same source.
 function importMatch(obj,{sourceKey=''}={}){if(!obj||typeof obj!=='object'||Array.isArray(obj))return null;const uid=sheetUid(obj),key=typeof sourceKey==='string'?sourceKey.slice(0,200):'',c=(uid&&state.characters.find(x=>sheetUid(x)===uid))||(key&&state.characters.find(x=>x?.extra?.sourceKey===key))||null;return c?{id:c.id,name:c.name,role:c.role,rank:c.rank,updatedAt:editTime(c)}:null}
 // Adds a sheet from a link, file or room. `replace` names the local sheet to update (it keeps its id, campaign places and the pictures

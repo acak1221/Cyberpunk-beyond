@@ -72,7 +72,8 @@ async function offerImport(){
  if(!c||typeof c!=='object'||Array.isArray(c)){global.App.notify(t('noCharacter'));return}
  return offer(c,{kind:'link'});
 }
-const editTime=c=>{const v=c?.extra?.updatedAt;return typeof v==='number'&&v>0&&v<=864e13?v:null};
+// A time more than a day ahead of this device's clock (a wrong clock or a crafted link) is not believed: it reads as unknown.
+const editTime=c=>{const v=c?.extra?.updatedAt;return typeof v==='number'&&v>0&&v<=Date.now()+864e5?v:null};
 // Which copy was edited last: 'incoming', 'local', 'same', or 'unknown'. A sheet without an edit time has not been edited since
 // edit times exist, so it counts as the older one; with neither time it is unknown.
 function verdict(incoming,local){return incoming&&local?(incoming>local?'incoming':incoming<local?'local':'same'):incoming?'incoming':local?'local':'unknown'}

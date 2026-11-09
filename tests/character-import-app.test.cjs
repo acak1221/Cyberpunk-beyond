@@ -14,7 +14,7 @@ function harness(archive={characters:[]},{shareLink=null,draw=false}={}){
  class FakeDate extends Date{static now(){return clock}}
  const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:k=>k==='nightcity-red-v1'?JSON.stringify({campaigns:[],lang:'en',...archive}):null,setItem(){}},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},setTimeout:()=>0,clearTimeout(){},console,Math,Date:FakeDate,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap};
  vm.createContext(ctx);for(const f of ['character-extra.js','equipment-tools.js'])vm.runInContext(source(f),ctx);
- vm.runInContext(source('app.js')+(draw?'':'\nrender=()=>{};')+'\nwindow.qa={state:()=>state,go:(v,id)=>{state.view=v;state.active=id}};',ctx);
+ vm.runInContext(source('app.js')+(draw?'':'\nrender=()=>{};')+'\nwindow.qa={state:()=>state,go:(v,id)=>{state.view=v;state.active=id},toBin:moveToBin,fromBin:restoreFromBin};',ctx);
  const change=(id,data)=>{const target={id,files:[{text:async()=>JSON.stringify(data)}],value:'x',isConnected:true,dataset:{}};nodes['#'+id]=target;w.qa.go('characters',null);return events.change({type:'change',target})};
  return {w,App:w.App,state:()=>w.qa.state(),chars:()=>w.qa.state().characters,saved,writes,notices,change,at:()=>clock,tick:(ms=60000)=>{clock+=ms},failWrites:n=>{fails=n},pause:()=>{editable=false}};
 }
@@ -82,6 +82,42 @@ test('defaults a render fills in are not an edit, but a render never swallows an
  assert.equal(a.extra.luck,6);assert.equal(a.extra.updatedAt,undefined,'filling in defaults while drawing is not an edit');assert.equal(b.extra.updatedAt,undefined);
  h.tick();a.hp=20;h.App.render();h.App.save();
  assert.equal(a.extra.updatedAt,h.at(),'an edit made before the render is still recorded');assert.equal(b.extra.updatedAt,undefined);
+});
+
+test('a backup adds its sheets as they were: no edit time is made up, so an old backup never looks newer',async()=>{
+ const h=harness(),backup={format:'nightcity-red-backup',version:1,lang:'en',campaigns:[],characters:[sheet('v1'),sheet('v2',{uid:'U2',updatedAt:500}),sheet('v3',{updatedAt:h.at()+2*864e5})]};
+ await h.change('import-backup',backup);
+ const times=list=>plain(list.map(c=>c.extra.updatedAt??null)),[a]=h.chars();
+ assert.deepEqual(plain(h.chars().map(c=>c.extra.uid)),['v1','U2','v3'],'a sheet from before uids keeps the identity of its original id');
+ assert.ok(h.chars().every(c=>!['v1','v2','v3'].includes(c.id)),'ids stay local');
+ assert.deepEqual(times(h.saved.at(-1).characters),[null,500,null],'a time far ahead of this clock is dropped');
+ h.tick();h.App.save();assert.deepEqual(times(h.chars()),[null,500,null]);
+ assert.equal(h.App.findImport(sheet('phone-v1',{uid:'v1',updatedAt:h.at()-1000}),{}).id,a.id,'a link from the phone finds this sheet');
+ h.tick();a.hp=20;h.App.save();assert.equal(a.extra.updatedAt,h.at(),'the first real edit sets the time');
+ // The same backup again: separate characters with their own uids, still without made-up times.
+ await h.change('import-backup',backup);
+ assert.equal(h.chars().length,6);assert.equal(new Set(h.chars().map(c=>c.extra.uid)).size,6);assert.equal(a.extra.uid,'v1');
+ assert.deepEqual(times(h.chars().slice(0,3)),[null,500,null]);
+});
+
+test('a sheet restored from the bin keeps its own edit time',()=>{
+ const h=harness({characters:[sheet('a'),sheet('b',{updatedAt:400})]});
+ for(const id of ['a','b']){const entry=h.w.qa.toBin(h.chars().find(c=>c.id===id));h.App.save();h.tick();assert.equal(h.w.qa.fromBin(entry.id).ok,true);h.App.save()}
+ assert.deepEqual(plain(h.chars().map(c=>[c.id,c.extra.updatedAt??null])),[['a',null],['b',400]]);
+});
+
+test('edit times only move forward, and a time far ahead of this clock is not believed',()=>{
+ const h=harness({characters:[sheet('a',{uid:'A',updatedAt:100}),sheet('far',{uid:'F',updatedAt:1e15})]}),get=id=>h.chars().find(c=>c.id===id);
+ assert.equal(h.App.findImport(sheet('x',{uid:'F'}),{}).updatedAt,null,'a stored time far in the future reads as unknown');
+ h.tick();get('far').hp=10;h.App.save();assert.equal(get('far').extra.updatedAt,h.at(),'and the next edit replaces it with a real one');
+ // A sheet from a device whose clock runs ten minutes ahead keeps its time; edits here still come after it.
+ const ahead=h.at()+10*60000;
+ assert.equal(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:ahead}),hp:30},{replace:'a'}).ok,true);assert.equal(get('a').extra.updatedAt,ahead);
+ h.tick(1000);get('a').hp=12;h.App.save();assert.equal(get('a').extra.updatedAt,ahead+1,'a later edit never gets an earlier time');
+ h.tick(1000);get('a').hp=11;h.App.save();assert.equal(get('a').extra.updatedAt,ahead+2);
+ // A link time more than a day ahead is dropped, so it cannot keep the sheet "newest".
+ h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:h.at()+2*864e5}),hp:5},{replace:'a'});assert.equal(get('a').hp,5);assert.equal(get('a').extra.updatedAt,undefined);
+ h.App.save();assert.equal(get('a').extra.updatedAt,undefined);h.tick();get('a').hp=4;h.App.save();assert.equal(get('a').extra.updatedAt,h.at());
 });
 
 test('the same character from another device is found by uid and updated in place on request',()=>{
