@@ -341,3 +341,27 @@ body {
 .agent-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 900px) { .agent-columns { grid-template-columns: 1fr; } }
 @media (max-width: 650px) { .agent-contact-grid { grid-template-columns: 1fr; } }
+
+/* Die faces in the roll card */
+.roll-dice { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.roll-dice .die { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px; color: #f2ece4; background: #3a3532; border-radius: 6px; font: 700 12px/1 var(--body); font-style: normal; }
+.roll-dice .die.d10 { width: 26px; height: 28px; padding: 0; border-radius: 0; clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); padding-top: 4px; }
+.roll-dice .die.crit { color: #10210f; background: #7fd67a; }
+.roll-dice .die.fumble { color: #fff; background: var(--red); }
+.roll-dice .die.extra { background: #57504a; }
+.roll-dice .die.more { background: transparent; color: var(--muted, #aaa); }
+html.ui-native .roll-dice .die { background: #3d3d44; }
+html.ui-native .roll-dice .die.crit { background: #34c759; color: #062b10; }
+html.ui-native .roll-dice .die.fumble { background: var(--red); color: #fff; }
+.haptics-toggle { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted, #aaa); font-size: 13px; }
+
+/* Import-from-link dialog */
+dialog.share-import { width: min(440px, calc(100vw - 32px)); padding: 20px; color: var(--text, #eee); background: var(--panel, #1c1c1f); border: 1px solid var(--border, #333); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .55); }
+dialog.share-import::backdrop { background: rgba(0, 0, 0, .6); }
+dialog.share-import h2 { margin: 0 0 8px; font-size: 20px; }
+.share-import-name { margin: 0 0 12px; }
+.share-import-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+.share-import-stats span { display: grid; justify-items: center; padding: 6px 0; background: rgba(255, 255, 255, .05); border-radius: 8px; font-weight: 700; }
+.share-import-stats small { color: var(--muted, #aaa); font-size: 10px; font-weight: 600; }
+.share-import-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+html.ui-light dialog.share-import { box-shadow: 0 20px 60px rgba(0, 0, 0, .2); }

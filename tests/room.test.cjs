@@ -5,7 +5,7 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 function loadRoom(){
  const listeners={},store=new Map();
  const document={addEventListener(t,f){(listeners[t]||(listeners[t]=[])).push(f)},querySelector:()=>null,visibilityState:'visible'};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},navigator:{}};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},navigator:{},btoa,atob};
  const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout,clearTimeout,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  return window;
@@ -124,4 +124,16 @@ test('room codes are drawn without modulo bias',()=>{
  assert.equal(counts.size,31);
  const values=[...counts.values()],mean=4800/31;
  assert.ok(Math.min(...values)>mean*0.6&&Math.max(...values)<mean*1.4);
+});
+
+test('a sheet sent to the GM opens only with the GM page key, not with the room key',async()=>{
+ const R=loadRoom().Room._test;
+ await R.ensureGMKeys();const pub=plain(R.gmPub());assert.match(pub.x,/^[A-Za-z0-9_-]{43}$/);
+ const sheet=R.sheetCopy({id:'v1',name:'Ви',notes:'тайна',extra:{portrait:'data:image/png;base64,AAAA',portraitThumb:'t',sourceKey:'x'}});
+ assert.equal(sheet.extra.portrait,undefined);assert.equal(sheet.extra.sourceKey,undefined);assert.equal(sheet.extra.portraitThumb,'t');
+ const box=await R.sealFor(pub,sheet);
+ assert.ok(!JSON.stringify(box).includes('тайна'));
+ assert.deepEqual(plain(await R.openFromPeer(box)),plain(sheet));
+ R.resetGMKeys();await R.ensureGMKeys(); // another GM page (or another player) has a different key
+ await assert.rejects(()=>R.openFromPeer(box));
 });

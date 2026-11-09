@@ -12,7 +12,7 @@ const src = path.join(root, 'site');
 const out = path.resolve(root, process.argv[2] || 'dist');
 
 // Big optional files are cached on first use instead of at install time.
-const RUNTIME_ONLY = [/^vendor\//];
+const RUNTIME_ONLY = [/^vendor\/pdfjs\//];
 const SKIP = [/^sw\.js$/, /\.map$/, /(^|\/)\./];
 
 async function walk(dir, base = '') {
