@@ -50,6 +50,8 @@ global.PWA={
  canInstall:()=>!!deferredPrompt,
  async install(){if(!deferredPrompt)return false;const e=deferredPrompt;deferredPrompt=null;doc.documentElement.classList.remove('pwa-installable');e.prompt();try{const r=await e.userChoice;return r?.outcome==='accepted'}catch{return false}},
  isStandalone:()=>global.matchMedia?.('(display-mode: standalone)').matches||global.navigator.standalone===true,
+ // iPadOS reports itself as a Mac; touch support tells them apart. Used for the Home Screen storage hint.
+ isIOS:()=>/iPad|iPhone|iPod/.test(global.navigator.userAgent||'')||global.navigator.platform==='MacIntel'&&global.navigator.maxTouchPoints>1,
 };
 if(doc.readyState==='complete')register();else global.addEventListener('load',register);
 })(window);

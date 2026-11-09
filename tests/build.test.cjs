@@ -35,3 +35,12 @@ test('the 404 page turns a deep path into the matching hash route under the same
   assert.equal(go('me.github.io','/Cyberpunk-beyond/missing.png'),'/Cyberpunk-beyond/');
  }finally{fs.rmSync(out,{recursive:true,force:true})}
 });
+
+test('every module in the bundle is isolated, so one that throws while loading stops neither the others nor app.js',()=>{
+ const out=build();
+ try{
+  const bundle=fs.readFileSync(path.join(out,'nc-red.js'),'utf8'),scripts=[...fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8').matchAll(/<script src="([^":?]+\.js)"><\/script>/g)].map(m=>m[1]);
+  for(const f of scripts)assert.ok(bundle.includes(`/* ${f} */\n`+(f==='app.js'?';':'try{\n')),f);
+  assert.ok(bundle.trimEnd().endsWith(fs.readFileSync(path.join(__dirname,'..','site','app.js'),'utf8').trimEnd()),'app.js runs last');
+ }finally{fs.rmSync(out,{recursive:true,force:true})}
+});

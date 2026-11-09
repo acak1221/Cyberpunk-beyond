@@ -7,7 +7,15 @@
 const doc=global.document,PREFIX='#/import/',te=new TextEncoder(),td=new TextDecoder();
 const ru=()=>(doc.documentElement.lang||'ru')!=='en';
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const MAX_LINK=60000;
+// A link may unpack to at most MAX_SHEET bytes of JSON, so a short crafted link cannot expand into megabytes.
+const MAX_LINK=60000,MAX_SHEET=200000;
+const T={ru:{damaged:'Ссылка на персонажа повреждена или обрезана.',tooBig:'Лист персонажа слишком большой для импорта.',noCharacter:'В ссылке нет персонажа.',title:'Импортировать персонажа?',titleSame:'Этот персонаж уже есть на устройстве',rank:'ранг',add:'Лист будет добавлен к вашим персонажам на этом устройстве.',inlink:'В ссылке',infile:'В файле',here:'На этом устройстве',newer:'новее',noTime:'время изменения неизвестно',
+ incoming:s=>`Версия ${s==='file'?'в файле':'в ссылке'} новее: «Обновить» заменит ею лист на этом устройстве.`,local:s=>`Версия на этом устройстве новее. «Обновить» вернёт лист к более старой версии ${s==='file'?'из файла':'из ссылки'}, и последние изменения пропадут.`,same:()=>'Это та же версия листа.',unknown:()=>'Неизвестно, какая версия новее: ни у одной из них не записано время изменения.',
+ cancel:'Отмена',import:'Импортировать',update:'Обновить',copy:'Оставить обе',imported:'Персонаж импортирован.',updated:'Персонаж обновлён.',copied:'Персонаж добавлен отдельным листом.',invalid:'Не удалось прочитать лист персонажа.',storage:'Не хватает места в браузере: персонаж не импортирован, ваши данные не изменились.',paused:'Редактирование приостановлено — персонаж не импортирован.',missing:'Лист на этом устройстве изменился. Повторите импорт.'},
+ en:{damaged:'The character link is damaged or cut off.',tooBig:'The character sheet is too big to import.',noCharacter:'There is no character in this link.',title:'Import this character?',titleSame:'This character is already on this device',rank:'rank',add:'The sheet will be added to your characters on this device.',inlink:'In the link',infile:'In the file',here:'On this device',newer:'newer',noTime:'edit time unknown',
+ incoming:s=>`The version in the ${s} is newer: “Update” replaces the sheet on this device with it.`,local:s=>`The version on this device is newer. “Update” would roll the sheet back to the older version from the ${s}, and the latest changes would be lost.`,same:()=>'This is the same version of the sheet.',unknown:()=>'It is unknown which version is newer: neither has an edit time.',
+ cancel:'Cancel',import:'Import',update:'Update',copy:'Keep both',imported:'Character imported.',updated:'Character updated.',copied:'The character was added as a separate sheet.',invalid:'Could not read the character sheet.',storage:'Not enough browser storage: the character was not imported and your data is unchanged.',paused:'Editing is paused, so the character was not imported.',missing:'The sheet on this device changed. Import again.'}};
+const t=k=>T[ru()?'ru':'en'][k];
 
 function b64u(bytes){let s='';for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return global.btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function unb64u(s){const t=s.replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(global.atob(t+'='.repeat((4-t.length%4)%4)),c=>c.charCodeAt(0))}
@@ -19,21 +27,29 @@ async function pack(obj){
  if(global.CompressionStream){try{return 'z'+b64u(await pipe(json,new global.CompressionStream('deflate-raw')))}catch{}}
  return 'j'+b64u(json);
 }
+// Reads the decompressed stream piece by piece and stops as soon as it passes MAX_SHEET bytes.
+async function inflate(bytes){
+ const reader=new global.Blob([bytes]).stream().pipeThrough(new global.DecompressionStream('deflate-raw')).getReader(),parts=[];let size=0;
+ for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>MAX_SHEET){reader.cancel().catch(()=>{});throw Error('too_big')}parts.push(value)}
+ const out=new Uint8Array(size);let at=0;for(const p of parts){out.set(p,at);at+=p.length}return out;
+}
 async function unpack(text){
+ if(typeof text!=='string'||text.length>MAX_SHEET*4/3+4)throw Error('too_big');
  const kind=text[0],bytes=unb64u(text.slice(1));
- if(kind==='z'){if(!global.DecompressionStream)throw Error('no_decompress');return JSON.parse(td.decode(await pipe(bytes,new global.DecompressionStream('deflate-raw'))))}
- if(kind==='j')return JSON.parse(td.decode(bytes));
+ if(kind==='z'){if(!global.DecompressionStream)throw Error('no_decompress');return JSON.parse(td.decode(await inflate(bytes)))}
+ if(kind==='j'){if(bytes.length>MAX_SHEET)throw Error('too_big');return JSON.parse(td.decode(bytes))}
  throw Error('bad_link');
 }
 // Pictures would make the link huge; the private import key is not shared.
 function shareable(c){const copy=JSON.parse(JSON.stringify(c));if(copy.extra&&typeof copy.extra==='object'){delete copy.extra.portrait;delete copy.extra.portraitThumb;delete copy.extra.sourceKey}return copy}
 function baseUrl(){return global.location.origin+global.location.pathname}
-async function link(c){return baseUrl()+PREFIX+await pack({format:'nightcity-red-character',version:1,character:shareable(c)})}
+function payload(c){return {format:'nightcity-red-character',version:1,character:shareable(c)}}
+async function link(c){return baseUrl()+PREFIX+await pack(payload(c))}
 
 async function share(c){
  const App=global.App;if(!c)return;
- const url=await link(c);
- if(url.length>MAX_LINK){App?.notify?.(ru()?'Персонаж слишком большой для ссылки — используйте «Экспорт».':'This character is too big for a link — use Export.');return}
+ const data=payload(c),url=baseUrl()+PREFIX+await pack(data);
+ if(url.length>MAX_LINK||te.encode(JSON.stringify(data)).length>MAX_SHEET){App?.notify?.(ru()?'Персонаж слишком большой для ссылки — используйте «Экспорт».':'This character is too big for a link — use Export.');return}
  if(global.navigator.share&&global.matchMedia?.('(pointer: coarse)').matches){try{await global.navigator.share({title:c.name||'Night City // RED',text:(ru()?'Персонаж для Cyberpunk RED: ':'Cyberpunk RED character: ')+(c.name||''),url});return}catch(e){if(e?.name==='AbortError')return}}
  try{await global.navigator.clipboard.writeText(url);App?.notify?.(ru()?'Ссылка на персонажа скопирована. Её можно открыть на другом устройстве — лист импортируется после подтверждения.':'Character link copied. Open it on another device to import the sheet after confirming.')}
  catch{global.prompt?.(ru()?'Ссылка на персонажа':'Character link',url)}
@@ -51,18 +67,44 @@ function takeFromHash(){
 async function offerImport(){
  if(!pending||!global.App)return;
  const data=pending;pending=null;
- let obj;try{obj=await unpack(data)}catch{global.App.notify(ru()?'Ссылка на персонажа повреждена или обрезана.':'The character link is damaged or cut off.');return}
+ let obj;try{obj=await unpack(data)}catch(e){global.App.notify(t(e?.message==='too_big'?'tooBig':'damaged'));return}
  const c=obj?.format==='nightcity-red-character'?obj.character:obj;
- if(!c||typeof c!=='object'||Array.isArray(c)){global.App.notify(ru()?'В ссылке нет персонажа.':'There is no character in this link.');return}
- const dlg=doc.createElement('dialog');dlg.className='share-import';
+ if(!c||typeof c!=='object'||Array.isArray(c)){global.App.notify(t('noCharacter'));return}
+ return offer(c,{kind:'link'});
+}
+// A time more than a day ahead of this device's clock (a wrong clock or a crafted link) is not believed: it reads as unknown.
+const editTime=c=>{const v=c?.extra?.updatedAt;return typeof v==='number'&&v>0&&v<=Date.now()+864e5?v:null};
+// Which copy was edited last: 'incoming', 'local', 'same', or 'unknown'. A sheet without an edit time has not been edited since
+// edit times exist, so it counts as the older one; with neither time it is unknown.
+function verdict(incoming,local){return incoming&&local?(incoming>local?'incoming':incoming<local?'local':'same'):incoming?'incoming':local?'local':'unknown'}
+function roleName(id){const r=Array.isArray(global.ROLES)?global.ROLES.find(x=>x?.id===id):null;return r?.name?.[ru()?'ru':'en']||String(id||'').slice(0,40)}
+function when(ms){if(!ms)return t('noTime');try{return new Date(ms).toLocaleString(ru()?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return new Date(ms).toISOString().slice(0,16).replace('T',' ')}}
+function dialogHtml(c,match,kind){
  const stats=c.stats&&typeof c.stats==='object'?['INT','REF','DEX','TECH','COOL','WILL','LUCK','MOVE','BODY','EMP'].map(k=>`<span><small>${k}</small>${esc(Number(c.stats[k])||0)}</span>`).join(''):'';
- dlg.innerHTML=`<form method="dialog"><h2>${ru()?'Импортировать персонажа?':'Import this character?'}</h2><p class="share-import-name"><b>${esc(String(c.name||'—').slice(0,80))}</b> · ${esc(String(c.role||'').slice(0,20))}${c.rank?` · ${ru()?'ранг':'rank'} ${esc(Number(c.rank)||0)}`:''}</p><div class="share-import-stats">${stats}</div><p class="muted">${ru()?'Лист будет добавлен к вашим персонажам на этом устройстве. Если вы уже открывали эту ссылку, лист обновится.':'The sheet will be added to your characters on this device. If you opened this link before, the sheet is updated.'}</p><div class="share-import-actions"><button value="cancel" class="btn ghost">${ru()?'Отмена':'Cancel'}</button><button value="ok" class="btn primary">${ru()?'Импортировать':'Import'}</button></div></form>`;
- doc.body.appendChild(dlg);
- dlg.addEventListener('close',()=>{
-  if(dlg.returnValue==='ok'){const res=global.App.importCharacter(c,{sourceKey:'link:'+String(c.id||c.name||'').slice(0,80),open:true});global.App.notify(res?.ok?(res.updated?(ru()?'Персонаж обновлён.':'Character updated.'):(ru()?'Персонаж импортирован.':'Character imported.')):(ru()?'Не удалось прочитать лист персонажа.':'Could not read the character sheet.'))}
-  dlg.remove();
+ const head=`<h2>${t(match?'titleSame':'title')}</h2><p class="share-import-name"><b>${esc(String(c.name||'—').slice(0,80))}</b> · ${esc(roleName(c.role))}${c.rank?` · ${t('rank')} ${esc(Number(c.rank)||0)}`:''}</p><div class="share-import-stats">${stats}</div>`;
+ if(!match)return `<form method="dialog">${head}<p class="muted">${t('add')}</p><div class="share-import-actions"><button value="cancel" class="btn ghost">${t('cancel')}</button><button value="new" class="btn primary">${t('import')}</button></div></form>`;
+ const theirs=editTime(c),mine=match.updatedAt,v=verdict(theirs,mine),src=kind==='file'?'file':'link',name=String(match.name||'').slice(0,80);
+ const row=(label,ms,newer)=>`<div class="share-import-version${newer?' is-newer':''}"><span>${label}</span><b>${esc(when(ms))}</b>${newer?`<em>${t('newer')}</em>`:''}</div>`;
+ return `<form method="dialog">${head}<div class="share-import-versions">${row(t('in'+src),theirs,v==='incoming')}${row(t('here')+(name&&name!==c.name?` · ${esc(ru()?'«'+name+'»':'“'+name+'”')}`:''),mine,v==='local')}</div><p class="share-import-verdict${v==='local'?' warn':''}">${esc(t(v)(src))}</p><div class="share-import-actions"><button value="cancel" class="btn ghost">${t('cancel')}</button><button value="copy" class="btn ghost">${t('copy')}</button><button value="update" class="btn ${v==='local'?'ghost':'primary'}">${t('update')}</button></div></form>`;
+}
+function finish(res,how,quiet){const App=global.App;if(res?.ok){if(!quiet)App.notify(t(how==='copy'?'copied':res.updated?'updated':'imported'))}else App.notify(t({too_big:'tooBig',storage:'storage',paused:'paused',missing:'missing'}[res?.reason]||'invalid'));return res}
+// Asks before importing a sheet from a link. A sheet from a link or a file that is already on this device (same uid) is compared
+// with the local one by edit time, and the player chooses: update it, keep both, or cancel. Resolves to the import result or null.
+function offer(c,{kind='link'}={}){
+ const App=global.App;if(!App||!c||typeof c!=='object')return Promise.resolve(null);
+ const sourceKey=kind==='link'?'link:'+String(c.id||c.name||'').slice(0,80):'',match=App.findImport?.(c,{sourceKey})||null;
+ if(kind!=='link'&&!match)return Promise.resolve(finish(App.importCharacter(c,{open:true}),'new',true));
+ return new Promise(resolve=>{
+  const dlg=doc.createElement('dialog');dlg.className='share-import';dlg.innerHTML=dialogHtml(c,match,kind);
+  doc.body.appendChild(dlg);
+  dlg.addEventListener('close',()=>{
+   const how=dlg.returnValue;dlg.remove();
+   const res=how==='new'?App.importCharacter(c,{sourceKey,open:true}):how==='update'&&match?App.importCharacter(c,{sourceKey,open:true,replace:match.id}):how==='copy'&&match?App.importCharacter(c,{open:true,copy:true}):null;
+   resolve(res?finish(res,how):null);
+  });
+  if(typeof dlg.showModal==='function')dlg.showModal();
+  else{const v=match?verdict(editTime(c),match.updatedAt):'';dlg.returnValue=global.confirm(t(match?'titleSame':'title')+(match?'\n'+t(v)(kind==='file'?'file':'link'):''))?(match?(v==='local'?'copy':'update'):'new'):'cancel';dlg.dispatchEvent(new Event('close'))}
  });
- if(typeof dlg.showModal==='function')dlg.showModal();else if(global.confirm(ru()?'Импортировать персонажа?':'Import this character?')){dlg.returnValue='ok';dlg.dispatchEvent(new Event('close'))}
 }
 takeFromHash();
 global.addEventListener('hashchange',()=>{if(takeFromHash())offerImport()});
@@ -81,5 +123,5 @@ async function qrSvg(text,{label=''}={}){
  return `<svg class="qr" viewBox="0 0 ${n+2*m} ${n+2*m}" role="img" aria-label="${esc(label||'QR')}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
 }
 
-global.ShareLink={share,link,pack,unpack,shareable,qrSvg,_test:{takeFromHash,b64u,unb64u}};
+global.ShareLink={share,link,pack,unpack,shareable,offer,qrSvg,_test:{takeFromHash,b64u,unb64u,verdict,roleName,MAX_SHEET}};
 })(window);
