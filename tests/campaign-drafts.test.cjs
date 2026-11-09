@@ -81,6 +81,12 @@ test('after a re-render, focus and caret return to the journal box and keyboard 
  // tracker button: focus returns to the new "next" button, not to a row button with an id
  log.length=0;const next=element('',{campaignAction:'next'});doc=page(element('',{campaignAction:'next'}),newView(element('',{campaignAction:'remove',id:'x'}),next));h.html();doc.activeElement=body;await Promise.resolve();await Promise.resolve();
  assert.deepEqual(log,[['focus','next',true]]);
+ // REF/HP number fields have no selection API (selectionStart is null): the caret goes to the end of the value, so "4", re-render, "5" gives 45, not 54; the field is a number field again afterwards, even if setting the caret fails
+ const num=(id,fail)=>{let type='number';return {...element(id),selectionStart:null,selectionEnd:null,selectionDirection:null,value:'4',get type(){return type},set type(v){log.push(['type',v]);type=v},setSelectionRange(...a){if(fail||type==='number')throw new Error('InvalidStateError');log.push(['range',...a])}}};
+ for(const id of ['campaign-npc-hp','campaign-npc-ref']){log.length=0;fresh=num(id);fresh.scrollTop=0;doc=page(num(id),newView(fresh));h.html();doc.activeElement=body;await Promise.resolve();await Promise.resolve();
+  assert.deepEqual(log,[['focus',id,true],['type','text'],['range',1,1],['type','number']]);assert.equal(fresh.type,'number');assert.equal(fresh.scrollTop,40)}
+ log.length=0;fresh=num('campaign-npc-hp',true);doc=page(num('campaign-npc-hp'),newView(fresh));h.html();doc.activeElement=body;await Promise.resolve();await Promise.resolve();
+ assert.deepEqual(log,[['focus','campaign-npc-hp',true],['type','text'],['type','number']]);assert.equal(fresh.type,'number');
  // nothing is stolen when something else took focus, the view changed campaign, or focus was outside the view
  log.length=0;doc=page(element('campaign-journal-text'),newView(element('campaign-journal-text')));h.html();doc.activeElement={};await Promise.resolve();await Promise.resolve();
  const other=element('campaign-journal-text');other.closest=()=>({dataset:{campaignView:'b'}});doc=page(other,newView(element('campaign-journal-text')));h.html();doc.activeElement=body;await Promise.resolve();
