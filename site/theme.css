@@ -388,3 +388,14 @@ dialog.share-import h2 { margin: 0 0 8px; font-size: 20px; }
 .share-import-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 html.ui-light dialog.share-import { box-shadow: 0 20px 60px rgba(0, 0, 0, .2); }
 html.ui-light .share-import-stats span { background: rgba(0, 0, 0, .05); }
+.share-import-versions { display: grid; gap: 6px; margin-bottom: 10px; }
+.share-import-version { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 8px 10px; border: 1px solid var(--border, #333); border-radius: 10px; }
+.share-import-version span { grid-column: 1 / -1; overflow-wrap: anywhere; color: var(--muted, #aaa); font-size: 12px; }
+.share-import-version b { font-weight: 600; }
+.share-import-version em { padding: 2px 8px; color: var(--green, #84b799); border: 1px solid currentColor; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 700; }
+.share-import-version.is-newer { border-color: var(--green, #84b799); }
+.share-import-verdict { margin: 0; font-size: 14px; line-height: 1.4; }
+dialog.share-import p.share-import-verdict.warn { color: var(--yellow, #e9c66d); }
+.share-import-actions { flex-wrap: wrap; }
+@media (max-width: 480px) { .share-import-actions .btn { flex: 1 1 auto; } }
+html.ui-native dialog.share-import h2 { line-height: 1.25; text-transform: none; }
