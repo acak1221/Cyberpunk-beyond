@@ -114,3 +114,6 @@ html.ui-native .room-incoming li { border: 0; border-radius: 12px; }
 .room-qr { display: grid; justify-items: center; gap: 8px; margin-top: 12px; }
 .room-qr .qr { width: min(240px, 70vw); height: auto; border-radius: 8px; }
 .room-qr small { color: var(--muted, #aaa); text-align: center; }
+html.ui-native.ui-light .room-alert { color: #3d2b0f; background: #fff3dc; }
+html.ui-native.ui-light .room-alert.soft { color: #5b5750; background: #fff; }
+html.ui-native.ui-light .room-incoming li { background: rgba(0, 0, 0, .04); }

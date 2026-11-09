@@ -14,7 +14,7 @@ function setStyle(style){
  root.classList.toggle('ui-native',native);
  try{global.localStorage.setItem(KEY,native?'native':'cyber')}catch{}
  paintSwitch();
- if(native)scan(doc.querySelector('#app'));
+ if(native)scan(doc.querySelector('#app'));else global.App?.render?.(); // bring back the original capitals
 }
 function paintSwitch(){for(const b of doc.querySelectorAll('[data-ui-style]')){const on=(b.dataset.uiStyle==='native')===isNative();b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))}}
 
@@ -22,10 +22,29 @@ function paintSwitch(){for(const b of doc.querySelectorAll('[data-ui-style]')){c
 const HELP='.rule-card p, .catalog-card p, .page-header p, .cx-help, .et-hint, .rt-help, .hustle-help, .netrun-lead, .gm-note, p.muted, .agent-empty, .sr-note, .nm-note, .gx-note, p[class$="-note"], p[class*="-note "]';
 const KEEP='.gm-match, .room-rolls, .room-feed, [aria-live], [role="status"], [role="alert"], .history-card, .nx-open';
 const DECO=/^(\d{2}\s*\/\s*[A-Z][A-Z ]*|[A-Z][A-Z]+(\s*\/\/\s*\d+)?|PERSONNEL\s*\/\/\s*\d+)$/;
+// Headings written in capitals read as shouting in the clean look. Capitalised words become
+// sentence case; game abbreviations (NET, DV, HP, SP, NPC, stats…) and names keep their case.
+const CASE='.page-header h1, .section-head h2, .card-heading > span:first-child, .rule-card h3, .catalog-card h3, .rule-source';
+const ACRONYMS=new Set('NET DV IP ICE AV NPC NPCS GM HP SP SDP ROF HUM EMP INT REF DEX TECH COOL WILL LUCK MOVE BODY RED EB AI QR PDF ID HUD CP REZ MRE EMG SMG UV DNA NOS KRASH MQTT ЭМИ ИК УФ ИИ ПК'.split(' '));
+const NAMES=[[/night city/gi,'Night City'],[/найт[ -]сити/gi,'Найт-Сити'],[/cyberpunk/gi,'Cyberpunk'],[/corebook/gi,'Corebook']];
+const CAPS=/^[^a-zа-яё]*$/;
+function sentenceCase(text,whole){
+ let out=text.replace(/[A-Za-zА-Яа-яЁё]+/g,w=>{if(w!==w.toUpperCase()||ACRONYMS.has(w))return w;if(w.length<2&&!whole)return w;return w.toLowerCase()});
+ for(const [re,name] of NAMES)out=out.replace(re,name);
+ return out;
+}
+function recase(el){
+ if(el.closest('.sheet-header'))return;
+ const nodes=[];const walk=doc.createTreeWalker(el,4);while(walk.nextNode())nodes.push(walk.currentNode);
+ const full=nodes.map(n=>n.nodeValue).join('');if(!/[A-ZА-ЯЁ]{2}/.test(full))return;
+ const whole=CAPS.test(full);let first=true;
+ for(const n of nodes){let v=sentenceCase(n.nodeValue,whole);if(first&&/\p{L}/u.test(v)){v=v.replace(/\p{L}/u,c=>c.toUpperCase());first=false}if(v!==n.nodeValue)n.nodeValue=v}
+}
 const PAGE=/^(?:(?:СТР|PP?)\.?\s*)?\d{1,3}(?:\s*[–\-,/]\s*\d{1,3})*(?:,\s*\d{1,3}(?:[–\-]\d{1,3})?)*$/i;
 
 function scan(scope){
  if(!scope||!isNative())return;
+ for(const el of scope.querySelectorAll(CASE)){if(el.dataset.nxCase)continue;el.dataset.nxCase='1';recase(el)}
  for(const s of scope.querySelectorAll('.card-heading > span:last-child:not([data-nx])')){
   s.dataset.nx='1';const t=s.textContent.trim();
   if(DECO.test(t))s.classList.add('nx-deco');
@@ -63,5 +82,5 @@ let queued=false;
 function schedule(){if(queued)return;queued=true;global.requestAnimationFrame(()=>{queued=false;scan(doc.querySelector('#app'));paintSwitch()})}
 function start(){const app=doc.querySelector('#app');if(!app)return;new MutationObserver(schedule).observe(app,{childList:true,subtree:true});schedule()}
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start);else start();
-global.NativeUI={setStyle,isNative,scan};
+global.NativeUI={setStyle,isNative,scan,sentenceCase};
 })(window);

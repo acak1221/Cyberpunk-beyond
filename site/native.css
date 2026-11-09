@@ -30,14 +30,11 @@ html.ui-native :is(.brand-mark, .hero h1, .status-dot, .room-dot.on, .quick-icon
 /* ---------- Typography ---------- */
 html.ui-native :is(h1, h2, h3, .brand) { font-family: var(--display); letter-spacing: -.01em; }
 html.ui-native .page-header { margin-top: 22px; margin-bottom: 18px; gap: 14px; align-items: flex-end; }
-html.ui-native .page-header h1 { margin: 0 0 4px; font: 700 clamp(26px, 3.2vw, 34px)/1.15 var(--display); text-transform: lowercase; text-shadow: none; }
-html.ui-native .page-header h1::first-letter { text-transform: uppercase; }
+html.ui-native .page-header h1 { margin: 0 0 4px; font: 700 clamp(26px, 3.2vw, 34px)/1.15 var(--display); text-transform: none; text-shadow: none; }
 html.ui-native .sheet-header h1 { text-transform: none; }
-html.ui-native .sheet-header h1::first-letter { text-transform: none; }
 html.ui-native .page-header p { max-width: 720px; margin: 0; color: var(--muted); font-size: 15px; }
 html.ui-native .section-head { margin: 26px 0 12px; }
-html.ui-native .section-head h2 { margin: 0; font: 700 20px/1.25 var(--display); text-transform: lowercase; }
-html.ui-native .section-head h2::first-letter { text-transform: uppercase; }
+html.ui-native .section-head h2 { margin: 0; font: 700 20px/1.25 var(--display); text-transform: none; }
 html.ui-native .section-head p { margin: 2px 0 0; color: var(--muted); }
 
 /* ---------- Surfaces ---------- */
@@ -48,8 +45,7 @@ html.ui-native .card { padding: 16px; margin-bottom: 12px; }
 html.ui-native .card:hover { border-color: transparent; }
 html.ui-native .card .card { background: var(--panel-2); }
 html.ui-native .card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 0; border: 0; }
-html.ui-native .card-heading > span:first-child { display: inline-block; color: var(--text); font: 600 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: lowercase; }
-html.ui-native .card-heading > span:first-child::first-letter { text-transform: uppercase; }
+html.ui-native .card-heading > span:first-child { display: inline-block; color: var(--text); font: 600 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; }
 html.ui-native .card-heading > span:last-child:not(:first-child) { color: var(--muted); font: 500 12px/1.3 var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native .nx-page { padding: 2px 8px; border-radius: 999px; background: var(--panel-2); white-space: nowrap; }
 html.ui-native .empty { border: 1px dashed rgba(255, 255, 255, .12); }
@@ -199,14 +195,12 @@ html.ui-native .room-pill { border: 0; border-radius: 999px; background: var(--p
 /* ---------- Refinements: rules, search, catalog, sheet header ---------- */
 html.ui-native .badge, html.ui-native .tag, html.ui-native .pill { min-height: 22px; padding: 2px 9px; color: #e9e9ee; background: var(--panel-2); border: 0; border-radius: 999px; font: 600 12px/1.3 var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native .rule-top { color: var(--muted); font: 500 12px var(--body); letter-spacing: 0; text-transform: none; }
-html.ui-native :is(.rule-card, .catalog-card) h3 { font: 650 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: lowercase; }
-html.ui-native :is(.rule-card, .catalog-card) h3::first-letter { text-transform: uppercase; }
+html.ui-native :is(.rule-card, .catalog-card) h3 { font: 650 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; }
 html.ui-native .rule-card, html.ui-native .catalog-card { padding: 16px; gap: 8px; }
 html.ui-native .rule-card:hover, html.ui-native .catalog-card:hover { background: var(--panel-hover); }
 html.ui-native .rule-bottom { border-top: 0; padding-top: 0; }
 html.ui-native .rule-bottom > span:first-child { display: none; }
-html.ui-native .rule-source { display: inline-block; color: var(--red); font: 600 14px var(--body); letter-spacing: 0; text-transform: lowercase; }
-html.ui-native .rule-source::first-letter { text-transform: uppercase; }
+html.ui-native .rule-source { display: inline-block; color: var(--red); font: 600 14px var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native .nx-more { align-self: flex-start; }
 html.ui-native .search { min-height: 44px; padding: 0 12px; background: var(--panel-2); border: 1px solid transparent; border-radius: 12px; }
 html.ui-native .search:focus-within { border-color: rgba(255, 69, 58, .7); }
