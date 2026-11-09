@@ -18,6 +18,10 @@ const SHELL = new URL('./', SCOPE).href;
 const PINNED = '?v=' + VERSION;
 const PRECACHED = new Set(PRECACHE.map(url => new URL(url, SCOPE).href));
 const PDF_FILES = new Map(Object.entries(PDFJS.files));
+// Workers before this one (up to c852236) kept index.html in their cache and answered nc-red.js?v=NEW with their
+// own copy (ignoreSearch): while one stays in control, every new tab and offline start pairs the new page with old
+// scripts. Only their caches hold index.html, so such a worker is replaced at once instead of waiting for «Обновить».
+const replacesLegacyWorker = () => caches.match(new URL('index.html', SCOPE).href).then(Boolean, () => false);
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -41,17 +45,27 @@ self.addEventListener('install', event => {
       await caches.delete(APP_CACHE);
       throw new Error('precache failed: ' + failed.join(', '));
     }
+    if (await replacesLegacyWorker()) self.skipWaiting();
   })());
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
+    const legacy = await replacesLegacyWorker();
     const keep = new Set([APP_CACHE, PDF_CACHE, FONT_CACHE]);
     const names = (await caches.keys()).filter(name => name.startsWith('nc-red-') && !keep.has(name));
     // Earlier versions kept pdf.js in a per-version cache: carry it over instead of downloading it again.
     await adoptPdf(names.filter(name => name.startsWith('nc-red-runtime-'))).catch(() => {});
     await Promise.all(names.map(name => caches.delete(name)));
     await self.clients.claim();
+    // Its pages may run this version's page with old scripts (or show its update notice, which can no longer work):
+    // reload them into this version. client.url misses route changes made with replaceState, and a URL that differs
+    // only after # would not reload, so the path switches between ./ and ./index.html. Not awaited: this worker
+    // answers the reload once it is active.
+    if (legacy) for (const client of await self.clients.matchAll({ type: 'window' })) {
+      const { pathname, search, hash } = new URL(client.url);
+      client.navigate(new URL((pathname === SCOPE_PATH ? 'index.html' : './') + search + hash, SCOPE).href).catch(() => {});
+    }
   })());
 });
 

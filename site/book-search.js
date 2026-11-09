@@ -49,13 +49,14 @@ const RESULT_PAGE_SIZE=25;
 // Offline, the PDF reader loads only if it was stored before; a failure then is not a damaged file.
 // Chromium remembers a failed import() and pdf.js a failed worker start for the page's lifetime,
 // so after a failure the next search loads a fresh copy of the module.
-let fresh=0;const moduleError=cause=>Object.assign(Error('PDF module unavailable'),{pdfModule:true,cause});
+let fresh=0,moduleWanted=false;const moduleError=cause=>(moduleWanted=true,Object.assign(Error('PDF module unavailable'),{pdfModule:true,cause}));
 const reachable=url=>fetch(url).then(r=>{r.body?.cancel().catch(()=>{});return r.ok},()=>false);
 async function loadPDF(bytes){let lib;try{lib=await import('./vendor/pdfjs/pdf.min.mjs'+(fresh?'?retry='+fresh:''))}catch(e){fresh++;throw moduleError(e)}const worker=new URL('./vendor/pdfjs/pdf.worker.min.mjs',document.baseURI).href;lib.GlobalWorkerOptions.workerSrc=worker;const task=lib.getDocument({data:new Uint8Array(bytes),disableAutoFetch:true});
  const promise=task.promise.catch(async e=>{if(task.destroyed)throw e;fresh++;throw await reachable(worker)?e:moduleError(e)});promise.catch(()=>{});return {promise,destroy:()=>task.destroy()};}
-// Offline readiness: the installed app asks its service worker to store the reader while online and idle
-// (not with data saver or on 2G: then it is stored on first use).
-function prefetchModule(){const sw=typeof navigator==='undefined'?null:navigator.serviceWorker;if(!sw||!document.documentElement?.dataset?.build)return;const ask=()=>{const c=navigator.connection;if(navigator.onLine!==false&&!c?.saveData&&!/2g/.test(c?.effectiveType||''))sw.ready.then(reg=>reg.active?.postMessage('cache-pdf')).catch(()=>{})};
+// Offline readiness: the installed app asks its service worker to store the reader while online and idle, from
+// the second start on, so that a first visit downloads only the app (not with data saver or on 2G: then it is
+// stored on first use). After a search has failed without it, the next connection stores it on any network.
+function prefetchModule(){const sw=typeof navigator==='undefined'?null:navigator.serviceWorker;if(!sw||!document.documentElement?.dataset?.build)return;const returning=!!sw.controller;const ask=()=>{const c=navigator.connection;if(navigator.onLine!==false&&(moduleWanted||returning&&!c?.saveData&&!/2g/.test(c?.effectiveType||'')))sw.ready.then(reg=>reg.active?.postMessage('cache-pdf')).catch(()=>{})};
  sw.ready.then(()=>{(window.requestIdleCallback||(f=>setTimeout(f,4000)))(ask,{timeout:20000});window.addEventListener('online',ask)}).catch(()=>{});}
 prefetchModule();
 function create(loader=loadPDF){let file=null,token=0,task=null,index=null,query='',term='',status={key:'start'},results=[],offset=0;

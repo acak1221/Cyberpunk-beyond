@@ -54,7 +54,7 @@ test('a damaged PDF with a working reader still says to check the file',async()=
 });
 
 test('the installed app asks its service worker to store the reader when online and idle',async()=>{
- const make=(extra={})=>{const posted=[];const navigator={onLine:true,connection:{},serviceWorker:{ready:Promise.resolve({active:{postMessage:m=>posted.push(m)}})},...extra};return {posted,navigator}};
+ const make=(extra={},controller={})=>{const posted=[];const navigator={onLine:true,connection:{},serviceWorker:{controller,ready:Promise.resolve({active:{postMessage:m=>posted.push(m)}})},...extra};return {posted,navigator}};
  let n=make();load({navigator:n.navigator});await flush();assert.deepEqual(n.posted,['cache-pdf']);
  n=make();load({navigator:n.navigator,build:''});await flush();assert.deepEqual(n.posted,[],'not in development copies without a service worker');
  n=make({connection:{saveData:true}});load({navigator:n.navigator});await flush();assert.deepEqual(n.posted,[],'data saver');
@@ -62,4 +62,12 @@ test('the installed app asks its service worker to store the reader when online 
  n=make({onLine:false});const {win}=load({navigator:n.navigator});await flush();assert.deepEqual(n.posted,[]);
  n.navigator.onLine=true;win.listeners.online.forEach(f=>f());await flush();assert.deepEqual(n.posted,['cache-pdf'],'asks again when the device reconnects');
  assert.doesNotThrow(()=>load());
+});
+
+test('a first visit downloads only the app; the reader follows on a later start or once a search needs it',async()=>{
+ const posted=[],navigator={onLine:true,connection:{saveData:true},serviceWorker:{controller:null,ready:Promise.resolve({active:{postMessage:m=>posted.push(m)}})}};
+ const {net,win,BookSearch}=load({navigator});await flush();assert.deepEqual(posted,[],'not on the first visit');
+ win.listeners.online.forEach(f=>f());await flush();assert.deepEqual(posted,[],'nor when it reconnects');
+ navigator.onLine=false;net.module=net.worker=false;const s=BookSearch.create();s.setFile(file);await s.search('Hello');assert.equal(s.snapshot().status.key,'module');
+ navigator.onLine=true;win.listeners.online.forEach(f=>f());await flush();assert.deepEqual(posted,['cache-pdf'],'after «connect once» the reader is stored, data saver or not');
 });

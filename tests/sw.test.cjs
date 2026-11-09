@@ -29,14 +29,15 @@ function cacheStorage(){
  const cache=name=>({match:async(r,o)=>find(name,r,o),put:async(r,res)=>{await res.clone().arrayBuffer();store.get(name).set(key(r),res)},delete:async r=>store.get(name).delete(key(r)),keys:async()=>[...store.get(name).keys()]});
  return {store,open:async n=>{if(!store.has(n))store.set(n,new Map());return cache(n)},match:async(r,o={})=>o.cacheName?find(o.cacheName,r,o):[...store.keys()].map(n=>find(n,r,o)).find(Boolean),keys:async()=>[...store.keys()],delete:async n=>store.delete(n),has:async n=>store.has(n)};
 }
-function worker(){
- const net=host(),caches=cacheStorage(),handlers={},self={registration:{scope:SCOPE},addEventListener:(t,f)=>{handlers[t]=f},skipWaiting(){self.skipped=true},clients:{claim:async()=>{self.claimed=true}}};
+// windows: the open pages (URLs) this worker controls once it has claimed them; navigate() records where each goes.
+function worker(windows=[]){
+ const net=host(),caches=cacheStorage(),handlers={},navigated=[],self={registration:{scope:SCOPE},addEventListener:(t,f)=>{handlers[t]=f},skipWaiting(){self.skipped=true},clients:{claim:async()=>{self.claimed=true},matchAll:async o=>o?.type==='window'&&self.claimed?windows.map(url=>({url:new URL(url,SCOPE).href,navigate:async to=>{navigated.push(to);return null}})):[]}};
  vm.runInNewContext(source,{self,caches,fetch:(...a)=>net.fetch(...a),Request,Response,URL,crypto:globalThis.crypto});
  const extendable=(type,props)=>{const waits=[];handlers[type]({...props,waitUntil:p=>waits.push(p)});return Promise.all(waits)};
  const request=(url,mode='no-cors')=>({url:new URL(url,SCOPE).href,method:'GET',mode});
  // Resolves with the worker's response, or null when it leaves the request to the browser.
  async function get(url,mode){let responded=null;const waits=[];handlers.fetch({request:request(url,mode),respondWith:p=>{responded=Promise.resolve(p)},waitUntil:p=>waits.push(p)});const response=responded&&await responded;await Promise.all(waits);return response}
- return {net,caches,self,install:()=>extendable('install'),activate:()=>extendable('activate'),message:data=>extendable('message',{data}),get,navigate:url=>get(url,'navigate')};
+ return {net,caches,self,navigated,install:()=>extendable('install'),activate:()=>extendable('activate'),message:data=>extendable('message',{data}),get,navigate:url=>get(url,'navigate')};
 }
 const within=(promise,ms=500)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('timed out')),ms))]);
 
@@ -125,4 +126,21 @@ test('a failed background download is harmless and retried next time',async()=>{
  const sw=worker();await sw.install();await sw.activate();sw.net.mode='offline';
  await sw.message('cache-pdf');assert.equal(sw.caches.store.get(`nc-red-pdfjs-${PDFJS.version}`).size,0);
  sw.net.mode='online';await sw.message('cache-pdf');assert.equal(sw.caches.store.get(`nc-red-pdfjs-${PDFJS.version}`).size,2);
+});
+
+test('a worker from before this scheme (index.html in its cache) is replaced at once and its pages reload into this version',async()=>{
+ // The old worker answers nc-red.js?v=NEW with its own copy, so new tabs and offline starts mix versions until it is gone.
+ const sw=worker(['#/dice','index.html#/sheet','sheet/abc']),old=await sw.caches.open('nc-red-app-556a6019a9bf');
+ for(const url of ['','index.html','nc-red.js','nc-red.css'])await old.put(SCOPE+url,new Response('old'));
+ await sw.install();assert.ok(sw.self.skipped,'no waiting for «Обновить»');assert.deepEqual(sw.navigated,[]);
+ await sw.activate();assert.ok(!sw.caches.store.has('nc-red-app-556a6019a9bf'));
+ // A URL that differs only after # would not reload the page, so the path changes as well.
+ assert.deepEqual(sw.navigated,[SCOPE+'index.html#/dice',SCOPE+'#/sheet',SCOPE]);
+ sw.net.mode='offline';const page=await sw.navigate('index.html#/dice');assert.match(await page.text(),new RegExp(`data-build="${VERSION}"`));
+});
+
+test('an update from a worker of this scheme waits for «Обновить» and reloads nothing',async()=>{
+ const first=worker(['#/dice']);await first.install();await first.activate();
+ const next=worker(['#/dice']);for(const [name,entries] of first.caches.store)next.caches.store.set(name.replace(VERSION,'0123456789ab'),entries);
+ await next.install();assert.ok(!next.self.skipped);await next.activate();assert.deepEqual(next.navigated,[]);
 });
