@@ -11,7 +11,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = path.join(root, 'site');
 const out = path.resolve(root, process.argv[2] || 'dist');
 
-// Big optional files are cached on first use instead of at install time.
+// Big optional files are not precached. The PDF reader is stored on first use or in the
+// background, in a cache of its own that app updates keep (see sw.js).
 const RUNTIME_ONLY = [/^vendor\/pdfjs\//];
 const SKIP = [/^sw\.js$/, /\.map$/, /(^|\/)\./];
 
@@ -65,26 +66,43 @@ await writeFile(path.join(out, 'nc-red.css'), cssBundle);
 
 // ---- Version and precache list (from what is actually deployed) -------------
 const files = await walk(out);
-const hash = createHash('sha256');
-const precache = ['./'];
+const hash = createHash('sha256'), pdfHash = createHash('sha256');
+// './' is index.html itself; the bundles get the ?v= the page loads them with (below).
+const precache = ['./'], pdfjs = {};
 let bytes = 0;
 for (const file of files) {
   if (SKIP.some(re => re.test(file)) || file === '404.html') continue;
   const content = await readFile(path.join(out, file));
   hash.update(file).update('\0').update(content);
-  if (RUNTIME_ONLY.some(re => re.test(file))) continue;
-  precache.push(file);
+  if (RUNTIME_ONLY.some(re => re.test(file))) {
+    // The worker checks these hashes before it stores a pdf.js file.
+    if (/\.m?js$/.test(file)) pdfjs[file] = createHash('sha256').update(content).digest('hex'), pdfHash.update(file).update('\0').update(content);
+    continue;
+  }
+  if (file !== 'index.html') precache.push(file);
   bytes += (await stat(path.join(out, file))).size;
 }
+if (!Object.keys(pdfjs).length) throw new Error('vendor/pdfjs is missing');
 hash.update(await readFile(path.join(src, 'sw.js')));
 const version = hash.digest('hex').slice(0, 12);
+const BUNDLES = new Set(['nc-red.js', 'nc-red.css']);
+for (let i = 0; i < precache.length; i++) if (BUNDLES.has(precache[i])) precache[i] += `?v=${version}`;
+const views = [...(await readFile(path.join(src, 'app.js'), 'utf8')).match(/VIEWS=new Set\((\[[^\]]*\])\)/)?.[1].matchAll(/'([\w-]+)'/g) || []].map(m => m[1]);
+if (!views.length) throw new Error('VIEWS list not found in app.js; update build.mjs');
 
 const swSource = await readFile(path.join(src, 'sw.js'), 'utf8');
-const VERSION_SLOT = "const VERSION = '__BUILD__';", PRECACHE_SLOT = 'const PRECACHE = __PRECACHE__;';
-if (!swSource.includes(VERSION_SLOT) || !swSource.includes(PRECACHE_SLOT)) throw new Error('sw.js placeholders are missing');
-await writeFile(path.join(out, 'sw.js'), swSource
-  .replace(VERSION_SLOT, `const VERSION = ${JSON.stringify(version)};`)
-  .replace(PRECACHE_SLOT, `const PRECACHE = ${JSON.stringify(precache)};`));
+const slots = {
+  "const VERSION = '__BUILD__';": `const VERSION = ${JSON.stringify(version)};`,
+  'const PRECACHE = __PRECACHE__;': `const PRECACHE = ${JSON.stringify(precache)};`,
+  'const PDFJS = __PDFJS__;': `const PDFJS = ${JSON.stringify({ version: pdfHash.digest('hex').slice(0, 12), files: pdfjs })};`,
+  'const VIEWS = __VIEWS__;': `const VIEWS = ${JSON.stringify(views)};`,
+};
+let sw = swSource;
+for (const [slot, value] of Object.entries(slots)) {
+  if (!sw.includes(slot)) throw new Error(`sw.js placeholder is missing: ${slot}`);
+  sw = sw.replace(slot, value);
+}
+await writeFile(path.join(out, 'sw.js'), sw);
 
 // data-build turns on the service worker; ?v= busts plain HTTP caches on hosts without the worker.
 let first = true;
@@ -93,6 +111,10 @@ const stamped = sourceIndex
   .replace(STYLE_TAG, () => (first ? (first = false, `<link rel="stylesheet" href="nc-red.css?v=${version}">`) : ''))
   .replace(SCRIPT_TAG, (tag, file) => (file === 'app.js' ? `<script src="nc-red.js?v=${version}"></script>` : ''));
 await writeFile(path.join(out, 'index.html'), stamped);
+// The worker must store the very URLs the page loads, or a first visit downloads them twice.
+for (const [, url] of stamped.matchAll(/<(?:script|link|img)\b[^>]*?\s(?:src|href)="(?![a-z]+:|#|\/)([^"]+)"/g)) {
+  if (!precache.includes(url)) throw new Error(`index.html loads ${url}, which is not precached`);
+}
 
 // GitHub Pages: serve files as-is (no Jekyll processing).
 await writeFile(path.join(out, '.nojekyll'), '');
@@ -100,9 +122,8 @@ await writeFile(path.join(out, '.nojekyll'), '');
 // Unknown paths (e.g. /Cyberpunk-beyond/sheet/abc typed or shared without the #)
 // redirect to the app with the same route as a hash, under whatever base path
 // the site is served from. Relative asset links would break on a deep path, so
-// this page is tiny and self-contained.
-const views = [...(await readFile(path.join(src, 'app.js'), 'utf8')).match(/VIEWS=new Set\((\[[^\]]*\])\)/)?.[1].matchAll(/'([\w-]+)'/g) || []].map(m => m[1]);
-if (!views.length) throw new Error('VIEWS list not found in app.js; update build.mjs');
+// this page is tiny and self-contained. Once installed, sw.js does the same
+// without the network (VIEWS).
 await writeFile(path.join(out, '404.html'), `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Night City // RED</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#11110f;color:#e8e6e1;font:16px system-ui,sans-serif}a{color:#ff5a4f}</style></head><body><p><a href="./">Night City // RED</a></p><script>
 (function(){var views=${JSON.stringify(views)},parts=location.pathname.split('/').filter(Boolean),at=-1;
 for(var i=0;i<parts.length;i++)if(views.indexOf(decodeURIComponent(parts[i]))>=0){at=i;break}

@@ -14,7 +14,8 @@ function toast(text,actionLabel,onAction){
  const close=doc.createElement('button');close.type='button';close.className='pwa-toast-close';close.setAttribute('aria-label',ru()?'Закрыть':'Close');close.textContent='×';close.addEventListener('click',()=>{box.classList.remove('visible');if(waiting&&!updateRequested)chip()});box.appendChild(close);
  box.classList.add('visible');
 }
-function applyUpdate(){updateRequested=true;waiting?.postMessage('skip-waiting')}
+// If another tab has already applied this update, the new version is active and a reload is enough.
+function applyUpdate(){updateRequested=true;if(waiting&&waiting.state!=='installed')global.location.reload();else waiting?.postMessage('skip-waiting')}
 // After the notice is dismissed a small chip stays until the update is applied.
 function chip(){
  let b=doc.querySelector('#pwa-chip');
