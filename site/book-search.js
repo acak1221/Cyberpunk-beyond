@@ -43,8 +43,21 @@ Object.assign(W.ru,{start:'Поиск работает на вашем устр�
 Object.assign(W.en,{start:'Search runs on your device. Exact Russian names of skills, roles, sections and equipment map to English when unambiguous; other queries are searched literally.',as:'Searched in the original as'});
 Object.assign(W.ru,{previous:'Предыдущие',next:'Следующие',shown:'Показаны'});
 Object.assign(W.en,{previous:'Previous',next:'Next',shown:'Showing'});
+Object.assign(W.ru,{module:'Модуль чтения PDF ещё не загружен на это устройство. Подключитесь к интернету один раз — модуль сохранится, и поиск будет работать офлайн.'});
+Object.assign(W.en,{module:'The PDF reader module is not on this device yet. Connect to the internet once — it will be saved and search will work offline.'});
 const RESULT_PAGE_SIZE=25;
-async function loadPDF(bytes){const lib=await import('./vendor/pdfjs/pdf.min.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.min.mjs',document.baseURI).href;return lib.getDocument({data:new Uint8Array(bytes),disableAutoFetch:true});}
+// Offline, the PDF reader loads only if it was stored before; a failure then is not a damaged file.
+// Chromium remembers a failed import() and pdf.js a failed worker start for the page's lifetime,
+// so after a failure the next search loads a fresh copy of the module.
+let fresh=0;const moduleError=cause=>Object.assign(Error('PDF module unavailable'),{pdfModule:true,cause});
+const reachable=url=>fetch(url).then(r=>{r.body?.cancel().catch(()=>{});return r.ok},()=>false);
+async function loadPDF(bytes){let lib;try{lib=await import('./vendor/pdfjs/pdf.min.mjs'+(fresh?'?retry='+fresh:''))}catch(e){fresh++;throw moduleError(e)}const worker=new URL('./vendor/pdfjs/pdf.worker.min.mjs',document.baseURI).href;lib.GlobalWorkerOptions.workerSrc=worker;const task=lib.getDocument({data:new Uint8Array(bytes),disableAutoFetch:true});
+ const promise=task.promise.catch(async e=>{if(task.destroyed)throw e;fresh++;throw await reachable(worker)?e:moduleError(e)});promise.catch(()=>{});return {promise,destroy:()=>task.destroy()};}
+// Offline readiness: the installed app asks its service worker to store the reader while online and idle
+// (not with data saver or on 2G: then it is stored on first use).
+function prefetchModule(){const sw=typeof navigator==='undefined'?null:navigator.serviceWorker;if(!sw||!document.documentElement?.dataset?.build)return;const ask=()=>{const c=navigator.connection;if(navigator.onLine!==false&&!c?.saveData&&!/2g/.test(c?.effectiveType||''))sw.ready.then(reg=>reg.active?.postMessage('cache-pdf')).catch(()=>{})};
+ sw.ready.then(()=>{(window.requestIdleCallback||(f=>setTimeout(f,4000)))(ask,{timeout:20000});window.addEventListener('online',ask)}).catch(()=>{});}
+prefetchModule();
 function create(loader=loadPDF){let file=null,token=0,task=null,index=null,query='',term='',status={key:'start'},results=[],offset=0;
  function cancel(){token++;if(task?.destroy)Promise.resolve(task.destroy()).catch(()=>{});task=null;if(status.key==='busy')status={key:'stopped'};}
  function setFile(next){cancel();file=next;index=null;query='';term='';results=[];offset=0;status={key:'start'};}
@@ -57,7 +70,7 @@ function create(loader=loadPDF){let file=null,token=0,task=null,index=null,query
   }
   const needle=term.toLocaleLowerCase(),matches=[];for(const p of index){let at=p.text.toLocaleLowerCase().indexOf(needle);if(at<0)continue;matches.push({page:p.page,snippet:(at>55?'…':'')+p.text.slice(Math.max(0,at-55),Math.min(p.text.length,at+needle.length+115))+(at+needle.length+115<p.text.length?'…':'')});}
   if(!active())return;results=matches;status=matches.length?{key:'ready',count:matches.length}:{key:'none'};onUpdate();
- }catch{if(!active())return;const failed=task;task=null;if(failed?.destroy)Promise.resolve(failed.destroy()).catch(()=>{});index=null;status={key:'error'};onUpdate()}}
+ }catch(e){if(!active())return;const failed=task;task=null;if(failed?.destroy)Promise.resolve(failed.destroy()).catch(()=>{});index=null;status={key:e?.pdfModule?'module':'error'};onUpdate()}}
  return {setFile,cancel,search,snapshot,move};}
 const engine=create();
 function statusText(s,t,term,query){const alias=term&&term.toLocaleLowerCase()!==query.toLocaleLowerCase()?` · ${t.as}: ${term}`:'';if(s.key==='busy')return `${t.busy}: ${s.page}/${s.total||'…'}${alias}`;if(s.key==='ready')return `${t.ready}: ${s.count}${alias}`;return (t[s.key]||t.start)+(['none'].includes(s.key)?alias:'')}
