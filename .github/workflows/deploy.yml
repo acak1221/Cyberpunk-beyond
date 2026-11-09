@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to main waits for the running deploy instead of cancelling it half-way.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:

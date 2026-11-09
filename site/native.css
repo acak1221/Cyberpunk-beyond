@@ -254,3 +254,16 @@ html.ui-native .nx-filters-body .catalog-purchase { display: contents; }
   html.ui-native .quick-icon { width: 34px; height: 34px; flex: 0 0 auto; }
   html.ui-native .quick-card::after { content: '›'; margin-left: auto; color: #6f6f78; font-size: 22px; line-height: 1; }
 }
+
+/* Touch screens: comfortable tap targets (about 44px) in both looks. */
+@media (pointer: coarse) {
+  .lang-switch button { min-width: 44px; min-height: 40px; }
+  .ui-style-switch button, .ui-theme-switch button { min-height: 40px; }
+  .nx-more, .rule-source, .text-link { min-height: 36px; padding-top: 8px; padding-bottom: 8px; }
+  summary { min-height: 40px; padding-top: 8px; padding-bottom: 8px; box-sizing: border-box; }
+  input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; flex: none; }
+}
+/* Phones in landscape: keep content clear of the notch. */
+@media (max-width: 960px) {
+  html.ui-native .topbar, html.ui-native .main { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+}

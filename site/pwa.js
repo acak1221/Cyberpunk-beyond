@@ -11,12 +11,19 @@ function toast(text,actionLabel,onAction){
  box.innerHTML='';
  const span=doc.createElement('span');span.textContent=text;box.appendChild(span);
  if(actionLabel){const b=doc.createElement('button');b.type='button';b.className='btn primary';b.textContent=actionLabel;b.addEventListener('click',onAction);box.appendChild(b)}
- const close=doc.createElement('button');close.type='button';close.className='pwa-toast-close';close.setAttribute('aria-label',ru()?'Закрыть':'Close');close.textContent='×';close.addEventListener('click',()=>box.classList.remove('visible'));box.appendChild(close);
+ const close=doc.createElement('button');close.type='button';close.className='pwa-toast-close';close.setAttribute('aria-label',ru()?'Закрыть':'Close');close.textContent='×';close.addEventListener('click',()=>{box.classList.remove('visible');if(waiting&&!updateRequested)chip()});box.appendChild(close);
  box.classList.add('visible');
+}
+function applyUpdate(){updateRequested=true;waiting?.postMessage('skip-waiting')}
+// After the notice is dismissed a small chip stays until the update is applied.
+function chip(){
+ let b=doc.querySelector('#pwa-chip');
+ if(!b){b=doc.createElement('button');b.id='pwa-chip';b.type='button';b.className='pwa-chip';b.addEventListener('click',applyUpdate);doc.body.appendChild(b)}
+ b.textContent=ru()?'↻ Обновить':'↻ Update';b.title=ru()?'Доступна новая версия':'A new version is available';
 }
 function offerUpdate(worker){
  waiting=worker;
- toast(ru()?'Доступна новая версия помощника.':'A new version is available.',ru()?'Обновить':'Update',()=>{updateRequested=true;waiting?.postMessage('skip-waiting')});
+ toast(ru()?'Доступна новая версия помощника.':'A new version is available.',ru()?'Обновить':'Update',applyUpdate);
 }
 function register(){
  if(!('serviceWorker' in navigator)||!doc.documentElement.dataset.build)return;

@@ -3,6 +3,7 @@
   "short_name": "NC // RED",
   "description": "Двуязычный помощник для Cyberpunk RED: персонажи, правила, бой, кубики и инструменты ведущего. Работает офлайн.",
   "lang": "ru",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
