@@ -44,8 +44,8 @@ html.ui-native :is(.card, .quick-card, .character-card, .rule-card, .catalog-car
 html.ui-native .card { padding: 16px; margin-bottom: 12px; }
 html.ui-native .card:hover { border-color: transparent; }
 html.ui-native .card .card { background: var(--panel-2); }
-html.ui-native .card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 0; border: 0; }
-html.ui-native .card-heading > span:first-child { display: inline-block; color: var(--text); font: 600 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; }
+html.ui-native .card-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; margin: 0 0 10px; padding: 0; border: 0; }
+html.ui-native .card-heading > span:first-child { display: inline-block; flex: 1 1 0;color: var(--text); font: 600 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; }
 html.ui-native .card-heading > span:last-child:not(:first-child) { color: var(--muted); font: 500 12px/1.3 var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native .nx-page { padding: 2px 8px; border-radius: 999px; background: var(--panel-2); white-space: nowrap; }
 html.ui-native .empty { border: 1px dashed rgba(255, 255, 255, .12); }
@@ -196,6 +196,7 @@ html.ui-native .room-pill { border: 0; border-radius: 999px; background: var(--p
 html.ui-native .badge, html.ui-native .tag, html.ui-native .pill { min-height: 22px; padding: 2px 9px; color: #e9e9ee; background: var(--panel-2); border: 0; border-radius: 999px; font: 600 12px/1.3 var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native .rule-top { color: var(--muted); font: 500 12px var(--body); letter-spacing: 0; text-transform: none; }
 html.ui-native :is(.rule-card, .catalog-card) h3 { font: 650 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; }
+html.ui-native .gm-tools .gm-card h3 { font: 650 17px/1.3 var(--display); letter-spacing: -.005em; text-transform: none; } /* NPC template names fit the 170px cards */
 html.ui-native .rule-card, html.ui-native .catalog-card { padding: 16px; gap: 8px; }
 html.ui-native .rule-card:hover, html.ui-native .catalog-card:hover { background: var(--panel-hover); }
 html.ui-native .rule-bottom { border-top: 0; padding-top: 0; }

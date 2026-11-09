@@ -286,6 +286,7 @@ body {
 /* ---------- Character portraits ---------- */
 .sheet-header { align-items: center; }
 .sheet-header .sheet-title { flex: 1 1 auto; min-width: 0; }
+.room-member-head strong, .room-char b, .room-order li span, .room-clock b { overflow-wrap: anywhere; } /* names in room rosters wrap like headings */
 .portrait-box { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .portrait-frame { width: 112px; height: 112px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(135deg, #4c2925, #1d1a1a); border: 1px solid #6b3a35; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
 .portrait-frame img { width: 100%; height: 100%; object-fit: cover; }
