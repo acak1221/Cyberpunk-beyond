@@ -6,16 +6,16 @@ const pc=(id,characterId,initiative)=>({id,kind:'pc',characterId,initiative,orde
 // Loads app.js with the given saved archive and a LocalStore stub that keeps set-aside copies in a Map.
 function harness(archive,{copies={},answer=true,lang='en'}={}){
  const raw=archive===null||typeof archive==='string'?archive:JSON.stringify(archive);
- const events={},saved=[],notices=[],confirms=[],el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){events[t]=fn}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
+ const events={},saved=[],notices=[],confirms=[],downloads=[],el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){events[t]=fn}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
  let opts,uid=0,reply=answer;const store=new Map(Object.entries(copies)),kept=[];
  const adapter={stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>'local',hasQueued:()=>false,save(s){saved.push(plain(s));return Promise.resolve({ok:true})},copies:()=>[...store.keys()].map(id=>({id,kind:id.includes('before-restore')?'before-restore':'recovery',at:null,size:store.get(id).length})),readCopy:id=>store.has(id)?store.get(id):null,removeCopy:id=>store.delete(id),keepBeforeRestore(snapshot){if(adapter.full)return false;for(const k of [...store.keys()])if(k.includes('before-restore'))store.delete(k);const id='nightcity-red-v1:before-restore:'+(kept.length+1);store.set(id,snapshot);kept.push(id);return id}};
  const ask=m=>{confirms.push(m);return typeof reply==='function'?reply(m):reply};
  const w={ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false,render:()=>''},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create(o){opts=o;return adapter}},confirm:ask,scrollTo(){}};
- const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:k=>k==='nightcity-red-v1'?raw:null,setItem(){}},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:ask,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap};
+ const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({click(){},remove(){}}),body:{appendChild(){}}},Blob:class{constructor(parts){this.text=parts.join('')}},URL:{createObjectURL:b=>{downloads.push(b.text);return 'blob:x'},revokeObjectURL(){}},localStorage:{getItem:k=>k==='nightcity-red-v1'?raw:null,setItem(){}},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:ask,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap};
  vm.createContext(ctx);for(const f of ['character-extra.js','equipment-tools.js'])vm.runInContext(source(f),ctx);
  vm.runInContext(source('app.js')+`\nrender=()=>{};state.lang=${JSON.stringify(lang)};window.qa={state:()=>state,snapshot:snapshotAppState,validate:validateSnapshot,salvage:salvageArchive,restoreFromBin,setAside:handleSetAside,charactersPage:()=>characters(),backupStrip:()=>backupStrip(),go:(v,id)=>{state.view=v;state.active=id}};`,ctx);
  const fileTarget=(id,data)=>{const target={id,files:[{text:async()=>typeof data==='string'?data:JSON.stringify(data)}],value:'x',isConnected:true,dataset:{}};nodes['#'+id]=target;w.qa.go('characters',null);return target};
- return {w,qa:w.qa,opts:()=>opts,adapter,saved,notices,confirms,store,kept,html:()=>w.qa.charactersPage(),strip:()=>w.qa.backupStrip(),answer:a=>reply=a,
+ return {w,qa:w.qa,opts:()=>opts,adapter,saved,notices,confirms,store,kept,downloads,html:()=>w.qa.charactersPage(),strip:()=>w.qa.backupStrip(),answer:a=>reply=a,
   click:action=>events.click({type:'click',target:{closest:s=>s==='[data-action]'?{dataset:{action}}:null}}),
   change:(id,data)=>events.change({type:'change',target:fileTarget(id,data)}),
   setAside:(action,id='')=>w.qa.setAside({dataset:{setAside:action,id}})};
@@ -79,10 +79,10 @@ test('deleting moves the character to the bin, clears it from every roster and k
  assert.equal(s.campaigns[2].turnIndex,1,'campaigns without the character are untouched');
  assert.equal(s.bin.length,1);assert.equal(s.bin[0].character.id,'b');assert.equal(s.bin[0].roster.length,2);
  const saved=h.saved.at(-1);assert.equal(saved.bin[0].character.id,'b');assert.ok(saved.campaigns.every(k=>k.roster.every(r=>r.characterId!=='b')));assert.match(h.notices.at(-1),/“b” was moved to the bin/);
- // Undo puts the character and its initiative places back and keeps the turn on whoever has it now.
+ // Undo puts the character and its initiative places back; b held the turn and r3 that inherited it still has it, so the turn goes back to b.
  const r=h.qa.restoreFromBin(s.bin[0].id);assert.equal(r.ok,true);
  const back=h.qa.state();eq(back.characters.map(c=>c.id),['a','b','c']);eq(back.campaigns[0].roster.map(r=>r.id),['r1','r2','r3']);assert.equal(back.campaigns[0].roster[1].characterId,'b');
- assert.equal(back.campaigns[0].turnIndex,2,'r3 still has the turn');eq(back.campaigns[1].roster.map(r=>r.id),['s1','s2']);assert.equal(back.campaigns[1].turnIndex,0);
+ assert.equal(back.campaigns[0].turnIndex,1,'the turn goes back to b');eq(back.campaigns[1].roster.map(r=>r.id),['s1','s2']);assert.equal(back.campaigns[1].turnIndex,0);
  assert.equal(back.bin.length,0);assert.equal(h.qa.restoreFromBin('nope').reason,'missing');
 });
 
@@ -156,4 +156,72 @@ test('the overview reminder comes after 7 days instead of 14 while the browser m
  h.adapter.persistence=()=>'denied';assert.match(h.strip(),/backup-strip warn/);assert.match(h.strip(),/may clear site data/);assert.match(h.strip(),/data-set-aside="hint-dismiss"/);
  h.w.PWA={isStandalone:()=>false,isIOS:()=>true,canInstall:()=>false};assert.match(h.strip(),/Add the app to the Home Screen/);
  h.w.PWA.isStandalone=()=>true;assert.doesNotMatch(h.strip(),/storage-hint/);assert.match(h.strip(),/backup-strip "/);
+});
+
+test('undo gives the turn back only while the participant that inherited it still has it in the same round',async()=>{
+ const make=(turnIndex,roster=[pc('r1','a',20),pc('r2','b',15),pc('r3','c',10)])=>harness({schemaVersion:1,characters:[character('a'),character('b'),character('c')],campaigns:[{id:'k',name:'K',round:2,turnIndex,roster}]});
+ const current=h=>{const k=h.qa.state().campaigns[0];return [...k.roster].sort((x,y)=>y.initiative-x.initiative)[k.turnIndex]?.characterId},del=async(h,id)=>{h.qa.go('sheet',id);await h.click('delete');return h.qa.state().bin[0].id};
+ // The GM moved on after the delete: the turn stays where it is now.
+ let h=make(1),id=await del(h,'b');assert.equal(current(h),'c');Object.assign(h.qa.state().campaigns[0],{turnIndex:0,round:3});
+ h.qa.restoreFromBin(id);assert.equal(current(h),'a');
+ // The heir has the turn again, but in a later round: it keeps it.
+ h=make(1);id=await del(h,'b');h.qa.state().campaigns[0].round=3;h.qa.restoreFromBin(id);assert.equal(current(h),'c');
+ // The last in order held the turn: deleting passes it back to b, undo gives it to c again.
+ h=make(2);id=await del(h,'c');assert.equal(current(h),'b');h.qa.restoreFromBin(id);assert.equal(current(h),'c');assert.equal(h.qa.state().campaigns[0].turnIndex,2);
+ // The only participant: the roster is empty until undo.
+ h=make(0,[pc('r1','a',5)]);id=await del(h,'a');eq(h.qa.state().campaigns[0].roster,[]);h.qa.restoreFromBin(id);assert.equal(current(h),'a');
+ // The bin entry keeps this across a reload, and the Characters page restores it the same way.
+ h=make(1);await del(h,'b');const reloaded=harness(h.saved.at(-1));assert.equal(current(reloaded),'c');
+ reloaded.setAside('bin-restore',reloaded.qa.state().bin[0].id);assert.equal(current(reloaded),'b');eq(reloaded.saved.at(-1).campaigns[0].roster.map(r=>r.id),['r1','r2','r3']);
+});
+
+test('a full restore that does not fit next to its snapshot asks, then gives up the snapshot or keeps the data as it was',async()=>{
+ const file={format:'nightcity-red-backup',version:1,characters:[character('x',{name:'From file'})],campaigns:[]},mine=()=>harness({schemaVersion:1,characters:[character('mine')],campaigns:[]});
+ // Normal case: written at once, undo offered.
+ const fine=mine();let writes=0;fine.adapter.flush=()=>{writes++;return {ok:true}};await fine.change('restore-backup',file);
+ assert.equal(writes,1);assert.equal(fine.store.size,1);assert.match(fine.notices.at(-1),/Backup restored/);
+ // It fits only without the snapshot and the user agrees to lose undo.
+ const yes=mine();yes.adapter.flush=()=>({ok:yes.store.size===0,reason:'storage'});await yes.change('restore-backup',file);
+ assert.match(yes.confirms.at(-1),/storage is full/);assert.equal(yes.store.size,0,'the snapshot is given up');eq(yes.qa.state().characters.map(c=>c.name),['From file']);
+ eq(yes.saved.at(-1).characters.map(c=>c.id),['x']);assert.doesNotMatch(yes.notices.at(-1),/Backup restored|Nothing was replaced/);
+ // The user declines: the snapshot is removed and the data in memory goes back to what is stored.
+ const no=mine();no.adapter.flush=()=>({ok:no.store.size===0,reason:'storage'});no.answer(m=>!/storage is full/.test(m));await no.change('restore-backup',file);
+ eq(no.qa.state().characters.map(c=>c.id),['mine']);assert.equal(no.store.size,0);eq(no.saved.at(-1).characters.map(c=>c.id),['mine']);assert.match(no.notices.at(-1),/Nothing was replaced: browser storage is full/);
+ // Nothing fits even without the snapshot.
+ const never=mine();never.adapter.flush=()=>({ok:false,reason:'storage'});await never.change('restore-backup',file);
+ eq(never.qa.state().characters.map(c=>c.id),['mine']);assert.equal(never.store.size,0);assert.match(never.notices.at(-1),/Nothing was replaced/);
+ // Undo of a restore is written the same way.
+ fine.adapter.flush=()=>({ok:fine.store.size===0,reason:'storage'});fine.setAside('copy-revert',fine.kept[0]);
+ eq(fine.qa.state().characters.map(c=>c.id),['mine']);assert.equal(fine.store.size,0);assert.match(fine.notices.at(-1),/snapshot data is back/);
+});
+
+test('set-aside data sections are listed by name in both languages',()=>{
+ for(const [lang,re] of [['ru',/Раздел данных «История бросков»/],['en',/Data section “Roll history”/]]){const h=harness({characters:[character('a')],campaigns:[],history:'x'},{lang});h.qa.go('characters',null);assert.match(h.html(),re,lang);assert.doesNotMatch(h.html(),/«history»|“history”/,lang)}
+ const h=harness({schemaVersion:1,characters:[],campaigns:[],quarantine:[{id:'q1',kind:'section',key:'futureThing',at:1,data:1},{id:'q2',kind:'section',key:'constructor',at:1,data:1},{id:'q3',kind:'section',at:1,data:1}]});
+ h.qa.go('characters',null);const html=h.html();assert.match(html,/Data section “futureThing”/);assert.match(html,/Data section “constructor”/);assert.match(html,/Data section “—”/);
+});
+
+test('set-aside sections come back through Import backup once fixed, asking before they replace data',async()=>{
+ const h=harness({characters:[character('a')],campaigns:[],history:'x',netArchitectures:7,gmExtras:[1],lang:'en'}),keys=()=>h.qa.state().quarantine.map(q=>q.key).sort();
+ eq(keys(),['gmExtras','history','netArchitectures']);
+ h.setAside('held-download');const file=JSON.parse(h.downloads.at(-1));eq(file.setAside.map(q=>q.key).sort(),keys());
+ // The download as it is: nothing reads, so nothing is added and nothing is written.
+ await h.change('import-backup',file);assert.match(h.notices.at(-1),/Nothing in the file can be read/);eq(keys(),['gmExtras','history','netArchitectures']);assert.equal(h.saved.length,0);
+ // Fixed history goes back without a question (it is empty now); NET architectures already hold data, so the user is asked.
+ h.qa.state().netArchitectures.push({id:'mine'});const fixed={...file,setAside:file.setAside.map(q=>q.key==='history'?{...q,data:[{total:5}]}:q.key==='netArchitectures'?{...q,data:[{id:'fixed'}]}:q)};
+ h.answer(false);await h.change('import-backup',fixed);
+ assert.match(h.confirms.at(-1),/Replace “NET architectures” with the data from the file/);eq(h.qa.state().history,[{total:5}]);eq(h.qa.state().netArchitectures,[{id:'mine'}]);eq(keys(),['gmExtras','netArchitectures']);
+ assert.match(h.notices.at(-1),/Skipped unreadable records: 1 .*Data sections brought back: 1\./);
+ h.answer(true);await h.change('import-file',fixed);
+ eq(h.qa.state().netArchitectures,[{id:'fixed'}]);eq(keys(),['gmExtras']);eq(h.saved.at(-1).netArchitectures,[{id:'fixed'}]);eq(h.saved.at(-1).history,[{total:5}]);assert.equal(h.saved.at(-1).quarantine.length,1);
+ // Restoring the download completely keeps its sections set aside instead of saving them under an unknown key.
+ const r=harness({schemaVersion:1,characters:[character('mine')],campaigns:[]});await r.change('restore-backup',file);
+ assert.equal('setAside' in r.saved.at(-1),false);eq(r.saved.at(-1).quarantine.map(q=>q.key).sort(),['gmExtras','history','netArchitectures']);
+});
+
+test('a set-aside campaign imported back after a fix keeps its links to characters in this browser',async()=>{
+ const h=harness({characters:[character('a')],campaigns:[{id:'k',name:'Camp',roster:[pc('r1','a',5),{kind:'npc',name:'Goon'}]}],lang:'en'});
+ assert.equal(h.qa.state().quarantine[0].kind,'campaign');h.setAside('held-download');const file=JSON.parse(h.downloads.at(-1));
+ file.campaigns[0].roster[1].id='r2';await h.change('import-backup',file);
+ const k=h.qa.state().campaigns[0];eq(k.roster.map(r=>r.kind==='pc'?r.characterId:r.name),['a','Goon']);assert.match(h.notices.at(-1),/Backup added/);
 });
