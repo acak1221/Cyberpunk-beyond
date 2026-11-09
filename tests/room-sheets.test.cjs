@@ -157,5 +157,7 @@ test('room views show translated role names and no «?» for a missing character
   const view=R.roomView();
   assert.ok(view.includes(`<span class="room-none">${none}</span>`));assert.ok(!view.includes('<span>?</span>'));
   assert.ok(view.includes(` · ${solo}</small>`)&&!view.includes(' · solo</small>'));
+  // Counts in card headings are not page references, so the clean look must not turn them into «стр. N».
+  assert.ok(view.includes('<span data-nx>1</span></div><ul>')&&/<span data-nx>\d+<\/span>/.test(view.split('room-team')[1]));
  }
 });
