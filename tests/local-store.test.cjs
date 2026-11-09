@@ -107,12 +107,63 @@ test('a newer version writing in another tab pauses this tab and drops its queue
  assert.deepEqual(plain(await p),{ok:false,reason:'paused'});assert.equal(h.store.canEdit(),false);assert.equal(h.calls.apply.length,0);assert.equal(h.data.get('nightcity-red-v1'),undefined);
 });
 
-test('the pre-restore snapshot keeps one slot and survives a failed write',()=>{
+test('an older pre-restore snapshot stays until the restore is written, and survives a failed write',()=>{
  const h=setup();h.store.start();
  const first=h.store.keepBeforeRestore('{"a":1}');assert.match(first,/^nightcity-red-v1:before-restore:\d+$/);
- const second=h.store.keepBeforeRestore('{"a":2}');assert.notEqual(second,first);assert.equal(h.data.get(first),undefined);assert.equal(h.store.readCopy(second),'{"a":2}');
+ const second=h.store.keepBeforeRestore('{"a":2}');assert.notEqual(second,first);
+ assert.equal(h.store.readCopy(first),'{"a":1}','a restore that does not fit must not cost the snapshot the user already had');assert.equal(h.store.readCopy(second),'{"a":2}');
+ // The caller wrote the restored data: only now do the older snapshots go.
+ h.data.set('nightcity-red-v1:recovery:3','{old');h.store.dropOlderBeforeRestore(second);
+ assert.equal(h.data.has(first),false);assert.equal(h.store.readCopy(second),'{"a":2}');assert.equal(h.data.get('nightcity-red-v1:recovery:3'),'{old','unreadable copies are not snapshots');
+ // An id that is not a stored snapshot removes nothing.
+ const third=h.store.keepBeforeRestore('{"a":3}');
+ for(const id of ['nightcity-red-v1:before-restore:1','nightcity-red-v1:recovery:3','nightcity-red-v1',false,undefined])h.store.dropOlderBeforeRestore(id);
+ assert.equal(h.store.readCopy(second),'{"a":2}');assert.equal(h.store.readCopy(third),'{"a":3}');
+ assert.equal(h.store.keepBeforeRestore({a:1}),false);
  const failing=setup({quotaFull:(k,v)=>v==='{"b":2}',seed:{'nightcity-red-v1:before-restore:5':'{"b":1}'}});failing.store.start();
  assert.equal(failing.store.keepBeforeRestore('{"b":2}'),false);assert.equal(failing.data.get('nightcity-red-v1:before-restore:5'),'{"b":1}');
+});
+
+test('a save that did not fit is tried again quietly by the next flush',async()=>{
+ let full=true;const h=setup({quotaFull:k=>full&&k==='nightcity-red-v1'});h.store.start();
+ const p=h.store.save({characters:[{id:'a'}]});assert.deepEqual(plain(h.store.flush()),{ok:false,reason:'storage'});assert.deepEqual(plain(await p),{ok:false,reason:'storage'});
+ assert.equal(h.calls.failure,1);assert.match(h.store.stateLabel(),/ОШИБКА/);
+ assert.deepEqual(plain(h.store.flush()),{ok:false,reason:'storage'});assert.equal(h.calls.failure,1,'the second failure of the same save shows no new notice');
+ // Space was freed (a copy removed, a picture deleted): the edits that failed are written when the page is hidden or closed.
+ full=false;h.listeners.pagehide();
+ assert.deepEqual(JSON.parse(h.data.get('nightcity-red-v1')),{characters:[{id:'a'}]});assert.match(h.store.stateLabel(),/СОХРАНЕНО/);
+ assert.deepEqual(plain(h.store.flush()),{ok:true});
+});
+
+test('a newer save replaces the one that did not fit, and forget drops it when the old data is put back',async()=>{
+ let full=true;const h=setup({raw:'{"characters":[]}',quotaFull:k=>full&&k==='nightcity-red-v1'});h.store.start();
+ h.store.save({characters:[{id:'big'}]});h.store.flush();
+ h.store.save({characters:[{id:'small'}]});full=false;assert.deepEqual(plain(h.store.flush()),{ok:true});
+ assert.deepEqual(JSON.parse(h.data.get('nightcity-red-v1')),{characters:[{id:'small'}]});
+ full=true;h.store.save({characters:[{id:'big'}]});h.store.flush();assert.match(h.store.stateLabel(),/ОШИБКА/);
+ h.store.forget();full=false;assert.match(h.store.stateLabel(),/СОХРАНЕНО/);assert.deepEqual(plain(h.store.flush()),{ok:true});
+ assert.deepEqual(JSON.parse(h.data.get('nightcity-red-v1')),{characters:[{id:'small'}]},'the forgotten save is never written');
+ h.store.forget();
+});
+
+test('a failed save is not retried over data from another tab or a newer version',()=>{
+ let full=true;const h=setup({quotaFull:k=>full&&k==='nightcity-red-v1'});h.store.start();
+ h.store.save({characters:[{id:'mine'}]});h.store.flush();
+ const other=JSON.stringify({characters:[{id:'theirs'}]});h.data.set('nightcity-red-v1',other);
+ h.listeners.storage({key:'nightcity-red-v1',storageArea:h.localStorage,newValue:other});
+ full=false;h.store.flush();assert.equal(h.data.get('nightcity-red-v1'),other);assert.equal(h.calls.apply.length,1);
+ full=true;h.store.save({characters:[{id:'mine'}]});h.store.flush();
+ const newer=JSON.stringify({schemaVersion:2,characters:[]});h.data.set('nightcity-red-v1',newer);
+ h.listeners.storage({key:'nightcity-red-v1',storageArea:h.localStorage,newValue:newer});
+ full=false;h.store.flush();assert.equal(h.data.get('nightcity-red-v1'),newer);assert.equal(h.store.canEdit(),false);
+});
+
+test('hasRoom probes the browser storage without leaving anything behind',()=>{
+ const h=setup({raw:'{"characters":[]}',quotaFull:(k,v)=>v.length>1000});h.store.start();
+ assert.equal(h.store.hasRoom(1000),true);assert.equal(h.store.hasRoom(1001),false);assert.equal(h.store.hasRoom(999.2),true);
+ for(const odd of [0,-5,NaN,undefined,'x'])assert.equal(h.store.hasRoom(odd),true);
+ assert.deepEqual([...h.data.keys()],['nightcity-red-v1']);
+ const broken=setup({quotaFull:true});broken.store.start();assert.equal(broken.store.hasRoom(1),false);assert.equal(broken.data.size,0);
 });
 
 test('copy helpers only touch set-aside keys',()=>{

@@ -21,7 +21,22 @@ const PDF_FILES = new Map(Object.entries(PDFJS.files));
 // Workers before this one (up to c852236) kept index.html in their cache and answered nc-red.js?v=NEW with their
 // own copy (ignoreSearch): while one stays in control, every new tab and offline start pairs the new page with old
 // scripts. Only their caches hold index.html, so such a worker is replaced at once instead of waiting for «Обновить».
+// Pages that are already open are left alone (a reload would drop whatever is being typed in them): they go on
+// with the scripts they have loaded and move to this version when their «Обновить» is pressed or they are reopened.
 const replacesLegacyWorker = () => caches.match(new URL('index.html', SCOPE).href).then(Boolean, () => false);
+// True once this worker is the one in control. Without self.serviceWorker (older browsers) the registration tells.
+const inControl = () => (self.serviceWorker
+  ? /^activ/.test(self.serviceWorker.state)
+  : !!self.registration.active && !self.registration.waiting && !self.registration.installing);
+
+// Reloads a page into this version. client.url misses route changes made with replaceState, and a URL that differs
+// only after # would not reload, so the path switches between ./ and ./index.html.
+async function reload(client) {
+  try {
+    const { pathname, search, hash } = new URL(client.url);
+    await client.navigate(new URL((pathname === SCOPE_PATH ? 'index.html' : './') + search + hash, SCOPE).href);
+  } catch {}
+}
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -51,27 +66,23 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    const legacy = await replacesLegacyWorker();
     const keep = new Set([APP_CACHE, PDF_CACHE, FONT_CACHE]);
     const names = (await caches.keys()).filter(name => name.startsWith('nc-red-') && !keep.has(name));
     // Earlier versions kept pdf.js in a per-version cache: carry it over instead of downloading it again.
     await adoptPdf(names.filter(name => name.startsWith('nc-red-runtime-'))).catch(() => {});
     await Promise.all(names.map(name => caches.delete(name)));
     await self.clients.claim();
-    // Its pages may run this version's page with old scripts (or show its update notice, which can no longer work):
-    // reload them into this version. client.url misses route changes made with replaceState, and a URL that differs
-    // only after # would not reload, so the path switches between ./ and ./index.html. Not awaited: this worker
-    // answers the reload once it is active.
-    if (legacy) for (const client of await self.clients.matchAll({ type: 'window' })) {
-      const { pathname, search, hash } = new URL(client.url);
-      client.navigate(new URL((pathname === SCOPE_PATH ? 'index.html' : './') + search + hash, SCOPE).href).catch(() => {});
-    }
   })());
 });
 
 self.addEventListener('message', event => {
-  if (event.data === 'skip-waiting') self.skipWaiting();
-  else if (event.data === 'cache-pdf') event.waitUntil(cachePdfModule());
+  // «Обновить» on a page. Normally this worker is waiting and takes over; the page reloads itself once it has.
+  // After a legacy worker was replaced this worker is in control already, and that page (old scripts) waits for a
+  // change of control that will not come: it is reloaded from here.
+  if (event.data === 'skip-waiting') {
+    if (inControl()) event.waitUntil(reload(event.source));
+    else self.skipWaiting();
+  } else if (event.data === 'cache-pdf') event.waitUntil(cachePdfModule());
 });
 
 // Right after a deploy an HTTP or CDN cache may still return the other pdf.js version: never store it.

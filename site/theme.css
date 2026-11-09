@@ -204,8 +204,14 @@ html.ui-native .set-aside h3 { font: 600 15px/1.3 var(--body); letter-spacing: 0
 .roll-notice.fumble .roll-flag { color: #ff8a80; }
 @media (max-width: 820px) { .app-notice { left: 16px; right: 16px; max-width: none; } }
 /* A notice with an undo button: the notice lets clicks through, only its button takes them. */
+.app-notice { overflow-wrap: anywhere; } /* a long one-word name must not push the action off the screen */
 .app-notice:has(> .notice-action) { display: flex; align-items: center; justify-content: space-between; gap: 14px; white-space: normal; }
 .app-notice .notice-action { flex: 0 0 auto; }
+/* A newer notice shown while an action («Вернуть») is still pending: the action keeps its own row below it. */
+.app-notice > .notice-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); white-space: normal; }
+.app-notice > .notice-row > span { min-width: 0; }
+.app-notice.roll-notice:has(> .notice-row) { flex-wrap: wrap; row-gap: 10px; }
+.app-notice.roll-notice > .notice-row { flex: 1 0 100%; margin-top: 0; }
 .app-notice.visible .notice-action { pointer-events: auto; }
 
 /* Skill roll buttons show the stat + skill total, like a ready-made check */
@@ -308,7 +314,8 @@ body {
 /* ---------- Character portraits ---------- */
 .sheet-header { align-items: center; }
 .sheet-header .sheet-title { flex: 1 1 auto; min-width: 0; }
-.room-member-head strong, .room-char b, .room-order li span, .room-clock b { overflow-wrap: anywhere; } /* names in room rosters wrap like headings */
+.room-member-head strong, .room-char b, .room-order li span, .room-clock b, .room-incoming li > div:first-child, .room-send-status, .share-import-name { overflow-wrap: anywhere; } /* names in room rosters wrap like headings */
+.room-incoming li > div:first-child { flex: 1 1 180px; min-width: 0; }
 .portrait-box { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .portrait-frame { width: 112px; height: 112px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(135deg, #4c2925, #1d1a1a); border: 1px solid #6b3a35; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
 .portrait-frame img { width: 100%; height: 100%; object-fit: cover; }

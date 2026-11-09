@@ -30,14 +30,17 @@ function cacheStorage(){
  return {store,open:async n=>{if(!store.has(n))store.set(n,new Map());return cache(n)},match:async(r,o={})=>o.cacheName?find(o.cacheName,r,o):[...store.keys()].map(n=>find(n,r,o)).find(Boolean),keys:async()=>[...store.keys()],delete:async n=>store.delete(n),has:async n=>store.has(n)};
 }
 // windows: the open pages (URLs) this worker controls once it has claimed them; navigate() records where each goes.
-function worker(windows=[]){
- const net=host(),caches=cacheStorage(),handlers={},navigated=[],self={registration:{scope:SCOPE},addEventListener:(t,f)=>{handlers[t]=f},skipWaiting(){self.skipped=true},clients:{claim:async()=>{self.claimed=true},matchAll:async o=>o?.type==='window'&&self.claimed?windows.map(url=>({url:new URL(url,SCOPE).href,navigate:async to=>{navigated.push(to);return null}})):[]}};
+// state: with it the worker has self.serviceWorker (install() and activate() move it on); null leaves that API out.
+function worker(windows=[],{state='installing'}={}){
+ const net=host(),caches=cacheStorage(),handlers={},navigated=[],client=url=>({url:new URL(url,SCOPE).href,navigate:async to=>{if(!self.claimed)throw new TypeError('not the active worker');navigated.push(to);return null}});
+ const self={registration:{scope:SCOPE,installing:{},waiting:null,active:null},...(state?{serviceWorker:{state}}:{}),addEventListener:(t,f)=>{handlers[t]=f},skipWaiting(){self.skipped=true},clients:{claim:async()=>{self.claimed=true},matchAll:async o=>o?.type==='window'&&self.claimed?windows.map(client):[]}};
+ const move=(to,slot)=>{if(self.serviceWorker)self.serviceWorker.state=to;Object.assign(self.registration,{installing:null,waiting:null,active:self.registration.active},{[slot]:{}})};
  vm.runInNewContext(source,{self,caches,fetch:(...a)=>net.fetch(...a),Request,Response,URL,crypto:globalThis.crypto});
  const extendable=(type,props)=>{const waits=[];handlers[type]({...props,waitUntil:p=>waits.push(p)});return Promise.all(waits)};
  const request=(url,mode='no-cors')=>({url:new URL(url,SCOPE).href,method:'GET',mode});
  // Resolves with the worker's response, or null when it leaves the request to the browser.
  async function get(url,mode){let responded=null;const waits=[];handlers.fetch({request:request(url,mode),respondWith:p=>{responded=Promise.resolve(p)},waitUntil:p=>waits.push(p)});const response=responded&&await responded;await Promise.all(waits);return response}
- return {net,caches,self,navigated,install:()=>extendable('install'),activate:()=>extendable('activate'),message:data=>extendable('message',{data}),get,navigate:url=>get(url,'navigate')};
+ return {net,caches,self,navigated,client,install:async()=>{await extendable('install');move('installed','waiting')},activate:async()=>{move('activating','active');await extendable('activate');move('activated','active')},message:(data,source=null)=>extendable('message',{data,source}),get,navigate:url=>get(url,'navigate')};
 }
 const within=(promise,ms=500)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('timed out')),ms))]);
 
@@ -88,7 +91,13 @@ test('activate keeps the PDF reader across app updates and drops other versions'
  await sw.install();await sw.activate();
  assert.deepEqual((await sw.caches.keys()).sort(),[`nc-red-app-${VERSION}`,'nc-red-fonts-v1',`nc-red-pdfjs-${PDFJS.version}`,'someone-else'].sort());
  assert.ok(sw.self.claimed);
- await sw.message('skip-waiting');assert.ok(sw.self.skipped);
+});
+
+test('«Обновить» lets a waiting worker take over; the page reloads itself',async()=>{
+ for(const state of ['installing',null]){
+  const sw=worker(['#/dice'],{state});await sw.install();assert.ok(!sw.self.skipped,'waits by default');
+  await sw.message('skip-waiting',sw.client('#/dice'));assert.ok(sw.self.skipped);assert.deepEqual(sw.navigated,[]);
+ }
 });
 
 test('the PDF reader is stored on first use or in the background and found without a retry query',async()=>{
@@ -128,15 +137,24 @@ test('a failed background download is harmless and retried next time',async()=>{
  sw.net.mode='online';await sw.message('cache-pdf');assert.equal(sw.caches.store.get(`nc-red-pdfjs-${PDFJS.version}`).size,2);
 });
 
-test('a worker from before this scheme (index.html in its cache) is replaced at once and its pages reload into this version',async()=>{
+test('a worker from before this scheme (index.html in its cache) is replaced at once; open pages reload only on «Обновить»',async()=>{
  // The old worker answers nc-red.js?v=NEW with its own copy, so new tabs and offline starts mix versions until it is gone.
- const sw=worker(['#/dice','index.html#/sheet','sheet/abc']),old=await sw.caches.open('nc-red-app-556a6019a9bf');
- for(const url of ['','index.html','nc-red.js','nc-red.css'])await old.put(SCOPE+url,new Response('old'));
- await sw.install();assert.ok(sw.self.skipped,'no waiting for «Обновить»');assert.deepEqual(sw.navigated,[]);
- await sw.activate();assert.ok(!sw.caches.store.has('nc-red-app-556a6019a9bf'));
- // A URL that differs only after # would not reload the page, so the path changes as well.
- assert.deepEqual(sw.navigated,[SCOPE+'index.html#/dice',SCOPE+'#/sheet',SCOPE]);
- sw.net.mode='offline';const page=await sw.navigate('index.html#/dice');assert.match(await page.text(),new RegExp(`data-build="${VERSION}"`));
+ for(const state of ['installing',null]){
+  const sw=worker(['#/dice','index.html#/sheet','sheet/abc'],{state}),old=await sw.caches.open('nc-red-app-556a6019a9bf');
+  for(const url of ['','index.html','nc-red.js','nc-red.css'])await old.put(SCOPE+url,new Response('old'));
+  await sw.install();assert.ok(sw.self.skipped,'no waiting for «Обновить»');assert.deepEqual(sw.navigated,[]);
+  await sw.activate();assert.ok(!sw.caches.store.has('nc-red-app-556a6019a9bf'));assert.ok(sw.self.claimed);
+  assert.deepEqual(sw.navigated,[],'a page that may hold unsent text is never reloaded on its own');
+  // The old page's «Обновить» only posts skip-waiting and waits for a change of control that has already happened.
+  // A URL that differs only after # would not reload the page, so the path changes as well.
+  await sw.message('skip-waiting',sw.client('#/dice'));assert.deepEqual(sw.navigated,[SCOPE+'index.html#/dice']);
+  await sw.message('skip-waiting',sw.client('index.html#/sheet'));await sw.message('skip-waiting',sw.client('sheet/abc?x=1'));
+  assert.deepEqual(sw.navigated.slice(1),[SCOPE+'#/sheet',SCOPE+'?x=1']);
+  await assert.doesNotReject(sw.message('skip-waiting',null),'a message without a page');
+  await assert.doesNotReject(sw.message('skip-waiting',{url:'about:blank'}),'not a window');
+  await sw.message('cache-pdf',sw.client('#/dice'));assert.equal(sw.navigated.length,3,'other messages reload nothing');
+  sw.net.mode='offline';const page=await sw.navigate('index.html#/dice');assert.match(await page.text(),new RegExp(`data-build="${VERSION}"`));
+ }
 });
 
 test('an update from a worker of this scheme waits for «Обновить» and reloads nothing',async()=>{

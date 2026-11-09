@@ -7,7 +7,8 @@
 const KEY='nightcity-red-v1';
 // Unreadable archives are set aside under dated keys (KEY:recovery:<ms>); the bare key is the single copy older versions kept.
 const RECOVERY_KEY='nightcity-red-v1:recovery';
-// One automatic snapshot of the data as it was before the latest full restore (KEY:before-restore:<ms>).
+// Automatic snapshots of the data as it was before a full restore (KEY:before-restore:<ms>). One is kept: the older ones go once
+// the restored data is written.
 const BEFORE_RESTORE_KEY='nightcity-red-v1:before-restore';
 const BACKUP_AT_KEY='nightcity-red-last-backup-v1';
 const SCOPE='local';
@@ -20,18 +21,28 @@ function create(options){
  const word=(ru,en)=>lang()==='en'?en:ru;
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let started=false,pending=null,timer=null,lastWritten=null,failed=false,issue=options.initialIssue||null,paused=false,persistence='unknown';
+ // The last snapshot the browser had no room for. It is written again by the next flush (also when the page is hidden or closed),
+ // so freeing space saves the edits that failed; forget() drops it when the caller puts the stored data back instead.
+ let unsaved=null;
  const kind=()=>issue?.kind||'unreadable';
 
  function notifyFailure(){try{options.onFailure?.()}catch{}}
  function write(snapshot){
   let raw;
   try{raw=JSON.stringify(snapshot)}catch{failed=true;notifyFailure();paint();return {ok:false,reason:'serialize'}}
-  try{global.localStorage.setItem(KEY,raw);lastWritten=raw;failed=false;paint();return {ok:true}}
-  catch{failed=true;notifyFailure();paint();return {ok:false,reason:'storage'}}
+  try{global.localStorage.setItem(KEY,raw);lastWritten=raw;failed=false;unsaved=null;paint();return {ok:true}}
+  catch{failed=true;unsaved=snapshot;notifyFailure();paint();return {ok:false,reason:'storage'}}
  }
+ // A quiet second try: no failure notice, the first failure already showed one.
+ function retry(){
+  if(!unsaved||paused)return {ok:true};
+  try{const raw=JSON.stringify(unsaved);global.localStorage.setItem(KEY,raw);lastWritten=raw;failed=false;unsaved=null;paint();return {ok:true}}
+  catch{return {ok:false,reason:'storage'}}
+ }
+ function forget(){if(!unsaved)return;unsaved=null;failed=false;paint()}
  function flush(){
   if(timer){clearTimeout(timer);timer=null}
-  if(!pending)return {ok:true};
+  if(!pending)return retry();
   const job=pending;pending=null;
   const result=write(job.snapshot);
   for(const resolve of job.waiters)resolve(result);
@@ -72,13 +83,24 @@ function create(options){
  function readCopy(id){if(!copyKind(id))return null;try{return global.localStorage.getItem(id)}catch{return null}}
  function removeCopy(id){if(!copyKind(id))return false;try{global.localStorage.removeItem(id);return true}catch{return false}}
  function freeKey(prefix){let at=Date.now();while(readCopy(prefix+':'+at)!==null)at++;return prefix+':'+at}
- // Returns the new copy's id, or false when the browser has no room for it (the older snapshot is then kept).
+ // Returns the new copy's id, or false when the browser has no room for it. An older snapshot stays next to the new one until the
+ // caller has written the replacement and calls dropOlderBeforeRestore: a restore that does not fit must not cost the snapshot
+ // the user already had.
  function keepBeforeRestore(raw){
   if(typeof raw!=='string')return false;
-  const older=copies().filter(c=>c.kind==='before-restore'),id=freeKey(BEFORE_RESTORE_KEY);
+  const id=freeKey(BEFORE_RESTORE_KEY);
   try{global.localStorage.setItem(id,raw)}catch{return false}
-  for(const c of older)removeCopy(c.id);
   return id;
+ }
+ function dropOlderBeforeRestore(id){
+  if(copyKind(id)?.kind!=='before-restore'||readCopy(id)===null)return;
+  for(const c of copies())if(c.kind==='before-restore'&&c.id!==id)removeCopy(c.id);
+ }
+ // True when `chars` more characters fit in the browser right now.
+ function hasRoom(chars){
+  const probe=KEY+':probe',n=Math.max(0,Math.ceil(Number(chars)||0));
+  try{global.localStorage.setItem(probe,'x'.repeat(n));global.localStorage.removeItem(probe);return true}
+  catch{try{global.localStorage.removeItem(probe)}catch{}return false}
  }
  function setAside(){
   // Never overwrite unreadable data silently: keep every distinct unreadable copy, within a bounded count and size.
@@ -120,7 +142,7 @@ function create(options){
   if(action==='reload'){try{global.location.reload()}catch{}}
   if(action==='reset'){
    if(!global.confirm(word('Заменить нераспознанные данные пустым архивом? Скачайте исходный файл заранее.','Replace the unreadable data with an empty archive? Download the original first.')))return;
-   paused=false;issue=null;
+   paused=false;issue=null;unsaved=null;failed=false;
    try{global.localStorage.removeItem(KEY)}catch{}
    paint();
    options.onScopeChange?.(SCOPE);
@@ -130,9 +152,9 @@ function create(options){
   if(e.key!==KEY||e.storageArea!==global.localStorage||e.newValue===null||e.newValue===lastWritten)return;
   let next;try{next=JSON.parse(e.newValue)}catch{return}
   // A newer app version in another tab wrote this: stop writing here so this tab cannot overwrite it with older data.
-  if(options.isNewer?.(next)){drop('paused');paused=true;issue={kind:'newer',raw:e.newValue};paint();return}
+  if(options.isNewer?.(next)){drop('paused');unsaved=null;paused=true;issue={kind:'newer',raw:e.newValue};paint();return}
   if(!options.validate||!options.validate(next))return;
-  drop('replaced');
+  drop('replaced');unsaved=null;failed=false;
   lastWritten=e.newValue;
   try{options.apply(next);options.onExternalChange?.()}catch{}
  }
@@ -159,7 +181,7 @@ function create(options){
   options.onScopeChange?.(SCOPE);
  }
  return {
-  start,save,flush,stateLabel,download,copies,readCopy,removeCopy,keepBeforeRestore,
+  start,save,flush,forget,stateLabel,download,copies,readCopy,removeCopy,keepBeforeRestore,dropOlderBeforeRestore,hasRoom,
   canEdit:()=>started&&!paused,
   getScope:()=>started&&!paused?SCOPE:null,
   hasDraft:()=>false,

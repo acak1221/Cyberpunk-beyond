@@ -8,7 +8,7 @@ function harness(archive,{copies={},answer=true,lang='en'}={}){
  const raw=archive===null||typeof archive==='string'?archive:JSON.stringify(archive);
  const events={},saved=[],notices=[],confirms=[],downloads=[],el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){events[t]=fn}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
  let opts,uid=0,reply=answer;const store=new Map(Object.entries(copies)),kept=[];
- const adapter={stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>'local',hasQueued:()=>false,save(s){saved.push(plain(s));return Promise.resolve({ok:true})},copies:()=>[...store.keys()].map(id=>({id,kind:id.includes('before-restore')?'before-restore':'recovery',at:null,size:store.get(id).length})),readCopy:id=>store.has(id)?store.get(id):null,removeCopy:id=>store.delete(id),keepBeforeRestore(snapshot){if(adapter.full)return false;for(const k of [...store.keys()])if(k.includes('before-restore'))store.delete(k);const id='nightcity-red-v1:before-restore:'+(kept.length+1);store.set(id,snapshot);kept.push(id);return id}};
+ const adapter={stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>'local',hasQueued:()=>false,save(s){saved.push(plain(s));return Promise.resolve({ok:true})},copies:()=>[...store.keys()].map(id=>({id,kind:id.includes('before-restore')?'before-restore':'recovery',at:null,size:store.get(id).length})),readCopy:id=>store.has(id)?store.get(id):null,removeCopy:id=>store.delete(id),keepBeforeRestore(snapshot){if(adapter.full)return false;const id='nightcity-red-v1:before-restore:'+(kept.length+1);store.set(id,snapshot);kept.push(id);return id},dropOlderBeforeRestore(id){for(const k of [...store.keys()])if(k.includes('before-restore')&&k!==id)store.delete(k)},forget(){adapter.forgotten=(adapter.forgotten||0)+1}};
  const ask=m=>{confirms.push(m);return typeof reply==='function'?reply(m):reply};
  const w={ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false,render:()=>''},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create(o){opts=o;return adapter}},confirm:ask,scrollTo(){}};
  const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({click(){},remove(){}}),body:{appendChild(){}}},Blob:class{constructor(parts){this.text=parts.join('')}},URL:{createObjectURL:b=>{downloads.push(b.text);return 'blob:x'},revokeObjectURL(){}},localStorage:{getItem:k=>k==='nightcity-red-v1'?raw:null,setItem(){}},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:ask,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap};
@@ -46,7 +46,24 @@ test('every record of a damaged archive ends up either open or set aside',()=>{
 });
 
 test('a downloaded original that cannot be parsed, or is not an archive, still fails closed',()=>{
- for(const raw of ['{broken','null','[]','"text"',JSON.stringify({campaigns:[]}),JSON.stringify({characters:{}}),JSON.stringify({characters:[],schemaVersion:-1})]){const h=harness(raw);assert.equal(h.opts().initialIssue.kind,'unreadable',raw);assert.equal(h.opts().initialIssue.raw,raw);assert.equal(h.qa.state().characters.length,0)}
+ for(const raw of ['{broken','null','[]','"text"','7','{}',JSON.stringify({characters:{}}),JSON.stringify({characters:'x',lang:'en'}),JSON.stringify({unknown:[1]}),JSON.stringify({characters:[],schemaVersion:-1}),JSON.stringify({characters:[],schemaVersion:'1'})]){const h=harness(raw);assert.equal(h.opts().initialIssue.kind,'unreadable',raw);assert.equal(h.opts().initialIssue.raw,raw);assert.equal(h.qa.state().characters.length,0)}
+});
+
+test('a missing or broken character list does not hide the campaigns and settings saved next to it',()=>{
+ const camp={id:'k',name:'Camp',roster:[{id:'n1',kind:'npc',name:'Goon',ref:5,initiative:5}]};
+ // No list at all: the rest opens as it is, with nothing to report.
+ let h=harness({campaigns:[camp]});assert.equal(h.opts().initialIssue,null);eq(h.qa.state().campaigns.map(k=>k.name),['Camp']);eq(h.qa.state().characters,[]);assert.equal(h.saved.length,0);
+ h=harness({campaigns:[]});assert.equal(h.opts().initialIssue,null);
+ h=harness({history:[{total:7}]});assert.equal(h.opts().initialIssue,null);assert.equal(h.qa.state().history[0].total,7);
+ // A list that is not a list is set aside whole, like any other section, and survives saving and reading again.
+ const raw=JSON.stringify({characters:{a:character('a')},campaigns:[camp],history:[{total:7}]});h=harness(raw);
+ const issue=h.opts().initialIssue;assert.equal(issue.kind,'partial');assert.equal(issue.raw,raw);eq(issue.summary,{characters:[],campaigns:[],sections:1});
+ const s=h.qa.state();eq(s.campaigns.map(k=>k.name),['Camp']);assert.equal(s.history[0].total,7);eq(s.characters,[]);
+ assert.equal(s.quarantine.length,1);assert.equal(s.quarantine[0].kind,'section');assert.equal(s.quarantine[0].key,'characters');eq(s.quarantine[0].data,{a:character('a')});
+ const snap=plain(h.qa.snapshot());assert.equal(h.qa.validate(snap),true);const again=h.qa.salvage(snap);assert.equal(again.items.length,0);eq(again.snapshot.quarantine[0].data,{a:character('a')});
+ // The same for campaigns next to good characters.
+ h=harness({characters:[character('a')],campaigns:{k:camp}});assert.equal(h.opts().initialIssue.kind,'partial');eq(h.qa.state().characters.map(c=>c.id),['a']);eq(h.qa.state().campaigns,[]);
+ assert.equal(h.qa.state().quarantine[0].key,'campaigns');eq(h.qa.state().quarantine[0].data,{k:camp});
 });
 
 test('an archive from a newer app version is left alone and editing is paused',()=>{
@@ -182,17 +199,26 @@ test('a full restore that does not fit next to its snapshot asks, then gives up 
  assert.equal(writes,1);assert.equal(fine.store.size,1);assert.match(fine.notices.at(-1),/Backup restored/);
  // It fits only without the snapshot and the user agrees to lose undo.
  const yes=mine();yes.adapter.flush=()=>({ok:yes.store.size===0,reason:'storage'});await yes.change('restore-backup',file);
- assert.match(yes.confirms.at(-1),/storage is full/);assert.equal(yes.store.size,0,'the snapshot is given up');eq(yes.qa.state().characters.map(c=>c.name),['From file']);
- eq(yes.saved.at(-1).characters.map(c=>c.id),['x']);assert.doesNotMatch(yes.notices.at(-1),/Backup restored|Nothing was replaced/);
+ assert.match(yes.confirms.at(-1),/do not fit in browser storage together\. Restore without the snapshot\?/);assert.equal(yes.store.size,0,'the snapshot is given up');eq(yes.qa.state().characters.map(c=>c.name),['From file']);
+ eq(yes.saved.at(-1).characters.map(c=>c.id),['x']);assert.equal(yes.notices.at(-1),'Backup restored without a snapshot of the previous data.');assert.equal(yes.adapter.forgotten,1,'the write that did not fit is dropped before asking');
  // The user declines: the snapshot is removed and the data in memory goes back to what is stored.
- const no=mine();no.adapter.flush=()=>({ok:no.store.size===0,reason:'storage'});no.answer(m=>!/storage is full/.test(m));await no.change('restore-backup',file);
+ const no=mine();no.adapter.flush=()=>({ok:no.store.size===0,reason:'storage'});no.answer(m=>!/do not fit/.test(m));await no.change('restore-backup',file);
  eq(no.qa.state().characters.map(c=>c.id),['mine']);assert.equal(no.store.size,0);eq(no.saved.at(-1).characters.map(c=>c.id),['mine']);assert.match(no.notices.at(-1),/Nothing was replaced: browser storage is full/);
+ // The replacement would not fit even without the snapshot: no question is asked, nothing changes.
+ const big=mine();big.adapter.flush=()=>({ok:big.qa.state().characters[0].id==='mine',reason:'storage'});big.adapter.hasRoom=n=>{big.asked=n;return false};await big.change('restore-backup',file);
+ assert.equal(typeof big.asked,'number');assert.equal(big.confirms.length,1,'only the restore itself was confirmed');eq(big.qa.state().characters.map(c=>c.id),['mine']);assert.equal(big.store.size,0);assert.match(big.notices.at(-1),/Nothing was replaced/);
+ // An earlier snapshot is not what pays for a restore that does not fit: it stays until a later restore is written.
+ const two=mine();two.adapter.flush=()=>({ok:true});await two.change('restore-backup',file);assert.deepEqual([...two.store.keys()],[two.kept[0]]);
+ two.adapter.flush=()=>({ok:false,reason:'storage'});two.adapter.hasRoom=()=>false;await two.change('restore-backup',{...file,characters:[character('y')]});
+ assert.deepEqual([...two.store.keys()],[two.kept[0]],'the first snapshot is still there');eq(two.qa.state().characters.map(c=>c.id),['x']);
+ two.adapter.flush=()=>({ok:true});delete two.adapter.hasRoom;await two.change('restore-backup',{...file,characters:[character('y')]});
+ assert.deepEqual([...two.store.keys()],[two.kept[2]],'a written restore leaves only its own snapshot');eq(two.qa.state().characters.map(c=>c.id),['y']);
  // Nothing fits even without the snapshot.
  const never=mine();never.adapter.flush=()=>({ok:false,reason:'storage'});await never.change('restore-backup',file);
  eq(never.qa.state().characters.map(c=>c.id),['mine']);assert.equal(never.store.size,0);assert.match(never.notices.at(-1),/Nothing was replaced/);
- // Undo of a restore is written the same way.
- fine.adapter.flush=()=>({ok:fine.store.size===0,reason:'storage'});fine.setAside('copy-revert',fine.kept[0]);
- eq(fine.qa.state().characters.map(c=>c.id),['mine']);assert.equal(fine.store.size,0);assert.match(fine.notices.at(-1),/snapshot data is back/);
+ // Undo of a restore is written the same way: its own new snapshot is given up, never the one being restored from.
+ fine.adapter.flush=()=>({ok:!fine.store.has(fine.kept[1]),reason:'storage'});fine.setAside('copy-revert',fine.kept[0]);
+ eq(fine.qa.state().characters.map(c=>c.id),['mine']);assert.deepEqual([...fine.store.keys()],[fine.kept[0]]);assert.match(fine.notices.at(-1),/snapshot data is back/);
 });
 
 test('set-aside data sections are listed by name in both languages',()=>{

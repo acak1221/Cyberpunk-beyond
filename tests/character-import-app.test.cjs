@@ -110,23 +110,28 @@ test('edit times only move forward, and a time far ahead of this clock is not be
  const h=harness({characters:[sheet('a',{uid:'A',updatedAt:100}),sheet('far',{uid:'F',updatedAt:1e15})]}),get=id=>h.chars().find(c=>c.id===id);
  assert.equal(h.App.findImport(sheet('x',{uid:'F'}),{}).updatedAt,null,'a stored time far in the future reads as unknown');
  h.tick();get('far').hp=10;h.App.save();assert.equal(get('far').extra.updatedAt,h.at(),'and the next edit replaces it with a real one');
- // A sheet from a device whose clock runs ten minutes ahead keeps its time; edits here still come after it.
- const ahead=h.at()+10*60000;
+ // A sheet from a device whose clock runs four minutes ahead keeps its time; edits here still come after it.
+ const ahead=h.at()+4*60000;
  assert.equal(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:ahead}),hp:30},{replace:'a'}).ok,true);assert.equal(get('a').extra.updatedAt,ahead);
  h.tick(1000);get('a').hp=12;h.App.save();assert.equal(get('a').extra.updatedAt,ahead+1,'a later edit never gets an earlier time');
  h.tick(1000);get('a').hp=11;h.App.save();assert.equal(get('a').extra.updatedAt,ahead+2);
- // A link time more than a day ahead is dropped, so it cannot keep the sheet "newest".
+ // A link time more than five minutes ahead is dropped, so it cannot keep the sheet "newest".
  h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:h.at()+2*864e5}),hp:5},{replace:'a'});assert.equal(get('a').hp,5);assert.equal(get('a').extra.updatedAt,undefined);
  h.App.save();assert.equal(get('a').extra.updatedAt,undefined);h.tick();get('a').hp=4;h.App.save();assert.equal(get('a').extra.updatedAt,h.at());
+ // The limit itself: five minutes ahead is still a clock that runs fast, a millisecond more is not believed.
+ const edge=h.at()+3e5;
+ h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:edge}),hp:3},{replace:'a'});assert.equal(get('a').extra.updatedAt,edge);
+ h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:edge+1}),hp:2},{replace:'a'});assert.equal(get('a').extra.updatedAt,undefined);
 });
 
 test('the same character from another device is found by uid and updated in place on request',()=>{
  const archive={characters:[sheet('local-id',{uid:'U',portrait:PNG,updatedAt:100})],campaigns:[{id:'k',name:'K',roster:[{id:'r1',kind:'pc',characterId:'local-id',initiative:5}]}]};
  const h=harness(archive),incoming={...sheet('remote-id',{uid:'U',updatedAt:200}),hp:20,name:'Renamed'};
- assert.deepEqual(plain(h.App.findImport(incoming,{sourceKey:'link:remote-id'})),{id:'local-id',name:'local-id',role:'solo',rank:4,updatedAt:100});
+ assert.deepEqual(plain(h.App.findImport(incoming,{sourceKey:'link:remote-id'})),{id:'local-id',name:'local-id',role:'solo',rank:4,updatedAt:100,by:'uid'});
  assert.equal(h.App.findImport({...sheet('z',{uid:'other'})},{sourceKey:'link:z'}),null);
  const res=h.App.importCharacter(incoming,{sourceKey:'link:remote-id',open:true,replace:'local-id'});
- assert.deepEqual(plain(res),{ok:true,id:'local-id',updated:true});
+ assert.deepEqual(plain(res),{ok:true,id:'local-id',updated:true,kept:true});
+ const [old]=h.state().bin;assert.equal(h.state().bin.length,1);assert.equal(old.replaced,true);assert.equal(old.character.hp,45);assert.equal(old.character.name,'local-id');assert.deepEqual(plain(old.roster),[],'the places in initiative stay with the updated sheet');
  const [c]=h.chars();assert.equal(h.chars().length,1);assert.equal(c.hp,20);assert.equal(c.name,'Renamed');
  assert.equal(c.extra.portrait,PNG,'a link carries no picture, so the local one stays');assert.equal(c.extra.uid,'U');assert.equal(c.extra.sourceKey,undefined);
  assert.equal(c.extra.updatedAt,200,'the incoming edit time is kept, the import itself is not an edit');
@@ -156,9 +161,84 @@ test('room sheets keep updating in place by source key, and their uid never merg
  assert.equal(first.ok,true);assert.equal(first.updated,false);
  const room=h.chars().find(c=>c.id===first.id);assert.equal(room.extra.sourceKey,'room:m1:pc');assert.equal(room.extra.uid,first.id,'the uid already belongs to another sheet here');
  const second=h.App.importCharacter({...sheet('pc',{uid:'P',updatedAt:70}),hp:25},{sourceKey:'room:m1:pc'});
- assert.deepEqual(plain(second),{ok:true,id:first.id,updated:true});
+ assert.deepEqual(plain(second),{ok:true,id:first.id,updated:true,kept:true});
  assert.equal(h.chars().length,2);assert.equal(h.chars().find(c=>c.id===first.id).hp,25);assert.equal(h.chars().find(c=>c.id==='link-copy').hp,45);
  const [x]=h.chars().filter(c=>c.id===first.id);assert.equal(x.extra.updatedAt,70);assert.equal(x.extra.uid,first.id);
+});
+
+test('a room sheet is matched to the copy from that device first, a link or file to the same character first',()=>{
+ const h=harness({characters:[sheet('mine',{uid:'P',updatedAt:50}),sheet('from-room',{uid:'from-room',sourceKey:'room-dev:d1:pc'}),sheet('old-room',{sourceKey:'room:seat7:npc'})]});
+ const found=(obj,sourceKey)=>{const m=h.App.findImport(obj,{sourceKey});return m&&[m.id,m.by]};
+ assert.deepEqual(found(sheet('pc',{uid:'P'}),'room-dev:d1:pc'),['from-room','source'],'the copy received from that device goes first');
+ assert.deepEqual(found(sheet('pc',{uid:'P'}),'room-dev:d2:pc'),['mine','uid'],'another device: the same character by uid');
+ assert.deepEqual(found(sheet('pc',{uid:'P'}),'link:pc'),['mine','uid']);
+ assert.deepEqual(found(sheet('npc',{uid:'N'}),'room-dev:d9:npc'),['old-room','source'],'a copy keyed by the seat (older versions) still counts');
+ assert.equal(found(sheet('npc2',{uid:'N'}),'room-dev:d9:npc2'),null);
+ assert.equal(h.App.findImport(null,{sourceKey:'room-dev:d1:pc'}),null);assert.equal(h.App.findImport([],{}),null);
+ assert.deepEqual(found(sheet('x',{uid:'X'}),{toString:()=>'room-dev:d1:pc'}),null,'a key that is not text is ignored');
+});
+
+test('rebind ties the updated sheet to the source, unless another sheet already answers to it',()=>{
+ const h=harness({characters:[sheet('mine',{uid:'P',updatedAt:50}),sheet('other',{uid:'O'})]}),get=id=>h.chars().find(c=>c.id===id);
+ assert.equal(h.App.importCharacter({...sheet('pc',{uid:'P',updatedAt:60}),hp:30},{sourceKey:'room-dev:d1:pc',replace:'mine',rebind:true}).ok,true);
+ assert.equal(get('mine').extra.sourceKey,'room-dev:d1:pc');assert.equal(h.App.findImport(sheet('pc',{uid:'zz'}),{sourceKey:'room-dev:d1:pc'}).id,'mine','later sheets from that device update it');
+ // The key is taken: another sheet updated from the same source keeps its own key.
+ assert.equal(h.App.importCharacter({...sheet('pc',{uid:'O',updatedAt:70}),hp:20},{sourceKey:'room-dev:d1:pc',replace:'other',rebind:true}).ok,true);
+ assert.equal(get('other').extra.sourceKey,undefined);assert.equal(get('mine').extra.sourceKey,'room-dev:d1:pc');
+ // Without rebind an update by uid leaves the key alone; a kept copy with rebind takes a free key.
+ assert.equal(h.App.importCharacter({...sheet('pc',{uid:'O',updatedAt:80}),hp:10},{sourceKey:'room-dev:d2:pc',replace:'other'}).ok,true);assert.equal(get('other').extra.sourceKey,undefined);
+ const copy=h.App.importCharacter(sheet('pc',{uid:'O'}),{sourceKey:'room-dev:d2:pc',copy:true,rebind:true});assert.equal(get(copy.id).extra.sourceKey,'room-dev:d2:pc');
+ const second=h.App.importCharacter(sheet('pc',{uid:'O'}),{sourceKey:'room-dev:d2:pc',copy:true,rebind:true});assert.equal(get(second.id).extra.sourceKey,undefined);
+ assert.equal(h.App.importCharacter(sheet('pc',{uid:'O'}),{sourceKey:'room-dev:d3:pc',copy:true}).ok,true);assert.equal(h.chars()[0].extra.sourceKey,undefined,'a plain copy is tied to nothing');
+});
+
+test('the replaced version waits in the bin: one per character, and it comes back as a separate sheet',()=>{
+ const archive={characters:[sheet('a',{uid:'A',updatedAt:100,sourceKey:'room-dev:d1:a'}),sheet('b')],campaigns:[{id:'k',name:'K',roster:[{id:'r1',kind:'pc',characterId:'a',initiative:5}]}]};
+ const h=harness(archive),get=id=>h.chars().find(c=>c.id===id),upd=(hp,at)=>h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:at}),hp},{sourceKey:'room-dev:d1:a'});
+ assert.equal(upd(30,200).kept,true);assert.equal(h.state().bin[0].character.hp,45);
+ assert.deepEqual(plain(upd(30,200)),{ok:true,id:'a',updated:true,kept:false},'the same content leaves nothing to keep');assert.equal(h.state().bin[0].character.hp,45);
+ h.tick();assert.equal(upd(20,300).kept,true);
+ assert.deepEqual(plain(h.state().bin.map(e=>[e.replaced,e.character.hp])),[[true,30]],'only the latest replaced version of a character is kept');
+ // A deleted character and a replaced version of another one live side by side.
+ const gone=h.w.qa.toBin(get('b'));assert.equal(upd(10,400).kept,true);assert.deepEqual(plain(h.state().bin.map(e=>e.character.id)).sort(),['a','b']);assert.ok(h.state().bin.includes(gone));
+ const entry=h.state().bin.find(e=>e.replaced),back=h.w.qa.fromBin(entry.id);
+ assert.equal(back.ok,true);assert.notEqual(back.id,'a','the id is taken by the updated sheet');assert.equal(get(back.id).hp,20);
+ assert.equal(get(back.id).extra.sourceKey,undefined,'the updated sheet keeps receiving the updates');assert.equal(get('a').extra.sourceKey,'room-dev:d1:a');
+ assert.deepEqual(plain(h.state().campaigns[0].roster.map(r=>r.characterId)),['a'],'initiative places are not doubled');
+ assert.equal(h.state().bin.some(e=>e.replaced),false);
+});
+
+test('a copy of the previous version never makes an update fail, except a step back to an older one',()=>{
+ const h=harness({characters:[sheet('a',{uid:'A',updatedAt:500})]}),get=()=>h.chars().find(c=>c.id==='a');
+ // Newer incoming sheet, no room for the copy as well: the update is written alone.
+ h.failWrites(1);
+ assert.deepEqual(plain(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:600}),hp:30},{replace:'a'})),{ok:true,id:'a',updated:true,kept:false});
+ assert.equal(get().hp,30);assert.equal(h.state().bin.length,0);assert.equal(h.writes.at(-1).characters[0].hp,30);assert.equal(h.writes.at(-1).bin,undefined);
+ // Not even the update fits: everything stays.
+ const before=h.chars();h.failWrites(2);
+ assert.deepEqual(plain(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:700}),hp:25},{replace:'a'})),{ok:false,reason:'storage'});
+ assert.equal(h.chars(),before);assert.equal(get().hp,30);assert.equal(h.state().bin.length,0);
+ // An older incoming sheet over a newer local one is refused without its copy: the newer sheet would be gone for good.
+ h.failWrites(1);
+ assert.deepEqual(plain(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:100}),hp:5},{replace:'a'})),{ok:false,reason:'storage'});
+ assert.equal(get().hp,30);assert.equal(get().extra.updatedAt,600);assert.equal(h.state().bin.length,0);assert.equal(h.writes.at(-1).characters[0].hp,30,'the data from before is written back');
+ // The same holds for a sheet without an edit time, and with room for the copy the step back goes through.
+ h.failWrites(1);assert.equal(h.App.importCharacter({...sheet('remote',{uid:'A'}),hp:4},{replace:'a'}).reason,'storage');
+ assert.deepEqual(plain(h.App.importCharacter({...sheet('remote',{uid:'A',updatedAt:100}),hp:5},{replace:'a'})),{ok:true,id:'a',updated:true,kept:true});
+ assert.equal(get().hp,5);assert.equal(h.state().bin[0].character.hp,30);assert.equal(h.state().bin[0].character.extra.updatedAt,600);
+});
+
+test('a bin entry gives back only initiative places of a player character, and its link or room key only while it is free',()=>{
+ const archive={characters:[sheet('a',{sourceKey:'link:a'})],campaigns:[{id:'k',name:'K',roster:[{id:'r1',kind:'pc',characterId:'a',initiative:5},{id:'n1',kind:'npc',name:'Goon',initiative:3}]}]};
+ const h=harness(archive),get=id=>h.chars().find(c=>c.id===id);
+ const entry=h.w.qa.toBin(get('a'));assert.deepEqual(plain(entry.roster.map(r=>r.entry.id)),['r1']);
+ entry.roster.push({campaignId:'k',index:0,entry:{id:'evil',kind:'npc',name:'Planted',initiative:99}},{campaignId:'k',index:0,entry:{id:'n1',kind:'pc',characterId:'a'}},{campaignId:'k',index:0,entry:null});
+ assert.equal(h.w.qa.fromBin(entry.id).ok,true);
+ assert.deepEqual(plain(h.state().campaigns[0].roster.map(r=>r.id)),['r1','n1'],'only the player place is back, once');assert.equal(get('a').extra.sourceKey,'link:a');
+ // Deleted, then the link is imported again as a new sheet: the restored one no longer answers to the link.
+ const again=h.w.qa.toBin(get('a')),fresh=h.App.importCharacter(sheet('a'),{sourceKey:'link:a'});assert.equal(fresh.ok,true);
+ const back=h.w.qa.fromBin(again.id);assert.equal(back.ok,true);assert.equal(get(back.id).extra.sourceKey,undefined);assert.equal(get(fresh.id).extra.sourceKey,'link:a');
+ assert.equal(h.w.qa.fromBin('nope').reason,'missing');
 });
 
 test('a source key inside an imported sheet is never trusted, but it still tells which character it is',()=>{

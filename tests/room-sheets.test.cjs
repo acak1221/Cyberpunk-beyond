@@ -8,14 +8,14 @@ function loadRoom({store=new Map(),timers=null,lang='ru'}={}){
  const listeners={},document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
  // Long timers (the 30 s wait for a GM receipt) are either collected to be fired by the test or do not keep node running.
  const later=(f,ms)=>{if(timers&&ms>=1000){timers.push(f);return timers.length}const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
  const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[];
  R.setApp({getState:()=>({lang,characters:window.chars||[],campaigns:window.camps||[]}),notify:m=>notices.push(m)});
  R.setTransport({publish:(sub,bytes)=>{sent.push({sub,bytes});return 1},close(){}});
  // Presses a room button the way a click on the page does.
- const press=async action=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action}}:null}})};
+ const press=async(action,data={})=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action,...data}}:null}})};
  return {window,R,notices,sent,store,press};
 }
 const CODE='K7RQM2XAPZ9E';
@@ -181,4 +181,135 @@ test('room views show translated role names and no «?» for a missing character
   // Counts in card headings are not page references, so the clean look must not turn them into «стр. N».
   assert.ok(view.includes('<span data-nx>1</span></div><ul>')&&/<span data-nx>\d+<\/span>/.test(view.split('room-team')[1]));
  }
+});
+
+test('accepting asks first when the same character is here another way, or the GM copy was edited later',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub()),calls=[],offers=[];let match=null,side='incoming',answer=null;
+ const save=gm.window.App.importCharacter;
+ Object.assign(gm.window.App,{findImport:()=>match,importCharacter:(c,o)=>{calls.push(plain(o));return save(c,o)}});
+ gm.window.ShareLink={compare:()=>side,offer:async(c,o)=>{offers.push(plain(o));return answer}};
+ const p=player(r,{character:V,gmPub:pub}),src='room-dev:'+p.R.deviceId()+':v1';
+ const arrive=async()=>{await p.R.sendSheet();await deliver(gm,r,p.sent);gm.sent.length=0};
+ // Nothing like it here yet: saved without a question.
+ await arrive();assert.match(gm.R.roomView(),/data-room-action="accept-sheet"[^>]*>Принять</);
+ await gm.R.acceptSheet(0);await settle();
+ assert.deepEqual(calls,[{sourceKey:src}]);assert.equal(offers.length,0);assert.equal(gm.sent.length,1);
+ assert.equal(gm.notices.at(-1),'Лист сохранён: Ви и добавлен в кампанию');
+ // Sent before by this player and not edited here since: updated in place and tied to this source.
+ match={id:'gm-copy-1',by:'source'};await arrive();
+ assert.equal(gm.R.incoming().length,1); // the newer sheet takes the place of the one already saved
+ assert.match(gm.R.roomView(),/data-room-action="accept-sheet"[^>]*>Обновить</);
+ await gm.R.acceptSheet(0);
+ assert.deepEqual(calls.at(-1),{sourceKey:src,replace:'gm-copy-1',rebind:true});assert.equal(offers.length,0);
+ assert.equal(gm.notices.at(-1),'Лист обновлён: Ви');
+ // The GM edited that copy later: the GM decides. Closing the question keeps the sheet in the list and tells the player nothing.
+ side='local';await arrive();
+ const quiet=gm.notices.length;await gm.R.acceptSheet(0);await settle();
+ assert.deepEqual(offers,[{kind:'room',sourceKey:src}]);assert.equal(calls.length,2);
+ assert.equal(gm.R.incoming().filter(x=>!x.saved).length,1);assert.equal(gm.sent.length,0);assert.equal(gm.notices.length,quiet);
+ assert.ok(gm.R.roomView().includes('accept-sheet'));
+ // «Оставить оба»: a separate character, said in words, and only now the player hears that the sheet was accepted.
+ answer={ok:true,id:'gm-copy-9',updated:false,how:'copy'};gm.window.chars.push({id:'gm-copy-9',name:'Ви'});
+ await gm.R.acceptSheet(0);await settle();
+ assert.equal(gm.notices.at(-1),'Лист добавлен отдельным персонажем: Ви и добавлен в кампанию');assert.equal(gm.sent.length,1);
+ assert.deepEqual(plain(gm.window.camps[0].roster.map(x=>x.characterId)),['gm-copy-1','gm-copy-9']);
+ // The same character came by a link or a file: asked as well, and the version that was replaced is said to be kept.
+ match={id:'gm-copy-1',by:'uid'};side='incoming';answer={ok:true,id:'gm-copy-1',updated:true,kept:true};await arrive();
+ assert.match(gm.R.roomView(),/data-room-action="accept-sheet"[^>]*>Принять</);
+ await gm.R.acceptSheet(0);
+ assert.equal(offers.length,3);assert.equal(calls.length,2);
+ assert.equal(gm.notices.at(-1),'Лист обновлён: Ви. Прежняя версия сохранена на 30 дней: «Персонажи» → «Удалённые персонажи».');
+});
+
+test('a sheet that could not be saved says why, and stays in the list while accepting it again can work',{skip:!zipOK},async()=>{
+ for(const lang of ['ru','en']){
+  const {r,gm}=await room(),pub=plain(gm.R.gmPub());let res;
+  gm.R.setApp({getState:()=>({lang,characters:gm.window.chars,campaigns:gm.window.camps}),notify:m=>gm.notices.push(m)});
+  const save=gm.window.App.importCharacter;gm.window.App.importCharacter=(c,o)=>{if(res==='throw')throw Error('boom');return res||save(c,o)};
+  const p=player(r,{character:V,gmPub:pub}),arrive=async()=>{await p.R.sendSheet();await deliver(gm,r,p.sent);gm.sent.length=0};
+  const RU=[['storage',true,/^Лист не сохранён: в браузере не хватает места\..* он остаётся в списке\.$/],['paused',true,/^Лист не сохранён: редактирование приостановлено\. Он остаётся в списке/],['missing',true,/^Лист не сохранён: персонаж, которого он обновлял, удалён\. Лист остаётся в списке/],['too_big',false,/^Лист слишком большой, чтобы его сохранить\.$/],['invalid',false,/^Не удалось прочитать лист\.$/],['unknown',false,/^Не удалось прочитать лист\.$/],['throw',false,/^Не удалось прочитать лист\.$/]];
+  const EN=[['storage',true,/^The sheet was not saved: the browser is out of storage\..* it stays in the list\.$/],['paused',true,/^The sheet was not saved: editing is paused\. It stays in the list/],['missing',true,/^The sheet was not saved: the character it was updating has been deleted\. It stays in the list/],['too_big',false,/^The sheet is too big to save\.$/],['invalid',false,/^Could not read the sheet\.$/],['unknown',false,/^Could not read the sheet\.$/],['throw',false,/^Could not read the sheet\.$/]];
+  for(const [reason,stays,text] of lang==='ru'?RU:EN){
+   await arrive();res=reason==='throw'?'throw':{ok:false,reason};
+   await gm.R.acceptSheet(0);await settle();
+   assert.match(gm.notices.at(-1),text,reason);assert.equal(gm.R.incoming().length,stays?1:0,reason);
+   assert.equal(gm.sent.length,0,reason); // the player is not told the sheet was accepted
+   assert.equal(gm.window.camps[0].roster.length,0,reason);assert.equal(gm.window.chars.length,0,reason);
+  }
+  // The very same item goes through once there is room again.
+  await arrive();res={ok:false,reason:'storage'};await gm.R.acceptSheet(0);
+  res=null;await gm.R.acceptSheet(0);await settle();
+  assert.equal(gm.window.chars.length,1);assert.equal(gm.sent.length,1);assert.equal(gm.R.incoming()[0].saved,'gm-copy-1');
+ }
+});
+
+test('an accepted sheet stays in the list with «Открыть» while its character exists; a second press while the question is open does nothing',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub()),opened=[];let asked=0,answer;
+ gm.window.App.open=id=>opened.push(id);gm.window.App.findImport=()=>({id:'elsewhere',by:'uid'});
+ gm.window.ShareLink={compare:()=>'incoming',offer:(c,o)=>new Promise(ok=>{asked++;answer=()=>ok(gm.window.App.importCharacter(c,{sourceKey:o.sourceKey}))})};
+ const p=player(r,{character:V,gmPub:pub});await p.R.sendSheet();await deliver(gm,r,p.sent);
+ const first=gm.R.acceptSheet(0);await gm.R.acceptSheet(0);await gm.press('accept-sheet',{index:'0'});
+ assert.equal(asked,1);answer();await first;
+ assert.equal(gm.window.chars.length,1);assert.equal(gm.window.camps[0].roster.length,1);
+ const view=gm.R.roomView();
+ assert.match(view,/data-room-action="open-sheet" data-id="gm-copy-1">Открыть</);assert.ok(!view.includes('accept-sheet')&&!view.includes('decline-sheet'));
+ await gm.press('open-sheet',{id:'gm-copy-1'});assert.deepEqual(opened,['gm-copy-1']);
+ // Deleted since: the button would open nothing, so the sheet is offered again instead.
+ gm.window.chars.length=0;gm.window.App.findImport=()=>null;
+ await gm.press('open-sheet',{id:'gm-copy-1'});assert.deepEqual(opened,['gm-copy-1']);
+ assert.match(gm.R.roomView(),/data-room-action="accept-sheet"[^>]*>Принять</);
+ await gm.press('decline-sheet',{index:'0'});assert.equal(gm.R.incoming().length,0);
+});
+
+test('only something shaped like a sheet is listed',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub());let n=0;
+ const post=async d=>gm.R.receive({topic:r.topic+'/e',retain:false,payload:await gm.R.seal({v:2,id:'bad'+(n++),from:'p9',t:'sheet',at:Date.now(),d:{to:'gm1',...d}})});
+ for(const character of [null,'text',7,[],[V],{id:'x',name:{length:2},role:'solo'},{id:'x',name:['Ви'],role:'solo'},{id:'x',name:'Ви'},{id:'x',name:'Ви',role:null},{id:'x',name:'Ви',role:{id:'solo'}},{id:'x',role:'solo'}]){
+  for(const enc of ['j','z']){
+   const packed=await gm.R.packSheet({who:'X',dev:'0123456789abcdef',character},enc);assert.equal(packed.enc,enc);
+   await post({enc,ref:'r'+n,...await gm.R.sealFor(pub,packed.bytes)});
+  }
+  await post(await gm.R.sealFor(pub,character)); // the older form: a bare character
+ }
+ // Not a packet at all.
+ await post({enc:'z',ref:'r',...await gm.R.sealFor(pub,new Uint8Array([1,2,3,4,5]))});
+ await post({enc:'j',ref:'r',...await gm.R.sealFor(pub,new TextEncoder().encode('{"character":'))});
+ await post({enc:'j',ref:'r',...await gm.R.sealFor(pub,new TextEncoder().encode('7'))});
+ await settle();
+ assert.equal(gm.R.incoming().length,0);assert.equal(gm.sent.length,0);assert.equal(gm.notices.length,0);
+ assert.ok(!gm.R.roomView().includes('accept-sheet'));
+ // A well-formed one right after is still read.
+ const ok=await gm.R.packSheet({who:'X',dev:'0123456789abcdef',character:{id:'x',name:'',role:''}},'z');
+ await post({enc:'z',ref:'good',...await gm.R.sealFor(pub,ok.bytes)});await settle();
+ assert.equal(gm.R.incoming().length,1);assert.equal(gm.sent.length,1);assert.match(gm.R.roomView(),/<b>—<\/b>/);
+});
+
+test('a receipt counts only from a GM the sheet went to, with the reference sent along',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub());let n=0;
+ const tell=async(to,from,t,d)=>{const before=to.notices.length;await to.R.receive({topic:r.topic+'/e',retain:false,payload:await gm.R.seal({v:2,id:'m'+(n++),from,t,at:Date.now(),d:{to:'p1',...d}})});return to.notices.slice(before)};
+ const p=player(r,{character:V,gmPub:pub,timers:[]});p.R.members().set('p2',{name:'Боб',role:'player',at:Date.now()});p.R.members().set('gm2',{name:'Второй',role:'gm',at:Date.now()});
+ await p.R.sendSheet();const ref=p.R.sheetState().ref;assert.match(ref,/^[0-9a-f]{16}$/);
+ // Another player, or anyone who knows the room code, cannot make the sheet look received or accepted.
+ assert.deepEqual(await tell(p,'p2','sheet-got',{ref}),[]);assert.deepEqual(await tell(p,'p2','sheet-ack',{ref,name:'Ви'}),[]);
+ assert.deepEqual(await tell(p,'ghost','sheet-got',{ref}),[]);assert.deepEqual(await tell(p,'ghost','sheet-ack',{ref,name:'Ви'}),[]);
+ assert.equal(p.R.sheetState().state,'waiting');
+ // A GM answering about another sheet (an earlier one, or one sent to them alone) is heard, but this sheet's status stays.
+ assert.deepEqual(await tell(p,'gm1','sheet-got',{ref:'0000'}),[]);assert.deepEqual(await tell(p,'gm1','sheet-got',{}),[]);assert.deepEqual(await tell(p,'gm1','sheet-got',{ref:[ref]}),[]);
+ assert.deepEqual(await tell(p,'gm1','sheet-ack',{ref:'0000',name:'Прежний'}),['Ведущий принял ваш лист: Прежний']);
+ assert.deepEqual(await tell(p,'gm2','sheet-ack',{ref,name:'Ви'}),['Ведущий принял ваш лист: Ви']); // a GM this sheet did not go to
+ assert.equal(p.R.sheetState().state,'waiting');
+ // A message for someone else is not ours.
+ await p.R.receive({topic:r.topic+'/e',retain:false,payload:await gm.R.seal({v:2,id:'else',from:'gm1',t:'sheet-ack',at:Date.now(),d:{to:'p7',ref,name:'Ви'}})});
+ assert.equal(p.R.sheetState().state,'waiting');
+ // The real ones, each said once; nothing moves back.
+ assert.deepEqual(await tell(p,'gm1','sheet-got',{ref}),['Ведущий получил лист «Ви». Ждём, когда он его примет.']);
+ assert.deepEqual(await tell(p,'gm1','sheet-got',{ref}),[]);
+ assert.deepEqual(await tell(p,'gm1','sheet-ack',{ref,name:'Ви'}),['Ведущий принял ваш лист: Ви']);
+ assert.deepEqual(await tell(p,'gm1','sheet-ack',{ref,name:'Ви'}),[]);assert.deepEqual(await tell(p,'gm1','sheet-got',{ref}),[]);
+ assert.equal(p.R.sheetState().state,'accepted');
+ // A GM page too old to be given a reference sends none back and answers only on accepting: a receipt from it is not its own.
+ const q=player(r,{character:V,gmPub:pub,sheets:'',timers:[]});await q.R.sendSheet();const qref=q.R.sheetState().ref;
+ assert.deepEqual(await tell(q,'gm1','sheet-got',{}),[]);assert.deepEqual(await tell(q,'gm1','sheet-got',{ref:qref}),[]);
+ await tell(q,'gm1','sheet-ack',{ref:qref,name:'Ви'});assert.equal(q.R.sheetState().state,'sent');
+ assert.deepEqual(await tell(q,'gm1','sheet-ack',{name:'Ви'}),['Ведущий принял ваш лист: Ви']);assert.equal(q.R.sheetState().state,'accepted');
 });
