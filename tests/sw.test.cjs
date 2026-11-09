@@ -104,6 +104,15 @@ test('the PDF reader is stored on first use or in the background and found witho
  await next.message('cache-pdf');assert.equal(next.net.requests.length,0);assert.equal((await next.get(files[1],'cors')).status,200);
 });
 
+test('the first update from the per-version runtime cache carries a matching pdf.js over',async()=>{
+ const sw=worker(),old=await sw.caches.open('nc-red-runtime-0123456789ab');
+ await old.put(SCOPE+'vendor/pdfjs/pdf.min.mjs',new Response(fs.readFileSync(path.join(out,'vendor/pdfjs/pdf.min.mjs'))));
+ await old.put(SCOPE+'vendor/pdfjs/pdf.worker.min.mjs',new Response('/* another pdf.js version */'));
+ await sw.install();sw.net.mode='offline';await sw.activate();
+ assert.ok(!sw.caches.store.has('nc-red-runtime-0123456789ab'));
+ assert.deepEqual([...sw.caches.store.get(`nc-red-pdfjs-${PDFJS.version}`).keys()],[SCOPE+'vendor/pdfjs/pdf.min.mjs']);
+});
+
 test('a pdf.js file of another version (a stale HTTP or CDN copy) is passed through but never stored',async()=>{
  const sw=worker();await sw.install();await sw.activate();sw.net.stale={'vendor/pdfjs/pdf.worker.min.mjs':'/* pdf.js 4.0 worker */'};
  assert.equal(await (await sw.get('vendor/pdfjs/pdf.worker.min.mjs','same-origin')).text(),'/* pdf.js 4.0 worker */');

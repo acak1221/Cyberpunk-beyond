@@ -122,7 +122,8 @@ await writeFile(path.join(out, '.nojekyll'), '');
 // Unknown paths (e.g. /Cyberpunk-beyond/sheet/abc typed or shared without the #)
 // redirect to the app with the same route as a hash, under whatever base path
 // the site is served from. Relative asset links would break on a deep path, so
-// this page is tiny and self-contained. The service worker does the same offline.
+// this page is tiny and self-contained. Once installed, sw.js does the same
+// without the network (VIEWS).
 await writeFile(path.join(out, '404.html'), `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Night City // RED</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#11110f;color:#e8e6e1;font:16px system-ui,sans-serif}a{color:#ff5a4f}</style></head><body><p><a href="./">Night City // RED</a></p><script>
 (function(){var views=${JSON.stringify(views)},parts=location.pathname.split('/').filter(Boolean),at=-1;
 for(var i=0;i<parts.length;i++)if(views.indexOf(decodeURIComponent(parts[i]))>=0){at=i;break}

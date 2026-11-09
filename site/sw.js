@@ -47,8 +47,10 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keep = new Set([APP_CACHE, PDF_CACHE, FONT_CACHE]);
-    const names = await caches.keys();
-    await Promise.all(names.filter(name => name.startsWith('nc-red-') && !keep.has(name)).map(name => caches.delete(name)));
+    const names = (await caches.keys()).filter(name => name.startsWith('nc-red-') && !keep.has(name));
+    // Earlier versions kept pdf.js in a per-version cache: carry it over instead of downloading it again.
+    await adoptPdf(names.filter(name => name.startsWith('nc-red-runtime-'))).catch(() => {});
+    await Promise.all(names.map(name => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -62,7 +64,21 @@ self.addEventListener('message', event => {
 async function storePdf(cache, key, sha, response) {
   const body = await response.arrayBuffer();
   const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', body))].map(b => b.toString(16).padStart(2, '0')).join('');
-  if (digest === sha) await cache.put(key, new Response(body, response));
+  if (digest !== sha) return false;
+  await cache.put(key, new Response(body, response));
+  return true;
+}
+
+async function adoptPdf(oldCaches) {
+  const cache = await caches.open(PDF_CACHE);
+  for (const [file, sha] of PDF_FILES) {
+    const url = new URL(file, SCOPE).href;
+    if (await cache.match(url, { ignoreVary: true })) continue;
+    for (const name of oldCaches) {
+      const old = await caches.match(url, { cacheName: name, ignoreVary: true });
+      if (old && await storePdf(cache, url, sha, old)) break;
+    }
+  }
 }
 
 let pdfDownload = null;
