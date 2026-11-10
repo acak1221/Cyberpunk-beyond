@@ -1,0 +1,17 @@
+/* Online rooms: handing the Game Master role to another device, and a co-GM (room-auth.js) */
+.room-badge.co { color: #111; background: #9ccdb0; }
+.room-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.room-tool { min-height: 36px; padding: 6px 10px; font-size: 12px; line-height: 1.2; white-space: normal; text-align: left; }
+.room-tool[aria-pressed="true"] { border-color: currentColor; }
+.room-auth { display: grid; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.room-auth-note { margin: 10px 0 0; color: var(--text); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.room-auth .room-auth-note { margin: 0; }
+.room-auth-note .room-tool { margin-left: 6px; vertical-align: middle; }
+.room-auth-file { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.room-auth-file small { flex: 1 1 260px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.room-auth-import { grid-column: 1 / -1; }
+@media (max-width: 650px) {
+  .room-tool { min-height: 44px; }
+  .room-auth-file .btn { width: 100%; min-height: 44px; }
+  .room-auth-note .room-tool { display: block; margin: 8px 0 0; }
+}

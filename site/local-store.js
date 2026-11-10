@@ -30,7 +30,7 @@ function create(options){
  function write(snapshot){
   let raw;
   try{raw=JSON.stringify(snapshot)}catch{failed=true;notifyFailure();paint();return {ok:false,reason:'serialize'}}
-  try{global.localStorage.setItem(KEY,raw);lastWritten=raw;failed=false;unsaved=null;paint();return {ok:true}}
+  try{global.localStorage.setItem(KEY,raw);lastWritten=raw;failed=false;unsaved=null;paint();try{global.Transfer?.noteChange?.(snapshot)}catch{}return {ok:true}}
   catch{failed=true;unsaved=snapshot;notifyFailure();paint();return {ok:false,reason:'storage'}}
  }
  // A quiet second try: no failure notice, the first failure already showed one.

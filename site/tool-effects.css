@@ -1,0 +1,9 @@
+/* What the effects on a linked sheet give to a tool's check (tool-effects.js). Colours are inherited so the block reads in every look. */
+.tool-effects{grid-column:1/-1;min-width:0;margin:8px 0;padding:8px 12px;border:1px solid color-mix(in srgb,currentColor 32%,transparent);border-left-width:3px;border-radius:6px;font-size:.9rem;line-height:1.5;overflow-wrap:anywhere}
+.tool-effects p{margin:0}
+.tool-effects-value{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tool-effects-hint{font-size:.86em}
+.tool-effects-parts{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 8px}
+.tool-effects-parts li{padding:1px 8px;border:1px solid color-mix(in srgb,currentColor 24%,transparent);border-radius:999px;max-width:100%}
+.tool-effects-remind{margin-top:6px!important;font-size:.86em}
+.tool-effects-remind span{font-weight:700}

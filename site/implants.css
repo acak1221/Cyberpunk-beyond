@@ -1,0 +1,29 @@
+/* Cyberware that changes the sheet and switched-on cyberware (implants.js). Colours come from the look's variables. */
+.imp-root .imp-hint{margin:0 0 12px;color:var(--muted,#a19b96);font-size:12px;line-height:1.55}
+.imp-trail{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border,#373637);border-left:3px solid var(--green,#84b799);background:var(--panel-2,#222224);color:var(--text,#f4efe6);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.imp-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 14px;padding:12px;border:1px solid var(--border,#373637);background:var(--panel-2,#222224);min-width:0}
+.imp-row+.imp-row{margin-top:8px}
+.imp-row.is-on,.imp-row[data-imp-state=active]{border-left:3px solid var(--green,#84b799)}
+.imp-row[data-imp-state=cooldown]{border-left:3px solid var(--yellow,#e9c66d)}
+.imp-main{flex:1 1 220px;min-width:0;display:grid;gap:4px}
+.imp-main strong{color:var(--text,#f4efe6);font-size:14px;overflow-wrap:anywhere}
+.imp-main small{color:var(--muted,#a19b96);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.imp-main small.imp-warn{color:var(--yellow,#e9c66d);font-weight:700}
+.imp-state{color:var(--muted,#a19b96);font-size:12px;font-weight:700}
+.imp-state b{color:var(--text,#f4efe6);font-size:15px}
+.imp-row.is-on .imp-state,.imp-row[data-imp-state=active] .imp-state{color:var(--green,#84b799)}
+.imp-row[data-imp-state=cooldown] .imp-state{color:var(--yellow,#e9c66d)}
+.imp-bonus{justify-self:start;padding:2px 8px;border:1px solid var(--green,#84b799);color:var(--green,#84b799);font-size:12px;font-weight:700}
+.imp-bar{display:block;height:6px;background:rgba(128,128,128,.28);overflow:hidden}
+.imp-bar i{display:block;height:100%;background:var(--green,#84b799)}
+.imp-row[data-imp-state=cooldown] .imp-bar i{background:var(--yellow,#e9c66d)}
+.imp-record{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.imp-record li{padding:3px 8px;border:1px solid var(--border,#373637);background:var(--panel,#1b1b1d);color:var(--text,#f4efe6);font-size:12px;font-variant-numeric:tabular-nums}
+.imp-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.imp-actions .imp-btn,html.ui-native .imp-root .imp-actions .imp-btn,html.ui-native.ui-board .imp-root .imp-actions .imp-btn{min-height:44px;min-width:44px;font-size:12px}
+html.ui-native .imp-row,html.ui-native .imp-trail{border-radius:12px}
+html.ui-native .imp-record li,html.ui-native .imp-bonus{border-radius:999px}
+html.ui-native .imp-bar,html.ui-native .imp-bar i{border-radius:999px}
+html.ui-native.ui-board .imp-row,html.ui-native.ui-board .imp-trail{border-radius:6px}
+@media (max-width:520px){.imp-actions{width:100%}.imp-actions .imp-btn{flex:1 1 auto}}
+@media print{.imp-actions{display:none}.imp-row,.imp-trail{background:#fff;color:#111;border-color:#999}}
