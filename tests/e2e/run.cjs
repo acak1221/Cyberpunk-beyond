@@ -153,6 +153,31 @@ async function main() {
     await ctx.close();
   });
 
+  await check('the «Досье» look: three columns on a wide screen, ordinary tabs on a phone', async fail => {
+    const wide = await device({ look: 'board', theme: 'light', width: 1440 });
+    await wide.page.goto(BASE + '#/sheet/v1'); await wait(500);
+    const board = await wide.page.evaluate(() => {
+      const box = sel => document.querySelector(sel).getBoundingClientRect(), aside = box('.sheet-aside'), skills = box('#sheet-skills'), tabs = box('.sheet-tabs');
+      return { columns: aside.right <= skills.left && skills.right <= tabs.left, skillsTab: getComputedStyle(document.querySelector('.sheet-tabs [data-sheet-tab="skills"]')).display, stats: document.querySelectorAll('.sheet-stat-strip > div').length, scroll: document.documentElement.scrollWidth - innerWidth, pressed: document.querySelector('[data-ui-style][aria-pressed="true"]')?.dataset.uiStyle };
+    });
+    if (!board.columns) fail('the condition, the skills and the panel are not three columns');
+    if (board.skillsTab !== 'none') fail('the «Навыки» tab is still shown beside the skills column');
+    if (board.stats !== 10) fail('the row of stat boxes is missing');
+    if (board.scroll > 0) fail('the page scrolls sideways by ' + board.scroll);
+    if (board.pressed !== 'board') fail('the switch does not mark «Досье»: ' + board.pressed);
+    await wide.page.evaluate(() => document.querySelector('[data-action="skill-roll"][data-skill="Athletics"]').click()); await wait(250);
+    if ((await wide.page.evaluate(() => window.App.getState().history.length)) !== 1) fail('a roll from the skills column was not recorded');
+    for (const e of wide.page.errs) fail(e);
+    await wide.ctx.close();
+    const phone = await device({ look: 'board', theme: 'dark', width: 390 });
+    await phone.page.goto(BASE + '#/sheet/v1'); await wait(500);
+    const small = await phone.page.evaluate(() => { window.SheetTabs.select('skills', { scroll: false }); return { active: document.querySelector('.sheet-layout').dataset.activeTab, grid: getComputedStyle(document.querySelector('#main-content')).display, scroll: document.documentElement.scrollWidth - innerWidth }; });
+    if (small.active !== 'skills' || small.grid === 'grid') fail('on a phone the sheet is not the ordinary tabbed one: ' + JSON.stringify(small));
+    if (small.scroll > 0) fail('the phone page scrolls sideways by ' + small.scroll);
+    for (const e of phone.page.errs) fail(e);
+    await phone.ctx.close();
+  });
+
   if (!brokerUrl) skip('two browsers meet in a room', 'aedes and ws are not installed');
   else await check('two browsers meet in a room: join by link, rolls, hidden enemies stay hidden', async fail => {
     const gm = await device(), player = await device({ width: 390 });
@@ -179,9 +204,9 @@ async function main() {
 
   const axePath = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();
   if (!axePath) skip('accessibility rules (axe)', 'axe-core is not installed');
-  else await check('accessibility rules (axe): names, roles and contrast on every screen in the three looks', async fail => {
+  else await check('accessibility rules (axe): names, roles and contrast on every screen in every look', async fail => {
     const source = fs.readFileSync(axePath, 'utf8');
-    for (const [look, theme, width] of [['native', 'dark', 1280], ['native', 'light', 390], ['cyber', 'dark', 1280]]) {
+    for (const [look, theme, width] of [['native', 'dark', 1280], ['native', 'light', 390], ['cyber', 'dark', 1280], ['board', 'dark', 1440], ['board', 'light', 390]]) {
       const { ctx, page } = await device({ look, theme, width });
       for (const view of VIEWS) {
         await page.goto(BASE + '#/' + view); await wait(300);

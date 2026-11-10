@@ -1,0 +1,212 @@
+/* «Досье» — the third look. It builds on the clean look (html.ui-native) and lays the character sheet out the way
+   tabletop character boards usually do: a row of stat boxes on top, the condition and the skills in fixed columns on
+   the left, and one panel with tabs on the right. Boxes have cut corners and small capital labels.
+   Everything here is scoped to html.ui-native.ui-board; both themes (dark and light) are covered. */
+
+html.ui-native.ui-board {
+  --bg: #0d1115;
+  --panel: #151b21;
+  --panel-2: #1e262e;
+  --panel-hover: #27323c;
+  --border: rgba(255, 255, 255, .13);
+  --muted: #9aa4ae;
+  --text: #eef1f4;
+  --red: #f2635a;
+  --red-dark: #c53131;
+  --board-accent: #c53131;
+  --board-accent-hover: #a82828;
+  --radius: 4px;
+  --board-label: "Roboto Condensed", "sans-serif-condensed", "Avenir Next Condensed", "Bahnschrift SemiCondensed", "Arial Narrow", var(--body);
+  /* A box with cut corners: fill is the panel colour, the line is the frame. */
+  --board-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23151b21' stroke='%2346525e' stroke-width='1.5'/%3E%3C/svg%3E");
+  --board-frame-accent: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23151b21' stroke='%23c53131' stroke-width='1.5'/%3E%3C/svg%3E");
+  background: var(--bg);
+}
+html.ui-native.ui-board.ui-light {
+  --bg: #eceae6;
+  --panel: #ffffff;
+  --panel-2: #f3f2ef;
+  --panel-hover: #e8e6e1;
+  --border: rgba(0, 0, 0, .17);
+  --muted: #5d6268;
+  --text: #1b1d20;
+  --red: #b72a2a;
+  --red-dark: #8e1f1f;
+  --board-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23ffffff' stroke='%23b3aea5' stroke-width='1.5'/%3E%3C/svg%3E");
+  --board-frame-accent: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23ffffff' stroke='%23c53131' stroke-width='1.5'/%3E%3C/svg%3E");
+  background: var(--bg);
+}
+html.ui-native.ui-board body { background: var(--bg); color: var(--text); }
+
+/* ---------- Boxes ---------- */
+html.ui-native.ui-board :is(.card, .character-card, .catalog-card, .rule-card, .quick-card, .note-card, .getting-started) {
+  /* The frame image paints the fill; the same colour under the content keeps the box readable if the image is missing. */
+  background: var(--panel) content-box; border: 1px solid transparent; border-radius: 0; border-image: var(--board-frame) 16 fill / 16px; box-shadow: none;
+}
+html.ui-native.ui-board :is(.backup-strip, .source-strip, .empty, .room-member, .room-banner, .agent-contact, .netrun-stats div) { border-radius: 4px; border: 1px solid var(--border); }
+/* A box inside a box is a plain inset, not a second frame. */
+html.ui-native.ui-board .card :is(.card, .note-card, .rule-card) { border: 1px solid var(--border); border-image: none; border-radius: 4px; background: var(--panel-2); }
+html.ui-native.ui-board .card-heading { align-items: center; margin: 0 0 12px; padding: 0 0 7px; border-bottom: 1px solid var(--border); }
+html.ui-native.ui-board .card-heading > span:first-child { color: var(--red); font: 700 14px/1.25 var(--board-label); letter-spacing: .07em; text-transform: uppercase; }
+html.ui-native.ui-board :is(.section-head h2, .rule-card h3, .catalog-card h3) { font-family: var(--board-label); letter-spacing: .02em; }
+html.ui-native.ui-board .page-header h1 { font: 700 clamp(26px, 3vw, 32px)/1.15 var(--board-label); letter-spacing: .01em; }
+
+/* ---------- Controls: outlined, small capitals ---------- */
+html.ui-native.ui-board :is(.btn, .btn-primary, .quick-die, .cx-button) {
+  min-height: 40px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 3px;
+  font: 700 13px/1.2 var(--board-label); letter-spacing: .06em; text-transform: uppercase;
+}
+html.ui-native.ui-board :is(.btn.primary, .btn-primary) { color: #fff; background-color: var(--board-accent); border-color: var(--board-accent); }
+html.ui-native.ui-board :is(.btn.primary, .btn-primary):hover { background-color: var(--board-accent-hover); }
+html.ui-native.ui-board :is(.btn.ghost, .btn.subtle, .btn.outline, .cx-button, .quick-die) { color: var(--text); background-color: transparent; border-color: var(--red); }
+html.ui-native.ui-board :is(.btn.ghost, .btn.subtle, .btn.outline, .cx-button, .quick-die):hover { background-color: var(--panel-2); }
+html.ui-native.ui-board :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { border: 1px solid var(--border); border-radius: 3px; background-color: var(--panel-2); }
+html.ui-native.ui-board .field { font: 700 12px/1.3 var(--board-label); letter-spacing: .06em; text-transform: uppercase; }
+html.ui-native.ui-board .field :is(input, select, textarea) { margin-top: 4px; font-family: var(--body); letter-spacing: 0; text-transform: none; }
+
+/* Roll buttons: a number in a red-lined box, the thing you tap to roll. */
+html.ui-native.ui-board .skill-roll { min-width: 50px; height: 34px; padding: 0 8px; border: 1px solid var(--red); border-radius: 4px; background: transparent; }
+html.ui-native.ui-board .skill-roll:hover { background: var(--panel-2); }
+html.ui-native.ui-board .skill-roll b { font: 700 15px/1 var(--board-label); }
+html.ui-native.ui-board .sheet-quick-rolls button { min-height: 44px; padding: 6px 8px 6px 12px; border: 1px solid var(--border); border-radius: 4px; background-color: var(--panel); font: 700 12px/1.2 var(--board-label); letter-spacing: .05em; text-transform: uppercase; }
+html.ui-native.ui-board .sheet-quick-rolls button:hover { background-color: var(--panel-2); }
+html.ui-native.ui-board .sheet-quick-rolls b { flex: 0 0 auto; min-width: 46px; padding: 6px 6px; border: 1px solid var(--red); border-radius: 4px; color: var(--text); font: 700 17px/1 var(--board-label); text-align: center; }
+html.ui-native.ui-board :is(.nr-step, .hud-hp-panel) { border: 1px solid var(--border); border-radius: 4px; }
+html.ui-native.ui-board :is(.nr-step button, .hud-hp-row > [data-hp-step], .hud-hp-reasons button) { border-radius: 3px; }
+html.ui-native.ui-board .nr-step small { font-family: var(--board-label); }
+html.ui-native.ui-board .nr-step .nr-hold[aria-pressed="true"], html.ui-native.ui-board .hud-hp-reasons button[aria-checked="true"] { background-color: var(--board-accent); }
+
+/* ---------- Shell: a dark side rail in both themes ---------- */
+html.ui-native.ui-board #app-sidebar { background: #10151a; border-right: 0; color: #d7dce1; }
+html.ui-native.ui-board #app-sidebar .brand strong { color: #fff; font-family: var(--board-label); letter-spacing: .04em; }
+html.ui-native.ui-board #app-sidebar .brand-mark { border-radius: 3px; background: var(--board-accent); color: #fff; }
+html.ui-native.ui-board #app-sidebar .nav-group-label { color: #98a2ad; font: 700 11px/1.2 var(--board-label); letter-spacing: .12em; text-transform: uppercase; }
+html.ui-native.ui-board #app-sidebar .nav-item { border-radius: 3px; color: #d7dce1; background: none; }
+html.ui-native.ui-board #app-sidebar .nav-item .nav-icon { color: #98a2ad; }
+html.ui-native.ui-board #app-sidebar .nav-item:hover { color: #fff; background: rgba(255, 255, 255, .07); }
+html.ui-native.ui-board #app-sidebar .nav-item:is(.active, [aria-current="page"]) { color: #fff; background: rgba(197, 49, 49, .3); box-shadow: inset 3px 0 0 var(--board-accent); }
+html.ui-native.ui-board #app-sidebar .nav-item:is(.active, [aria-current="page"]) .nav-icon { color: #ff9c93; }
+html.ui-native.ui-board #app-sidebar .sidebar-bottom { border-top-color: rgba(255, 255, 255, .12); }
+html.ui-native.ui-board #app-sidebar .sidebar-bottom p { color: #98a2ad; }
+html.ui-native.ui-board #app-sidebar :is(.ui-style-switch, .ui-theme-switch) { border-radius: 4px; background: rgba(255, 255, 255, .08); }
+html.ui-native.ui-board #app-sidebar :is(.ui-style-switch, .ui-theme-switch) button { border-radius: 3px; color: #c3cad1; background: none; font-family: var(--board-label); letter-spacing: .03em; }
+html.ui-native.ui-board #app-sidebar :is(.ui-style-switch, .ui-theme-switch) button.active { color: #fff; background: var(--board-accent); box-shadow: none; }
+html.ui-native.ui-board .topbar { border-bottom: 1px solid var(--border); background: var(--bg); }
+html.ui-native.ui-board .lang-switch { border-radius: 4px; }
+html.ui-native.ui-board .lang-switch button { border-radius: 3px; font-family: var(--board-label); }
+html.ui-native.ui-board .footer { color: var(--muted); }
+html.ui-native.ui-board :is(.app-notice, .pwa-toast, .data-menu-panel) { border-radius: 4px; }
+html.ui-native.ui-board .bottom-nav { background: #10151a; border-top: 0; }
+html.ui-native.ui-board .bottom-nav :is(a, button) { color: #c3cad1; }
+html.ui-native.ui-board .bottom-nav :is(a, button):is(.active, [aria-current="page"]) { color: #ff8a80; }
+
+/* ---------- Sheet: header, HUD, stat boxes, tabs ---------- */
+html.ui-native.ui-board .sheet-header .portrait-frame { border: 2px solid var(--board-accent); border-radius: 4px; }
+html.ui-native.ui-board .sheet-header h1 { font: 700 30px/1.1 var(--board-label); }
+html.ui-native.ui-board .sheet-header .header-actions .btn { min-height: 32px; padding: 5px 12px; font-size: 12px; border-radius: 3px; }
+html.ui-native.ui-board .sheet-dock { background: var(--bg); }
+html.ui-native.ui-board .hud-chip { min-height: 44px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); }
+html.ui-native.ui-board .hud-chip small { font-family: var(--board-label); letter-spacing: .06em; text-transform: uppercase; }
+html.ui-native.ui-board .hud-chip b { font: 700 20px/1 var(--board-label); }
+html.ui-native.ui-board .hud-chip.hud-hp { border-color: var(--board-accent); }
+html.ui-native.ui-board .sheet-hud[data-wound="serious"] .hud-hp { background: rgba(197, 49, 49, .2); }
+html.ui-native.ui-board .sheet-hud[data-wound="mortal"] .hud-hp { color: #fff; background: var(--board-accent); }
+html.ui-native.ui-board .hud-avatar { border-radius: 4px; }
+
+html.ui-native.ui-board .sheet-stat-strip { gap: 6px; margin-bottom: 10px; border: 0; border-radius: 0; overflow: visible; background: none; }
+html.ui-native.ui-board .sheet-extras[data-active-tab="main"] .sheet-stat-strip { display: grid; }
+html.ui-native.ui-board .sheet-stat-strip div { padding: 8px 2px 9px; border: 1px solid transparent; border-image: var(--board-frame-accent) 16 fill / 12px; }
+html.ui-native.ui-board .sheet-stat-strip small { color: var(--muted); font: 700 11px/1.2 var(--board-label); letter-spacing: .08em; }
+html.ui-native.ui-board .sheet-stat-strip b { display: block; margin-top: 2px; font: 700 26px/1.05 var(--board-label); }
+html.ui-native.ui-board .stats-grid .stat { border: 1px solid var(--border); border-radius: 4px; }
+
+html.ui-native.ui-board .sheet-tabs { gap: 2px; border-bottom: 1px solid var(--border); }
+html.ui-native.ui-board .sheet-tabs button { min-height: 40px; padding: 8px 12px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: var(--muted); background: none; font: 700 13px/1.2 var(--board-label); letter-spacing: .07em; text-transform: uppercase; }
+html.ui-native.ui-board .sheet-tabs button:hover { color: var(--text); }
+html.ui-native.ui-board .sheet-tabs button.active { color: var(--red); background: none; border-bottom-color: var(--board-accent); }
+
+html.ui-native.ui-board .skill-row { grid-template-columns: minmax(0, 1fr) 46px auto; gap: 6px; padding: 6px 0; }
+/* When skills can be raised with IP, every row keeps a place for the «+», so the roll buttons stay in one line. */
+html.ui-native.ui-board #sheet-skills:has(.ipq-btn) .skill-row { grid-template-columns: minmax(0, 1fr) 46px 50px 34px; }
+html.ui-native.ui-board .skill-row strong { font: 600 14px/1.25 var(--body); }
+html.ui-native.ui-board .skill-row small { overflow: hidden; font: 700 10px/1.3 var(--board-label); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; }
+html.ui-native.ui-board .skill-row input:not([type="checkbox"]):not([type="radio"]) { min-height: 34px; padding: 4px; }
+html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--border); }
+
+/* Phones: the stat boxes take two rows so the numbers stay large. */
+@media (max-width: 820px) {
+  html.ui-native.ui-board .sheet-stat-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  html.ui-native.ui-board .sheet-stat-strip b { font-size: 22px; }
+  html.ui-native.ui-board .card { border-radius: 0; }
+  html.ui-native.ui-board .sheet-tabs button { padding: 8px 10px; }
+}
+
+/* ---------- Wide screen: the board itself ----------
+   The pieces of the sheet live in three containers (the dock, the strip under it and the sheet). They are flattened
+   into one grid so each piece can be put in its place: HUD beside the name, tabs on top of the panel, the condition
+   and the skills as columns that run the whole height. The last row before the footer is flexible, so a long
+   column never stretches the rows of the panel next to it. */
+@media screen and (min-width: 1024px) {
+  html.ui-native.ui-board .content:has(> .sheet-layout) {
+    position: relative; display: grid; column-gap: 16px; align-items: start;
+    grid-template-columns: 290px minmax(0, 1fr);
+    grid-template-rows: repeat(37, auto) 1fr auto;
+  }
+  html.ui-native.ui-board .content:has(> .sheet-layout) > :is(.sheet-dock, .sheet-extras, .sheet-layout),
+  html.ui-native.ui-board .sheet-layout > :is(.sheet-primary, .sheet-aside) { display: contents; }
+  html.ui-native.ui-board .content > .sheet-jump-nav { display: none !important; }
+  html.ui-native.ui-board .content > .sheet-top { grid-row: 1; grid-column: 1 / -1; }
+  html.ui-native.ui-board .content > .sheet-header { grid-row: 2; grid-column: 1 / -1; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-hud-wrap { grid-row: 3; grid-column: 1 / -1; margin-bottom: 10px; }
+  html.ui-native.ui-board .sheet-hud { flex-wrap: wrap; justify-content: flex-end; align-items: stretch; gap: 6px; }
+  html.ui-native.ui-board .hud-chip { flex: 0 0 auto; flex-wrap: wrap; row-gap: 3px; white-space: nowrap; }
+  html.ui-native.ui-board .hud-chip.hud-hp em { flex-basis: 100%; margin: 0; font: 600 11px/1.2 var(--body); text-align: left; }
+  html.ui-native.ui-board .hud-chip[data-hud-jump="sheet-vitals"] small:last-of-type { flex-basis: 100%; text-align: left; }
+  html.ui-native.ui-board .hud-hp-panel { position: absolute; z-index: 40; grid-row: 4; grid-column: 1 / -1; top: -4px; left: 0; width: min(460px, 100%); box-shadow: 0 14px 34px rgba(0, 0, 0, .35); }
+  html.ui-native.ui-board .sheet-extras .sheet-stat-strip { display: grid; grid-row: 4; grid-column: 1 / -1; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-extras .sheet-next-roll { display: flex; grid-row: 5; grid-column: 1 / -1; margin-bottom: 8px; }
+  html.ui-native.ui-board .sheet-extras .sheet-quick-rolls { display: grid; grid-row: 6; grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-next-roll .nr-step { flex: 1 1 0; }
+  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 7; grid-column: 2; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-tabs [data-sheet-tab="skills"] { display: none; }
+  /* The panel: whatever the chosen tab shows, in the right column, one under another. */
+  html.ui-native.ui-board .sheet-extras .sheet-shop,
+  html.ui-native.ui-board .sheet-primary > *,
+  html.ui-native.ui-board .sheet-layout > .sheet-aside > * { grid-column: 2; min-width: 0; }
+  /* The skills are always there, in their own column, and scroll on their own. */
+  html.ui-native.ui-board .sheet-layout .sheet-primary > #sheet-skills { grid-column: 1; grid-row: 7 / 39; position: sticky; top: 10px; margin-bottom: 12px; display: flex !important; flex-direction: column; max-height: calc(100vh - 20px); }
+  /* The card is as tall as the window at most; the list takes what is left and scrolls. */
+  html.ui-native.ui-board #sheet-skills > * { flex: 0 0 auto; }
+  html.ui-native.ui-board #sheet-skills > .skills-list { flex: 1 1 auto; max-height: none; min-height: 180px; }
+  html.ui-native.ui-board #sheet-skills > p.muted, html.ui-native.ui-board #sheet-skills > .nx-more,
+  html.ui-native.ui-board #sheet-skills .sheet-skill-filter > p:not([data-skill-filter-count]) { display: none; }
+  /* Without a «Навыки» tab the specializations live under «Основное». */
+  html.ui-native.ui-board .sheet-layout[data-active-tab="main"] .cx-root > #sheet-specializations { display: block; }
+  html.ui-native.ui-board .content > .footer { grid-row: 39; grid-column: 1 / -1; }
+  html.ui-native.ui-board .sheet-layout [id^="sheet-"] { scroll-margin-top: 12px; }
+  html.ui-native.ui-board .cx-root { margin-bottom: 12px; }
+}
+/* Room for a third column: the condition moves out of the panel and stands on the left, the HUD goes up beside the name. */
+@media screen and (min-width: 1360px) {
+  html.ui-native.ui-board .content:has(> .sheet-layout) { grid-template-columns: 250px 290px minmax(0, 1fr); grid-template-rows: repeat(35, auto) 1fr auto; }
+  html.ui-native.ui-board .content > .sheet-header { grid-column: 1 / 3; }
+  html.ui-native.ui-board .sheet-hud-wrap { grid-row: 2; grid-column: 3; align-self: center; justify-self: end; margin-bottom: 12px; }
+  html.ui-native.ui-board .hud-hp-panel { grid-row: 3; left: auto; right: 0; }
+  html.ui-native.ui-board .sheet-extras .sheet-stat-strip { grid-row: 3; }
+  html.ui-native.ui-board .sheet-extras .sheet-next-roll { grid-row: 4; grid-column: 1 / 3; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-extras .sheet-quick-rolls { grid-row: 4; grid-column: 3; }
+  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 5; grid-column: 3; }
+  html.ui-native.ui-board .sheet-extras .sheet-shop,
+  html.ui-native.ui-board .sheet-primary > * { grid-column: 3; }
+  html.ui-native.ui-board .sheet-layout .sheet-primary > #sheet-skills { grid-column: 2; grid-row: 5 / 37; }
+  html.ui-native.ui-board .sheet-layout > .sheet-aside { display: grid !important; grid-column: 1; grid-row: 5 / 37; gap: 12px; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-layout > .sheet-aside > * { grid-column: auto; margin-bottom: 0; }
+  html.ui-native.ui-board .content > .footer { grid-row: 37; }
+}
+
+/* Paper: plain white boxes with a thin line, whatever the theme on screen. */
+@media print {
+  html.ui-native.ui-board :is(.card, .character-card, .catalog-card, .rule-card, .quick-card, .note-card, .getting-started) { background: #fff; border: 1px solid #999; border-image: none; }
+  html.ui-native.ui-board .card-heading > span:first-child { color: #111; }
+  html.ui-native.ui-board .sheet-stat-strip div { border: 1px solid #999; border-image: none; }
+}
