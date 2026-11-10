@@ -9,14 +9,20 @@ const isNative=()=>root.classList.contains('ui-native');
 let filtersOpen=false;
 const ru=()=>(root.lang||'ru')!=='en';
 
+// Three looks: «Обычное» (native), «Досье» (board: the same clean base laid out as a tabletop character board) and «Киберпанк».
+const STYLES=['native','board','cyber'];
+const currentStyle=()=>!isNative()?'cyber':root.classList.contains('ui-board')?'board':'native';
 function setStyle(style){
+ if(!STYLES.includes(style))style='native';
  const native=style!=='cyber';
  root.classList.toggle('ui-native',native);
- try{global.localStorage.setItem(KEY,native?'native':'cyber')}catch{}
+ root.classList.toggle('ui-board',style==='board');
+ try{global.localStorage.setItem(KEY,style)}catch{}
  paintSwitch();
  if(native)scan(doc.querySelector('#app'));else global.App?.render?.(); // bring back the original capitals
+ global.SheetTabs?.apply?.(); // the board look lays the sheet out differently on a wide screen
 }
-function paintSwitch(){for(const b of doc.querySelectorAll('[data-ui-style]')){const on=(b.dataset.uiStyle==='native')===isNative();b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))}}
+function paintSwitch(){const now=currentStyle();for(const b of doc.querySelectorAll('[data-ui-style]')){const on=b.dataset.uiStyle===now;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))}}
 
 // Help and description text that may be long; results and outputs are never collapsed.
 const HELP='.rule-card p, .catalog-card p, .page-header p, .cx-help, .et-hint, .rt-help, .hustle-help, .netrun-lead, .gm-note, p.muted, .agent-empty, .sr-note, .nm-note, .gx-note, p[class$="-note"], p[class*="-note "]';
@@ -94,5 +100,5 @@ let queued=false;
 function schedule(){if(queued)return;queued=true;global.requestAnimationFrame(()=>{queued=false;scan(doc.querySelector('#app'));paintSwitch()})}
 function start(){const app=doc.querySelector('#app');if(!app)return;new MutationObserver(schedule).observe(app,{childList:true,subtree:true});schedule()}
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start);else start();
-global.NativeUI={setStyle,isNative,scan,sentenceCase,pageRef};
+global.NativeUI={setStyle,isNative,currentStyle,STYLES,scan,sentenceCase,pageRef};
 })(window);

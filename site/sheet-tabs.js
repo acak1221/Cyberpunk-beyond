@@ -23,10 +23,15 @@ const STATS=['INT','REF','DEX','TECH','COOL','WILL','LUCK','MOVE','BODY','EMP'];
 try{const saved=global.localStorage?.getItem(KEY);if(IDS.has(saved))current=saved}catch{}
 
 function lang(){return global.document.documentElement.lang==='en'?'en':'ru'}
+/* The «Досье» look keeps the skills beside the tab panel on a wide screen, so there the «Навыки» tab has nothing of its own
+   to show: the panel shows «Основное» instead. The chosen tab is kept and comes back on a narrow screen or in another look. */
+const WIDE='(min-width: 1024px)';
+function boardWide(){try{return !!global.document.documentElement.classList?.contains('ui-board')&&!!global.matchMedia?.(WIDE)?.matches}catch{return false}}
+const shown=()=>current==='skills'&&boardWide()?'main':current;
 function bar(){
  const ru=lang()==='ru';
  const net=global.NetrunTab?.interfaceRank?.(lastCharacter)>0;
- return `<div class="sheet-tabs" role="tablist" aria-label="${ru?'Разделы листа':'Sheet sections'}">${TABS.filter(([id])=>id!=='netrun'||net).map(([id,r,e,icon])=>`<button type="button" role="tab" data-sheet-tab="${id}" aria-selected="${id===current}" class="${id===current?'active':''}"><span aria-hidden="true">${icon}</span>${ru?r:e}</button>`).join('')}</div>`;
+ return `<div class="sheet-tabs" role="tablist" aria-label="${ru?'Разделы листа':'Sheet sections'}">${TABS.filter(([id])=>id!=='netrun'||net).map(([id,r,e,icon])=>`<button type="button" role="tab" data-sheet-tab="${id}" aria-selected="${id===shown()}" class="${id===shown()?'active':''}"><span aria-hidden="true">${icon}</span>${ru?r:e}</button>`).join('')}</div>`;
 }
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 const html=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -133,17 +138,18 @@ function apply(c){
  if(!layout)return;
  if(c)lastCharacter=c;
  if(current==='netrun'&&!(global.NetrunTab?.interfaceRank?.(lastCharacter)>0))current='main';
- layout.dataset.activeTab=current;
+ const tab=shown();
+ layout.dataset.activeTab=tab;
  let dock=doc.querySelector('.sheet-dock'),tabs=dock?.querySelector('.sheet-tabs');
  let more=doc.querySelector('.sheet-extras');
  const wantNet=global.NetrunTab?.interfaceRank?.(lastCharacter)>0,hasNet=!!dock?.querySelector('[data-sheet-tab="netrun"]');
  if(!dock||!more||more.nextElementSibling!==layout||dock.nextElementSibling!==more||wantNet!==hasNet){
   dock?.remove();more?.remove();
-  layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${current}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div><div class="hud-hp-panel" id="hud-hp-panel"${hpOpen?'':' hidden'}>${hpPanel(lastCharacter)}</div>${bar()}</div><div class="sheet-extras" data-active-tab="${current}">${extras(lastCharacter)}</div>`);
+  layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${tab}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div><div class="hud-hp-panel" id="hud-hp-panel"${hpOpen?'':' hidden'}>${hpPanel(lastCharacter)}</div>${bar()}</div><div class="sheet-extras" data-active-tab="${tab}">${extras(lastCharacter)}</div>`);
  }else{
-  dock.dataset.activeTab=current;more.dataset.activeTab=current;
+  dock.dataset.activeTab=tab;more.dataset.activeTab=tab;
   refreshHud();
-  for(const b of tabs.querySelectorAll('[data-sheet-tab]')){const on=b.dataset.sheetTab===current;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))}
+  for(const b of tabs.querySelectorAll('[data-sheet-tab]')){const on=b.dataset.sheetTab===tab;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))}
  }
  applyLock();
  doc.querySelector('.app-shell')?.classList.add('sheet-tabs-on');
@@ -178,7 +184,7 @@ global.document.addEventListener('click',e=>{
  if(next){setNext(next.dataset.nextRoll,Math.trunc(num(next.dataset.delta)));return}
  // With the roll buttons in view, the LUCK and modifier chips lead to the next-roll bar, not away to another tab.
  const toBar=e.target.closest?.('[data-hud-next]');
- if(toBar&&(current==='skills'||current==='combat')){global.document.querySelector('.sheet-next-roll')?.scrollIntoView?.({block:'center'});return}
+ if(toBar&&(current==='skills'||current==='combat'||boardWide())){global.document.querySelector('.sheet-next-roll')?.scrollIntoView?.({block:'center'});return}
  const hudJump=e.target.closest?.('[data-hud-jump]');
  if(hudJump){const id=hudJump.dataset.hudJump;select(OWNER[id]||'main',{scroll:false});global.document.getElementById(id)?.scrollIntoView({block:'start'});return}
  // A jump-nav link in "full sheet" mode, or any in-app link to a hidden section, reveals its tab first.
@@ -187,12 +193,14 @@ global.document.addEventListener('click',e=>{
 },true);
 global.document.addEventListener('keydown',e=>{
  const tab=e.target.closest?.('.sheet-tabs [data-sheet-tab]');if(!tab||!['ArrowLeft','ArrowRight'].includes(e.key))return;
- const list=[...tab.parentElement.querySelectorAll('[data-sheet-tab]')],i=list.indexOf(tab),next=list[(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length];
+ // A tab a look hides (the «Навыки» tab on the wide board) is skipped, so the arrows never land on nothing.
+ const list=[...tab.parentElement.querySelectorAll('[data-sheet-tab]')].filter(b=>b===tab||typeof b.getClientRects!=='function'||b.getClientRects().length>0),i=list.indexOf(tab),next=list[(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length];
  e.preventDefault();select(next.dataset.sheetTab,{scroll:false});global.document.querySelector(`.sheet-tabs [data-sheet-tab="${next.dataset.sheetTab}"]`)?.focus();
 });
 // HP, Luck and Humanity change through many sheet tools; refresh the small HUD after any edit.
 let hudTimer=0;const later=()=>{clearTimeout(hudTimer);hudTimer=setTimeout(()=>refreshHud(),0)};
 global.document.addEventListener('change',e=>{const el=e.target;if(el?.hasAttribute?.('data-next-dv')){const value=Math.trunc(num(el.value));dv=DVS.some(x=>x[0]===value)?value:0}});
 for(const type of ['input','change','click'])global.document.addEventListener(type,later);
-global.SheetTabs={takeDV,apply,select,refreshHud,current:()=>current,tabs:TABS.map(t=>t[0])};
+try{global.matchMedia?.(WIDE)?.addEventListener?.('change',()=>apply())}catch{}
+global.SheetTabs={takeDV,apply,select,refreshHud,current:()=>current,shown,tabs:TABS.map(t=>t[0])};
 })(window);
