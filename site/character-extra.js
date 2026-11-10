@@ -257,7 +257,7 @@
   function addCatalog(c,item,lang){
     if(!item || typeof item!=='object')return null;
     const x=init(c),l=language(lang),stats=item.stats||{},name=String(item.name?.[l]||item.name?.en||'').slice(0,100),detail=String(item.details?.[l]||item.details?.en||'').slice(0,350);
-    const price=item.price==null?(item.priceNote?.[l]||(l==='ru'?'цена не указана':'price not specified')):String(item.price)+' eb'+(item.priceUnit?.[l]?' / '+item.priceUnit[l]:'');const reference=(l==='ru'?'стр. ':'p. ')+(Number(item.page)||'?')+' · '+price;
+    const price=item.price==null?(item.priceNote?.[l]||(l==='ru'?'цена не указана':'price not specified')):String(item.price)+' eb'+(item.priceUnit?.[l]?' / '+item.priceUnit[l]:'');const reference=(item.custom===true?(l==='ru'?'своё':'custom'):(l==='ru'?'стр. ':'p. ')+(Number(item.page)||'?'))+' · '+price;
     const notes=[detail,reference,stats.humanityLoss!=null?(l==='ru'?'Потеря Humanity: ':'Humanity loss: ')+stats.humanityLoss:''].filter(Boolean).join(' · ').slice(0,500);
     if(item.category==='weapon'&&stats.damage&&stats.skill){
       const skill=String(stats.skill),stat=(skill==='Melee Weapon'||skill==='Brawling'||skill==='Martial Arts')?'DEX':'REF';
