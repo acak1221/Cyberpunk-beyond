@@ -51,7 +51,7 @@
 .ps-paper .ps-ability { margin-bottom:.8mm; }
 
 /* GM card: a third of an A4 page, fixed height so three fit on one sheet. */
-.ps-paper .ps-card { height:90mm; overflow:hidden; border:.8pt dashed #000; padding:3mm; break-inside:avoid; page-break-inside:avoid; font-size:7.5pt; }
+.ps-paper .ps-card { min-height:90mm; overflow:visible; border:.8pt dashed #000; padding:3mm; break-inside:avoid; page-break-inside:avoid; font-size:7.5pt; }
 .ps-paper .ps-card .ps-head { margin-bottom:2mm; padding-bottom:1.2mm; }
 .ps-paper .ps-card .ps-head h1 { font-size:13pt; }
 .ps-paper .ps-card .ps-head-main p { font-size:8.5pt; margin-top:.3mm; }

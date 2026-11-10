@@ -200,12 +200,15 @@ function createSession(options){
   if(!body)return;
   idle();await send(control(body));
  }
+ const sentAt=[];
  async function onNeed(m){
   if(m.sid!==sid||!body||!Array.isArray(m.ids)||m.ids.length>64)return;
   idle();
   for(const i of m.ids){
    if(closed)return;
    if(!Number.isInteger(i)||i<0||i>=chunks.length)continue;
+   // The same request arrives once per broker: a chunk sent a moment ago is not sent again for its copies.
+   const now=Date.now();if(sentAt[i]&&now-sentAt[i]<(o.resendGap??Math.min(1200,o.retryEvery/2)))continue;sentAt[i]=now;
    await send(chunkFrame(i,chunks[i]));
    if(i+1>sentUpTo)sentUpTo=i+1;
   }
@@ -459,7 +462,7 @@ function apply(mode){
  const inc=ui.incoming,api=global.App?.archive,l=lang(),{w}=words(l);
  if(!inc||inc.error||!api||ui.busy)return;
  ui.busy=true;let r;
- try{r=mode==='replace'?api.replace(inc.data):api.merge(inc.data,inc.plan.sig)}catch{r={ok:false}}
+ try{r=mode==='replace'?api.replace(inc.data,inc.plan.sig):api.merge(inc.data,inc.plan.sig)}catch{r={ok:false}}
  ui.busy=false;ui.arm=false;
  if(!r?.ok){
   if(r?.reason==='stale'){const again=inspect(inc.data,inc.source,inc.name);ui.incoming=again}
@@ -527,7 +530,10 @@ function onClick(e){
  else if(a==='apply-add')apply('add');
  else if(a==='apply-replace')apply('replace');
  else if(a==='dismiss-note'){ui.note=null;ui.undo=null;paint('[data-xfer-status]')}
- else if(a==='undo'){const id=ui.undo;ui.undo=null;ui.note=null;let r;try{r=global.App?.archive?.undo?.(id)}catch{}if(r===false)note(w('Снимок для отмены не найден.','The snapshot for undo was not found.'),'error');else note(w('Отменено: данные возвращены к состоянию до импорта.','Undone: the data is back to what it was before the import.'));paint('[data-xfer-note]')}
+ else if(a==='undo'){
+  // Undo puts back the copy made before the import, so anything edited since goes too: say so every time.
+  if(!global.confirm(w('Вернуть данные к состоянию до импорта? Всё, что вы изменили после него, тоже будет отменено.','Put the data back to what it was before the import? Anything you changed after it will be undone too.')))return;
+  const id=ui.undo;ui.undo=null;ui.note=null;let r;try{r=global.App?.archive?.undo?.(id)}catch{}if(r===false)note(w('Снимок для отмены не найден.','The snapshot for undo was not found.'),'error');else note(w('Отменено: данные возвращены к состоянию до импорта.','Undone: the data is back to what it was before the import.'));paint('[data-xfer-note]')}
  else if(a==='send'){endSession();startSend()}
  else if(a==='receive'){endSession();ui.code='';ui.codeError='';ui.xfer={role:'receive',phase:'entry',done:0,total:0};paint('#xfer-code')}
  else if(a==='connect'){const input=doc().querySelector('#xfer-code');startReceive(input?.value||'')}

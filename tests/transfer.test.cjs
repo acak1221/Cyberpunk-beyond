@@ -295,3 +295,17 @@ test('the store reports every write that reached the browser, and a failing list
  store.save({characters:[{id:'a'}]});assert.equal(store.flush().ok,true);assert.deepEqual(seen,[{characters:[{id:'a'}]}]);
  full=true;store.save({characters:[]});assert.equal(store.flush().ok,false);assert.equal(seen.length,1,'a write that did not fit is not a saved change');
 });
+
+test('three brokers deliver every message three times: a chunk is still sent once per request, not once per copy',async()=>{
+ // Every message reaches every client three times, as when all three public brokers are online.
+ const clients=new Set(),log=[];
+ const transport=({topic,onMessage,onStatus})=>{
+  const me={topic,onMessage,open:true};clients.add(me);setTimeout(()=>{if(me.open)onStatus({total:3,online:3})},1);
+  return {publish(sub,bytes){if(!me.open)return 0;const full=topic+'/'+sub,copy=bytes.slice();log.push(full);for(const c of clients)if(c.open&&c.topic===topic)for(let k=0;k<3;k++)setTimeout(()=>{if(c.open)c.onMessage({type:3,topic:full,payload:copy.slice()})},0);return 3},close(){me.open=false;clients.delete(me)},wake(){},status:()=>({total:3,online:3})};
+ };
+ const code=T._test.newCode(),payload=archive(60);
+ const [sent,got]=await Promise.all([run(load().T,{role:'send',code,payload,transport,chunkSize:60}),run(load().T,{role:'receive',code,transport})]);
+ assert.equal(got.last.phase,'done');assert.deepEqual(Buffer.from(got.session.result()),Buffer.from(payload));
+ const chunks=got.last.total,fromSender=log.filter(t=>t.endsWith('/s')).length;
+ assert.ok(chunks>5,'chunks: '+chunks);assert.ok(fromSender<chunks*2,`the sender published ${fromSender} messages for ${chunks} chunks`);
+});
