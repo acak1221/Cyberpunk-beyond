@@ -55,7 +55,7 @@ test('addToCampaign: pushes tracker-compatible npc entries with note',()=>{
  const r=L.addToCampaign(c,e,3,'ru',()=>'id'+(++i),1000);
  assert(r.ok);assert.equal(c.roster.length,4);
  const n=c.roster[1];
- assert.deepEqual(plain({...n,combatNote:undefined}),{id:'id1',kind:'npc',name:'Ганк 1',ref:7,hp:40,initiative:0,order:1000,sourceLibrary:'a',sp:{head:7,body:11},body:6});
+ assert.deepEqual(plain({...n,combatNote:undefined}),{id:'id1',kind:'npc',name:'Ганк 1',ref:7,hp:40,maxHp:40,initiative:0,order:1000,sourceLibrary:'a',sp:{head:7,body:11},body:6});
  assert.deepEqual(plain(c.roster.map(x=>x.name).slice(1)),['Ганк 1','Ганк 2','Ганк 3']);
  assert.equal(n.combatNote.version,1);assert(n.combatNote.text.includes('7/11')&&n.combatNote.text.length<=300);
  assert.equal(new Set(c.roster.map(x=>x.id)).size,4);

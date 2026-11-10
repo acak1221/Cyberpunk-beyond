@@ -71,7 +71,7 @@ function combatNote(e,lang){
 }
 function rosterEntries(e,count,roster,lang,uid,now=Date.now()){
  const names=numberedNames(e.name,count,roster),note=combatNote(e,lang);
- return names.map((name,i)=>{const r={id:uid(),kind:'npc',name,ref:e.ref,hp:e.hp,initiative:0,order:now+i,sourceLibrary:e.id};if(note)r.combatNote={version:1,text:note};
+ return names.map((name,i)=>{const r={id:uid(),kind:'npc',name,ref:e.ref,hp:e.hp,maxHp:e.hp,initiative:0,order:now+i,sourceLibrary:e.id};if(note)r.combatNote={version:1,text:note};
   // Armor and BODY travel with the combatant, for damage and Death Saves in the tracker.
   if(e.head||e.torso)r.sp={head:e.head,body:e.torso};if(e.body)r.body=e.body;return r});
 }
