@@ -1,0 +1,58 @@
+/* «Свои материалы» (custom-content.js): the editor card on the catalog page and the «Своё» mark.
+   Colours come from the theme variables only, so the card reads the same in the cyberpunk look, the clean look
+   (dark and light) and «Досье». */
+.cc-card{margin:0 0 20px;min-width:0;overflow-wrap:anywhere}
+.cc-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.cc-title{margin:0;font-size:1.15rem;line-height:1.25;color:var(--text)}
+.cc-count{margin:4px 0 0;font-size:.78rem;letter-spacing:.06em;color:var(--muted)}
+.cc-body{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:grid;gap:14px;min-width:0}
+.cc-body>*{min-width:0;margin-top:0;margin-bottom:0}
+.cc-lead,.cc-help{font-size:.86rem;line-height:1.55;color:var(--muted);margin:0}
+.cc-help{display:block;margin-top:4px}
+.cc-form>.cc-help{margin-top:-6px}
+.cc-tabs,.cc-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cc-card .btn,html.ui-native.ui-board .cc-card .btn{min-height:44px}
+.cc-tab.active{border-color:var(--red);color:var(--text);box-shadow:inset 0 -2px 0 var(--red)}
+.cc-list,.cc-plan{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cc-entry{border:1px solid var(--border);border-radius:var(--radius,2px);padding:12px;display:grid;gap:8px;min-width:0;background:var(--panel-2)}
+.cc-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 12px}
+.cc-head strong{color:var(--text);overflow-wrap:anywhere}
+.cc-meta{font-size:.85rem;color:var(--muted)}
+.cc-text{margin:0;font-size:.9rem;line-height:1.5;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere}
+.cc-muted{color:var(--muted)}
+.cc-warn{color:var(--yellow)}
+.cc-error{margin:0;padding:10px 12px;border:1px solid var(--red);border-radius:var(--radius,2px);color:var(--text);background:var(--panel-2);font-size:.9rem;line-height:1.45}
+.cc-del.armed{border-color:var(--red);color:var(--red)}
+.cc-form{display:grid;gap:12px;padding:14px;border:1px solid var(--border);border-radius:var(--radius,2px);min-width:0}
+.cc-form .field,.cc-pack .field{margin:0;min-width:0}
+.cc-form input:not([type=checkbox]),.cc-form select,.cc-form textarea,.cc-pack input[type=text]{width:100%;box-sizing:border-box;min-height:44px}
+.cc-form textarea{resize:vertical}
+.cc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.cc-grid.cc-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cc-check{display:flex;align-items:center;gap:10px;min-height:44px;color:var(--text);font-size:.92rem;cursor:pointer}
+.cc-check input{width:22px;height:22px;flex:none;accent-color:var(--red)}
+.cc-pack{display:grid;gap:12px}
+.cc-file{position:relative;cursor:pointer;display:inline-flex;align-items:center}
+.cc-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.cc-file:focus-within{outline:2px solid var(--red);outline-offset:2px}
+.cc-preview{display:grid;gap:10px;padding:14px;border:1px solid var(--yellow);border-radius:var(--radius,2px);min-width:0}
+.cc-preview h3,.cc-preview h4{margin:0;color:var(--text)}
+.cc-preview h4{font-size:.9rem}
+.cc-plan{gap:6px;max-height:320px;overflow:auto}
+.cc-plan li{display:flex;gap:8px;align-items:baseline;font-size:.9rem;color:var(--text);min-width:0}
+.cc-plan li>span:last-child{overflow-wrap:anywhere;min-width:0}
+.cc-tag{flex:none;padding:1px 8px;border:1px solid var(--border);border-radius:999px;font-size:.75rem;color:var(--text);background:var(--panel-2);white-space:nowrap}
+.cc-tag-new{border-color:var(--green)}
+.cc-tag-update{border-color:var(--yellow)}
+.cc-tag-same,.cc-tag-overflow{color:var(--muted)}
+.cc-unreadable{display:grid;gap:8px;padding:12px;border:1px solid var(--yellow);border-radius:var(--radius,2px)}
+/* The mark on a catalog card and in the NPC library. */
+.badge.cc-mark{color:var(--text);background:var(--panel-2);border:1px solid var(--yellow)}
+.nl-custom{align-items:center}
+.nl-custom .gx-note{margin:0}
+@media (max-width:640px){
+ .cc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .cc-grid.cc-two{grid-template-columns:1fr}
+ .cc-top .btn{width:100%}
+ .cc-tabs .btn{flex:1 1 auto}
+}
