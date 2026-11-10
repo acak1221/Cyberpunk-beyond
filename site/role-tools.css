@@ -24,3 +24,5 @@
 .rt-last:not(:empty) { padding:12px; background:#211d19; border-left:3px solid #e9c66d; }
 @media(max-width:520px){ .rt-grid {grid-template-columns:1fr;} .rt-summary {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media print { .rt-button {display:none;} .rt-root {break-inside:auto;} }
+/* Tech: what an upgrade can do */
+.rt-upgrade-options{margin:10px 0}.rt-upgrade-options>summary{min-height:36px;padding:8px 0;font-size:12px;font-weight:700;cursor:pointer}.rt-upgrade-options ol{margin:6px 0;padding-left:22px;font-size:13px;line-height:1.5}

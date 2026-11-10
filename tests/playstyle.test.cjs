@@ -53,3 +53,13 @@ test('the quiz sits on the sheet next to the session award',()=>{
  const {P}=load();const html=P.render(withPicks(['warrior:0','warrior:1','warrior:2','warrior:3','warrior:4']),'ru');
  assert.equal((html.match(/data-playstyle-pick=/g)||[]).length,24);assert.equal((html.match(/ checked/g)||[]).length,5);assert.equal((html.match(/ disabled/g)||[]).length,19);assert.match(html,/data-page="409"/);
 });
+
+test('Nomad vehicle upgrades come from the catalog with their Moto rank; the Tech tool lists what an upgrade can do (pp. 148, 163–165)',()=>{
+ const roles=source('role-tools.js'),extra=source('catalog-extra.js');
+ assert.match(extra,/\{type:'upgrade',motoRank:rank\}/);
+ assert.match(roles,/item\.stats\?\.type!=='upgrade'\|\|!Number\.isSafeInteger\(rank\)/);
+ assert.match(roles,/\$\{u\.rank>rank\?' disabled':''\}/,'an upgrade above the Moto rank cannot be chosen');
+ assert.match(roles,/if\(now\.split\('\\n'\)\.includes\(line\)\|\|\(now\+'\\n'\+line\)\.length>2000\)return;/,'no duplicates, and the notes limit holds');
+ const options=/const UPGRADE_OPTIONS=\[([\s\S]*?)\n\];/.exec(roles)[1].split('\n').filter(l=>l.trim().startsWith('['));
+ assert.equal(options.length,7);assert.match(roles,/data-action="book-page" data-page="148"/);
+});
