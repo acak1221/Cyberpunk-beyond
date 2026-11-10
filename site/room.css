@@ -123,3 +123,9 @@ html.ui-native.ui-light .room-incoming li { background: rgba(0, 0, 0, .04); }
 .room-order li span.room-none { color: var(--muted); font-weight: 400; font-style: italic; }
 html.ui-native .room-send-status { border-radius: 4px 10px 10px 4px; }
 html.ui-native.ui-light .room-send-status { background: rgba(0, 0, 0, .04); }
+/* Who the Game Master is, and members a player chose not to see */
+.room-key { grid-column: 1 / -1; margin: 0; color: #c9bdb2; font-size: 12px; overflow-wrap: anywhere; }
+.room-key b { color: #f5eee4; letter-spacing: .04em; }
+.room-badge.warn { color: #fff; background: var(--red-dark); letter-spacing: 0; }
+.room-mute { min-height: 32px; margin-left: auto; padding: 4px 10px; color: var(--muted); background: transparent; border: 1px solid var(--border); font-size: 11px; }
+.room-mute:hover { color: var(--text); }
