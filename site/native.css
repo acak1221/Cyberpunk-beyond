@@ -217,12 +217,6 @@ html.ui-native .search:focus-within { border-color: rgba(255, 69, 58, .7); }
 html.ui-native .search > span, html.ui-native .search kbd { display: none; }
 html.ui-native .search input { min-height: 42px; padding: 8px 0; background: transparent !important; border: 0 !important; box-shadow: none !important; }
 html.ui-native :is(.result-count, .countbar span) { color: var(--muted); font: 500 13px var(--body); letter-spacing: 0; text-transform: lowercase; }
-html.ui-native .nx-filters { grid-column: 1 / -1; margin-top: 2px; }
-html.ui-native .nx-filters > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; color: var(--text); background: var(--panel-2); border-radius: 999px; font: 600 14px var(--body); cursor: pointer; list-style: none; }
-html.ui-native .nx-filters > summary::-webkit-details-marker { display: none; }
-html.ui-native .nx-filters > summary::after { content: '▾'; color: var(--muted); transition: transform .2s; }
-html.ui-native .nx-filters[open] > summary::after { transform: rotate(180deg); }
-html.ui-native .nx-filters-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
 html.ui-native .saved-indicator span:last-child { display: inline-block; color: #8fd3a4; font: 500 13px var(--body); letter-spacing: 0; text-transform: lowercase; }
 html.ui-native .saved-indicator span:last-child::first-letter { text-transform: uppercase; }
 html.ui-native :is(.backup-strip, .source-strip) strong { display: block; text-transform: lowercase; }
@@ -243,11 +237,8 @@ html.ui-native .sheet-header p { font-size: 14px; }
   html.ui-native .sheet-header .portrait-button { font-size: 12px; }
   html.ui-native .sheet-header h1 { font-size: 26px; }
   html.ui-native .sheet-header .header-actions { grid-column: 1 / -1; width: auto; }
-  html.ui-native .nx-filters-body { grid-template-columns: 1fr; }
 }
 html.ui-native .rule-top span:last-child { text-transform: lowercase; }
-html.ui-native .nx-filters { margin: 10px 0 14px; }
-html.ui-native .nx-filters-body .catalog-purchase { display: contents; }
 @media (max-width: 650px) {
   html.ui-native .quick-grid { grid-template-columns: 1fr; gap: 0; overflow: hidden; background: var(--panel); border-radius: 16px; }
   html.ui-native .quick-card { min-height: 58px; padding: 10px 14px; border-radius: 0; background: transparent; border-bottom: 1px solid var(--border); }
