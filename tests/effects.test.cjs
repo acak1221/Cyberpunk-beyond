@@ -19,7 +19,7 @@ test('the effect numbers agree with the injury table the players read (pp. 187�
 test('active injuries add up; a Quick Fix or healing takes the effect away',()=>{
  const {E}=load();
  const c=hero([['head',5],['head',3],['body',8],['body',9],['head',4]]);
- assert.deepEqual(plain({...E.collect(c),sources:undefined}),{all:-4,melee:-2,ranged:-2,move:-4,death:1,initiative:0,ignoreSerious:false,skills:{}});
+ assert.deepEqual(plain({...E.collect(c),sources:undefined}),{all:-4,melee:-2,ranged:-2,move:-4,death:1,initiative:0,ignoreSerious:false,skills:{},stats:{}});
  assert.equal(E.checkModifier(c),-4,'Concussion and Brain Injury: −2 each to all Actions');
  assert.equal(E.checkModifier(c,'melee'),-6,'plus Torn Muscle');assert.equal(E.checkModifier(c,'ranged'),-6,'plus Damaged Eye');
  const treated=hero([['head',5,'fixed'],['head',3,'healed'],['body',8,'fixed']]);
@@ -54,9 +54,9 @@ test('the sheet lists each effect with its name, and situational ones as reminde
 test('rolls, buttons, MOVE and the Death Save hint all read the same layer',()=>{
  const app=source('app.js'),sheet=source('character-extra.js');
  assert.match(source('index.html'),/<script src="combat-tools\.js"><\/script><script src="effects\.js">/);
- assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind,skill\)\+/,'the number on a button');
- assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,'',s\[0\]\)\+modifier\+spent/,'a skill check');
- assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,q\.attackKind\)/,'checks and attacks from the sheet tools');
+ assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind,skill,stat\)\+/,'the number on a button');
+ assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,'',s\[0\],s\[2\]\)\+modifier\+spent/,'a skill check');
+ assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,q\.attackKind,q\.skillKey,q\.statKey\)/,'checks and attacks from the sheet tools');
  assert.match(app,/mod=wounds&&c\?woundPenalty\(c\)\+effectModifier\(c\):0/,'rolls made through the bridge');
  assert.match(app,/String\(effectMove\(c,state==='mortal'\?Math\.max\(1,move-6\):move\)\)/);
  assert.match(app,/data-action="death-base-fix"/);assert.match(sheet,/attackKind:window\.Effects\?\.attackKind\?\.\(skill\)\|\|''/);
@@ -101,4 +101,43 @@ test('the sheet, the tracker and the wound penalty read the cyberware effects',(
  assert.match(app,/speed=effectInitiative\(c\),total=effectiveRef\+first\+modifier\+bonus\+speed,/,'the initiative roll on the sheet');
  assert.match(app,/Math\.ceil\(hpMax\(c\)\/2\)\?\(noSerious\(c\)\?0:-2\):0;/,'Pain Editor removes only the Seriously Wounded penalty');
  assert.match(app,/skillTotal\(c,s\)\{const n=checkBonus\(c,s\[2\],c\?\.skills\?\.\[s\[0\]\],'',s\[0\]\)/);
+});
+
+const drug=(records)=>({stats:{REF:7,INT:6},extra:{streetDrugs:{version:1,records}}});
+const dose=(over={})=>({status:'active',remainingHours:3,addicted:false,yearVulnerability:false,...over});
+const clean=(over={})=>({status:'resolved',remainingHours:0,addicted:false,yearVulnerability:false,...over});
+
+test('a street drug acts while its Primary Effect lasts (pp. 227–229)',()=>{
+ const {E}=load();
+ assert.equal(E.ignoresSerious(drug({'black-lace':dose()})),true,'Black Lace: no Seriously Wounded penalty');
+ assert.equal(E.checkModifier(drug({boost:dose()}),'','Education','INT'),2,'Boost: INT +2');assert.equal(E.checkModifier(drug({boost:dose()}),'','Evasion','DEX'),0);
+ assert.equal(E.checkModifier(drug({synthcoke:dose()}),'ranged','Handgun','REF'),1,'Synthcoke: REF +1');assert.equal(E.initiative(drug({synthcoke:dose()})),1,'and Initiative with it');
+ const smash=drug({smash:dose()});for(const k of ['Dance','Contortionist','Conversation','Human Perception','Persuasion','Acting'])assert.equal(E.checkModifier(smash,'',k,'COOL'),2,k);assert.equal(E.checkModifier(smash,'','Stealth','DEX'),0);
+ for(const key of ['black-lace','boost','smash','synthcoke'])assert.equal(E.lines(drug({[key]:clean()}),'ru').length,0,key+': nothing once it has worn off');
+});
+
+test('an addiction acts on its own, and some only between doses',()=>{
+ const {E}=load();
+ assert.equal(E.checkModifier(drug({boost:clean({addicted:true})}),'','Education','INT'),-2);assert.equal(E.checkModifier(drug({boost:dose({addicted:true})}),'','Education','INT'),0,'Boost: +2 from the dose, −2 from the addiction');
+ assert.equal(E.checkModifier(drug({smash:clean({addicted:true})}),'','Persuasion','COOL'),-2);assert.equal(E.checkModifier(drug({smash:dose({addicted:true})}),'','Persuasion','COOL'),0);
+ assert.equal(E.checkModifier(drug({'black-lace':clean({addicted:true})}),'ranged','Handgun','REF'),-2,'Black Lace: REF −2 between doses');assert.equal(E.checkModifier(drug({'black-lace':dose({addicted:true})}),'ranged','Handgun','REF'),0,'but not under the Primary Effect');
+ assert.equal(E.checkModifier(drug({synthcoke:clean({addicted:true})}),'','Stealth','REF'),-2);assert.equal(E.checkModifier(drug({synthcoke:dose({addicted:true})}),'','Stealth','REF'),1);
+ assert.equal(E.initiative(drug({'black-lace':clean({addicted:true}),synthcoke:clean({addicted:true})})),-4);
+ assert.equal(E.checkModifier(drug({'black-lace':{status:'awaiting',remainingHours:0,addicted:true,yearVulnerability:false}}),'','Stealth','REF'),-2,'waiting for the Secondary Effect check counts as between doses');
+});
+
+test('Blue Glass is a reminder, and the dose turns into protection once addicted',()=>{
+ const {E}=load();
+ assert.match(E.lines(drug({'blue-glass':dose()}),'ru')[0].text,/Приступы по слову ведущего/);
+ assert.equal(E.lines(drug({'blue-glass':dose({addicted:true})}),'ru').length,0,'addicted and dosed: no flashouts');
+ assert.match(E.lines(drug({'blue-glass':clean({addicted:true})}),'en')[0].name,/Blue Glass \(addiction, no dose\)/);
+ assert.equal(E.checkModifier(drug({'blue-glass':dose()}),'','Stealth','DEX'),0);
+});
+
+test('drug bonuses add to cyberware ones, and damaged drug records are ignored',()=>{
+ const {E}=load();
+ const c={...drug({smash:dose()}),extra:{streetDrugs:{version:1,records:{smash:dose()}},equipment:{installs:[{id:'a',catalogId:'cyberware-voice-stress-analyzer'}]}}};
+ assert.equal(E.checkModifier(c,'','Human Perception','EMP'),4,'+2 implant, +2 Smash');assert.equal(E.checkModifier(c,'','Interrogation','COOL'),2);
+ for(const bad of [{version:2,records:{boost:dose()}},{version:1,records:null},{version:1,records:{boost:null,smash:5,unknown:dose()}},null])assert.equal(E.checkModifier({extra:{streetDrugs:bad}},'','Education','INT'),0);
+ assert.equal(E.checkModifier(drug({boost:{status:'active',remainingHours:0,addicted:false}}),'','Education','INT'),0,'an active record with no hours left is not in effect');
 });

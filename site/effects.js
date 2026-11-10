@@ -5,7 +5,8 @@
    (a hand, speech, hearing) are listed as reminders and never applied silently.
    Critical Injuries: Corebook pp. 187–188. A Quick Fix or Treatment takes the effect away.
    Cyberware: pp. 110–116, 358–364. Only effects that are always on and name what they change are
-   applied; the rest are reminders. More than one of the same implant never stacks. */
+   applied; the rest are reminders. More than one of the same implant never stacks.
+   Street drugs: pp. 227–229. A drug acts while its Primary Effect lasts; an addiction acts on its own. */
 (function(){
 'use strict';
 // By table and 2d6 score: all = every check, melee/ranged = attacks of that kind, move = MOVE, death = Base Death Save Penalty.
@@ -55,6 +56,17 @@ const CYBER={
  'cyberware-skin-weave':{note:['SP 7 на голове и теле; в каждой зоне действует наибольший SP','SP 7 on head and body; the highest SP in each location counts']},
  'cyberware-subdermal-armor':{note:['SP 11 на голове и теле; в каждой зоне действует наибольший SP','SP 11 on head and body; the highest SP in each location counts']},
 };
+// Street drugs by the key the drug tool records. active = during the Primary Effect; addicted = while addicted;
+// withdrawn = while addicted and not under the Primary Effect. stats = change to a STAT for checks.
+const SMASH_SKILLS=['Dance','Contortionist','Conversation','Human Perception','Persuasion','Acting'];
+const smash=n=>Object.fromEntries(SMASH_SKILLS.map(k=>[k,n]));
+const DRUG={
+ 'black-lace':{name:'Black Lace',active:{ignoreSerious:true},withdrawn:{stats:{REF:-2}}},
+ 'blue-glass':{name:'Blue Glass',active:{note:['Приступы по слову ведущего: ход без Action (при зависимости доза, наоборот, защищает от них)','Flashouts when the GM says so: a Turn without an Action (once addicted, a dose prevents them instead)']},withdrawn:{note:['Приступы по слову ведущего: ход без Action','Flashouts when the GM says so: a Turn without an Action']}},
+ boost:{name:'Boost',active:{stats:{INT:2}},addicted:{stats:{INT:-2}}},
+ smash:{name:'Smash',active:{skills:smash(2)},addicted:{skills:smash(-2)}},
+ synthcoke:{name:'Synthcoke',active:{stats:{REF:1},note:['Возможна паранойя','Prone to paranoia']},withdrawn:{stats:{REF:-2}}},
+};
 const RANGED=new Set(['Handgun','Shoulder Arms','Heavy Weapons','Archery','Autofire']);
 const MELEE=new Set(['Brawling','Melee Weapon','Martial Arts']);
 const isObject=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
@@ -74,9 +86,30 @@ function installedCyber(c){
  return out;
 }
 function catalogName(id,lang){const item=(Array.isArray(globalThis.window?.CATALOG)?globalThis.window.CATALOG:[]).find(x=>x?.id===id),name=item?.name;return typeof name==='string'?name:name?.[lang==='en'?'en':'ru']||name?.en||id}
+// Drug states in force: [{name, effect, state}], state is 'active', 'addicted' or 'withdrawn'.
+function drugStates(c){
+ const x=c?.extra?.streetDrugs,out=[];
+ if(!isObject(x)||x.version!==1||!isObject(x.records))return out;
+ for(const [key,d] of Object.entries(DRUG)){
+  const r=x.records[key];if(!isObject(r))continue;
+  const on=r.status==='active'&&Number(r.remainingHours)>0,hooked=r.addicted===true;
+  // Blue Glass turns around once addicted: the dose is what keeps the flashouts away.
+  if(on&&d.active&&!(key==='blue-glass'&&hooked))out.push({name:d.name,effect:d.active,state:'active'});
+  if(hooked&&d.addicted)out.push({name:d.name,effect:d.addicted,state:'addicted'});
+  if(hooked&&!on&&d.withdrawn)out.push({name:d.name,effect:d.withdrawn,state:'withdrawn'});
+ }
+ return out;
+}
 // Everything in force, summed. `sources` lists each one for the sheet: {kind, name:{ru,en}, parts:{...}, note}.
 function collect(c){
- const total={all:0,melee:0,ranged:0,move:0,death:0,initiative:0,ignoreSerious:false,skills:{},sources:[]};
+ const total={all:0,melee:0,ranged:0,move:0,death:0,initiative:0,ignoreSerious:false,skills:{},stats:{},sources:[]};
+ for(const d of drugStates(c)){
+  const e=d.effect;if(e.ignoreSerious)total.ignoreSerious=true;
+  for(const [stat,n] of Object.entries(e.stats||{}))total.stats[stat]=(total.stats[stat]||0)+n;
+  for(const [skill,n] of Object.entries(e.skills||{}))total.drugSkills={...(total.drugSkills||{}),[skill]:((total.drugSkills||{})[skill]||0)+n};
+  const tag={active:['действует','in effect'],addicted:['зависимость','addiction'],withdrawn:['зависимость, без дозы','addiction, no dose']}[d.state];
+  total.sources.push({kind:'drug',name:{ru:`${d.name} (${tag[0]})`,en:`${d.name} (${tag[1]})`},parts:e,note:e.note||null});
+ }
  for(const i of installedCyber(c)){
   const e=i.effect;total.initiative+=e.initiative||0;if(e.ignoreSerious)total.ignoreSerious=true;
   for(const [skill,bonus] of Object.entries(e.skills||{}))total.skills[skill]=Math.max(total.skills[skill]||0,bonus);
@@ -86,13 +119,16 @@ function collect(c){
   const e=i.effect;for(const k of ['all','melee','ranged','move','death'])total[k]+=e[k]||0;
   total.sources.push({kind:'injury',name:{ru:injuryName(i.location,i.score,'ru'),en:injuryName(i.location,i.score,'en')},parts:e,note:e.note||null});
  }
+ for(const [skill,n] of Object.entries(total.drugSkills||{}))total.skills[skill]=(total.skills[skill]||0)+n;
+ delete total.drugSkills;
  return total;
 }
 // What a weapon's attack skill makes the attack: 'melee', 'ranged' or '' when it cannot be told.
 function attackKind(skill){return RANGED.has(skill)?'ranged':MELEE.has(skill)||/^martial arts/i.test(String(skill||''))?'melee':''}
 // The modifier the effects add to a check; `kind` is 'melee' or 'ranged' for an attack, `skill` the Skill being rolled.
-function checkModifier(c,kind,skill){const t=collect(c);return t.all+(kind==='melee'?t.melee:kind==='ranged'?t.ranged:0)+(skill&&Object.hasOwn(t.skills,skill)?t.skills[skill]:0)}
-const initiative=c=>collect(c).initiative,ignoresSerious=c=>collect(c).ignoreSerious;
+// `stat` is the STAT the check is rolled with, so a drug that moves REF or INT counts.
+function checkModifier(c,kind,skill,stat){const t=collect(c);return t.all+(kind==='melee'?t.melee:kind==='ranged'?t.ranged:0)+(skill&&Object.hasOwn(t.skills,skill)?t.skills[skill]:0)+(stat&&Object.hasOwn(t.stats,stat)?t.stats[stat]:0)}
+const initiative=c=>{const t=collect(c);return t.initiative+(t.stats.REF||0)},ignoresSerious=c=>collect(c).ignoreSerious;
 function move(c,base){const n=Number(base);if(!Number.isFinite(n))return base;const delta=collect(c).move;return delta?Math.max(1,n+delta):n}
 const signed=n=>(n<0?'−':'+')+Math.abs(n);
 // Short lines for the sheet, one per source: «Сотрясение: −2 ко всем действиям».
@@ -107,10 +143,11 @@ function lines(c,lang){
   if(p.death)bits.push((ru?'базовый штраф Death Save ':'Base Death Save Penalty ')+signed(p.death));
   if(p.initiative)bits.push(signed(p.initiative)+(ru?' к инициативе':' to Initiative'));
   if(p.ignoreSerious)bits.push(ru?'штраф тяжёлого ранения не действует':'no Seriously Wounded penalty');
+  for(const [stat,n] of Object.entries(p.stats||{}))bits.push(stat+' '+signed(n));
   if(p.skills){const by=new Map();for(const [skill,bonus] of Object.entries(p.skills)){if(!by.has(bonus))by.set(bonus,[]);by.get(bonus).push(globalThis.window?.SKILL_LABELS?.[skill]?.[ru?'ru':'en']||skill)}for(const [bonus,names] of by)bits.push(signed(bonus)+(ru?' к навыкам: ':' to Skills: ')+names.join(', '))}
   if(s.note)bits.push(s.note[i]);
   return {name:s.name[ru?'ru':'en']||'',text:bits.join('; ')};
  });
 }
-window.Effects={INJURY,CYBER,activeInjuries,installedCyber,collect,attackKind,checkModifier,initiative,ignoresSerious,move,lines};
+window.Effects={INJURY,CYBER,DRUG,drugStates,activeInjuries,installedCyber,collect,attackKind,checkModifier,initiative,ignoresSerious,move,lines};
 })();
