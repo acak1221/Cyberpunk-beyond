@@ -16,7 +16,9 @@ const TABS=[
 const IDS=new Set(TABS.map(t=>t[0]));
 // Which tab owns each jump-nav target, so links into the sheet still land somewhere visible.
 const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun'};
-let current='main',lastCharacter=null,hpOpen=false,hpReason='damage';
+let current='main',lastCharacter=null,hpOpen=false,hpReason='damage',dv=0,locked=false;
+const LOCK_KEY='nc-sheet-lock',DVS=[[9,'Простая','Simple'],[13,'Обычная','Everyday'],[15,'Сложная','Difficult'],[17,'Профессиональная','Professional'],[21,'Героическая','Heroic'],[24,'Невероятная','Incredible'],[29,'Легендарная','Legendary']];
+try{locked=global.localStorage?.getItem(LOCK_KEY)==='1'}catch{}
 const STATS=['INT','REF','DEX','TECH','COOL','WILL','LUCK','MOVE','BODY','EMP'];
 try{const saved=global.localStorage?.getItem(KEY);if(IDS.has(saved))current=saved}catch{}
 
@@ -37,7 +39,7 @@ function vitals(c){
 function hud(c){
  if(!c)return '';
  const ru=lang()==='ru',v=vitals(c),n=pending(c),w={full:ru?'Без ранений':'Unhurt',light:ru?'Лёгкое ранение':'Lightly wounded',serious:ru?'Тяжёлое ранение · −2':'Seriously wounded · −2',mortal:ru?'Смертельное ранение · −4':'Mortally wounded · −4'}[v.wound];
- return `<div class="sheet-hud" data-wound="${v.wound}">${global.Portrait?.html(c,'hud-avatar',{small:true})||''}<button type="button" class="hud-chip hud-hp" data-hud-hp aria-expanded="${hpOpen}" aria-controls="hud-hp-panel" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip${n.use?' hud-pending':''}" data-hud-next data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small>${n.use?`<i class="hud-plus">+${n.use}</i>`:''}</button>${n.mod?`<button type="button" class="hud-chip hud-pending" data-hud-next data-hud-jump="sheet-resources"><small>${ru?'Модификатор':'Modifier'}</small><b>${sign(n.mod)}</b></button>`:''}${global.KeepAwake?.button?.(lang(),true)||''}</div>`;
+ return `<div class="sheet-hud" data-wound="${v.wound}">${global.Portrait?.html(c,'hud-avatar',{small:true})||''}<button type="button" class="hud-chip hud-hp" data-hud-hp aria-expanded="${hpOpen}" aria-controls="hud-hp-panel" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip${n.use?' hud-pending':''}" data-hud-next data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small>${n.use?`<i class="hud-plus">+${n.use}</i>`:''}</button>${n.mod?`<button type="button" class="hud-chip hud-pending" data-hud-next data-hud-jump="sheet-resources"><small>${ru?'Модификатор':'Modifier'}</small><b>${sign(n.mod)}</b></button>`:''}<button type="button" class="hud-chip hud-lock${locked?' active':''}" data-sheet-lock aria-pressed="${locked}" aria-label="${ru?'Режим игры: не менять характеристики и навыки':'Play mode: lock STATs and Skills'}" title="${ru?'Режим игры: не менять характеристики и навыки':'Play mode: lock STATs and Skills'}"><span aria-hidden="true">${locked?'🔒':'🔓'}</span></button>${global.KeepAwake?.button?.(lang(),true)||''}</div>`;
 }
 function extras(c){
  if(!c)return '';
@@ -54,7 +56,7 @@ function nextRoll(c){
  const ru=lang()==='ru',n=pending(c);
  const step=(kind,d,label,off)=>`<button type="button" data-next-roll="${kind}" data-delta="${d}" data-keep="${kind}${d}" aria-label="${html(label)} ${d<0?'−1':'+1'}"${off?' disabled':''}>${d<0?'−':'+'}</button>`;
  const mod=ru?'Модификатор':'Modifier';
- return `<div class="sheet-next-roll" role="group" aria-label="${ru?'Следующий бросок':'Next roll'}"><div class="nr-step${n.mod?' on':''}"><small>${mod}</small>${step('modifier',-1,mod,n.mod<=-100)}<b>${n.mod?sign(n.mod):'0'}</b>${step('modifier',1,mod,n.mod>=100)}<button type="button" class="nr-hold" data-next-roll="hold" data-keep="hold" aria-pressed="${n.hold}" title="${ru?'Не сбрасывать модификатор после броска':'Keep the modifier after a roll'}">${ru?'Закрепить':'Keep'}</button></div><div class="nr-step${n.use?' on':''}"><small>LUCK</small>${step('luckUse',-1,'LUCK',n.use<=0)}<b>${n.use?'+'+n.use:'0'}</b>${step('luckUse',1,'LUCK',n.use>=n.luck)}<small>${ru?'из':'of'} ${n.luck}</small></div></div>`;
+ return `<div class="sheet-next-roll" role="group" aria-label="${ru?'Следующий бросок':'Next roll'}"><div class="nr-step${n.mod?' on':''}"><small>${mod}</small>${step('modifier',-1,mod,n.mod<=-100)}<b>${n.mod?sign(n.mod):'0'}</b>${step('modifier',1,mod,n.mod>=100)}<button type="button" class="nr-hold" data-next-roll="hold" data-keep="hold" aria-pressed="${n.hold}" title="${ru?'Не сбрасывать модификатор после броска':'Keep the modifier after a roll'}">${ru?'Закрепить':'Keep'}</button></div><div class="nr-step${n.use?' on':''}"><small>LUCK</small>${step('luckUse',-1,'LUCK',n.use<=0)}<b>${n.use?'+'+n.use:'0'}</b>${step('luckUse',1,'LUCK',n.use>=n.luck)}<small>${ru?'из':'of'} ${n.luck}</small></div><label class="nr-step nr-dv${dv?' on':''}"><small>DV</small><select data-next-dv data-keep="dv" aria-label="${ru?'Сложность следующей проверки':'Difficulty of the next check'}"><option value="0">${ru?'не задана':'not set'}</option>${DVS.map(([value,r,e])=>`<option value="${value}"${dv===value?' selected':''}>${value} · ${ru?r:e}</option>`).join('')}</select></label></div>`;
 }
 function quickRolls(c){
  const ru=lang()==='ru',st=c?.stats||{},sk=c?.skills||{},A=global.App;
@@ -75,6 +77,27 @@ function hpPanel(c){
  const reason=(id,label)=>`<button type="button" role="radio" data-hp-reason="${id}" aria-checked="${hpReason===id}">${label}</button>`;
  return `<div class="hud-hp-row">${step(-5)}${step(-1)}<span class="hud-hp-now" data-hp-now aria-live="polite"><b>${v.hp}</b><small>/ ${v.max}</small></span>${step(1)}${step(5)}</div><div class="hud-hp-row"><label>${ru?'Урон':'Damage'}<input type="number" inputmode="numeric" min="1" max="999" data-hp-amount placeholder="0"></label><button type="button" class="btn small" data-hp-take>${ru?'Получить урон':'Take damage'}</button><button type="button" class="btn ghost small" data-hud-jump="sheet-damage">${ru?'С учётом брони':'With armor'}</button></div><div class="hud-hp-row hud-hp-reasons" role="radiogroup" aria-label="${ru?'Причина снижения HP':'Why HP goes down'}"><small>${ru?'Кнопки «−» это':'The «−» buttons mean'}</small>${reason('damage',ru?'Новый урон':'New damage')}${reason('correction',ru?'Исправление':'Correction')}</div>`;
 }
+// The DV chosen for the next check is used once: the roll takes it and it is cleared.
+function takeDV(){const value=dv;if(dv){dv=0;setTimeout(()=>refreshHud(),0)}return value}
+// Play mode: STATs and Skill levels cannot be changed by a stray tap.
+function applyLock(){
+ const doc=global.document,layout=doc.querySelector('.sheet-layout');if(!layout)return;
+ layout.classList.toggle('sheet-locked',locked);
+ for(const el of layout.querySelectorAll('input[data-stat],input[data-skill]'))el.readOnly=locked;
+ for(const b of doc.querySelectorAll('[data-sheet-lock]')){b.setAttribute('aria-pressed',String(locked));b.classList.toggle('active',locked)}
+}
+// Autofire lives in the combat tools; open it with this character's numbers filled in.
+function openAutofire(type){
+ const c=global.App?.active?.()||lastCharacter,A=global.App;if(!A?.setView?.('combat'))return;
+ setTimeout(()=>{
+  const doc=global.document,weapon=doc.querySelector('[data-af-weapon]'),box=weapon?.closest('details,section,.card')||weapon;
+  const put=(sel,value)=>{const el=doc.querySelector(sel);if(el&&Number.isFinite(value)){el.value=String(value);fire(el,'input');fire(el,'change')}};
+  if(weapon&&[...weapon.options].some(o=>o.value===type)){weapon.value=type;fire(weapon,'change')}
+  if(c){put('[data-af-ref]',num(c.stats?.REF));put('[data-af-skill]',num(c.skills?.Autofire));if(typeof A.checkBonus==='function')put('[data-af-attack]',A.checkBonus(c,'REF',c.skills?.Autofire))}
+  for(const d of [weapon,doc.querySelector('[data-af-ref]')])d?.closest?.('details')?.setAttribute('open','');
+  box?.scrollIntoView?.({block:'start'});
+ },80);
+}
 function fire(el,type){const E=global.Event;if(el&&typeof E==='function')el.dispatchEvent(new E(type,{bubbles:true}))}
 function setHp(next,reason){
  const root=global.document.querySelector('.sheet-layout [data-sheet-hp-root]'),input=root?.querySelector('[data-field="hp"]'),select=root?.querySelector('[data-sheet-hp-reason]');
@@ -93,12 +116,14 @@ function setNext(kind,delta){
 function refreshHud(c){
  lastCharacter=c||lastCharacter;
  const dock=global.document.querySelector('.sheet-dock');if(!dock||!lastCharacter)return;
- const doc=global.document,keep=doc.activeElement?.dataset?.keep,hpFocus=doc.activeElement?.hasAttribute?.('data-hud-hp'),awakeFocus=doc.activeElement?.hasAttribute?.('data-keep-awake')&&dock.contains(doc.activeElement);
+ const doc=global.document,lockFocus=doc.activeElement?.hasAttribute?.('data-sheet-lock'),keep=doc.activeElement?.dataset?.keep,hpFocus=doc.activeElement?.hasAttribute?.('data-hud-hp'),awakeFocus=doc.activeElement?.hasAttribute?.('data-keep-awake')&&dock.contains(doc.activeElement);
  const old=dock.querySelector('.sheet-hud-wrap');if(old)old.innerHTML=hud(lastCharacter);
  const more=doc.querySelector('.sheet-extras');if(more)more.innerHTML=extras(lastCharacter);
  if(keep)more?.querySelector(`[data-keep="${String(keep).replace(/[^\w-]/g,'')}"]`)?.focus?.({preventScroll:true});
  if(hpFocus)dock.querySelector('[data-hud-hp]')?.focus?.({preventScroll:true});
  if(awakeFocus)dock.querySelector('[data-keep-awake]')?.focus?.({preventScroll:true});
+ if(doc.activeElement===doc.body&&lockFocus)dock.querySelector('[data-sheet-lock]')?.focus?.({preventScroll:true});
+ applyLock();
  const panel=dock.querySelector('.hud-hp-panel');
  if(panel){panel.hidden=!hpOpen;const v=vitals(lastCharacter),now=panel.querySelector('[data-hp-now]');if(now)now.innerHTML=`<b>${v.hp}</b><small>/ ${v.max}</small>`;for(const b of panel.querySelectorAll('[data-hp-reason]'))b.setAttribute('aria-checked',String(b.dataset.hpReason===hpReason))}
 }
@@ -119,6 +144,7 @@ function apply(c){
   refreshHud();
   for(const b of tabs.querySelectorAll('[data-sheet-tab]')){const on=b.dataset.sheetTab===current;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))}
  }
+ applyLock();
  doc.querySelector('.app-shell')?.classList.add('sheet-tabs-on');
 }
 function select(id,{scroll=true}={}){
@@ -143,6 +169,8 @@ global.document.addEventListener('click',e=>{
   else{const field=hp.closest('.hud-hp-panel')?.querySelector('[data-hp-amount]'),amount=Math.trunc(num(field?.value));if(amount>0){setHp(now-amount,'damage');field.value=''}else field?.focus?.()}
   return;
  }
+ if(e.target.closest?.('[data-sheet-lock]')){locked=!locked;try{global.localStorage?.setItem(LOCK_KEY,locked?'1':'0')}catch{}refreshHud();return}
+ const auto=e.target.closest?.('[data-sheet-autofire]');if(auto){openAutofire(auto.dataset.sheetAutofire);return}
  if(e.target.closest?.('[data-sheet-shop]')){global.App?.shopFor?.(lastCharacter?.id);return}
  if(e.target.closest?.('[data-sheet-lifepath]')){global.App?.lifepathFor?.(global.App?.active?.()?.id||lastCharacter?.id);return}
  const next=e.target.closest?.('[data-next-roll]');
@@ -163,6 +191,7 @@ global.document.addEventListener('keydown',e=>{
 });
 // HP, Luck and Humanity change through many sheet tools; refresh the small HUD after any edit.
 let hudTimer=0;const later=()=>{clearTimeout(hudTimer);hudTimer=setTimeout(()=>refreshHud(),0)};
+global.document.addEventListener('change',e=>{const el=e.target;if(el?.hasAttribute?.('data-next-dv')){const value=Math.trunc(num(el.value));dv=DVS.some(x=>x[0]===value)?value:0}});
 for(const type of ['input','change','click'])global.document.addEventListener(type,later);
-global.SheetTabs={apply,select,refreshHud,current:()=>current,tabs:TABS.map(t=>t[0])};
+global.SheetTabs={takeDV,apply,select,refreshHud,current:()=>current,tabs:TABS.map(t=>t[0])};
 })(window);

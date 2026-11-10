@@ -79,6 +79,9 @@ html.ui-native.ui-light .cx-section .cx-help { color: #5e564f; }
 html.ui-native.ui-light .cx-entry { background:  #ececec; border:  1px solid #c9c5c5; }
 html.ui-native.ui-light .inventory-filter p { color: #554638; }
 html.ui-native.ui-light .cx-entry-heading { color: #2a1e11; }
+html.ui-native.ui-light .cx-weapon-line b { color: #1c1b1d; }
+html.ui-native.ui-light :is(.cx-weapon-line, .cx-range) { color: #685f5a; }
+html.ui-native.ui-light .cx-weapon-edit > summary { color: #643c35; }
 html.ui-native.ui-light .cx-entry-heading .cx-button, html.ui-native.ui-light .cx-log .cx-button { color: #643c35; }
 html.ui-native.ui-light .cx-button { color: #845e15; background: #efece9; border: 1px solid #c8bbb1; }
 html.ui-native.ui-light .cx-button:hover { color: #201503; background: #ede3df; }

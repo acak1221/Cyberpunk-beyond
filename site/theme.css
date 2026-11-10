@@ -300,6 +300,12 @@ body {
 .nr-step .nr-hold[aria-pressed="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
 .hud-chip.hud-pending { border-color: var(--yellow); }
 .hud-chip .hud-plus { color: var(--yellow); font-style: normal; font-weight: 800; }
+/* DV for the next check; play mode */
+.nr-dv select { flex: 1 1 auto; min-width: 0; min-height: 36px; }
+.hud-lock.active { border-color: var(--yellow); }
+.sheet-locked :is(input[data-stat], input[data-skill]) { pointer-events: none; opacity: .75; }
+.hud-awake + .hud-lock, .hud-lock + .hud-awake { margin-left: 0; }
+.hud-lock { margin-left: auto; }
 /* «Не гасить экран» */
 .hud-awake { margin-left: auto; }
 .hud-awake span { color: var(--muted); }
