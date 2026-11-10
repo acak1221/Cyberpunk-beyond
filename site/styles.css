@@ -453,3 +453,12 @@ kbd { color: #77716b; font: inherit; }
 /* The row speaks for itself (kind, option, scene), so its labels are for screen readers only */
 .beat .beat-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media (max-width:560px){.beat{grid-template-columns:22px minmax(0,.85fr) minmax(0,1.15fr);gap:6px 8px;padding:8px}.beat-actions{gap:4px;flex-wrap:nowrap}.beat-actions .btn{min-width:34px;padding:0 6px}.beat-actions .rule-source{padding-left:2px;padding-right:2px;white-space:nowrap}.beat-done{font-size:11px;white-space:nowrap}}
+/* Tracker: wound states, who is out, and the actions of a participant */
+.camp-state{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.camp-chip{padding:3px 8px;border:1px solid var(--border);font-size:11px;font-weight:700}
+.camp-chip-serious{border-color:#e5a964;color:#f0d1ac}.camp-chip-mortal,.camp-chip-dead{border-color:var(--red);color:#fff;background:var(--red-dark)}.camp-chip-out,.camp-chip-held{color:var(--muted)}
+.combatant.out{opacity:.55}
+.camp-more-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:6px 0}
+.camp-more-row .btn{min-height:40px;padding:6px 12px;font-size:11px}
+.camp-more-row label{display:grid;gap:4px;color:var(--muted);font-size:11px}.camp-more-row input{width:76px}.camp-more-row select{max-width:210px}
+.turn-death{color:#ff9b8f}

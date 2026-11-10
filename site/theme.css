@@ -300,6 +300,14 @@ body {
 .nr-step .nr-hold[aria-pressed="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
 .hud-chip.hud-pending { border-color: var(--yellow); }
 .hud-chip .hud-plus { color: var(--yellow); font-style: normal; font-weight: 800; }
+/* Effects in force on the sheet (Critical Injuries and the like) */
+.effects-in-force:empty { display: none; }
+.effects-in-force { grid-column: 1 / -1; display: block; padding: 10px 12px; border-left: 3px solid var(--red); background: var(--panel-2); }
+.effects-in-force > span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.effects-in-force ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.effects-in-force li + li { margin-top: 3px; }
+.effects-death { margin: 8px 0 0; font-size: 12px; }
+.effects-death .btn { margin-left: 6px; min-height: 36px; }
 /* DV for the next check; play mode */
 .nr-dv select { flex: 1 1 auto; min-width: 0; min-height: 36px; }
 .hud-lock.active { border-color: var(--yellow); }

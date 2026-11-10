@@ -15,7 +15,7 @@ const TABS=[
 ];
 const IDS=new Set(TABS.map(t=>t[0]));
 // Which tab owns each jump-nav target, so links into the sheet still land somewhere visible.
-const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun'};
+const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-reputation':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun'};
 let current='main',lastCharacter=null,hpOpen=false,hpReason='damage',dv=0,locked=false;
 const LOCK_KEY='nc-sheet-lock',DVS=[[9,'Простая','Simple'],[13,'Обычная','Everyday'],[15,'Сложная','Difficult'],[17,'Профессиональная','Professional'],[21,'Героическая','Heroic'],[24,'Невероятная','Incredible'],[29,'Легендарная','Legendary']];
 try{locked=global.localStorage?.getItem(LOCK_KEY)==='1'}catch{}
@@ -66,6 +66,7 @@ function quickRolls(c){
   ['[data-action="initiative-roll"]',ru?'Инициатива':'Initiative',sign(typeof A?.initiativeBonus==='function'?A.initiativeBonus(c):num(st.REF)),'1d10 + REF'],
   ['[data-action="skill-roll"][data-skill="Evasion"]',ru?'Уклонение':'Evasion',sign(bonus('DEX',sk.Evasion)),'1d10 + DEX + '+(ru?'Уклонение':'Evasion')],
   ['[data-action="skill-roll"][data-skill="Brawling"]',ru?'Рукопашный бой':'Brawling',sign(bonus('DEX',sk.Brawling)),'1d10 + DEX + '+(ru?'Рукопашный бой':'Brawling')],
+  ['[data-cx-action="facedown"]',ru?'Лицом к лицу':'Facedown',sign(num(st.COOL)+(c?.extra?.reputationCoward===true?-1:1)*Math.max(0,Math.min(10,Math.trunc(num(c?.extra?.reputation))))),'1d10 + COOL + '+(ru?'репутация':'Reputation')],
   ['[data-cx-action="death-save"]',ru?'Спасбросок от смерти':'Death Save','< '+death,ru?'1d10 + штраф должно быть ниже BODY; 10 — всегда провал':'1d10 + penalty must be under BODY; a 10 always fails'],
  ];
  return `<div class="sheet-quick-rolls">${rolls.map(([target,label,total,hint])=>`<button type="button" data-proxy-roll="${html(target)}" title="${html(hint)}"><span>${html(label)}</span><b>${html(total)}</b></button>`).join('')}</div>`;

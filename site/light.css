@@ -500,3 +500,7 @@ html.ui-native.ui-light :is(input[type="checkbox"], input[type="radio"]) { accen
 /* ---------- Manual fixes ---------- */
 html.ui-native.ui-light .quick-progress button.active { color: var(--red-dark); border-color: var(--red); }
 html.ui-native.ui-light .beat-status.warn { color: #6b3d06; background: #f6ead8; }
+html.ui-native.ui-light .camp-chip-serious { color: #6b3d06; border-color: #b9812f; }
+html.ui-native.ui-light .turn-death { color: #a01f16; }
+html.ui-native.ui-light .playstyle > summary { color: #2a1e11; }
+html.ui-native.ui-light .playstyle-box { border-color: #c9c5c5; }
