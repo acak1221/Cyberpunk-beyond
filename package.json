@@ -12,6 +12,7 @@
     "build": "node scripts/build.mjs",
     "preview": "node scripts/build.mjs && node scripts/serve.mjs dist --port 4173",
     "check": "node scripts/check.mjs",
-    "test": "node scripts/check.mjs && node --test \"tests/*.test.cjs\""
+    "test": "node scripts/check.mjs && node --test \"tests/*.test.cjs\"",
+    "e2e": "node tests/e2e/run.cjs"
   }
 }

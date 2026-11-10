@@ -163,7 +163,7 @@ function handle(ev,ctx){
   if(op==='back'){selected=null;lastRoll=null;resetCombat();return {handled:true,rerender:true}}
   if(!a)return {handled:true};
   if(op==='delete')return confirmedNetAction(b,ctx,l,all,a,op,i,j,f,entry);
-  if(op==='roll'){lastRoll=result(check(a.rank,a.modifier,a.dv),l);return {handled:true,rerender:true}}
+  if(op==='roll'){const r=check(a.rank,a.modifier,a.dv);window.Rolls?.check('Interface'+(a.name?' · '+a.name:''),r,l);lastRoll=result(r,l);return {handled:true,rerender:true}}
   if(op==='combat-roll'){
    if(!combatDraft)resetCombat();const d=combatDraft,ice=selectedIce(a,d.ice);
    if(d.ice&&!ice)return {handled:true,notify:l==='ru'?'Выбранный ICE больше не существует; выберите заново.':'The selected ICE no longer exists; select it again.'};
@@ -173,6 +173,7 @@ function handle(ev,ctx){
    const config={...d,rank:link?link.c.rank:a.rank,kind:program?programKind(program):d.kind,atk:d.mode==='ice'&&ice?ice.atk:program?program.stats.atk:d.atk,spd:ice?ice.spd:d.spd,per:ice?ice.per:d.mode==='slide'?slidePer(d.per):d.per,def:d.mode!=='ice'&&ice?ice.def:d.def};
    combatResult=combatCheck(config);
    if(!combatResult)return {handled:true,notify:d.mode==='slide'?(l==='ru'?'Проверьте характеристики и условия Slide.':'Check the Slide stats and prerequisites.'):(l==='ru'?'Класс программы не подходит для выбранной цели.':'The program class does not match the target.')};
+   window.Rolls?.opposed('NET · '+({program:l==='ru'?'атака программой':'program attack',ice:l==='ru'?'атака ICE':'ICE attack',zap:'Zap',encounter:l==='ru'?'встреча с ICE':'ICE encounter',slide:'Slide'})[combatResult.mode],{...combatResult.attackDie,total:combatResult.attack},{...combatResult.defendDie,total:combatResult.defend},combatResult.hit,l);
    if(d.mode==='slide'){d.slideReady=false;d.slidePursuing=false}
    if(link)combatResult.copyFingerprint=linkedFingerprint(link);
    return {handled:true,rerender:true};

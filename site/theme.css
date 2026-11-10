@@ -464,3 +464,8 @@ dialog.share-import p.share-import-verdict.warn { color: var(--yellow, #e9c66d);
 .share-import-actions { flex-wrap: wrap; }
 @media (max-width: 480px) { .share-import-actions .btn { flex: 1 1 auto; } }
 html.ui-native dialog.share-import h2 { line-height: 1.25; text-transform: none; }
+
+/* Skip link: the first Tab stop, visible only while focused */
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 2000; padding: 10px 14px; color: #111; background: var(--yellow); border: 0; font-weight: 800; transform: translateY(-200%); }
+.skip-link:focus { transform: none; }
+#main-content:focus, .content h1[tabindex="-1"]:focus { outline: none; }

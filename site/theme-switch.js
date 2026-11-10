@@ -14,6 +14,8 @@ function paint(){
 function apply(){
  const mode=get(),light=isLight(mode);
  root.classList.toggle('ui-light',light);
+ // The web fonts belong to the «Киберпанк» look only; the default look uses the fonts of the device and asks Google for nothing.
+ if(!root.classList.contains('ui-native'))global.ncFonts?.();
  const meta=doc.querySelector('meta[name="theme-color"]');
  if(meta)meta.setAttribute('content',light?COLORS.light:COLORS.dark);
  paint();

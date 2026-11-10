@@ -89,7 +89,7 @@ p { color: #bcb5ad; }
 .empty h3, .empty-state h3 { color: var(--text); }
 
 /* Controls */
-.btn, .button, button.primary, .btn-primary { min-height: 41px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 17px; color: #fff9f0; background: var(--red); border: 1px solid var(--red); border-radius: 2px; font-size: 11px; font-weight: 800; letter-spacing: .07em; line-height: 1.2; text-align: center; text-transform: uppercase; transition: background .18s, border-color .18s, transform .18s; }
+.btn, .button, button.primary, .btn-primary { min-height: 41px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 17px; color: #fff9f0; background: #cf362f; border: 1px solid var(--red); border-radius: 2px; font-size: 11px; font-weight: 800; letter-spacing: .07em; line-height: 1.2; text-align: center; text-transform: uppercase; transition: background .18s, border-color .18s, transform .18s; }
 .btn:hover, .button:hover, button.primary:hover, .btn-primary:hover { background: #f2554d; border-color: #f2554d; }
 .btn:active, .button:active { transform: translateY(1px); }
 .btn.secondary, .button.secondary, .btn-secondary, .btn.outline { color: #f2ebe1; background: transparent; border-color: #605753; }
@@ -176,7 +176,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .75); }
 .status, .saved-indicator { display: flex; align-items: center; gap: 8px; color: #a6b59d; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
 .status-dot, .red-dot { display: inline-block; width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: #91be96; box-shadow: 0 0 7px #91be9660; }
 .red-dot { background: var(--red); box-shadow: 0 0 8px #e3423c80; }
-.version { display: flex; justify-content: space-between; margin-top: 23px; font-weight: 700; letter-spacing: .08em; }
+.version { display: flex; justify-content: space-between; margin-top: 23px; font-weight: 700; letter-spacing: .08em; color: #8c8782; }
 .top-context, .top-actions, .lang-switch { display: flex; align-items: center; }
 .top-context { gap: 10px; color: #a9a29b; font-size: 11px; }
 .top-context strong { color: #e6ded5; font-weight: 700; }
@@ -232,7 +232,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .75); }
 .char-dot { position: absolute; top: 12px; left: 15px; color: #f0be6d; font-size: 17px; }
 .char-body { padding: 18px; }
 .char-body h3 { overflow: hidden; margin: 8px 0 16px; color: #f8f0e6; text-overflow: ellipsis; }
-.char-kicker { color: var(--red); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.char-kicker { color: #ea5750; font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .char-kicker span { color: #a19a92; }
 .char-meta { display: flex; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--border); color: #8d8780; font-size: 10px; }
 .char-meta strong { color: #e6ded2; }
@@ -272,7 +272,7 @@ kbd { color: #77716b; font: inherit; }
 .rule-top, .rule-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #9c938a; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
 .rule-card h3 { margin: 20px 0 10px; }
 .rule-card p { margin-bottom: 20px; font-size: 12px; line-height: 1.65; }
-.rule-bottom { margin-top: auto; padding-top: 13px; border-top: 1px solid #3b3635; color: #8b7971; }
+.rule-bottom { margin-top: auto; padding-top: 13px; border-top: 1px solid #3b3635; color: #9a877f; }
 .rule-bottom span:last-child { color: var(--red); font-size: 14px; }
 
 .dice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
@@ -463,3 +463,5 @@ kbd { color: #77716b; font: inherit; }
 .camp-more-row label{display:grid;gap:4px;color:var(--muted);font-size:11px}.camp-more-row input{width:76px}.camp-more-row select{max-width:210px}
 .turn-death{color:#ff9b8f}
 .camp-chip-hidden{border-style:dashed;color:var(--muted)}.camp-live:empty{display:none}.camp-live{display:block;color:#ff9b8f;font-weight:700}
+/* Catalog: result count, paging, and cards outside the screen are not laid out until needed */
+.catalog-count{margin:0 0 10px;color:var(--muted);font-size:12px}.catalog-more{grid-column:1/-1;display:flex;justify-content:center;padding:8px 0}.catalog-more .btn{min-height:44px}.catalog-card{content-visibility:auto;contain-intrinsic-size:auto 230px}

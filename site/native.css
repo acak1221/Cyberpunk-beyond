@@ -61,8 +61,9 @@ html.ui-native :is(.btn, .btn-primary, .quick-die, .cx-button, .sheet-quick-roll
   min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; box-shadow: none; background-image: none;
   font: 600 15px/1.2 var(--body); letter-spacing: 0; text-transform: none; transition: background-color .15s, opacity .15s, transform .1s;
 }
-html.ui-native :is(.btn.primary, .btn-primary) { color: #fff; background-color: var(--red); }
-html.ui-native :is(.btn.primary, .btn-primary):hover { background-color: #ff5b52; box-shadow: none; }
+/* White on the bright red is 3.4:1; this red gives 4.6:1 (WCAG AA). */
+html.ui-native :is(.btn.primary, .btn-primary) { color: #fff; background-color: #d93a30; }
+html.ui-native :is(.btn.primary, .btn-primary):hover { background-color: #c7342b; box-shadow: none; }
 html.ui-native :is(.btn.ghost, .btn.subtle, .btn.outline, .cx-button, .quick-die) { color: var(--text); background-color: var(--panel-2); }
 html.ui-native :is(.btn.ghost, .btn.subtle, .btn.outline, .cx-button, .quick-die):hover { background-color: var(--panel-hover); }
 html.ui-native :is(.btn, .quick-die, .cx-button):active { transform: scale(.98); opacity: .85; }
@@ -97,7 +98,7 @@ html.ui-native .brand { min-height: auto; padding: 0 8px 14px; border-bottom: 0;
 html.ui-native .brand small { display: none; }
 html.ui-native .brand-mark { width: 30px; height: 30px; border-radius: 8px; font-size: 14px; transform: none; }
 html.ui-native .nav { gap: 1px; }
-html.ui-native .nav-group-label { margin: 14px 10px 4px; color: #6f6f78; font: 600 12px/1.2 var(--body); letter-spacing: .02em; }
+html.ui-native .nav-group-label { margin: 14px 10px 4px; color: #8e8e97; font: 600 12px/1.2 var(--body); letter-spacing: .02em; }
 html.ui-native .nav-item { min-height: 40px; gap: 12px; padding: 8px 10px; color: #d4d4da; border-radius: 10px; font: 500 15px/1.2 var(--body); }
 html.ui-native .nav-item:hover { color: #fff; background: rgba(255, 255, 255, .05); }
 html.ui-native .nav-item.active { color: #fff; background: rgba(255, 69, 58, .16); box-shadow: none; }
@@ -107,9 +108,9 @@ html.ui-native .nav-item.active .nav-icon { color: var(--red); }
 html.ui-native .nav-item:hover .nav-icon { transform: none; }
 html.ui-native .ico { display: block; }
 html.ui-native .sidebar-bottom { padding: 14px 8px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
-html.ui-native .sidebar-bottom p { margin: 10px 0 0; color: #6f6f78; font-size: 12px; line-height: 1.4; }
+html.ui-native .sidebar-bottom p { margin: 10px 0 0; color: #8e8e97; font-size: 12px; line-height: 1.4; }
 
-.nav-group-label { margin: 12px 10px 4px; color: #7e7975; font-size: 9px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+.nav-group-label { margin: 12px 10px 4px; color: #9b9ba4; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .ui-style-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--muted); }
 .ui-style-switch span { width: 100%; margin-bottom: 2px; }
 .ui-style-switch button { flex: 1 1 0; min-height: 30px; padding: 4px 8px; color: var(--muted); background: transparent; border: 1px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -125,7 +126,7 @@ html.ui-native .lang-switch { padding: 2px; border: 0; border-radius: 9px; backg
 html.ui-native .lang-switch button { min-width: 38px; min-height: 30px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font: 600 13px var(--body); }
 html.ui-native .lang-switch button.selected { color: var(--text); background: #3a3a40; }
 html.ui-native .menu-toggle { border: 0; border-radius: 10px; background: transparent; }
-html.ui-native .footer { margin-top: 28px; color: #6f6f78; font-size: 12px; border-top: 1px solid var(--border); }
+html.ui-native .footer { margin-top: 28px; color: #8e8e97; font-size: 12px; border-top: 1px solid var(--border); }
 
 html.ui-native .bottom-nav { background: rgba(16, 16, 18, .92); border-top: 1px solid rgba(255, 255, 255, .07); }
 html.ui-native .bottom-nav button { gap: 2px; color: #8e8e96; font: 500 10.5px/1.1 var(--body); letter-spacing: 0; }
@@ -162,7 +163,7 @@ html.ui-native .sheet-dock { background: rgba(11, 11, 13, .94); }
 html.ui-native .sheet-tabs { gap: 6px; border-bottom: 0; }
 html.ui-native .sheet-tabs button { min-height: 36px; padding: 6px 14px; border: 0; border-radius: 999px; color: #c9c9cf; background: var(--panel-2); font: 600 14px var(--body); box-shadow: none; }
 html.ui-native .sheet-tabs button span { display: none; }
-html.ui-native .sheet-tabs button.active { color: #fff; background: var(--red); box-shadow: none; }
+html.ui-native .sheet-tabs button.active { color: #fff; background: #d93a30; box-shadow: none; }
 html.ui-native .hud-chip { border: 0; border-radius: 999px; background: var(--panel-2); font-family: var(--body); }
 html.ui-native .hud-chip b { font: 700 17px/1 var(--display); }
 html.ui-native .hud-avatar, html.ui-native .room-avatar { border: 0; border-radius: 50%; }
