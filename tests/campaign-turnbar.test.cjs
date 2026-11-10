@@ -84,3 +84,29 @@ test('notes are collapsed with a one-line preview',()=>{
  assert.match(out,/<details class="campaign-combat-note"><summary>Заметка<span class="note-preview" data-camp-note-preview>SP 7\/7 · Poor Quality Shotgun 5d6; Very Heavy Pistol 4d6<\/span><\/summary>/);
  assert.doesNotMatch(out,/<details class="campaign-combat-note" open/);
 });
+
+test('addTemplates puts numbered book NPCs with their note into a roster and refuses bad input',()=>{
+ const h=setup(),other={id:'k2',name:'Other',roster:[]};
+ const r=h.C.addTemplates(other,'bodyguard',3,'en');
+ assert.equal(r.ok,true);assert.equal(r.name,'Bodyguard');assert.deepEqual(plain(other.roster.map(x=>x.name)),['Bodyguard 1','Bodyguard 2','Bodyguard 3']);
+ assert.equal(new Set(other.roster.map(x=>x.id)).size,3);assert.equal(other.roster[0].combatNote.text,'SP 7/7 · Poor Quality Shotgun 5d6; Very Heavy Pistol 4d6');
+ assert.equal(h.C.addTemplates(other,'nobody',1,'en').ok,false);assert.equal(h.C.addTemplates(null,'bodyguard',1,'en').ok,false);assert.equal(h.C.addTemplates({id:'x'},'bodyguard',1,'en').ok,false);
+ assert.equal(other.roster.length,3,'a refused call adds nothing');
+ assert.equal(h.C.addTemplates(other,'bodyguard',999,'en').added.length,20,'at most 20 at a time');
+});
+
+test('a rolled encounter offers the book template named in its row',()=>{
+ global.window={};global.document={addEventListener(){}};
+ delete require.cache[require.resolve('../site/gm-tools.js')];require('../site/gm-tools.js');
+ const G=global.window.GMTools,ids=new Set(G.NPC_TEMPLATES.map(x=>x.id));
+ assert.equal(G.encounterTemplate([1,5,417,'','','','A patrol demands ID. Template: Security Operative.']),'security-operative');
+ assert.equal(G.encounterTemplate([1,5,417,'','','','Use Security Officers without the shield.']),'security-officer');
+ assert.equal(G.encounterTemplate([1,5,417,'','','','Techs. Template: Bodyguard with Tool Hand.']),'bodyguard');
+ assert.equal(G.encounterTemplate([1,5,417,'','','','A stray dog.']),'');
+ let named=0,total=0;for(const rows of Object.values(G.ENCOUNTERS))for(const row of rows){total++;const id=G.encounterTemplate(row);if(id){named++;assert.ok(ids.has(id))}}
+ assert.ok(named>=total/2,`most encounter rows name a template (${named} of ${total})`);
+ const html=G.render({lang:'ru',workspace:{...G.initial(),roll:8,party:4},campaigns:[{id:'k',name:'Работа',roster:[]}]});
+ assert.match(html,/data-gm-enc-count data-gm-enc-party="4"/);assert.match(html,/data-gm="enc-add"/);
+ assert.doesNotMatch(G.render({lang:'ru',workspace:G.initial(),campaigns:[{id:'k',name:'Работа',roster:[]}]}),/data-gm-enc\b/,'nothing to add before a roll');
+ assert.match(G.render({lang:'ru',workspace:{...G.initial(),roll:8},campaigns:[]}),/Сначала создайте кампанию/);
+});
