@@ -1,0 +1,69 @@
+/* Battle map (battle-map.js). Colours come from the theme variables, so the three looks and the light theme all work. */
+.battle-map { min-width: 0; }
+.battle-map p { margin: 6px 0; }
+.bm-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 10px 0; }
+html .battle-map .bm-toolbar .btn, html .battle-map .bm-row .btn, html .battle-map > .btn { min-height: 44px; }
+.bm-toolbar .field { margin: 0; min-width: 120px; flex: 0 1 150px; }
+.bm-toolbar .field select { width: 100%; min-height: 44px; }
+.bm-modes { display: inline-flex; gap: 0; border: 1px solid var(--muted); border-radius: var(--radius, 2px); overflow: hidden; }
+html .battle-map .bm-modes .bm-mode { border: 0; border-radius: 0; color: var(--text); background: transparent; }
+html .battle-map .bm-modes .bm-mode[aria-pressed="true"] { color: var(--bg); background: var(--text); }
+html .battle-map .bm-danger { color: var(--red); }
+.battle-map .btn:focus-visible, .bm-cell:focus-visible, .bm-chip:focus-visible, .bm-scroll:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+
+.bm-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.bm-tray-label { color: var(--muted); font-size: 13px; }
+.bm-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 4px 12px 4px 4px; color: var(--text); background: var(--panel-2); border: 1px solid var(--muted); border-radius: 22px; font: inherit; font-size: 13px; cursor: pointer; }
+.bm-chip[aria-pressed="true"] { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
+.bm-chip-name { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+.bm-chip.bm-hidden .bm-token { opacity: .6; outline: 2px dashed var(--text); outline-offset: -2px; }
+
+.bm-scroll { max-width: 100%; overflow: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius, 2px); background: var(--bg); -webkit-overflow-scrolling: touch; }
+.bm-grid { --bm-cell: 44px; display: grid; grid-template-columns: repeat(var(--bm-w), var(--bm-cell)); grid-auto-rows: var(--bm-cell); width: max-content; gap: 0; border-top: 1px solid var(--muted); border-left: 1px solid var(--muted); }
+.bm-grid.bm-static { --bm-cell: 30px; }
+.bm-cell { position: relative; display: flex; align-items: center; justify-content: center; width: var(--bm-cell); height: var(--bm-cell); min-height: 0; margin: 0; padding: 0; color: var(--text); background: var(--panel); border: 0; border-right: 1px solid var(--muted); border-bottom: 1px solid var(--muted); border-radius: 0; font: inherit; box-sizing: border-box; }
+button.bm-cell { cursor: pointer; }
+button.bm-cell:hover { background: var(--panel-hover); }
+.bm-cell:focus-visible { outline-offset: -3px; z-index: 2; }
+.bm-cell.bm-cover, button.bm-cell.bm-cover:hover, .bm-swatch.bm-cover { background: repeating-linear-gradient(45deg, var(--text) 0 3px, var(--panel-2) 3px 8px); box-shadow: inset 0 0 0 2px var(--text); }
+.bm-cell.bm-reach, .bm-swatch.bm-reach { background: var(--panel-2); box-shadow: inset 0 0 0 3px var(--green); }
+.bm-cell.bm-run, .bm-swatch.bm-run { background-image: radial-gradient(circle, var(--green) 0 2.5px, transparent 3px); }
+[data-bm-mode="cover"] button.bm-cell { cursor: cell; }
+
+.bm-token { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; overflow: hidden; font-size: 13px; font-weight: 700; line-height: 1; letter-spacing: 0; white-space: nowrap; pointer-events: none; }
+.bm-static .bm-token { width: 24px; height: 24px; font-size: 10px; }
+.bm-pc .bm-token, .bm-swatch.bm-pc, .bm-ghost.bm-pc { color: var(--bg); background: var(--text); border-radius: 50%; }
+.bm-npc .bm-token, .bm-swatch.bm-npc, .bm-ghost.bm-npc { color: #fff; background: #9a1f1f; border-radius: 4px; }
+.bm-cell.bm-has { touch-action: none; }
+.bm-cell.bm-hidden .bm-token { opacity: .6; outline: 2px dashed var(--text); outline-offset: -2px; }
+.bm-cell.bm-out .bm-token { opacity: .5; text-decoration: line-through; }
+.bm-cell.bm-current::after { content: ""; position: absolute; inset: 1px; border: 2px solid var(--green); border-radius: 50%; pointer-events: none; }
+.bm-cell.bm-sel { box-shadow: inset 0 0 0 3px var(--yellow); background: var(--panel-hover); }
+.bm-cell.bm-target { box-shadow: inset 0 0 0 3px var(--red); }
+.bm-cell.bm-target::before { content: "✛"; position: absolute; top: 0; right: 2px; font-size: 11px; color: var(--red); pointer-events: none; }
+.bm-cell.bm-drop { box-shadow: inset 0 0 0 3px var(--yellow); }
+.bm-cell.bm-dragging .bm-token { opacity: .35; }
+.bm-ghost { position: fixed; z-index: 1000; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin: -19px 0 0 -19px; font-size: 13px; font-weight: 700; pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+
+.bm-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; }
+.bm-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.bm-swatch { display: inline-block; width: 16px; height: 16px; flex: none; border: 1px solid var(--muted); box-sizing: border-box; }
+.bm-status { margin: 10px 0; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius, 2px); overflow-wrap: anywhere; }
+.bm-status p:first-child { margin-top: 0; }
+.bm-status p:last-child { margin-bottom: 0; }
+.bm-say { color: var(--text); font-weight: 600; }
+.bm-warn { color: var(--yellow); font-weight: 600; }
+.bm-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
+.bm-row .field { margin: 0; }
+.bm-move { flex: 0 0 96px; }
+.bm-move input { width: 100%; min-height: 44px; }
+.bm-weapon { flex: 1 1 180px; max-width: 280px; }
+.bm-weapon select { width: 100%; min-height: 44px; }
+.bm-dv { flex: 1 1 160px; margin: 0 0 10px; font-size: 15px; }
+.bm-setup { padding-top: 10px; border-top: 1px solid var(--border); }
+
+.bm-shared { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); min-width: 0; }
+.bm-shared-title { margin: 0 0 4px; font-size: 14px; }
+.bm-shared-list { margin: 8px 0; padding: 0; list-style: none; font-size: 13px; }
+.bm-shared-list li { padding: 2px 0; overflow-wrap: anywhere; }
+.bm-shared-list b { display: inline-block; min-width: 28px; }
