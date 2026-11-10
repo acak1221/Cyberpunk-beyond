@@ -1,0 +1,109 @@
+/* Catalog cart: the sticky money bar and the cart panel folded under it.
+   Colours come from the look's own variables (--bg, --panel, --text, --muted, --red, --border),
+   so the three looks and the light theme need only small touches at the end. */
+
+.catalog-toolbar { grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr); margin-bottom: 14px; }
+
+.shop-dock {
+  position: sticky; top: 0; z-index: 30;
+  margin: 0 0 14px; padding: 10px 12px;
+  color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.shop-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.shop-buyer { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 300px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.shop-buyer span { flex: 0 0 auto; }
+.shop-buyer select { flex: 1 1 auto; min-width: 0; width: 100%; min-height: 44px; margin: 0; }
+.shop-buyer select.is-empty { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.shop-money { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 260px; min-width: 0; font-size: 13px; line-height: 1.35; }
+.shop-hint { color: var(--muted); }
+.shop-chip, .shop-after { display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); white-space: nowrap; }
+.shop-chip-name { color: var(--muted); }
+.shop-chip b, .shop-after b { color: var(--text); font-variant-numeric: tabular-nums; }
+.shop-chip.is-paying { border-color: var(--text); }
+.shop-after { border-style: dashed; color: var(--muted); }
+.shop-after.is-short, .shop-after.is-short b, .shop-total .is-short, .shop-total .is-short b { color: var(--red); }
+.shop-after.is-short { border-color: var(--red); border-style: solid; font-weight: 700; }
+.shop-toggle.btn { flex: 0 0 auto; min-height: 44px; margin: 0 0 0 auto; padding: 8px 16px; white-space: nowrap; }
+
+.shop-cart { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); max-height: min(70vh, calc(100vh - 150px)); max-height: min(70dvh, calc(100dvh - 150px)); overflow-y: auto; overscroll-behavior: contain; }
+.shop-cart[hidden] { display: none; }
+.shop-cart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.shop-cart-head h2 { margin: 0; font-size: 18px; line-height: 1.2; }
+.shop-cart-head h2:focus { outline: none; }
+.shop-cart-head h2:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+.shop-cart .btn { min-height: 44px; margin: 0; }
+.shop-close.btn { padding: 6px 14px; }
+.shop-empty { margin: 4px 0 12px; color: var(--muted); }
+.shop-mode { max-width: 420px; margin: 0 0 10px; }
+.shop-mode select { min-height: 44px; }
+
+.shop-lines, .shop-review-list { list-style: none; margin: 0; padding: 0; }
+.shop-line { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); }
+.shop-line.is-bad { padding-left: 10px; border-left: 3px solid var(--red); }
+.shop-line-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.shop-line-head strong { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.shop-line-price { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.shop-line-price b { color: var(--text); }
+.shop-line-option { display: grid; gap: 4px; max-width: 420px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.shop-line-option select { min-height: 44px; width: 100%; }
+.shop-line-option select[aria-invalid="true"] { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.shop-line-ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-step { display: inline-flex; align-items: center; gap: 6px; }
+.shop-step .btn { min-width: 44px; padding: 0; font-size: 20px; line-height: 1; }
+.shop-step input { width: 64px; height: 44px; min-height: 44px; box-sizing: border-box; margin: 0; padding: 6px 4px; text-align: center; font-variant-numeric: tabular-nums; }
+.shop-remove.btn { padding: 6px 14px; }
+.shop-line-note, .shop-review-list small { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.shop-line-error, .shop-blocker { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; line-height: 1.45; }
+.shop-blocker { margin: 0 0 10px; }
+
+.shop-total { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 10px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 14px; font-variant-numeric: tabular-nums; }
+.shop-total span { color: var(--muted); }
+.shop-total b { color: var(--text); }
+.shop-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding-bottom: 2px; }
+.shop-actions .btn { flex: 0 1 auto; padding: 8px 18px; }
+.shop-actions .btn.primary { flex: 1 1 160px; max-width: 320px; margin-left: auto; }
+
+.shop-review-buyer { margin: 0 0 6px; color: var(--muted); }
+.shop-review-buyer b { color: var(--text); }
+.shop-review-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); }
+.shop-review-list li > span { min-width: 0; overflow-wrap: anywhere; }
+.shop-review-list small { display: block; }
+.shop-review-list li > b { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shop-pay, .shop-done { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 8px; background: var(--panel-2); font-size: 14px; font-weight: 600; line-height: 1.45; }
+
+/* Card buttons: paying is the main action, the free add stays secondary. */
+.catalog-foot { flex-wrap: wrap; }
+.catalog-actions { gap: 6px; margin-left: auto; }
+.catalog-foot .btn { min-height: 44px; padding: 8px 12px; margin: 0; }
+
+/* Phone: the header is sticky and 56px tall, so the bar rides right under it, edge to edge. */
+@media (max-width: 820px) {
+  /* Full-bleed without negative margins (the page gutter differs between looks): the panel colour is
+     spread sideways by a clipped shadow, which never adds horizontal scroll. */
+  .shop-dock { top: calc(56px + env(safe-area-inset-top, 0px)); margin: 0 0 12px; padding: 8px 0; border-width: 0 0 1px; border-radius: 0; box-shadow: 0 0 0 100vmax var(--panel); clip-path: inset(0 -100vmax -1px -100vmax); }
+  .shop-bar { gap: 6px 8px; }
+  .shop-buyer { flex: 1 1 100%; }
+  .shop-money { flex: 1 1 100%; font-size: 12px; }
+  .shop-chip, .shop-after { padding: 3px 8px; }
+  .shop-toggle.btn { flex: 1 1 100%; margin: 0; }
+  .shop-cart { max-height: calc(100vh - 56px - 250px); max-height: calc(100dvh - 56px - 250px - env(safe-area-inset-bottom, 0px)); min-height: 140px; }
+  .shop-actions .btn.primary { max-width: none; }
+  .catalog-toolbar { grid-template-columns: 1fr; }
+}
+
+/* Original cyberpunk look: square corners. */
+html:not(.ui-native) .shop-dock { border-radius: 0; }
+html:not(.ui-native) :is(.shop-chip, .shop-after) { border-radius: 0; }
+html:not(.ui-native) :is(.shop-pay, .shop-done) { border-radius: 0; }
+
+/* Its primary button is cream on bright red (below AA): the cart uses the darker red of the same palette. */
+html:not(.ui-native) :is(.shop-dock, .catalog-foot) .btn.primary { color: #fff; background-color: var(--red-dark); border-color: var(--red-dark); }
+
+html.ui-native .shop-dock { border-radius: var(--radius, 14px); }
+html.ui-native.ui-board :is(.shop-dock, .catalog-foot) .btn { min-height: 44px; }
+@media (min-width: 821px) { html.ui-native.ui-light .shop-dock { box-shadow: 0 4px 14px rgba(0, 0, 0, .12); } }
+@media (max-width: 820px) { html.ui-native .shop-dock { border-radius: 0; } }
+
+@media print { .shop-dock { display: none; } }

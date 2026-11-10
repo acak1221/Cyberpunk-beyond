@@ -6,7 +6,6 @@
 'use strict';
 const doc=global.document,root=doc.documentElement,KEY='nc-ui-style';
 const isNative=()=>root.classList.contains('ui-native');
-let filtersOpen=false;
 const ru=()=>(root.lang||'ru')!=='en';
 
 // Three looks: «Обычное» (native), «Досье» (board: the same clean base laid out as a tabletop character board) and «Киберпанк».
@@ -63,21 +62,6 @@ function scan(scope){
   s.dataset.nx='1';const t=s.textContent.trim(),page=pageRef(t,s.hasAttribute('data-page-ref'),ru());
   if(DECO.test(t))s.classList.add('nx-deco');
   else if(page){s.classList.add('nx-page');s.textContent=page}
- }
- // Catalog: keep search and category up front; who-to-buy-for and purchase options fold away.
- for(const bar of scope.querySelectorAll('.catalog-toolbar:not([data-nx])')){
-  bar.dataset.nx='1';
-  const target=bar.querySelector('#catalog-target')?.closest('label'),purchase=bar.nextElementSibling?.classList.contains('catalog-purchase')?bar.nextElementSibling:null;
-  if(!target&&!purchase)continue;
-  // The summary names the buyer; with nobody chosen the block starts open, so the choice is in plain sight.
-  const select=bar.querySelector('#catalog-target'),buyer=()=>select?.value?select.selectedOptions?.[0]?.textContent||'':'';
-  const box=doc.createElement('details');box.className='nx-filters';if(filtersOpen||select&&!select.value)box.open=true;
-  box.innerHTML=`<summary><span data-nx-buyer></span></summary><div class="nx-filters-body"></div>`;
-  const paint=()=>{const who=buyer();box.querySelector('[data-nx-buyer]').textContent=who?(ru()?'Покупка для: ':'Buying for: ')+who:(ru()?'Покупка для персонажа: не выбран':'Buy for a character: not chosen')};
-  paint();select?.addEventListener('change',paint);
-  box.addEventListener('toggle',()=>{filtersOpen=box.open});
-  const body=box.lastElementChild;if(target)body.appendChild(target);if(purchase)body.appendChild(purchase);
-  bar.after(box);
  }
  for(const p of scope.querySelectorAll(HELP)){
   if(p.dataset.nx||p.closest(KEEP)||p.querySelector('input,select,textarea,button'))continue;
