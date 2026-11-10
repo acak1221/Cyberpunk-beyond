@@ -70,11 +70,13 @@ const appState=()=>{try{return global.App?.getState?.()||null}catch{return null}
 const campaignOf=(st,id)=>id&&Array.isArray(st?.campaigns)?st.campaigns.find(c=>c&&typeof c==='object'&&c.id===id)||null:null;
 
 // Called by room.js for the Game Master whenever it publishes its own state. Sends when the marked entries changed; `force`
-// (a heartbeat or a new connection) repeats them now and then, so a relay that lost its copy gets one again.
+// (a heartbeat or a new connection) repeats them now and then, so a relay that lost its copy gets one again. An empty journal
+// is small and is repeated on every heartbeat, like the 'cleared' initiative and clocks: an earlier message put back on a
+// relay by somebody else is then replaced, and entries the Game Master took back do not stay with players who join later.
 function publish(force=false,now=Date.now()){
  const who=whoIs();sync(who);if(!who||who.role!=='gm')return false;
  const data=payload(campaignOf(appState(),who.campaignId)).data,s=JSON.stringify(data),online=Number(who.online)||0,grew=online>lastOnline;lastOnline=online;
- if(s===lastSent&&!(force&&(grew||(data.list.length&&now-sentAt>=RESEND))))return false;
+ if(s===lastSent&&!(force&&(grew||!data.list.length||now-sentAt>=RESEND)))return false;
  lastSent=s;sentAt=now;
  try{Promise.resolve(link().send(data,now)).then(n=>{if(!n&&lastSent===s)lastSent=null},()=>{if(lastSent===s)lastSent=null})}catch{lastSent=null}
  return true;

@@ -10,13 +10,14 @@
 const doc=global.document,te=new TextEncoder(),td=new TextDecoder();
 const SESSION_KEY='nightcity-red-room-v1',BROKERS_KEY='nightcity-red-room-brokers',DEVICE_KEY='nightcity-red-room-device';
 const ALPHABET='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-const HEARTBEAT=45000,ONLINE_FOR=130000,FORGET_AFTER=6*3600*1000,STATE_TTL=12*3600*1000,MAX_MEMBERS=30,MAX_FEED=40,MAX_BYTES=160000,SHEET_UNPACKED=2000000,SHEET_WAIT=30000,MAX_OUTBOX=20,NO_GM_HINT=12000,PROTOCOL=3,EVENT_WINDOW=600000,GONE_GRACE=8000;
+const HEARTBEAT=45000,ONLINE_FOR=130000,FORGET_AFTER=6*3600*1000,STATE_TTL=12*3600*1000,MAX_MEMBERS=30,MAX_FEED=40,MAX_BYTES=160000,SHEET_UNPACKED=2000000,SHEET_WAIT=30000,MAX_OUTBOX=20,NO_GM_HINT=12000,PROTOCOL=3,EVENT_WINDOW=600000,GONE_GRACE=8000,RACE=5000;
 const FP=/^[0-9a-f]{24}$/,MEMBER_ID=/^[0-9a-f]{24}\.[0-9a-f]{8}$/;
 let identity=null,identityWait=null,pendingPin='',oldSeen=0,willBytes=null,paintQueued=false;const verifyKeys=new Map(),muted=new Set(),buckets=new Map(),flood={at:0,n:0};
 const T={ru:{nav:'Игра онлайн',over:'05 / ONLINE ROOM',title:'ИГРА ОНЛАЙН',lead:'Комната связывает телефоны и компьютеры ведущего и игроков: все видят состояние персонажей, порядок инициативы и броски в реальном времени.',how:'Без регистрации и без базы данных. Данные шифруются кодом комнаты прямо на устройстве и передаются через несколько бесплатных публичных серверов-ретрансляторов одновременно — если один недоступен, работают остальные. Каждое устройство подписывает свои сообщения собственным ключом, поэтому выдать себя за другого участника или за ведущего нельзя: ведущий — владелец ключа из ссылки на комнату. Ваши листы остаются у вас; в комнату уходит только сводка выбранного персонажа (и портрет, если включено). Зашифрованная копия вашего статуса хранится на серверах-ретрансляторах, пока вы в комнате, и заменяется отметкой ухода, когда вы её покидаете.',gm:'Я ведущий',gmLead:'Создайте комнату и отправьте ссылку игрокам в чат.',player:'Я игрок',playerLead:'Откройте ссылку от ведущего или введите код комнаты.',name:'Ваше имя в комнате',namePh:'Например, Мастер или Ви',campaign:'Кампания для трекера инициативы',noCampaign:'Не показывать инициативу',create:'Создать комнату',code:'Код комнаты',codePh:'XXXX-XXXX-XXXX',character:'Персонаж, которого видят другие',noCharacter:'Без персонажа (наблюдатель)',join:'Войти в комнату',badCode:'Проверьте код: 12 символов, например K7RQ-M2XA-PZ9E.',needName:'Введите имя.',room:'КОМНАТА',copy:'Скопировать ссылку',copied:'Ссылка скопирована. Отправьте её игрокам.',share:'Поделиться',leave:'Покинуть',leaveConfirm:'Покинуть комнату? Другие перестанут видеть ваш статус.',you:'Вы',asGM:'ведущий',asPlayer:'игрок',servers:'Серверы связи',online:'в сети',offline:'нет связи',ago:'мин назад',team:'КОМАНДА',noTeam:'Пока здесь только вы. Отправьте ссылку игрокам.',noChar:'без персонажа',initiative:'ИНИЦИАТИВА',round:'Раунд',noCombat:'Ведущий ещё не показал инициативу.',rolls:'БРОСКИ',noRolls:'Бросков пока нет. Броски с листа и со страницы «Кубики» появятся здесь у всех.',broadcast:'Показывать мои броски другим',toasts:'Всплывающие уведомления о бросках других',connecting:'Подключение…',noNetwork:'Нет связи ни с одним сервером. Проверьте интернет — подключение восстановится само.',crit:'КРИТ',fumble:'ПРОВАЛ',unsupported:'Этот браузер не поддерживает шифрование для комнат. Обновите браузер.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'голова',body:'тело',turn:'ходит',gmBadge:'ВЕДУЩИЙ',clocks:'СЧЁТЧИКИ',otherRoom:'Вы открыли ссылку на другую комнату',switchRoom:'Перейти (выйти из текущей)',stayRoom:'Остаться',noGM:'Ведущего пока нет в комнате. Проверьте код или подождите — он появится, когда ведущий откроет комнату.',twoGM:'В комнате несколько ведущих: инициатива и счётчики показываются от последнего обновления.',notSent:'не отправлено — отправится при связи',sharePortrait:'Показывать мой портрет',sendSheet:'Отправить лист ведущему',sendSheetHelp:'Ведущий получит полную копию листа и сможет принять её к себе. Лист шифруется так, что открыть его может только ведущий.',sheetWaiting:'Лист отправлен — ждём подтверждения от ведущего…',sheetSentOld:'Лист отправлен. Подтверждение придёт, когда ведущий его примет.',sheetGot:'Ведущий получил лист «{name}». Ждём, когда он его примет.',sheetNoReply:'Ведущий пока не подтвердил получение листа. Проверьте, что он в комнате и на связи, и отправьте лист ещё раз.',sheetTooBig:'Лист слишком большой для отправки через комнату: {size} КБ после сжатия, а можно не больше {max} КБ. Сократите заметки или передайте лист файлом: откройте лист и нажмите «Экспорт JSON».',sheetTooBigGM:'Лист слишком большой для приложения ведущего: {size} КБ, а можно не больше {max} КБ. Его страница не принимает сжатые листы — попросите ведущего обновить страницу или открыть приложение в свежем браузере и отправьте лист ещё раз. Или передайте лист файлом: откройте лист и нажмите «Экспорт JSON».',sheetTooBigHere:'Лист слишком большой для отправки без сжатия: {size} КБ, а можно не больше {max} КБ. Этот браузер не умеет сжимать листы — откройте приложение в свежем браузере или передайте лист файлом: откройте лист и нажмите «Экспорт JSON».',noGMKey:'Ведущий ещё не в комнате.',incoming:'ПРИСЛАННЫЕ ЛИСТЫ',fromPlayer:'от',accept:'Принять',update:'Обновить',decline:'Отклонить',sheetReceived:'прислал(а) лист',sheetSaved:'Лист сохранён',sheetUpdated:'Лист обновлён',addedRoster:'и добавлен в кампанию',sheetAccepted:'Ведущий принял ваш лист',openSheet:'Открыть',sheetCopied:'Лист добавлен отдельным персонажем',sheetKept:'Прежняя версия сохранена на 30 дней: «Персонажи» → «Удалённые персонажи».',sheetNoRoom:'Лист не сохранён: в браузере не хватает места. Освободите место (удалите ненужных персонажей или портреты) и примите лист ещё раз — он остаётся в списке.',sheetPaused:'Лист не сохранён: редактирование приостановлено. Он остаётся в списке — примите его позже.',sheetGone:'Лист не сохранён: персонаж, которого он обновлял, удалён. Лист остаётся в списке — примите его ещё раз.',sheetBad:'Не удалось прочитать лист.',sheetBig:'Лист слишком большой, чтобы его сохранить.',newCode:'Будет создан новый код комнаты.',tip:'Совет: добавьте сайт на главный экран телефона — так комната откроется как приложение.'},
  en:{nav:'Online play',over:'05 / ONLINE ROOM',title:'ONLINE PLAY',lead:'A room links the GM and players across phones and computers: everyone sees character status, initiative order and rolls in real time.',how:'No sign-up and no database. Data is encrypted with the room code on your device and relayed through several free public relay servers at once — if one is down, the others carry on. Every device signs what it sends with its own key, so nobody can pose as another member or as the Game Master: the Game Master is the holder of the key named in the room link. Your sheets stay with you; only a summary of the chosen character is shared (plus the portrait if enabled). An encrypted copy of your status stays on the relay servers while you are in the room and is replaced by a "left" marker when you leave.',gm:'I am the GM',gmLead:'Create a room and send the link to your players.',player:'I am a player',playerLead:'Open the GM\'s link or type the room code.',name:'Your name in the room',namePh:'For example, GM or V',campaign:'Campaign for the initiative tracker',noCampaign:'Don\'t share initiative',create:'Create room',code:'Room code',codePh:'XXXX-XXXX-XXXX',character:'Character others can see',noCharacter:'No character (observer)',join:'Join room',badCode:'Check the code: 12 characters, e.g. K7RQ-M2XA-PZ9E.',needName:'Enter a name.',room:'ROOM',copy:'Copy link',copied:'Link copied. Send it to your players.',share:'Share',leave:'Leave',leaveConfirm:'Leave the room? Others will stop seeing your status.',you:'You',asGM:'GM',asPlayer:'player',servers:'Relay servers',online:'online',offline:'offline',ago:'min ago',team:'CREW',noTeam:'Only you so far. Send the link to your players.',noChar:'no character',initiative:'INITIATIVE',round:'Round',noCombat:'The GM has not shared initiative yet.',rolls:'ROLLS',noRolls:'No rolls yet. Rolls from sheets and the Dice page show up here for everyone.',broadcast:'Show my rolls to others',toasts:'Pop-up notices for other people\'s rolls',connecting:'Connecting…',noNetwork:'No relay server reachable. Check your connection — it reconnects automatically.',crit:'CRIT',fumble:'FUMBLE',unsupported:'This browser cannot encrypt room traffic. Please update it.',hp:'HP',hum:'HUM',luck:'LUCK',sp:'SP',head:'head',body:'body',turn:'acting',gmBadge:'GM',clocks:'CLOCKS',otherRoom:'You opened a link to another room',switchRoom:'Switch (leave the current one)',stayRoom:'Stay',noGM:'No GM in this room yet. Check the code or wait — the GM appears once they open the room.',twoGM:'There are several GMs in this room: initiative and clocks show the latest update.',notSent:'not sent — will send when online',sharePortrait:'Show my portrait',sendSheet:'Send sheet to the GM',sendSheetHelp:'The GM gets a full copy of the sheet and can accept it. It is encrypted so that only the GM can open it.',sheetWaiting:'Sheet sent — waiting for the GM to confirm…',sheetSentOld:'Sheet sent. You will get a confirmation once the GM accepts it.',sheetGot:'The GM received "{name}". Waiting for them to accept it.',sheetNoReply:'The GM has not confirmed receiving the sheet yet. Check that they are in the room and online, then send it again.',sheetTooBig:'The sheet is too big to send through the room: {size} KB after compression, the limit is {max} KB. Shorten the notes or send it as a file: open the sheet and press Export JSON.',sheetTooBigGM:'The sheet is too big for the GM\'s app: {size} KB, the limit is {max} KB. Their page does not accept compressed sheets — ask the GM to reload the page or open the app in an up-to-date browser, then send the sheet again. Or send it as a file: open the sheet and press Export JSON.',sheetTooBigHere:'The sheet is too big to send uncompressed: {size} KB, the limit is {max} KB. This browser cannot compress sheets — open the app in an up-to-date browser, or send it as a file: open the sheet and press Export JSON.',noGMKey:'The GM is not in the room yet.',incoming:'INCOMING SHEETS',fromPlayer:'from',accept:'Accept',update:'Update',decline:'Decline',sheetReceived:'sent a sheet',sheetSaved:'Sheet saved',sheetUpdated:'Sheet updated',addedRoster:'and added to the campaign',sheetAccepted:'The GM accepted your sheet',openSheet:'Open',sheetCopied:'Sheet added as a separate character',sheetKept:'The previous version is kept for 30 days: Characters → Deleted characters.',sheetNoRoom:'The sheet was not saved: the browser is out of storage. Free some space (delete characters or portraits you do not need) and accept the sheet again — it stays in the list.',sheetPaused:'The sheet was not saved: editing is paused. It stays in the list — accept it later.',sheetGone:'The sheet was not saved: the character it was updating has been deleted. It stays in the list — accept it again.',sheetBad:'Could not read the sheet.',sheetBig:'The sheet is too big to save.',newCode:'A new room code will be generated.',tip:'Tip: add the site to your phone\'s home screen so the room opens like an app.'}};
 
-let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,clocks=[],lastClocks='',combatAt=0,clocksAt=0,outbox=[],connectedAt=0,deferredRepaint=false,selectHold=0,holdTimer=null,feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false,gmKeys=null,gmPub=null,incoming=[],qrFor='',qrMarkup='',sheetState=null,sheetTimer=null,device='',combatBy='',clocksBy='',gmSeenAt=0;
+let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,clocks=[],lastClocks='',combatAt=0,clocksAt=0,outbox=[],connectedAt=0,deferredRepaint=false,selectHold=0,holdTimer=null,feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false,gmKeys=null,gmPub=null,incoming=[],qrFor='',qrMarkup='',sheetState=null,sheetTimer=null,device='',combatBy='',clocksBy='',gmSeenAt=0,combatGot=0,clocksGot=0,combatSig='',clocksSig='';
+const combatSeen=new Map(),clocksSeen=new Map(),rivals=new Map();
 
 Object.assign(T.ru,{keyMine:'Ваш ключ ведущего',keyLink:'Ведущий подтверждён ссылкой, его ключ',keyFirst:'Ключ ведущего запомнен при входе; если входили по коду, сверьте его с ведущим',gmFirst:'Ведущий комнаты: {name}. Его ключ {key} запомнен. Если вы входили по коду, а не по ссылке, сверьте ключ с ведущим.',impostor:'называет себя ведущим',impostorNote:'Кто-то ещё называет себя ведущим. Инициатива, счётчики и листы принимаются только от ведущего с ключом этой комнаты.',mute:'Скрыть',muteTitle:'Не показывать этого участника и не принимать его сообщения',mutedCount:'Скрыто участников',unmute:'Показать всех',oldVersion:'У кого-то в комнате старая версия приложения. Попросите его обновить страницу, иначе вы не увидите друг друга.',pinNote:'Ссылка называет ключ ведущего',yourTurn:'Ваш ход',yourTurnHint:'Инициатива перешла к вашему персонажу',veiled:'Ходит скрытый участник',initSet:'Инициатива записана в трекер',liveHp:'в комнате',pinChange:'Эта ссылка называет другого ведущего: ключ {new} вместо {old}. Доверять новому ключу?'});
 Object.assign(T.en,{keyMine:'Your Game Master key',keyLink:'Game Master confirmed by the link, their key',keyFirst:'Game Master key remembered on joining; if you joined by code, check it with your GM',gmFirst:'Game Master of this room: {name}. Their key {key} is remembered. If you joined by code and not by link, check the key with your GM.',impostor:'claims to be the Game Master',impostorNote:'Someone else claims to be the Game Master. Initiative, clocks and sheets are accepted only from the GM with this room’s key.',mute:'Hide',muteTitle:'Stop showing this member and drop their messages',mutedCount:'Hidden members',unmute:'Show all',oldVersion:'Someone in the room has an older version of the app. Ask them to reload the page, or you will not see each other.',pinNote:'The link names the Game Master key',yourTurn:'Your turn',yourTurnHint:'Initiative has come to your character',veiled:'A hidden participant is acting',initSet:'Initiative written to the tracker',liveHp:'in the room',pinChange:'This link names another Game Master: key {new} instead of {old}. Trust the new key?'});
@@ -175,7 +176,7 @@ function cleanSummary(x){
 }
 function memberPayload(){
  const st=app?.getState?.();const c=session.characterId?st?.characters?.find(x=>x.id===session.characterId):null;
- const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(thumb?{portrait:thumb}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{})};
+ const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(thumb?{portrait:thumb}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{}),...(session.role==='gm'&&heldSince()?{since:heldSince()}:{})};
 }
 // «device:character» for a sheet that came to the GM through the room: it lets that player's page know which row is theirs.
 const OWN=/^[0-9a-f]{16}:.{1,60}$/;
@@ -230,23 +231,50 @@ const drives=()=>!!session&&(session.role==='gm'||amDeputy());
 // unchanged state (or send its first one after connecting) over what the other one may have sent since.
 const yields=(by,s,last)=>!!deputyFp()&&by!==myFp()&&(s===last||!last);
 // The Game Master's status names the co-GM. Only a status newer than the last one handled counts, so an old copy of it,
-// sent again by someone whose rights were taken back, changes nothing.
-function noteDeputy(raw,at){
+// sent again by someone whose rights were taken back, changes nothing. «Newer» is by the Game Master's own clock (at is
+// the time it signed, not capped by this device's clock): a copy sent again can never look newer than the original.
+// A page that has just joined has seen no status yet, so a co-GM is also taken only from a status signed lately
+// (live: within the window for events), which a Game Master that is online repeats with every heartbeat: an old one
+// names nobody. Rights are taken back by any newer status.
+function noteDeputy(raw,at,live=true){
  if(!session||!(at>gmSeenAt))return;gmSeenAt=at;
- const dep=FP.test(raw||'')&&raw!==session.gmFp?raw:'',was=deputyFp();if(dep===was)return;
+ const was=deputyFp();let dep=FP.test(raw||'')&&raw!==session.gmFp?raw:'';if(dep&&dep!==was&&!live)dep='';
+ if(dep===was)return;
  Object.assign(session,{deputyFp:dep,deputyBy:session.gmFp,deputyAt:at});saveSession();
+ // What the previous co-GM left has no standing any more: whatever the Game Master sends next replaces it, whatever its clock says.
+ if(was){if(combatBy===was)combatAt=0;if(clocksBy===was)clocksAt=0}
  // A new co-GM takes what it has now as already shown (nothing is pushed over the Game Master's table); its next change goes out.
  if(session.role==='player'&&dep===myFp()){app?.notify?.(ta('coGranted'));publishCombat(true);publishClocks(true)}
  else if(session.role==='player'&&was===myFp())app?.notify?.(ta('coRevoked'));
+}
+// The keys this page followed a signed handover away from. An earlier invitation names one of them (see adoptPin).
+const earlierGMs=fp=>[...(Array.isArray(session.gmWas)?session.gmWas:[]).filter(x=>FP.test(x||'')&&x!==fp),fp].slice(-16);
+// Handovers signed for this room up to this moment are spent: the one that made this device the Game Master and the ones
+// it cancelled. The Game Master says so in its status, so a page that joined later (it starts from the key in the link
+// and has seen no handover) refuses them too.
+const heldSince=()=>Math.max(int(session.gmAt,0,Number.MAX_SAFE_INTEGER),int(session.gmVoid,0,Number.MAX_SAFE_INTEGER));
+function cancelHandover(){
+ const h=session?.handoverTo;if(!h)return;
+ const last=AUTH()?.readHandover(Array.isArray(h.chain)?h.chain[h.chain.length-1]:null);
+ delete session.handoverTo;if(last)session.gmVoid=Math.max(int(session.gmVoid,0,Number.MAX_SAFE_INTEGER),last.at);
+ saveSession();publishMember(true);if(last)app?.notify?.(ta('handoverVoid'));refresh();
+}
+// This device is the Game Master by a chain of handovers, and so is another one, from a key of the same chain: the same
+// file opened twice, or the room handed on after the file was saved. Players obey only one of the two; say so once.
+async function noteRival(fp,proof){
+ const A=AUTH(),mine=session?.gmChain,room=base,sig=JSON.stringify(proof);if(!A?.forked||session?.role!=='gm'||!mine?.length||rivals.has(fp))return;
+ if(rivals.size>40)rivals.clear();rivals.set(fp,sig);
+ const yes=await A.forked(mine,proof,{room,leaf:fp});if(session?.role!=='gm'||base!==room||rivals.get(fp)!==sig)return;
+ if(yes){rivals.set(fp,true);app?.notify?.(ta('rival').replace('{key}',keyLabel(fp)))}else rivals.delete(fp);
 }
 // Another key shows a chain of handovers that starts at the Game Master this page trusts: from now on that key is the
 // Game Master, and if this page was the Game Master it becomes a player. null: the room was left meanwhile.
 async function adoptProof(fp,proof){
  const A=AUTH(),pinned=session.gmFp,room=base;if(!A||!FP.test(pinned||'')||fp===pinned)return false;
- const res=await A.verifyChain(proof,{room,root:pinned,leaf:fp,after:int(session.gmAt,0,Number.MAX_SAFE_INTEGER)});
+ const res=await A.verifyChain(proof,{room,root:pinned,leaf:fp,after:heldSince()});
  if(!session)return null;if(!res||base!==room||session.gmFp!==pinned)return false;
  const wasGM=session.role==='gm';
- Object.assign(session,{gmFp:fp,gmAt:res.at,gmPin:'handover',deputyFp:'',deputyBy:'',deputyAt:0});delete session.handoverTo;gmSeenAt=0;
+ Object.assign(session,{gmFp:fp,gmAt:res.at,gmPin:'handover',gmWas:earlierGMs(pinned),deputyFp:'',deputyBy:'',deputyAt:0});delete session.handoverTo;delete session.gmVoid;gmSeenAt=0;
  if(wasGM){session.role='player';delete session.gmChain}
  for(const x of members.values())if(x.role==='gm'&&x.fp!==fp){x.role='player';x.pub=null;x.sheets=''}
  saveSession();app?.notify?.(ta(wasGM?'steppedDown':'gmMoved').replace('{key}',keyLabel(fp)));
@@ -259,7 +287,7 @@ async function takeOver(chain){
  const me=await ensureIdentity(),res=await A.verifyChain(chain,{room,root:pinned,leaf:me.fp,after:int(session.gmAt,0,Number.MAX_SAFE_INTEGER)});
  if(!res||!session||base!==room||session.gmFp!==pinned||session.role!=='player'||me.fp!==myFp())return false;
  await ensureGMKeys();if(!session||base!==room||session.role!=='player')return false;
- Object.assign(session,{role:'gm',gmFp:me.fp,gmPin:'self',gmAt:res.at,gmChain:A.cleanChain(chain),deputyFp:'',deputyBy:'',deputyAt:0});gmSeenAt=0;
+ Object.assign(session,{role:'gm',gmFp:me.fp,gmPin:'self',gmAt:res.at,gmWas:earlierGMs(pinned),gmChain:A.cleanChain(chain),deputyFp:'',deputyBy:'',deputyAt:0});delete session.gmVoid;gmSeenAt=0;
  for(const x of members.values())if(x.role==='gm'&&!x.me){x.role='player';x.pub=null;x.sheets=''}
  saveSession();app?.notify?.(ta('nowGM'));lastCombat='';lastClocks='';combatBy='';clocksBy='';
  publishMember(true);publishCombat(true);publishClocks(true);
@@ -311,14 +339,14 @@ async function send(sub,type,data,retain=false,via=transport,at=Date.now(),id=he
 function publishMember(force=false){if(!session)return;const d=memberPayload(),s=JSON.stringify(d);if(!force&&s===lastMember)return;lastMember=s;self(d);send('m/'+session.memberId,'member',d,true)}
 function publishCombat(force=false){
  if(!drives())return;const d=combatPayload(),s=JSON.stringify(d);if(!force&&s===lastCombat)return;if(yields(combatBy,s,lastCombat)){lastCombat=s;return}lastCombat=s;combatBy=myFp();
- const at=Date.now();combatAt=at;
+ const at=Date.now();combatAt=at;combatGot=at;combatSig='';
  if(d){combat={...d,from:session.memberId,at};send('c','combat',d,true,transport,at)}
  else{combat=null;send('c','cleared',{},true,transport,at)}
  refresh();
 }
 function publishClocks(force=false){
  if(!drives())return;global.RoomJournal?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
- const at=Date.now();clocksAt=at;
+ const at=Date.now();clocksAt=at;clocksGot=at;clocksSig='';
  if(d.length)send('k','clocks',{list:d},true,transport,at);else send('k','cleared',{},true,transport,at);
  refresh();
 }
@@ -338,6 +366,16 @@ async function flushOutbox(){
 }
 function self(d){members.set(session.memberId,{...d,fp:session.memberId.slice(0,24),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',at:Date.now(),me:true});refresh()}
 const seen=new Set();
+/* Is this initiative (or these clocks) newer than what is shown? With a co-GM two devices send them, and their clocks can disagree.
+   - One sender's messages are ordered by that sender's own clock (rawAt against the last one taken from it), so a copy
+     sent again later is dropped whatever this device's clock says.
+   - Between two senders the times are compared as long as they agree. When they do not, a message that arrives live well
+     after the state it replaces (not a near-simultaneous change, where every page must pick the same winner) is a change
+     made now and wins: a device whose clock is behind is still heard. A copy kept by a broker never wins this way. */
+function inOrder(last=0,same,rawAt,at,stateAt,got,retain){
+ if(same)return rawAt>=last;
+ return rawAt>last&&(at>=stateAt||(!retain&&Date.now()-got>RACE));
+}
 async function receive(p){
  const sub=p.topic.slice(base.length+1);
  // Empty retained messages carry no key, so anyone on a public broker could send one: ignore them.
@@ -361,7 +399,7 @@ async function receive(p){
  if(!allowed(fp))return;
  const rawAt=int(m.at,0,Number.MAX_SAFE_INTEGER),at=Math.min(rawAt,Date.now()),when=p.retain?at:Date.now();
  // Only the Game Master this page trusts can set the initiative and the clocks or answer about a sheet; events must be recent.
- const fromGM=!!session.gmFp&&fp===session.gmFp,fresh=Math.abs(Date.now()-rawAt)<=EVENT_WINDOW,fromDeputy=!!deputyFp()&&fp===deputyFp();
+ const fromGM=!!session.gmFp&&fp===session.gmFp,fresh=Math.abs(Date.now()-rawAt)<=EVENT_WINDOW,live=Date.now()-rawAt<=EVENT_WINDOW,fromDeputy=!!deputyFp()&&fp===deputyFp();
  if(m.t==='left'&&sub==='m/'+m.from){const prev=members.get(m.from);if(prev&&prev.sentAt>at)return;if(members.delete(m.from))repaint();return}
  if(m.t==='gone'&&sub==='m/'+m.from){const known=members.get(m.from);if(known&&rawAt>(known.goneMark||0)){known.goneMark=rawAt;known.suspectAt=Date.now();setTimeout(repaint,GONE_GRACE+200)}return}
  if(m.t==='member'&&sub==='m/'+m.from){
@@ -373,14 +411,16 @@ async function receive(p){
   // A claimant with another key is believed only with a chain of handovers from the key trusted so far (room-auth.js).
   if(claims&&fp!==session.gmFp&&d.proof&&await adoptProof(fp,d.proof)===null)return;
   const role=claims&&fp===session.gmFp?'gm':'player';
-  if(role==='gm')noteDeputy(d.deputy,at);
+  if(role==='gm'){const since=int(d.since,0,Number.MAX_SAFE_INTEGER);if(session.role==='player'&&since>int(session.gmAt,0,Number.MAX_SAFE_INTEGER)){session.gmAt=since;saveSession()}noteDeputy(d.deputy,rawAt,live)}
+  else if(claims&&d.proof&&session.role==='gm')noteRival(fp,d.proof);
   if(!prev&&members.size>=MAX_MEMBERS&&!evictOne())return;
   if(outbox.length&&!p.retain)flushOutbox(); // someone (re)connected: give them the rolls made while offline
   if(session.role==='gm')setTimeout(paintLive,0);
   members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',at:when});
   repaint();
  }else if((m.t==='combat'||m.t==='cleared')&&sub==='c'){
-  if(!(fromGM||fromDeputy)||at<combatAt||Date.now()-at>STATE_TTL)return;
+  if(!(fromGM||fromDeputy)||Date.now()-at>STATE_TTL||!inOrder(combatSeen.get(fp),fp===combatBy,rawAt,at,combatAt,combatGot,p.retain))return;
+  const sig=m.t+JSON.stringify(m.d);if(fp!==combatBy||sig!==combatSig)combatGot=Date.now();combatSig=sig;combatSeen.set(fp,rawAt);
   combatAt=at;combatBy=fp;if(m.t==='cleared'){combat=null;repaint();return}
   const d=m.d;if(!Array.isArray(d.order))return;
   const was=myTurn(combat);
@@ -389,7 +429,8 @@ async function receive(p){
   if(!was&&myTurn(combat)&&!p.retain){if(session.toasts!==false)toast({total:'▶',who:t('yourTurn'),label:t('yourTurnHint'),kind:'turn'});try{if(global.localStorage?.getItem('nc-haptics')!=='off')global.navigator?.vibrate?.([120,80,120])}catch{}}
   repaint();
  }else if((m.t==='clocks'||m.t==='cleared')&&sub==='k'){
-  if(!(fromGM||fromDeputy)||at<clocksAt||Date.now()-at>STATE_TTL)return;
+  if(!(fromGM||fromDeputy)||Date.now()-at>STATE_TTL||!inOrder(clocksSeen.get(fp),fp===clocksBy,rawAt,at,clocksAt,clocksGot,p.retain))return;
+  const sig=m.t+JSON.stringify(m.d);if(fp!==clocksBy||sig!==clocksSig)clocksGot=Date.now();clocksSig=sig;clocksSeen.set(fp,rawAt);
   clocksAt=at;clocksBy=fp;clocks=m.t==='cleared'?[]:cleanClocks(m.d.list);repaint();
  }else if(m.t==='journal'&&sub==='j'){
   if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();
@@ -432,7 +473,7 @@ async function connect(){
   if(!session.memberId.startsWith(me.fp+'.'))session.memberId=me.fp+'.'+hex(rand(4));
   if(session.role==='gm'){session.gmFp=me.fp;session.gmPin='self'}else if(!FP.test(session.gmFp||'')){session.gmFp='';session.gmPin=''}
   if(session.role==='gm'&&session.gmChain&&await AUTH()?.leafOf(session.gmChain)!==me.fp)delete session.gmChain;
-  gmSeenAt=int(session.deputyAt,0,Number.MAX_SAFE_INTEGER);combatBy='';clocksBy='';
+  gmSeenAt=int(session.deputyAt,0,Number.MAX_SAFE_INTEGER);combatBy='';clocksBy='';combatSeen.clear();clocksSeen.clear();rivals.clear();combatGot=0;clocksGot=0;combatSig='';clocksSig='';
   muted.clear();for(const f of Array.isArray(session.muted)?session.muted:[])if(FP.test(f))muted.add(f);
   saveSession();await prepareWill();
  }catch{app?.notify?.(t('unsupported'));session=null;saveSession();refresh();return}
@@ -451,6 +492,8 @@ function disconnect(clear=true){
   const mine=who.memberId.slice(0,24),dep=deputyFp();
   if(who.role==='gm'&&!dep)markers.push(send('c','cleared',{},true,tr),send('k','cleared',{},true,tr));
   else if(dep&&(who.role==='gm'||dep===mine)){if(combatBy===mine)markers.push(send('c','cleared',{},true,tr));if(clocksBy===mine)markers.push(send('k','cleared',{},true,tr))}
+  // The shared journal is only ever the Game Master's: an empty one replaces the retained copy (room-journal.js reads it as taken back).
+  if(who.role==='gm')markers.push(send('j','journal',{campaign:'',list:[]},true,tr));
   Promise.allSettled(markers).then(()=>setTimeout(()=>tr.close(),300));
  }else if(tr)tr.close();
  key=null;
@@ -560,7 +603,7 @@ doc.addEventListener('click',async e=>{
  else if(a==='co-grant'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('grantConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;setDeputy(fp)}
  else if(a==='co-revoke'){setDeputy('')}
  else if(a==='handover'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('handoverConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;b.disabled=true;await startHandover(fp)}
- else if(a==='handover-cancel'){if(session?.handoverTo){delete session.handoverTo;saveSession();refresh()}}
+ else if(a==='handover-cancel')cancelHandover();
  else if(a==='gm-file'){b.disabled=true;await saveGMFile();refresh()}
  else if(a==='gm-file-open'){const name=value('#room-file-name'),text=await AUTH()?.pickFile();if(!text)return;if(await openGMFile(text,name))global.scrollTo?.(0,0)}
  else if(a==='leave'){if(!global.confirm(t('leaveConfirm')))return;disconnect(true);session=null;members=new Map();combat=null;feed=[];clearTimeout(sheetTimer);sheetState=null;saveSession();refresh()}
@@ -585,8 +628,11 @@ function captureCode(){
 // change of Game Master, so the player is asked first.
 function adoptPin(pin){
  if(!session||session.role!=='player'||!FP.test(pin||'')||session.gmFp===pin)return false;
+ // An earlier invitation: it names a key this page has already followed a signed handover away from. The Game Master trusted now stays.
+ if(Array.isArray(session.gmWas)&&session.gmWas.includes(pin))return false;
  if(FP.test(session.gmFp||'')&&!global.confirm?.(t('pinChange').replace('{old}',keyLabel(session.gmFp)).replace('{new}',keyLabel(pin))))return false;
- session.gmFp=pin;session.gmPin='link';saveSession();return true;
+ // The time of the last handover belongs to the key trusted before; kept, it would refuse every handover the new key signs.
+ session.gmFp=pin;session.gmPin='link';delete session.gmAt;delete session.gmWas;saveSession();return true;
 }
 captureCode();
 global.addEventListener?.('popstate',captureCode);
@@ -620,6 +666,6 @@ global.Room={
  journalLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('j','journal',d,true,transport,at):Promise.resolve(0)},
  // For the tracker: the live HP of the player this GM-side sheet belongs to, as text, or '' when they are not in the room.
  liveText(c){try{const live=liveFor(c);return live?`♥ ${live.hp}/${live.max} ${t('liveHp')}`:''}catch{return ''}},
- _test:{receive:p=>receive(p),setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),auth:{adoptProof,takeOver,setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
+ _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
 };
 })(window);

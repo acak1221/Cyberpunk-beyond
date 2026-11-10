@@ -23,7 +23,9 @@ const T={
   handoverConfirm:'Передать ведение комнаты устройству «{name}» (ключ {key})? Сверьте ключ: он показан на том устройстве под кодом комнаты. Игроки примут нового ведущего без новой ссылки, а это устройство станет игроком. Вернуть ведение сможет только новый ведущий.',
   handoverWait:'Ведение передаётся устройству «{name}» (ключ {key}). Не закрывайте страницу, пока оно не ответит.',
   handoverSent:'Передача ведения отправлена. Ждём ответа нового устройства.',handoverCancel:'Отменить передачу',
-  nowGM:'Ведение комнаты передано этому устройству: теперь вы ведущий.',
+  handoverVoid:'Передача отменена: то устройство уже не сможет ею воспользоваться. Файлы ведущего, сохранённые до этой минуты, тоже больше не действуют: если файл нужен, сохраните новый.',
+  rival:'Ещё одно устройство (ключ {key}) показывает подписанную передачу ведения этой комнаты: тот же файл ведущего открыли дважды, или ведение передали уже после сохранения файла. Игроки слушают только одно из устройств. Если вас не слушают, ваш файл устарел. Иначе разошлите игрокам новую ссылку: вошедшие по старой могут попасть к тому устройству.',
+  nowGM:'Ведение комнаты передано этому устройству: теперь вы ведущий. Новых игроков приглашайте новой ссылкой из этой комнаты: старая называет прежний ключ.',
   gmMoved:'Ведущий сменил устройство. Новый ключ {key} подтверждён подписью прежнего.',
   steppedDown:'Ведение перешло к другому устройству (ключ {key}). Здесь вы теперь игрок.',
   coGranted:'Ведущий дал вам права со-ведущего. Выберите кампанию в настройках комнаты, чтобы вести инициативу и счётчики.',
@@ -32,7 +34,7 @@ const T={
   coIs:'Со-ведущий назначен. Его инициативу и счётчики комната принимает наравне с вашими.',
   myKey:'Ключ этого устройства',keyMoved:'Ведущий сменил устройство; его новый ключ',
   tools:'Смена устройства',fileSave:'Сохранить файл ведущего',
-  fileHelp:'Запасной ключ этой комнаты. С ним вы откроете комнату как ведущий в другом браузере или на другом устройстве, и игрокам не понадобится новая ссылка. Храните файл как пароль: любой, у кого он есть, может стать ведущим этой комнаты.',
+  fileHelp:'Запасной ключ этой комнаты. С ним вы откроете комнату как ведущий в другом браузере или на другом устройстве, и игрокам не понадобится новая ссылка. Храните файл как пароль: любой, у кого он есть, может стать ведущим этой комнаты. Файл не одноразовый, и отозвать его нельзя: для тех, кто войдёт по старой ссылке, он действует и после того, как вы им воспользовались. Сменив устройство, разошлите игрокам новую ссылку.',
   fileSaved:'Файл ведущего сохранён. Храните его как пароль.',
   fileOpen:'Открыть файл ведущего',fileOpenTitle:'Ведущий сменил устройство?',
   fileOpenHelp:'Откройте файл ведущего, сохранённый на прежнем устройстве: комната продолжится, и игрокам не понадобится новая ссылка.',
@@ -48,7 +50,9 @@ const T={
   handoverConfirm:'Hand the room over to the device “{name}” (key {key})? Compare the key: that device shows it under the room code. Players will accept the new Game Master without a new link, and this device becomes a player. Only the new Game Master can hand the role back.',
   handoverWait:'Handing the room over to “{name}” (key {key}). Keep this page open until that device answers.',
   handoverSent:'Handover sent. Waiting for the new device to answer.',handoverCancel:'Cancel the handover',
-  nowGM:'The room was handed over to this device: you are the Game Master now.',
+  handoverVoid:'Handover cancelled: that device can no longer use it. Game Master files saved before this moment no longer work either: save a new one if you need it.',
+  rival:'Another device (key {key}) shows a signed handover of this room: the same Game Master file was opened twice, or the room was handed over after the file was saved. Players obey only one of the devices. If they do not obey you, your file is outdated. Otherwise send players a new link: those who join by the old one may end up with that device.',
+  nowGM:'The room was handed over to this device: you are the Game Master now. Invite new players with a new link from this room: the old one names the previous key.',
   gmMoved:'The Game Master changed device. The new key {key} is confirmed by the signature of the previous one.',
   steppedDown:'The Game Master role moved to another device (key {key}). You are a player here now.',
   coGranted:'The Game Master made you a co-GM. Pick a campaign in the room settings to run initiative and clocks.',
@@ -57,7 +61,7 @@ const T={
   coIs:'A co-GM is appointed. The room accepts their initiative and clocks the same as yours.',
   myKey:'This device’s key',keyMoved:'The Game Master changed device; the new key',
   tools:'Changing device',fileSave:'Save the Game Master file',
-  fileHelp:'A spare key for this room. With it you can open the room as the Game Master in another browser or on another device, and players will not need a new link. Keep the file like a password: anyone who has it can become the Game Master of this room.',
+  fileHelp:'A spare key for this room. With it you can open the room as the Game Master in another browser or on another device, and players will not need a new link. Keep the file like a password: anyone who has it can become the Game Master of this room. The file is not single-use and cannot be revoked: for those who join by the old link it still works after you have used it. After changing device, send players a new link.',
   fileSaved:'Game Master file saved. Keep it like a password.',
   fileOpen:'Open a Game Master file',fileOpenTitle:'Game Master on a new device?',
   fileOpenHelp:'Open the Game Master file saved on the previous device: the room goes on and players will not need a new link.',
@@ -110,6 +114,13 @@ async function verifyChain(chain,{room,root,leaf,after=0}={}){
   for(let i=start;i<links.length;i++){const l=links[i];if(!await subtle().verify(SIGN_HASH,await importVerify(l.o.from),unb64(l.c.s),te.encode(PREFIX+l.c.b)))return null}
   return {at:links[links.length-1].o.at,links:links.length-start};
  }catch{return null}
+}
+// Two chains fork: «theirs» is a valid chain to «leaf» from a key that «mine» also passes through. Both devices then hold a
+// signed handover of the same room, and a page that trusts that key (it joined by an earlier link) can follow either.
+async function forked(mine,theirs,{room,leaf}={}){
+ const c=cleanChain(mine);if(!c)return false;
+ try{for(const link of c)if(await verifyChain(theirs,{room,root:await fingerprint(readHandover(link).from),leaf}))return true}catch{}
+ return false;
 }
 // The key the chain ends at, or '' for something that is not a chain.
 async function leafOf(chain){const c=cleanChain(chain);if(!c)return '';try{return await fingerprint(readHandover(c[c.length-1]).to)}catch{return ''}}
@@ -180,5 +191,5 @@ function importCard({lang,name}){
  return `<section class="card room-join room-auth-import"><div class="card-heading"><span>${esc(t('fileOpenTitle',lang))}</span><span>GM FILE</span></div><p>${esc(t('fileOpenHelp',lang))}</p><label class="field">${esc(t('fileName',lang))}<input id="room-file-name" maxlength="40" placeholder="${esc(t('fileNamePh',lang))}" value="${esc(name||'')}"></label><button type="button" class="btn ghost wide" data-room-action="gm-file-open">⭱ ${esc(t('fileOpen',lang))}</button></section>`;
 }
 
-global.RoomAuth={t,MAX_CHAIN,FILE_FORMAT,fingerprint,signHandover,readHandover,cleanChain,verifyChain,leafOf,extend,makeFile,parseFile,redeem,download,pickFile,memberTools,coBadge,panel,importCard};
+global.RoomAuth={t,MAX_CHAIN,FILE_FORMAT,fingerprint,signHandover,readHandover,cleanChain,verifyChain,forked,leafOf,extend,makeFile,parseFile,redeem,download,pickFile,memberTools,coBadge,panel,importCard};
 })(window);

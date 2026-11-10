@@ -120,6 +120,29 @@ test('Critical Injury treatment counts the linked healer’s effects for the Ski
  x.field('treatPractitioner','');x.field('tech','8');x.field('skill','4');assert.doesNotMatch(x.M.render(x.ctx),/data-tool-effects/);
  x.press('treatment-roll');assert.equal(x.rolls.at(-1).total,18);assert.equal(x.rolls.at(-1).label,'Critical injury treatment · Patient');
 });
+test('the Critical Injuries tracker counts the linked healer’s effects in the roll it applies to the sheet',()=>{
+ const p=page(['medical-tools.js','critical-injury-tools.js']),C=p.window.CriticalInjuryTools;C.setScope('acc');
+ const patient={id:'p',name:'Patient',hp:30,stats:{BODY:8,WILL:6,TECH:8},skills:{'First Aid':4,Paramedic:1},extra:{criticalInjuries:injuries(['body',9])}};
+ const doctor={id:'d',name:'Doctor',role:'medtech',rank:4,stats:{TECH:8},skills:{'First Aid':4,Paramedic:5},extra:{criticalInjuries:injuries(CONCUSSION)}};
+ const ctx={lang:'en',view:'medical',characters:[patient,doctor],isCurrent:(c,s,v)=>s==='acc'&&v==='medical'&&ctx.characters.includes(c)},root={isConnected:true,dataset:{ciView:'medical'}};
+ const field=(key,value)=>C.handle({type:'change',target:{dataset:{ciField:key},value,checked:value===true,closest:s=>s==='[data-ci-root]'?root:null}},ctx);
+ const click=op=>{const b={dataset:{ciAction:op},isConnected:true,closest:s=>s==='[data-ci-root]'?root:null};return C.handle({type:'click',target:{closest:s=>s==='[data-ci-root]'?root:s==='[data-ci-action]'?b:null}},ctx)};
+ C.render(ctx);field('practitioner','d');C.render(ctx);field('choice','First Aid|13');
+ let html=C.render(ctx);assert.match(html,/TECH 8 · First Aid 4/);assert.match(html,/data-tool-effects="-2"/);assert.match(html,/Concussion <b>−2<\/b>/);
+ assert.equal(click('roll').rerender,true);
+ html=C.render(ctx);assert.match(html,/16 &gt; 13/);assert.match(html,/Sheet effects: −2 \(Concussion −2\)/);
+ assert.equal(click('apply').dirty,true);assert.equal(patient.extra.criticalInjuries.entries[0].status,'healed','a Quick Fix is the whole cure for a Torn Muscle');
+ // A Medscanner cancels the Concussion for First Aid: the block shows 0 and the roll is the bare one.
+ patient.extra.criticalInjuries=injuries(['body',9]);doctor.extra.equipment=installs('cyberware-medscanner-implant');
+ C.render(ctx);field('choice','First Aid|13');assert.match(C.render(ctx),/data-tool-effects="0"/);click('roll');assert.match(C.render(ctx),/18 &gt; 13/);
+ // Typed numbers: no block, nothing added, and no line left over from the linked roll.
+ field('practitioner','');C.render(ctx);field('choice','First Aid|13');field('tech','8');field('level','4');
+ html=C.render(ctx);assert.doesNotMatch(html,/data-tool-effects/);click('roll');
+ html=C.render(ctx);assert.match(html,/18 &gt; 13/);assert.doesNotMatch(html,/Sheet effects/);
+ // The patient treating themself is a linked sheet too: their own Torn Muscle is not a check penalty, a Concussion is.
+ patient.extra.criticalInjuries=injuries(['body',9],CONCUSSION);field('practitioner','p');C.render(ctx);field('target','i0');C.render(ctx);field('choice','First Aid|13');
+ assert.match(C.render(ctx),/data-tool-effects="-2"/);click('roll');assert.match(C.render(ctx),/16 &gt; 13/);
+});
 
 // ---- Cybersurgery ------------------------------------------------------------------------------------------
 test('cybersurgery by a linked Medtech counts their effects and says so; manual entry does not',()=>{

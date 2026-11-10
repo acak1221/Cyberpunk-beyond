@@ -191,3 +191,86 @@ test('act() routes the sheet buttons and ignores anything else',()=>{
  assert.equal(I.act(c,{impOp:'undo',impKey:key(c,0)},'en').dirty,true);assert.equal(c.stats.BODY,6);
  const before=JSON.stringify(c);assert.equal(I.act(c,{impOp:'wipe',impKey:'x'},'en').ok,false);assert.equal(I.act(c,{},'en').ok,false);assert.equal(JSON.stringify(c),before);
 });
+
+test('BODY typed by hand under a Linear Frame leaves the base alone, so undo never drops below the natural BODY',()=>{
+ const c=person([GRAFT,SIGMA],{hp:50,stats:{...person([]).stats,BODY:8,WILL:7}});
+ I.apply(c,key(c,0),'en');I.apply(c,key(c,1),'en');assert.equal(c.stats.BODY,12);assert.equal(c.hp,60);
+ c.stats.BODY=7;c.hp=45;// typed into the BODY field; the sheet keeps full HP full
+ const rec=I.bodyRecord(c);assert.equal(rec.base,8,'the frame value is not base + bonus');assert.equal(rec.current,7);
+ assert.match(I.render(c,'en'),/BODY 8<\/b> \(without implants\).*the sheet says 7/);assert.match(I.render(c,'ru'),/на листе сейчас 7/);
+ const u=I.undo(c,key(c,1),'en');assert.match(u.notify,/BODY 7 → 10/);assert.deepEqual(plain(c.extra.implants.body),{base:8,set:10});
+ I.undo(c,key(c,0),'en');assert.equal(c.stats.BODY,8);assert.equal(c.hp,50);
+ const one=person([SIGMA],{stats:{...person([]).stats,BODY:8}});I.apply(one,key(one),'en');one.stats.BODY=11;I.undo(one,key(one),'en');assert.equal(one.stats.BODY,8);
+ // A frame that does not hold BODY up (BODY already above it) still lets a hand edit move the base.
+ const high=person([GRAFT,SIGMA],{stats:{...person([]).stats,BODY:9}});I.apply(high,key(high,0),'en');I.apply(high,key(high,1),'en');assert.equal(high.stats.BODY,12);
+ const add=person([GRAFT]);I.apply(add,key(add),'en');add.stats.BODY=9;assert.equal(I.bodyRecord(add).base,7);
+});
+
+test('refresh() redraws the card after BODY is typed, and keeps its hands off while the focus is inside it',()=>{
+ const c=person([SIGMA],{stats:{...person([]).stats,BODY:8}});I.apply(c,key(c),'en');c.stats.BODY=7;
+ const el={outerHTML:'old',contains:x=>x===inside},inside={},doc={activeElement:null,getElementById:id=>id==='sheet-implants'?el:null};
+ W.document=doc;
+ try{
+  assert.equal(I.refresh(c,'en'),true);assert.match(el.outerHTML,/the sheet says 7/);
+  el.outerHTML='old';doc.activeElement=inside;assert.equal(I.refresh(c,'en'),false);assert.equal(el.outerHTML,'old');
+  doc.getElementById=()=>null;doc.activeElement=null;assert.equal(I.refresh(c,'en'),false);
+ }finally{delete W.document}
+ assert.match(fs.readFileSync(path.join(site,'app.js'),'utf8'),/function refreshSheet\(c\)\{window\.Implants\?\.refresh\?\.\(c,state\.lang\)/);
+});
+
+test('taking armor off leaves the implant SP on the sheet, and a lost implant SP can be put back',()=>{
+ // The equipment tool next to the implants, as on the page.
+ const w={Math,JSON,Set,Map,Number,String,Array,Object,RegExp,Error,Date,console:{log(){},warn(){},error(){}},setTimeout:()=>0};
+ w.window=w;w.globalThis=w;vm.createContext(w);
+ for(const f of ['catalog.js','catalog-extra.js','character-extra.js','effects.js','implants.js','equipment-tools.js'])vm.runInContext(fs.readFileSync(path.join(site,f),'utf8'),w,{filename:f});
+ const M=w.EquipmentTools,J=w.Implants,c=person([WEAVE]);Object.assign(c.extra,{cash:10000,items:[],weapons:[]});
+ assert.equal(J.apply(c,key(c),'en').ok,true);assert.equal(c.bodyArmor,7);
+ assert.equal(M.purchase(c,w.CATALOG.find(x=>x.id==='armor-kevlar'),'cash','en',{confirmed:true}).ok,true);
+ const rec=c.extra.items[0].id;assert.equal(M.equip(c,rec,'body','en',true).ok,true);assert.ok(c.extra.equipment.armor.body);
+ c.bodyArmor=5;// the Kevlar is ablated
+ assert.equal(M.unequip(c,'body','en',true).ok,true);
+ assert.equal(c.bodyArmor,7,'the Skin Weave is still there');assert.equal(c.head,7);
+ assert.doesNotMatch(J.render(c,'en'),/data-imp-op="apply"/);
+ assert.equal(M.equip(c,rec,'body','en',true).ok,true);assert.equal(c.bodyArmor,5,'the piece keeps its damaged SP');
+ // A sheet without implants still goes to 0.
+ const bare=person([]);Object.assign(bare.extra,{cash:10000,items:[],weapons:[]});M.purchase(bare,w.CATALOG.find(x=>x.id==='armor-kevlar'),'cash','en',{confirmed:true});
+ M.equip(bare,bare.extra.items[0].id,'body','en',true);M.unequip(bare,'body','en',true);assert.equal(bare.bodyArmor,0);
+ assert.equal(J.spAt(c,'head'),7);assert.equal(J.spAt(bare,'head'),0);assert.equal(J.afterUnequip(bare,['head','body']),false);
+
+ // A save made before this fix: the record says SP 7, the sheet says 0.
+ const old=person([WEAVE]);I.apply(old,key(old),'en');old.bodyArmor=0;const record=plain(old.extra.implants.applied[key(old)]);
+ const en=I.render(old,'en'),ru=I.render(old,'ru');
+ assert.match(en,/data-imp-op="apply"[^>]*>Restore the SP</);assert.match(en,/gone from the sheet \(body: 0 now\)/);assert.match(ru,/>Вернуть SP</);assert.match(ru,/пропал с листа \(тело: сейчас 0\)/);
+ const r=I.apply(old,key(old),'en');assert.equal(r.ok,true);assert.match(r.notify,/body SP 0 → 7/);assert.equal(old.bodyArmor,7);
+ assert.deepEqual(plain(old.extra.implants.applied[key(old)]),record,'the record keeps the SP that was there before the implant');
+ assert.doesNotMatch(I.render(old,'en'),/data-imp-op="apply"/);
+ const again=I.apply(old,key(old),'ru');assert.equal(again.ok,false);assert.match(again.notify,/менять нечего\.$/);
+ // Ablated implant SP is not "lost", and worn armor is never written over.
+ old.bodyArmor=5;assert.doesNotMatch(I.render(old,'en'),/data-imp-op="apply"/);
+ old.bodyArmor=0;old.extra.equipment.armor={body:{recordId:'j',piece:0}};assert.doesNotMatch(I.render(old,'en'),/data-imp-op="apply"/);assert.equal(I.apply(old,key(old),'en').ok,false);assert.equal(old.bodyArmor,0);
+ // Under a higher implant only that one is offered.
+ const two=person([WEAVE,SUBDERMAL]);I.apply(two,key(two,0),'en');I.apply(two,key(two,1),'en');two.head=0;
+ assert.equal(I.apply(two,key(two,0),'en').ok,false);assert.equal(I.apply(two,key(two,1),'en').ok,true);assert.equal(two.head,11);
+});
+
+test('a BODY bonus already typed into BODY by hand can be marked as included instead of being added twice',()=>{
+ // A save from before this card: natural BODY 6, raised to 8 by hand as the effects list used to ask.
+ const c=person([GRAFT],{hp:40,stats:{...person([]).stats,BODY:8}});
+ for(const l of ['ru','en']){const html=I.render(c,l);assert.match(html,/data-imp-op="adopt"/,l);assert.match(html,l==='ru'?/Уже подняли BODY вручную\?/:/Already raised BODY by hand\?/)}
+ const r=I.act(c,{impOp:'adopt',impKey:key(c)},'en');assert.equal(r.ok,true);assert.equal(r.dirty,true);assert.match(r.notify,/BODY 8 already includes the implant \(6 without it\)/);
+ assert.equal(c.stats.BODY,8);assert.equal(c.hp,40,'the sheet is not changed');
+ assert.deepEqual(plain(c.extra.implants.applied[key(c)]),{catalogId:GRAFT,kind:'body',seq:1,body:[8,8],adopted:true});assert.deepEqual(plain(c.extra.implants.body),{base:6,set:8});
+ const html=I.render(c,'en');assert.match(html,/Applied to the sheet/);assert.match(html,/already included the implant/);assert.doesNotMatch(html,/data-imp-op="(apply|adopt)"/);assert.match(html,/BODY 6<\/b> \(without implants\)/);
+ assert.equal(I.apply(c,key(c),'en').ok,false);assert.equal(I.adopt(c,key(c),'en').ok,false);assert.equal(c.stats.BODY,8);
+ const u=I.undo(c,key(c),'ru');assert.match(u.notify,/BODY 8 → 6/);assert.equal(c.stats.BODY,6);assert.equal(c.hp,35);
+ // Only where the number could have come from the implant, and only for the additive implant.
+ const high=person([GRAFT],{stats:{...person([]).stats,BODY:11}}),before=JSON.stringify(high);
+ assert.doesNotMatch(I.render(high,'en'),/data-imp-op="adopt"/);assert.equal(I.adopt(high,key(high),'ru').ok,false);assert.equal(JSON.stringify(high),before);
+ const low=person([GRAFT],{stats:{...person([]).stats,BODY:2}});assert.equal(I.adopt(low,key(low),'en').ok,false);
+ const frame=person([SIGMA]);assert.doesNotMatch(I.render(frame,'en'),/data-imp-op="adopt"/);assert.equal(I.adopt(frame,key(frame),'en').ok,false);assert.equal(frame.extra.implants,undefined);
+ // Two copies, and a copy under a frame applied later.
+ const two=person([GRAFT,GRAFT],{stats:{...person([]).stats,BODY:10}});assert.equal(I.adopt(two,key(two,0),'en').ok,true);assert.equal(I.adopt(two,key(two,1),'en').ok,true);
+ assert.equal(two.stats.BODY,10);assert.equal(I.bodyRecord(two).base,6);
+ const under=person([GRAFT,SIGMA],{stats:{...person([]).stats,BODY:8}});I.apply(under,key(under,1),'en');assert.equal(under.stats.BODY,12);
+ assert.equal(I.adopt(under,key(under,0),'en').ok,true);assert.equal(under.stats.BODY,12);I.undo(under,key(under,1),'en');assert.equal(under.stats.BODY,8);I.undo(under,key(under,0),'en');assert.equal(under.stats.BODY,6);
+});

@@ -227,7 +227,7 @@ test('backups carry the collection and give it back without touching the main ar
  const file={format:'nightcity-red-backup',version:1,characters:[],campaigns:[],_completeSnapshot:{characters:[],campaigns:[]},...a.C.backupPart()};
  assert.deepEqual(Object.keys(file._completeSnapshot),['characters','campaigns'],'the main snapshot does not hold custom content');
  const b=load(),r=b.C.restoreFromBackup(JSON.parse(JSON.stringify(file)));
- assert.deepEqual(plain(r),{ok:true,changed:2});assert.deepEqual(b.C.getData(),a.C.getData());
+ assert.deepEqual(plain(r),{ok:true,changed:2,kept:0});assert.deepEqual(b.C.getData(),a.C.getData());
  assert.deepEqual(b.calls.filter(c=>c[0]==='notify').map(c=>c[1]),['Свои материалы из копии: 2.']);
  assert.equal(b.C.restoreFromBackup(file).changed,0,'the same backup twice changes nothing');
  for(const old of [{format:'nightcity-red-backup',version:1,characters:[]},null,'x',{customContent:'x'},{customContent:{format:'other',version:1,items:[weapon]}}])assert.equal(b.C.restoreFromBackup(old).ok,false);
@@ -281,4 +281,107 @@ test('a custom weapon and a custom implant can be added to a sheet and bought, w
  assert.equal(ctx.window.EquipmentTools.quote(c,find('custom-free'),'cash','ru').reason,'invalidPrice','an item without a price can be added but not bought');
  assert.equal(ctx.window.CharacterExtra.addCatalog(c,find('custom-free'),'en').record.name,'Trinket');
  assert.match(ctx.window.CharacterExtra.addCatalog(c,find('weapon-heavy-pistol'),'ru').record.notes,/стр\. \d+/,'book items keep their page');
+});
+
+test('adding an older backup never replaces an entry edited here; only "replace everything" takes the file\'s version',()=>{
+ const {C,calls}=load(),file=()=>plain({format:'nightcity-red-backup',version:1,characters:[],...C.backupPart()});
+ C.restoreFromBackup({customContent:{format:'nightcity-red-custom',version:1,items:[{...weapon,price:100}],npcs:[npc]}},true);
+ const older=file();
+ C.restoreFromBackup({customContent:{format:'nightcity-red-custom',version:1,items:[{...weapon,price:777}]}},{quiet:true,overwrite:true});
+ assert.equal(C.getData().items[0].price,777);
+ older.customContent.items.push({id:'g9',category:'gear',name:{ru:'Фонарь'}});
+ assert.deepEqual(plain(C.backupPlan(older)),{added:1,kept:1,same:1,overflow:0});assert.equal(C.backupPlan({characters:[]}),null);
+ const r=C.restoreFromBackup(older);
+ assert.deepEqual(plain(r),{ok:true,changed:1,kept:1});
+ assert.equal(C.getData().items.find(x=>x.id==='w1').price,777,'the newer edit stays');assert.equal(C.getData().items.length,2);
+ assert.deepEqual(calls.filter(c=>c[0]==='notify').map(c=>c[1]),['Свои материалы из копии: 1. Не изменено: 1 — у вас уже есть свои версии этих записей.']);
+ assert.deepEqual(plain(C.restoreFromBackup(older,true)),{ok:true,changed:0,kept:1},'the old quiet flag still adds only');assert.equal(C.getData().items[0].price,777);
+ assert.deepEqual(plain(C.restoreFromBackup(older,{quiet:true,overwrite:true})),{ok:true,changed:1,kept:0});assert.equal(C.getData().items.find(x=>x.id==='w1').price,100);
+});
+
+// The real app.js with the transfer panel and the custom collection, enough of a page to press its inputs.
+function appHarness({lang='ru',encoded=[]}={}){
+ const listeners={},docListeners={},notices=[],ls=new Map(),store=new Map();let uid=0;
+ const el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){(listeners[t]||=[]).push(fn)}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
+ const adapter={stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>'local',hasQueued:()=>false,save:()=>Promise.resolve({ok:true}),copies:()=>[],readCopy:id=>store.get(id)??null,removeCopy:id=>store.delete(id),keepBeforeRestore(snapshot){const id='copy-'+store.size;store.set(id,snapshot);return id},dropOlderBeforeRestore(){},forget(){},lastBackup:()=>null,persistence:()=>'granted'};
+ const localStorage={getItem:k=>ls.has(k)?ls.get(k):null,setItem:(k,v)=>{ls.set(k,String(v))},removeItem:k=>{ls.delete(k)}};
+ const document={querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({click(){},remove(){}}),body:{appendChild(){}},addEventListener(t,fn){(docListeners[t]||=[]).push(fn)}};
+ class Enc extends TextEncoder{encode(text){encoded.push(text);return super.encode(text)}}
+ const w={document,ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false,render:()=>''},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create:()=>adapter},confirm:()=>true,scrollTo(){},crypto:globalThis.crypto,localStorage,addEventListener(){},setTimeout,clearTimeout};
+ const ctx={window:w,document,Blob:class{},URL:{createObjectURL:()=>'blob:x',revokeObjectURL(){}},localStorage,globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:()=>true,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap,TextEncoder:Enc,TextDecoder,Uint8Array,Error};
+ vm.createContext(ctx);for(const f of ['catalog.js','character-extra.js','equipment-tools.js','custom-content.js','transfer.js'])vm.runInContext(read(f),ctx);
+ vm.runInContext(read('app.js')+`\nrender=()=>{};state.lang=${JSON.stringify(lang)};state.view='characters';window.qa={state:()=>state};`,ctx);
+ const input=(id,data)=>{const node={id,isConnected:true,value:'x',files:[{name:'a.json',size:10,text:async()=>JSON.stringify(data)}],closest:()=>null,matches:()=>false,dataset:{}};nodes['#'+id]=node;return node};
+ const change=async(id,data)=>{const target=input(id,data);for(const fn of listeners.change)await fn({target,type:'change'});delete nodes['#'+id]};
+ const inRoot={closest:s=>s==='[data-transfer-root]'?{}:null};
+ const openFile=data=>w.Transfer._test.onChange({target:{...inRoot,matches:s=>s==='[data-xfer-file]',files:[{name:'a.json',size:10,text:async()=>JSON.stringify(data)}],value:'x'}});
+ const press=action=>w.Transfer._test.onClick({target:{closest:s=>s==='[data-xfer]'?{dataset:{xfer:action},disabled:false,closest:q=>q==='[data-transfer-root]'?{}:null}:null}});
+ return {w,C:w.CustomContent,T:w.Transfer,notices,encoded,change,openFile,press,state:()=>w.qa.state()};
+}
+const sheet=(id,name)=>({id,name,role:'solo',rank:4,stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{Handgun:2},hp:45,humanity:60,head:0,bodyArmor:0,extra:{uid:'u-'+id,updatedAt:5}});
+const archive=(snapshot,items=[weapon],npcs=[npc])=>({format:'nightcity-red-backup',version:1,savedAt:1,...snapshot,_completeSnapshot:snapshot,customContent:{format:'nightcity-red-custom',version:1,items,npcs}});
+
+test('an archive the app refuses as newer brings no custom content with it',async()=>{
+ for(const id of ['import-backup','import-file']){
+  const h=appHarness(),newer=archive({schemaVersion:9999,characters:[sheet('a','Вега')],campaigns:[]},[{id:'fromnewer',category:'gear',name:{ru:'из нового архива'},price:1}],[]);
+  assert.equal(h.w.App.archive.read(newer).newer,true);
+  await h.change(id,newer);
+  assert.equal(h.state().characters.length,0,id);assert.deepEqual(h.C.getData(),{items:[],npcs:[]},id+': nothing custom came in');
+  assert.equal(h.notices.some(n=>/Свои материалы/.test(n)),false,'the refusal is not replaced by a success notice');
+  await h.change(id,archive({schemaVersion:1,characters:[sheet('a','Вега')],campaigns:[]}));
+  assert.equal(h.state().characters.length,1,id);assert.deepEqual(h.C.getData().items.map(x=>x.id),['w1'],id+': a readable archive still brings its custom content');
+ }
+});
+
+test('the transfer panel shows, adds and sends custom content with the archive',async()=>{
+ const h=appHarness(),file=archive({schemaVersion:1,characters:[sheet('a','Вега')],campaigns:[]});
+ await h.openFile(file);
+ const preview=h.T.render('ru');
+ assert.match(preview,/Добавятся свои материалы \(предметы и противники\): 2\./);assert.deepEqual(h.C.getData(),{items:[],npcs:[]},'a preview changes nothing');
+ h.press('apply-add');
+ assert.equal(h.state().characters.length,1);assert.deepEqual([h.C.getData().items.length,h.C.getData().npcs.length],[1,1]);
+ assert.equal(h.w.CATALOG.some(x=>x.id==='custom-w1'),true,'the catalog has the item at once');
+ assert.match(h.T._test.ui().note.text,/Свои материалы: добавлено 2\./);
+ // The same sheets again, with one custom entry changed in the file and one new: only the new one comes in, and the button is not disabled.
+ const again=archive({schemaVersion:1,characters:[sheet('a','Вега')],campaigns:[]},[{...weapon,price:1},{id:'g9',category:'gear',name:{ru:'Фонарь'}}],[npc]);
+ await h.openFile(again);
+ const html=h.T.render('ru');
+ assert.match(html,/останутся как здесь: 1\./);assert.match(html,/data-xfer="apply-add">/,'custom content alone is worth adding');assert.equal(html.includes('Добавлять нечего'),false);
+ h.press('apply-add');
+ assert.deepEqual(h.C.getData().items.map(x=>[x.id,x.price]),[['w1',250],['g9',null]]);assert.equal(h.T._test.ui().note.kind,'ok');assert.equal(h.T._test.ui().incoming,null);
+ // Replacing everything adds custom content too and never removes the user's own.
+ const other=archive({schemaVersion:1,characters:[sheet('b','Нова')],campaigns:[]},[{id:'r1',category:'gear',name:{ru:'Трос'}}],[]);
+ await h.openFile(other);assert.match(h.T.render('ru'),/Свои материалы \(предметы и противники\) не заменяются/);
+ h.press('arm');h.press('apply-replace');
+ assert.deepEqual(h.state().characters.map(c=>c.name),['Нова']);assert.deepEqual(h.C.getData().items.map(x=>x.id),['w1','g9','r1']);
+ // Device to device: the payload carries the collection.
+ try{h.press('send')}catch{}
+ const sent=h.encoded.map(t=>{try{return JSON.parse(t)}catch{return null}}).find(x=>x&&x.format==='nightcity-red-backup');
+ assert.ok(sent,'a payload was built');assert.deepEqual(sent.customContent.items.map(x=>x.id),['w1','g9','r1']);assert.equal(sent.customContent.npcs.length,1);
+});
+
+test('a custom implant is installed on the sheet with the Humanity loss its author set, and is not sent to the book',()=>{
+ const ctx={window:{localStorage:storage()},console};vm.createContext(ctx);
+ for(const f of ['catalog.js','catalog-extra.js','character-extra.js','equipment-tools.js','custom-content.js'])vm.runInContext(read(f),ctx);
+ const C=ctx.window.CustomContent,E=ctx.window.EquipmentTools,c={id:'c1',name:'V',role:'solo',stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{},hp:45,humanity:60,head:0,bodyArmor:0,extra:{cash:5000,gearBudget:0,fashionBudget:0,items:[],weapons:[]}};
+ C.restoreFromBackup({customContent:{format:'nightcity-red-custom',version:1,items:[{id:'eye',category:'cyberware',name:{ru:'Глаз'},price:100,stats:{humanityLoss:'2d6',installation:'Clinic'}},{id:'arm',category:'cyberware',name:{ru:'Рука'},price:100,stats:{humanityLoss:'3d6/2',installation:'Hospital'}},{id:'tat',category:'cyberware',name:{ru:'Тату'},price:10,stats:{humanityLoss:'0',installation:'Mall'}}]}},true);
+ const find=id=>ctx.window.CATALOG.find(x=>x.id===id),buy=id=>{assert.equal(E.purchase(c,find(id),'cash','ru',{confirmed:true}).ok,true);return c.extra.items.find(i=>i.catalogId===id).id};
+ const eye=buy('custom-eye'),arm=buy('custom-arm'),tat=buy('custom-tat');
+ assert.equal(E.setMax(c,60,'ru',true).ok,true);
+ for(const lang of ['ru','en']){
+  const html=E.render(c,lang);
+  assert.equal((html.match(/data-eq-action="prepare"/g)||[]).length,3,'every custom implant has its install controls');
+  assert.equal(/стр\. *<|p\. *</.test(html),false,'no dangling page reference');assert.equal(/Corebook|по книге\. *<\/p><\/div>|using the book/.test(html),false,'a homebrew item is not referred to the book');
+ }
+ const fixed=E.prepare(c,eye,'creation','included',true,'ru');assert.equal(fixed.ok,true);assert.equal(fixed.draft.loss,7);assert.equal(fixed.draft.maxLoss,2);
+ assert.equal(E.commit(c,fixed.draft,'ru',true).ok,true);assert.equal(c.humanity,53);assert.equal(c.extra.equipment.maxHumanity,58);
+ assert.match(E.render(c,'ru'),/Установлено: 1 \/ 1 · HL 2d6/);
+ const rolled=E.prepare(c,arm,'play','found',true,'ru',()=>3);assert.equal(rolled.ok,true);assert.deepEqual(plain(rolled.draft.rolls),[3,3,3]);assert.equal(rolled.draft.loss,5,'3d6/2 rolled as 9, halved up');assert.equal(rolled.draft.fee,1000);
+ assert.equal(E.commit(c,rolled.draft,'ru',true).ok,true);assert.equal(c.humanity,48);assert.equal(c.extra.cash,5000-210-1000);
+ const none=E.prepare(c,tat,'play','included',true,'ru');assert.equal(none.draft.loss,0);assert.equal(none.draft.maxLoss,0);
+ const install=c.extra.equipment.installs[0];assert.equal(E.uninstall(c,install.id,true,true,'ru').ok,true);assert.equal(c.extra.equipment.maxHumanity,58,'removing gives the maximum back');
+ assert.equal(E.prepare({...c,extra:{...c.extra,items:[{id:'x',name:'?',quantity:1,catalogId:'custom-eye'}]}},'x','creation','included',true,'ru').ok,true);
+ // A book implant that was never audited stays manual, and a broken custom entry is not trusted.
+ ctx.window.CATALOG.push({id:'custom-bad',custom:true,category:'cyberware',name:{ru:'x',en:'x'},price:1,page:null,details:{ru:'',en:''},stats:{humanityLoss:'2d6',humanityLossAtCreation:99,installation:'Clinic'}},{id:'cyberware-not-audited',category:'cyberware',name:{ru:'y',en:'y'},price:1,page:1,details:{ru:'',en:''},stats:{humanityLoss:'2d6',humanityLossAtCreation:7,installation:'Clinic'}});
+ for(const id of ['custom-bad','cyberware-not-audited']){const d={...c,extra:{...c.extra,items:[{id:'x',name:'?',quantity:1,catalogId:id}]}};assert.equal(E.prepare(d,'x','creation','included',true,'ru').reason,'unverified',id)}
 });

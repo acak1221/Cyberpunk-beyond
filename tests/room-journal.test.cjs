@@ -151,3 +151,38 @@ test('the card under a campaign: ticking an entry saves it, tells the state of t
  const player=await scene();assert.ok(player.J.panel(c,'ru').includes('Вы в комнате как игрок'));
  const alone=loadTab();assert.ok(alone.J.panel(c,'en').includes('No room is open'));
 });
+
+test('an empty journal is repeated on every heartbeat, so a replayed earlier message does not stay with players who join later',async()=>{
+ const c=campaign();c.journalShared=['j1'];
+ const g=await scene({role:'gm',campaignId:'c1',state:{lang:'ru',characters:[],campaigns:[c]}}),t0=Date.now();
+ assert.equal(g.J.publish(false,t0),true);g.J.setShared(c,'j1',false);assert.equal(g.J.publish(false,t0+1000),true); // marked by mistake, then taken back
+ let again=0;for(let i=1;i<=4;i++)if(g.J.publish(true,t0+1000+i*45000))again++;
+ assert.equal(again,4); // every heartbeat carries the empty journal again
+ assert.equal(g.J.publish(false,t0+200000),false); // an ordinary save with nothing changed still sends nothing
+ await settle();
+ const out=g.sent.filter(x=>x.sub==='j');assert.equal(out.length,6);assert.ok(out.every(x=>x.retain===true));
+ eq(JSON.parse((await g.R.open(out.at(-1).bytes)).b).d,{campaign:'Арасака',list:[]});
+ // A player who joined after the replay took the old copy; the next heartbeat of the Game Master takes it away again.
+ const p=await scene(),old=Date.now()-60000;
+ await p.give(p.gm,'j','journal',{campaign:'Арасака',list:[{at:1000,text:'MISTAKE spoiler'}]},{at:old,retain:true});assert.ok(p.J.card().includes('MISTAKE spoiler'));
+ await p.give(p.gm,'j','journal',{campaign:'Арасака',list:[]},{retain:true});assert.equal(p.J.card(),'');
+ // A journal with entries is still repeated only now and then.
+ g.J.setShared(c,'j2',true);const t1=t0+300000;assert.equal(g.J.publish(false,t1),true);
+ assert.equal(g.J.publish(true,t1+45000),false);assert.equal(g.J.publish(true,t1+180000),true);
+});
+
+test('the Game Master leaving the room takes the shared journal down together with the initiative and the clocks',async()=>{
+ const c=campaign();c.journalShared=['j2','j1'];
+ const g=await scene({role:'gm',campaignId:'c1',state:{lang:'ru',characters:[],campaigns:[c]}});
+ assert.equal(g.J.publish(false),true);await settle();
+ g.R.disconnect(true);await settle();g.R.setKey(g.room.key); // leaving forgets the room key; the test needs it to read what was sent
+ const last=async sub=>{const x=g.sent.filter(m=>m.sub===sub).at(-1);assert.ok(x,sub);assert.equal(x.retain,true);return JSON.parse((await g.R.open(x.bytes)).b)};
+ assert.equal((await last('c')).t,'cleared');assert.equal((await last('k')).t,'cleared');
+ const j=await last('j');assert.equal(j.t,'journal');eq(j.d,{campaign:'',list:[]});
+ // A player sees the card go, and a page that opens the link later gets no journal either.
+ const p=await scene();await p.give(p.gm,'j','journal',LIST,{at:Date.now()-5000,retain:true});assert.notEqual(p.J.card(),'');
+ await p.give(p.gm,'j',j.t,j.d);assert.equal(p.J.card(),'');
+ const late=await scene();await late.give(late.gm,'j',j.t,j.d,{retain:true});assert.equal(late.J.card(),'');assert.equal(late.notices.length,0);
+ // A player who leaves publishes nothing on the journal subtopic.
+ const q=await scene();q.R.disconnect(true);await settle();assert.equal(q.sent.filter(m=>m.sub==='j').length,0);assert.equal(q.sent.filter(m=>m.sub.startsWith('m/')).length,1);
+});

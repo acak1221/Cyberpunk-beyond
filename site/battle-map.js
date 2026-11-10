@@ -245,8 +245,8 @@ function inner(campaign,characters,lang){
  for(const c of map.cover)cells.set(key(c[0],c[1]),{cover:true});
  const selTok=v.mode==='move'?map.tokens.find(k=>k.id===v.sel):null,selMove=selTok?moveOf(byId.get(v.sel),characters,selTok):null;
  if(selTok&&selMove!==null){
-  const left=Math.max(0,selMove-(Number(v.spent[v.sel])||0));
-  for(const [k,d] of steps(map,selTok)){if(!d||d>left+selMove)continue;cells.set(k,{...(cells.get(k)||{}),reach:d<=left?'reach':'run'})}
+  const spent=Number(v.spent[v.sel])||0,left=Math.max(0,selMove-spent),total=Math.max(0,selMove*2-spent);
+  for(const [k,d] of steps(map,selTok)){if(!d||d>total)continue;cells.set(k,{...(cells.get(k)||{}),reach:d<=left?'reach':'run'})}
  }
  for(const tok of map.tokens){const r=byId.get(tok.id),name=nameOf(r,characters,t);
   cells.set(key(tok.x,tok.y),{token:true,id:tok.id,name,label:label(name),pc:r.kind==='pc',hidden:r.kind==='npc'&&r.hidden===true,out:r.out===true||r.dead===true,current:tok.id===now,sel:tok.id===v.sel,target:tok.id===v.target})}

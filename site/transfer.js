@@ -346,6 +346,8 @@ function strip(l,hint=''){
  return `<div class="backup-strip ${s.due?'warn':''}" data-xfer-strip><div class="source-symbol">${s.due?'!':'✓'}</div><div><strong>${w('РЕЗЕРВНАЯ КОПИЯ','BACKUP')}</strong><p>${esc(statusLine(s,l))} ${why?esc(why)+' ':''}${w('Данные хранятся только в этом браузере — сохраните файл, чтобы не потерять персонажей и перенести их на другое устройство.','Data lives only in this browser — save a file so you never lose characters and can move them to another device.')}</p>${hint||''}<p class="xfer-strip-links"><button type="button" class="hint-link" data-action="navigate" data-view="characters" data-xfer-open>${w('Перенос и копии','Transfer and backups')} →</button>${s.due?`<button type="button" class="hint-link" data-xfer="snooze">${w(`Напомнить через ${SNOOZE_DAYS} дня`,`Remind me in ${SNOOZE_DAYS} days`)}</button>`:''}</p></div><button class="btn ${s.due?'primary':'ghost'}" data-action="export-backup">↓ ${w('Скачать копию','Download backup')}</button></div>`;
 }
 
+// Custom items and opponents travel next to the main archive (`customContent`); they are only ever added, never replaced or removed.
+function customPlan(data){try{return global.CustomContent?.backupPlan?.(data)||null}catch{return null}}
 function previewHtml(l){
  const inc=ui.incoming,{w}=words(l);if(!inc)return '';
  const head=inc.source==='device'?w('Получено с другого устройства','Received from the other device'):w('Файл','File')+(inc.name?` «${esc(inc.name)}»`:'');
@@ -361,16 +363,21 @@ function previewHtml(l){
  const fill=p.sections.filter(s=>s.kind==='fill').map(s=>sectionLabel(s.key,l)),keep=p.sections.filter(s=>s.kind==='keep').map(s=>sectionLabel(s.key,l));
  if(fill.length)add.push(row('+',w('Заполнятся разделы, которые здесь пусты: ','Sections that are empty here will be filled: ')+esc(fill.join(', '))+'.'));
  if(keep.length)add.push(row('•',w('Не изменятся (здесь уже есть свои данные): ','Will not change (this device has its own data): ')+esc(keep.join(', '))+'.'));
+ const cc=inc.error?null:customPlan(inc.data);
+ if(cc?.added)add.push(row('+',w(`Добавятся свои материалы (предметы и противники): ${cc.added}.`,`Custom content (items and opponents) will be added: ${cc.added}.`)));
+ if(cc?.kept)add.push(row('•',w(`Свои материалы, которые здесь уже есть в другой версии, останутся как здесь: ${cc.kept}.`,`Custom content that is already here in another version will stay as it is here: ${cc.kept}.`)));
+ if(cc?.overflow)add.push(row('!',w(`Свои материалы, для которых не хватит места, будут пропущены: ${cc.overflow}.`,`Custom content there is no room for will be skipped: ${cc.overflow}.`)));
  const skipped=inc.skipped+c.campaignsSkip;
  if(skipped)add.push(row('!',w(`Не читаются и будут пропущены: ${skipped} (в архиве они остаются без изменений).`,`Cannot be read and will be skipped: ${skipped} (they stay unchanged in the archive).`)));
- if(!p.changes)add.push(row('✓',w('Добавлять нечего: всё из архива здесь уже есть.','Nothing to add: everything in the archive is already here.')));
+ if(!p.changes&&!cc?.added)add.push(row('✓',w('Добавлять нечего: всё из архива здесь уже есть.','Nothing to add: everything in the archive is already here.')));
  const rep=[row('→',w(`Сейчас здесь: ${chars(c.localCharacters,l)}, ${camps(c.localCampaigns,l)}. Станет: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`,`Here now: ${chars(c.localCharacters,l)}, ${camps(c.localCampaigns,l)}. After: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`))];
  if(c.localOnly)rep.push(row('−',w(`Исчезнут с этого устройства (в архиве их нет): ${chars(c.localOnly,l)} — `,`Will disappear from this device (not in the archive): ${chars(c.localOnly,l)} — `)+names(p.localOnly,l)));
  rep.push(row('•',w('Настройки, заметки ГМа, NET-архитектуры и закладки тоже возьмутся из архива. Текущие данные сохранятся снимком, замену можно отменить.','Settings, GM notes, NET architectures and bookmarks also come from the archive. The current data is kept as a snapshot, so the replacement can be undone.')));
+ if(cc&&(cc.added||cc.kept||cc.same))rep.push(row('•',w(`Свои материалы (предметы и противники) не заменяются: ваши останутся, из архива добавятся новые — ${cc.added}.`,`Custom content (items and opponents) is not replaced: yours stay, new entries from the archive are added — ${cc.added}.`)));
  const empty=!c.incomingCharacters&&!c.incomingCampaigns;
  const made=inc.savedAt?w(` Данные от ${dateText(inc.savedAt,l)}.`,` Data as of ${dateText(inc.savedAt,l)}.`):'';
  return `<div class="xfer-preview" data-xfer-preview tabindex="-1"><h3>${head}</h3><p>${w('В архиве','The archive holds')}: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.${made} ${w('Пока ничего не изменено — выберите, что сделать.','Nothing has been changed yet — choose what to do.')}</p>
-<div class="xfer-options"><div class="xfer-option"><h4>${w('Добавить к моим данным','Add to my data')}</h4><ul class="xfer-list">${add.join('')}</ul><button type="button" class="btn primary" data-xfer="apply-add"${p.changes&&!ui.busy?'':' disabled'}>${w('Добавить и обновить','Add and update')}</button></div>
+<div class="xfer-options"><div class="xfer-option"><h4>${w('Добавить к моим данным','Add to my data')}</h4><ul class="xfer-list">${add.join('')}</ul><button type="button" class="btn primary" data-xfer="apply-add"${(p.changes||cc?.added)&&!ui.busy?'':' disabled'}>${w('Добавить и обновить','Add and update')}</button></div>
 <div class="xfer-option"><h4>${w('Заменить все мои данные','Replace all my data')}</h4><ul class="xfer-list">${rep.join('')}</ul>${empty?`<p class="xfer-error">${w('В архиве нет ни персонажей, ни кампаний — заменять данные пустым архивом нельзя.','The archive has no characters or campaigns — replacing the data with an empty archive is not allowed.')}</p>`:ui.arm?`<p class="xfer-error" role="alert">${w('Все текущие данные на этом устройстве будут заменены. Продолжить?','All current data on this device will be replaced. Continue?')}</p><div class="xfer-actions"><button type="button" class="btn xfer-danger" data-xfer="apply-replace"${ui.busy?' disabled':''}>${w('Да, заменить всё','Yes, replace everything')}</button><button type="button" class="btn ghost" data-xfer="disarm">${w('Нет','No')}</button></div>`:`<button type="button" class="btn ghost" data-xfer="arm"${ui.busy?' disabled':''}>${w('Заменить всё…','Replace everything…')}</button>`}</div></div>
 <div class="xfer-actions"><button type="button" class="btn ghost" data-xfer="discard">${w('Отмена — ничего не менять','Cancel — change nothing')}</button></div></div>`;
 }
@@ -463,7 +470,13 @@ function apply(mode){
  if(!inc||inc.error||!api||ui.busy)return;
  ui.busy=true;let r;
  try{r=mode==='replace'?api.replace(inc.data,inc.plan.sig):api.merge(inc.data,inc.plan.sig)}catch{r={ok:false}}
+ // Custom content is added once the main archive is in, or when the archive had nothing else to add.
+ const want=customPlan(inc.data);let cc=null;
+ if(want?.added&&(r?.ok||mode!=='replace'&&r?.reason==='empty'))try{cc=global.CustomContent.restoreFromBackup(inc.data,{quiet:true})}catch{}
+ const ccText=!want?.added?'':cc?.changed?' '+w(`Свои материалы: добавлено ${cc.changed}.`,`Custom content: ${cc.changed} added.`):' '+w('Свои материалы добавить не удалось: в браузере не хватает места.','Custom content could not be added: the browser is out of room.');
+ if(cc?.changed)try{global.App?.render?.()}catch{}
  ui.busy=false;ui.arm=false;
+ if(!r?.ok&&cc?.changed){ui.incoming=null;note(ccText.trim(),'ok');paint('[data-xfer-note]');return}
  if(!r?.ok){
   if(r?.reason==='stale'){const again=inspect(inc.data,inc.source,inc.name);ui.incoming=again}
   note(resultText(r,l),'error');paint('[data-xfer-note]');return;
@@ -471,8 +484,8 @@ function apply(mode){
  const c=inc.plan.counts;
  ui.incoming=null;
  if(inc.source==='device'){const meta=readMeta();meta.receivedAt=Date.now();writeMeta(meta);if(ui.xfer?.phase==='done')ui.xfer=null}
- note(mode==='replace'?w(`Все данные заменены архивом: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`,`All data was replaced with the archive: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`)
-  :w(`Готово. Добавлено: ${chars(c.add,l)}, ${camps(c.campaignsAdd,l)}. Обновлено: ${chars(c.update,l)}.`,`Done. Added: ${chars(c.add,l)}, ${camps(c.campaignsAdd,l)}. Updated: ${chars(c.update,l)}.`)+(r.undo?'':' '+w('Отменить это действие нельзя: для снимка не хватило места.','This cannot be undone: there was no room for a snapshot.')),'ok',r.undo||null);
+ note((mode==='replace'?w(`Все данные заменены архивом: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`,`All data was replaced with the archive: ${chars(c.incomingCharacters,l)}, ${camps(c.incomingCampaigns,l)}.`)
+  :w(`Готово. Добавлено: ${chars(c.add,l)}, ${camps(c.campaignsAdd,l)}. Обновлено: ${chars(c.update,l)}.`,`Done. Added: ${chars(c.add,l)}, ${camps(c.campaignsAdd,l)}. Updated: ${chars(c.update,l)}.`)+(r.undo?'':' '+w('Отменить это действие нельзя: для снимка не хватило места.','This cannot be undone: there was no room for a snapshot.')))+ccText,'ok',r.undo||null);
  // The app has re-rendered the page; the block is new, so paint it and move focus to the result.
  paint('[data-xfer-note]');
 }
@@ -493,12 +506,13 @@ function sessionState(s){
  if(s.phase==='failed'&&x.role==='receive'&&!doc()?.querySelector?.('[data-transfer-root]'))try{global.App?.notify?.(failText(s.reason,'receive',l))}catch{}
  if(s.phase==='transferring'&&was==='transferring')paintProgress();else paint(s.phase==='failed'||s.phase==='done'?'[data-xfer-live], #xfer-code':null);
 }
+function customPart(){try{return global.CustomContent?.backupPart?.()||{}}catch{return {}}}
 function startSend(){
  const api=global.App?.archive;
  if(!api)return;
  let snapshot;try{snapshot=api.snapshot()}catch{return}
  if(!snapshot?.characters?.length&&!snapshot?.campaigns?.length){ui.xfer={role:'send',phase:'failed',reason:'empty',code:'',done:0,total:0};paint('[data-xfer-live]');return}
- const payload=te.encode(JSON.stringify({format:'nightcity-red-backup',version:1,savedAt:Date.now(),_completeSnapshot:snapshot}));
+ const payload=te.encode(JSON.stringify({format:'nightcity-red-backup',version:1,savedAt:Date.now(),_completeSnapshot:snapshot,...customPart()}));
  if(payload.length>MAX_BYTES){ui.xfer={role:'send',phase:'failed',reason:'toobig',code:'',done:0,total:0};paint('[data-xfer-live]');return}
  const code=newCode();
  ui.xfer={role:'send',phase:'connecting',code,done:0,total:0,reason:null};

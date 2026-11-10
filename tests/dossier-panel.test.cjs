@@ -193,6 +193,93 @@ test('a STAT box: the sheet value, what checks take now, and what hangs on it',(
  assert.equal(h.D.statBreakdown(c,{stat:'CHARISMA'},'ru'),null);
 });
 
+// What App.check in app.js puts on top of the number it is given.
+const appAdds=(window,c)=>{const max=10+5*Math.ceil((c.stats.BODY+c.stats.WILL)/2);return (c.hp<1?-4:c.hp<Math.ceil(max/2)?(window.Effects.ignoresSerious(c)?0:-2):0)+window.Effects.checkModifier(c)};
+test('a STAT check: wounds and «all Actions» injuries are rows, and the total and the button are the number that is rolled',()=>{
+ const h=load({extra:{CombatTools:{INJURIES:{head:[0,0,0,{ru:'Сотрясение',en:'Concussion'}]}}}});
+ const hurt=V({hp:10}),ref=h.D.statBreakdown(hurt,{stat:'REF'},'ru');
+ same(ref.parts.map(p=>[p.label,p.source,p.value]),[['REF','значение на листе',7],['Тяжёлое ранение','состояние ранения',-2]]);
+ assert.equal(ref.value,5);assert.equal(ref.total,'5');assert.equal(ref.rolls[0].label,'Бросить 1d10 +5');
+ assert.equal(ref.rolls[0].check.base+appAdds(h.window,hurt),5,'App.check adds the wound penalty to what the button hands over');
+ const dying=V({hp:0}),body=h.D.statBreakdown(dying,{stat:'BODY'},'en');
+ assert.equal(row(body,'Mortally Wounded').value,-4);assert.equal(body.rolls[0].label,'Roll 1d10 +4');assert.equal(body.rolls[0].check.base+appAdds(h.window,dying),4);
+ const injured=V({extra:{criticalInjuries:{version:1,entries:[{location:'head',score:5,status:'active'}]}}}),int=h.D.statBreakdown(injured,{stat:'INT'},'ru');
+ same(int.parts.map(p=>[p.label,p.source,p.value]),[['INT','значение на листе',6],['Сотрясение','критическая травма',-2]]);
+ assert.equal(int.total,'4');assert.equal(int.rolls[0].label,'Бросить 1d10 +4');assert.equal(int.rolls[0].check.base+appAdds(h.window,injured),4);
+ const both=V({hp:10,extra:injured.extra}),cool=h.D.statBreakdown(both,{stat:'COOL'},'en');
+ assert.equal(cool.value,6-2-2);assert.equal(total(cool.parts),cool.value);assert.equal(cool.rolls[0].check.base+appAdds(h.window,both),cool.value);
+ // What is not rolled keeps its own number: no wound row for MOVE or LUCK.
+ assert.equal(h.D.statBreakdown(hurt,{stat:'LUCK'},'ru').parts.length,1);assert.equal(h.D.statBreakdown(hurt,{stat:'MOVE'},'ru').value,6);
+});
+
+test('a STAT check is switched off while the armor record does not add up, as the sheet\'s rolls are',()=>{
+ const broken={EquipmentTools:{armorRollAdjustment:()=>({ok:false})}},c=V();
+ const h=load({character:c,extra:broken});h.opener('stat','REF');
+ const ref=h.D.statBreakdown(c,{stat:'REF'},'ru');
+ assert.equal(ref.rolls[0].disabled,true);assert.ok(ref.notes.some(n=>/проверьте экипированную броню/.test(n)));
+ assert.ok(h.D.statBreakdown(c,{stat:'DEX'},'en').notes.some(n=>/check equipped armor/.test(n)));
+ assert.equal(!!h.D.statBreakdown(c,{stat:'INT'},'ru').rolls[0].disabled,false,'only REF and DEX wait for the armor');
+ h.D.open('stat','REF');assert.match(h.panel().innerHTML,/data-dossier-check="7"[^>]* disabled/);
+ // Even a click that gets through does not roll.
+ h.listeners.click({target:{closest:s=>s.includes('[data-dossier-check]')?{disabled:false,dataset:{dossierCheck:'7',dossierLabel:'Проверка REF'}}:null}});
+ same(h.checks,[]);
+ // Automation is switched on in the character, but the armor module is missing: the sheet refuses too.
+ assert.equal(load().D.statBreakdown(V({extra:{armorRollAutomation:{version:1,enabled:true}}}),{stat:'REF'},'ru').rolls[0].disabled,true);
+ assert.equal(!!load().D.statBreakdown(V(),{stat:'REF'},'ru').rolls[0].disabled,false);
+});
+
+test('a STAT roll uses, and uses up, the DV set for the next check, and rolls the numbers of the moment',()=>{
+ const calls=[],c=V();let dv=15,taken=0;
+ const h=load({character:c,app:{check:(...a)=>calls.push(a)},extra:{SheetTabs:{takeDV:()=>{taken++;const v=dv;dv=0;return v}}}});h.opener('stat','COOL');
+ const click=()=>h.listeners.click({target:{closest:s=>s.includes('[data-dossier-check]')?{disabled:false,dataset:{dossierCheck:'6',dossierLabel:'Проверка COOL'}}:null}});
+ h.D.open('stat','COOL');click();
+ same(calls,[[6,'Проверка COOL',{dv:15}]]);assert.equal(taken,1);
+ c.hp=10;c.stats.COOL=4;h.D.open('stat','COOL');click();
+ same(calls[1],[4,'Проверка COOL',{}],'no DV is left, and the STAT is read again at the click');
+ assert.match(source('app.js'),/check\(base,label,\{wounds=true,dv=0\}=\{\}\)\{[^}]*checkRoll\(Number\(base\)\|\|0,0,mod,String\(label\|\|''\),\{dv\}\)/,'App.check passes the DV on to the roll');
+});
+
+test('a weapon: Solo Precision Attack is a row, and the total and the button include it',()=>{
+ const c=V({extra:{weapons:[{name:'Pistol',skill:'Handgun',stat:'REF',damage:'3d6'}]}});
+ const h=load({extra:{RoleTools:{soloRollBonuses:()=>({ok:true,enabled:true,precision:2,threat:1})}}});h.window.App.checkBonus=checkBonus(h.window);
+ h.window.CharacterExtra={attackBonus:(ch,i)=>{const w=ch.extra.weapons[i];return h.window.App.checkBonus(ch,w.stat,ch.skills[w.skill],h.window.Effects.attackKind(w.skill),w.skill)}};
+ const gun=h.D.weaponBreakdown(c,{index:0,title:'Pistol'},'ru');
+ same(gun.parts.map(p=>[p.label,p.source,p.value]),[['REF','характеристика на листе',7],['Handgun','уровень навыка атаки',5],['Точность атаки','способность Соло',2]]);
+ assert.equal(gun.total,'+14');assert.equal(gun.rolls[0].label,'Атака 1d10 +14');assert.equal(row(gun,'Прочее'),undefined);
+ assert.equal(row(h.D.weaponBreakdown(c,{index:0},'en'),'Precision Attack').value,2);
+ // Without the sheet's own number the rows still carry it; with automation off there is no row.
+ delete h.window.CharacterExtra;assert.equal(h.D.weaponBreakdown(c,{index:0},'ru').value,14);
+ h.window.RoleTools={soloRollBonuses:()=>({ok:true,enabled:false,precision:2})};assert.equal(h.D.weaponBreakdown(c,{index:0},'ru').value,12);
+});
+
+test('a Stim set up for the next roll takes the wound penalty out of a Skill and a weapon, not out of a STAT check',()=>{
+ const c=V({hp:10,extra:{weapons:[{name:'Pistol',skill:'Handgun',stat:'REF'}]}});let primed=true;
+ const h=load({extra:{StimRoll:{primed:x=>primed&&x===c}}});h.window.App.checkBonus=checkBonus(h.window);
+ h.window.CharacterExtra={attackBonus:(ch,i)=>{const w=ch.extra.weapons[i];return h.window.App.checkBonus(ch,w.stat,ch.skills[w.skill],h.window.Effects.attackKind(w.skill),w.skill)}};
+ const skill=h.D.skillBreakdown(c,{skill:'Handgun',stat:'REF'},'ru'),gun=h.D.weaponBreakdown(c,{index:0},'en');
+ same(skill.parts.map(p=>[p.label,p.value]),[['REF',7],['Handgun',5]]);assert.equal(skill.rolls[0].label,'Бросить 1d10 +12');
+ assert.ok(skill.notes.some(n=>/^Stim учтён в этом броске: штраф ранения −2 не действует/.test(n)));
+ assert.equal(gun.total,'+12');assert.equal(row(gun,'Seriously Wounded'),undefined);assert.equal(row(gun,'Other'),undefined);
+ assert.ok(gun.notes.some(n=>/^Stim is counted in this roll/.test(n)));
+ assert.equal(h.D.statBreakdown(c,{stat:'REF'},'ru').value,5,'App.check does not use the Stim');
+ primed=false;assert.equal(h.D.skillBreakdown(c,{skill:'Handgun',stat:'REF'},'ru').value,10);
+});
+
+test('StimRoll.primed answers without spending the Stim',()=>{
+ const w={},context={window:w,Math,Date,JSON,Object,Array,Number,String,Set};
+ for(const f of ['pharmacy-tools.js','stim-roll.js'])vm.runInNewContext(source(f),context);
+ const m=w.StimRoll,c={id:'p',hp:20,stats:{BODY:8,WILL:6},extra:{timedPharmaceuticals:{version:1,entries:[{drug:'stim',day:'2045-05-01',time:'12:00'}]}}};
+ const ctx={scope:'account',isCurrent:(x,s)=>x===c&&s==='account'},v={day:'2045-05-01',time:'12:30'},root={isConnected:true,querySelector:q=>({value:v[q.includes('day')?'day':'time']})};
+ m.render(c,'en','account');assert.equal(m.primed(c),false);
+ for(const k of ['day','time'])m.handle({type:'input',target:{dataset:{stimField:k},value:v[k],isConnected:true,closest:q=>q==='[data-stim-root]'?root:null}},c,'en',ctx);
+ const b={dataset:{stimAction:'arm'},isConnected:true,closest:q=>q==='[data-stim-root]'?root:null};
+ m.handle({type:'click',target:{closest:q=>q==='[data-stim-action]'?b:null}},c,'en',ctx);
+ assert.equal(m.primed(c),true);assert.equal(m.primed(c),true);assert.equal(m.primed({...c}),false);
+ assert.equal(m.take(c,'account',true).applied,true,'asking did not spend it');
+ c.hp=30;assert.equal(m.primed(c),false,'no longer Seriously Wounded');c.hp=20;
+ assert.equal(m.take(c,'account').applied,true);assert.equal(m.primed(c),false);
+});
+
 test('the panel markup: a titled dialog body, signed rows, pages and a roll button; text is escaped',()=>{
  const h=load(),c=V({hp:10,extra:{weapons:[{name:'<b>Gun</b>',skill:'Handgun',damage:'3d6'}]}});
  const out=h.D.render(h.D.weaponBreakdown(c,{index:0,title:'<b>Gun</b>'},'ru'),'ru');

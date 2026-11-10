@@ -78,8 +78,10 @@ function appliedBodyIds(c){return Object.keys(appliedMap(c)).map(k=>appliedEntry
 function bodyRecord(c){
  const d=data(c),b=d?.body,ids=appliedBodyIds(c);if(!ids.length||!isObject(b))return null;
  const base=int(b.base,0,20),set=int(b.set,0,20),cur=int(c?.stats?.BODY,0,20);if(base===null||set===null||cur===null)return null;
- // BODY edited by hand since the last tap: the edit belongs to the base.
- const shifted=Math.max(0,Math.min(20,base+(cur-set)));
+ // BODY edited by hand since the last tap: the edit belongs to the base. Not under a Linear Frame: there the sheet
+ // value is the frame's, not base + bonus, so the difference says nothing about the base and the base is kept.
+ const framed=bodyFrom(base,ids).trail.some(t=>SHEET[t.catalogId].set&&t.to>t.from);
+ const shifted=framed?base:Math.max(0,Math.min(20,base+(cur-set)));
  return {base:shifted,current:cur,...bodyFrom(shifted,ids)};
 }
 
@@ -103,6 +105,16 @@ const fail=(ru,en,lang)=>({ok:false,notify:lang==='en'?en:ru});
 function slotWorn(c,loc){const a=c?.extra?.equipment?.armor;return isObject(a)&&a[loc]!==undefined&&a[loc]!==null}
 const spGet=(c,loc)=>int(loc==='head'?c.head:c.bodyArmor,0,1000);
 const spSet=(c,loc,v)=>{if(loc==='head')c.head=v;else c.bodyArmor=v};
+// The highest SP an applied implant has written to this location, 0 when none has.
+function spAt(c,loc){let best=0;for(const k of Object.keys(appliedMap(c))){const r=appliedEntry(c,k),to=r&&r.kind==='sp'&&isObject(r.sp?.[loc])?int(r.sp[loc].to,0,1000):null;if(to>best)best=to}return best}
+// The location is recorded for this implant, but its SP is gone from the sheet (armor was worn over it and taken off).
+function spLost(c,row,loc){const to=isObject(row?.sp?.[loc])?int(row.sp[loc].to,1,1000):null;return to!==null&&!slotWorn(c,loc)&&spGet(c,loc)===0&&to===spAt(c,loc)}
+// Called by the equipment tool after armor comes off: the implant's SP is what is left on that location.
+function afterUnequip(c,locs){
+ if(!isObject(c)||foreign(c)||!Array.isArray(locs))return false;let changed=false;
+ for(const loc of locs){if(!LOCS.includes(loc)||slotWorn(c,loc))continue;const sp=spAt(c,loc),cur=spGet(c,loc);if(sp>0&&cur!==null&&cur<sp){spSet(c,loc,sp);changed=true}}
+ return changed;
+}
 const locName=(loc,lang)=>lang==='en'?(loc==='head'?'head':'body'):(loc==='head'?'голова':'тело');
 
 function apply(c,key,lang){
@@ -122,19 +134,38 @@ function apply(c,key,lang){
  // SP: only where no armor piece is tracked in the slot and the implant is the higher value.
  const done=isObject(had?.sp)?had.sp:{},changes={},skipped=[];
  for(const loc of LOCS){
-  if(isObject(done[loc]))continue;
+  if(isObject(done[loc])){if(spLost(c,had,loc))changes[loc]={from:0,to:int(done[loc].to,1,1000),again:true};continue}
   const cur=spGet(c,loc);
   if(cur===null){skipped.push(l==='ru'?`${locName(loc,l)}: проверьте SP`:`${locName(loc,l)}: check SP`);continue}
   if(slotWorn(c,loc)){skipped.push(l==='ru'?`${locName(loc,l)}: надета броня SP ${cur} — ${cur>=spec.sp?'она выше или равна':'снимите её, чтобы записать SP импланта'}`:`${locName(loc,l)}: armor SP ${cur} is worn — ${cur>=spec.sp?'it is as high or higher':'take it off to record the implant’s SP'}`);continue}
   if(cur>=spec.sp){skipped.push(l==='ru'?`${locName(loc,l)}: SP уже ${cur}`:`${locName(loc,l)}: SP is already ${cur}`);continue}
   changes[loc]={from:cur,to:spec.sp};
  }
- if(!Object.keys(changes).length)return fail(`${name}: менять нечего. ${skipped.join('; ')}.`,`${name}: nothing to change. ${skipped.join('; ')}.`,l);
- const d=ensure(c);d.seq=(int(d.seq,0,1e9)||0)+1;
+ if(!Object.keys(changes).length)return fail(`${name}: менять нечего.${skipped.length?' '+skipped.join('; ')+'.':''}`,`${name}: nothing to change.${skipped.length?' '+skipped.join('; ')+'.':''}`,l);
+ const d=ensure(c);if(Object.values(changes).some(ch=>!ch.again))d.seq=(int(d.seq,0,1e9)||0)+1;
  const row=had||(d.applied[key]={catalogId:inst.catalogId,kind:'sp',seq:d.seq,sp:{}});if(!isObject(row.sp))row.sp={};
- for(const [loc,ch] of Object.entries(changes)){row.sp[loc]={...ch,seq:d.seq};spSet(c,loc,ch.to)}
+ for(const [loc,ch] of Object.entries(changes)){if(!ch.again)row.sp[loc]={...ch,seq:d.seq};spSet(c,loc,ch.to)}
  const text=Object.entries(changes).map(([loc,ch])=>`${locName(loc,l)} SP ${ch.from} → ${ch.to}`).join(', ');
  return {ok:true,dirty:true,notify:`${name}: ${text}`+(skipped.length?`. ${l==='ru'?'Не изменено':'Not changed'}: ${skipped.join('; ')}`:'')};
+}
+// A BODY bonus that was typed into BODY by hand before this card existed: the sheet stays as it is, and the
+// implant is written down as applied with the base worked out backwards, so it is not added a second time.
+function adoptBase(c,key){
+ const inst=sheetInstances(c).find(v=>v.key===key),spec=inst&&SHEET[inst.catalogId];if(!spec?.add||appliedEntry(c,key)||foreign(c))return null;
+ const cur=int(c?.stats?.BODY,0,20);if(cur===null)return null;
+ const prior=bodyRecord(c),base=(prior?prior.base:cur)-spec.add;
+ return base>=1&&bodyFrom(base,[...appliedBodyIds(c),inst.catalogId]).value===cur?{base,cur,catalogId:inst.catalogId}:null;
+}
+function adopt(c,key,lang){
+ const l=lang==='en'?'en':'ru';
+ if(!isObject(c)||!isObject(c.stats)||foreign(c))return fail('Запись об имплантах в неизвестном формате; лист не изменён.','The implant record is in an unknown format; the sheet was not changed.',l);
+ const inst=sheetInstances(c).find(v=>v.key===key);if(!inst)return fail('Этот имплант не установлен.','That implant is not installed.',l);
+ if(appliedEntry(c,key))return fail('Уже учтено на листе.','Already applied to the sheet.',l);
+ const a=adoptBase(c,key),name=itemName(inst.catalogId,l);
+ if(!a)return fail(`${name}: BODY на листе не мог получиться с этим имплантом. Поправьте BODY вручную.`,`${name}: the BODY on the sheet could not have come from this implant. Correct BODY by hand.`,l);
+ const d=ensure(c);d.seq=(int(d.seq,0,1e9)||0)+1;
+ d.applied[key]={catalogId:a.catalogId,kind:'body',seq:d.seq,body:[a.cur,a.cur],adopted:true};d.body={base:a.base,set:a.cur};
+ return {ok:true,dirty:true,notify:l==='ru'?`${name}: отмечено, что BODY ${a.cur} уже включает имплант (без него ${a.base}). Лист не изменён.`:`${name}: noted that BODY ${a.cur} already includes the implant (${a.base} without it). The sheet was not changed.`};
 }
 function undo(c,key,lang){
  const l=lang==='en'?'en':'ru';
@@ -217,7 +248,8 @@ function describe(id,l){
 function recordLines(c,key,l){
  const row=appliedEntry(c,key),ru=l==='ru';if(!row)return [];
  if(row.kind==='body'){
-  const out=[];if(Array.isArray(row.body)&&row.body.length===2)out.push(`BODY ${esc(row.body[0])} → ${esc(row.body[1])}`);
+  const out=[];if(row.adopted===true)out.push(ru?'BODY на листе уже включал имплант':'BODY on the sheet already included the implant');
+  else if(Array.isArray(row.body)&&row.body.length===2)out.push(`BODY ${esc(row.body[0])} → ${esc(row.body[1])}`);
   if(Array.isArray(row.hp)&&row.hp.length===2)out.push(`HP ${esc(row.hp[0])} → ${esc(row.hp[1])}`);
   return out;
  }
@@ -232,8 +264,10 @@ function render(c,lang){
  if(foreign(c))return `<section class="card imp-root" id="sheet-implants"><div class="card-heading"><span>${ru?'Импланты, меняющие лист':'Cyberware that changes the sheet'}</span><span>CYBERWARE</span></div><p class="imp-hint">${ru?'Запись об имплантах сохранена в неизвестном формате. Данные не тронуты; меняйте BODY и SP вручную.':'The implant record is saved in an unknown format. The data is untouched; change BODY and SP by hand.'}</p></section>`;
  const row=(key,id,gone)=>{
   const on=!!appliedEntry(c,key),s=SHEET[id],lines=recordLines(c,key,l);
-  const partial=on&&s.kind==='sp'&&LOCS.some(loc=>!isObject(appliedEntry(c,key).sp?.[loc])&&!slotWorn(c,loc)&&spGet(c,loc)!==null&&spGet(c,loc)<s.sp);
-  return `<div class="imp-row${on?' is-on':''}" data-imp-row="${esc(key)}"><div class="imp-main"><strong>${esc(itemName(id,l))}</strong><span class="imp-state">${on?(ru?'Учтено на листе':'Applied to the sheet'):(ru?'Не учтено':'Not applied')}</span><small>${esc(describe(id,l))} · ${ru?'стр.':'p.'} ${s.page}${s.needs?' · '+esc(s.needs[ru?0:1]):''}</small>${gone?`<small class="imp-warn">${ru?'Имплант снят, а его изменение ещё на листе — отмените его.':'The implant was removed but its change is still on the sheet — undo it.'}</small>`:''}${lines.length?`<ul class="imp-record" aria-label="${ru?'Что изменено':'What was changed'}">${lines.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div><div class="imp-actions">${on?btn('undo',key,ru?'Отменить':'Undo','ghost',` aria-label="${esc((ru?'Отменить: ':'Undo: ')+itemName(id,l))}"`):''}${!gone&&(!on||partial)?btn('apply',key,on?(ru?'Дописать SP':'Add the SP'):(ru?'Применить':'Apply'),'primary',` aria-label="${esc((ru?'Применить к листу: ':'Apply to the sheet: ')+itemName(id,l))}"`):''}</div></div>`;
+  const missing=on&&s.kind==='sp'&&LOCS.some(loc=>!isObject(appliedEntry(c,key).sp?.[loc])&&!slotWorn(c,loc)&&spGet(c,loc)!==null&&spGet(c,loc)<s.sp);
+  const lost=on&&s.kind==='sp'?LOCS.filter(loc=>spLost(c,appliedEntry(c,key),loc)):[],partial=missing||lost.length>0;
+  const canAdopt=!on&&!gone&&!!adoptBase(c,key);
+  return `<div class="imp-row${on?' is-on':''}" data-imp-row="${esc(key)}"><div class="imp-main"><strong>${esc(itemName(id,l))}</strong><span class="imp-state">${on?(ru?'Учтено на листе':'Applied to the sheet'):(ru?'Не учтено':'Not applied')}</span><small>${esc(describe(id,l))} · ${ru?'стр.':'p.'} ${s.page}${s.needs?' · '+esc(s.needs[ru?0:1]):''}</small>${gone?`<small class="imp-warn">${ru?'Имплант снят, а его изменение ещё на листе — отмените его.':'The implant was removed but its change is still on the sheet — undo it.'}</small>`:''}${lost.length?`<small class="imp-warn">${esc(ru?`SP импланта пропал с листа (${lost.map(x=>locName(x,l)).join(', ')}: сейчас 0) — верните его.`:`The implant’s SP is gone from the sheet (${lost.map(x=>locName(x,l)).join(', ')}: 0 now) — put it back.`)}</small>`:''}${canAdopt?`<small class="imp-note">${ru?'Уже подняли BODY вручную? Нажмите «Уже в BODY», и бонус не прибавится второй раз.':'Already raised BODY by hand? Press “Already in BODY” and the bonus will not be added twice.'}</small>`:''}${lines.length?`<ul class="imp-record" aria-label="${ru?'Что изменено':'What was changed'}">${lines.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div><div class="imp-actions">${on?btn('undo',key,ru?'Отменить':'Undo','ghost',` aria-label="${esc((ru?'Отменить: ':'Undo: ')+itemName(id,l))}"`):''}${!gone&&(!on||partial)?btn('apply',key,on?(missing?(ru?'Дописать SP':'Add the SP'):(ru?'Вернуть SP':'Restore the SP')):(ru?'Применить':'Apply'),'primary',` aria-label="${esc((ru?'Применить к листу: ':'Apply to the sheet: ')+itemName(id,l))}"`):''}${canAdopt?btn('adopt',key,ru?'Уже в BODY':'Already in BODY','ghost',` aria-label="${esc((ru?'BODY на листе уже включает имплант: ':'BODY on the sheet already includes: ')+itemName(id,l))}"`):''}</div></div>`;
  };
  const rec=bodyRecord(c);
  const trail=rec?`<p class="imp-trail" data-imp-trail><b>BODY ${rec.base}</b> ${ru?'(без имплантов)':'(without implants)'}${rec.trail.map(t=>` → ${esc(itemName(t.catalogId,l))}: <b>${t.to}</b>`).join('')}${rec.current!==rec.value?` · ${ru?`на листе сейчас ${rec.current}`:`the sheet says ${rec.current}`}`:''}</p>`:'';
@@ -255,14 +289,19 @@ function renderActive(c,lang){
  }).join('');
  return `<section class="card imp-root imp-active" id="sheet-implants-active"><div class="card-heading"><span>${ru?'Включаемые импланты':'Switched-on cyberware'}</span><span>CYBERWARE</span></div>${rows}</section>`;
 }
+// BODY or SP was typed into the sheet: draw the card again so the BODY chain and the buttons match the sheet.
+function refresh(c,lang){
+ const doc=globalThis.document,el=doc?.getElementById?.('sheet-implants');if(!el||(doc.activeElement&&el.contains?.(doc.activeElement)))return false;
+ const html=render(c,lang);if(!html)return false;el.outerHTML=html;return true;
+}
 // One click from the sheet. `ds` is the button's dataset. Returns {dirty, notify}.
 function act(c,ds,lang){
  const op=ds?.impOp,key=typeof ds?.impKey==='string'?ds.impKey:'';let r;
- if(op==='apply')r=apply(c,key,lang);else if(op==='undo')r=undo(c,key,lang);
+ if(op==='apply')r=apply(c,key,lang);else if(op==='undo')r=undo(c,key,lang);else if(op==='adopt')r=adopt(c,key,lang);
  else if(['on','tick','off','cool','ready'].includes(op))r=timed(c,key,op,ds.impN,lang);else return {ok:false};
  // The sheet is drawn again after a change: put the keyboard focus back on the same row.
  if(r.dirty){focusKey=key;try{globalThis.setTimeout?.(()=>{const k=focusKey;focusKey='';const doc=globalThis.document;if(!doc?.querySelectorAll||(doc.activeElement&&doc.activeElement!==doc.body))return;for(const el of doc.querySelectorAll('[data-action="implant"]')){if(el.dataset.impKey===k){el.focus({preventScroll:true});break}}},0)}catch{}}
  return r;
 }
-window.Implants={SHEET,TIMED,instances:sheetInstances,timedInstalled,timedState,isActive,bodyFrom,bodyRecord,apply,undo,timed,contribute,render,renderActive,act};
+window.Implants={SHEET,TIMED,instances:sheetInstances,timedInstalled,timedState,isActive,bodyFrom,bodyRecord,spAt,afterUnequip,apply,adopt,undo,timed,refresh,contribute,render,renderActive,act};
 })();

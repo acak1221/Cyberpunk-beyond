@@ -152,7 +152,7 @@ test('select in the list, tap a square to place, tap again to move; movement is 
  assert.equal(s.cell(5,3).dirty,true);assert.deepEqual(plain(c.map.tokens),[{id:'p1',x:5,y:3}]);
  assert.match(s.root.innerHTML,/Нокс: перемещение на 8 м \(4 кл\.\)/);assert.match(s.root.innerHTML,/Пройдено за этот ход: 8 м из 12 м\./);
  assert.match(s.root.innerHTML,/class="bm-cell bm-reach" data-bm-cell="7,3"/);assert.match(s.root.innerHTML,/class="bm-cell bm-run" data-bm-cell="8,3"/,'2 squares of the Move Action are left');
- s.cell(9,3);assert.match(s.root.innerHTML,/class="bm-cell" data-bm-cell="2,3"/,'nothing of the Move Action is left, the Run Action reaches 6 squares');assert.match(s.root.innerHTML,/class="bm-cell bm-run" data-bm-cell="3,3"/);assert.match(s.root.innerHTML,/class="bm-warn">Пройдено за этот ход: 16 м из 12 м\. Больше одного действия перемещения/);
+ s.cell(9,3);assert.match(s.root.innerHTML,/class="bm-cell" data-bm-cell="4,3"/,'8 of 12 squares are spent, the Run Action reaches the 4 that are left');assert.match(s.root.innerHTML,/class="bm-cell bm-run" data-bm-cell="5,3"/);assert.match(s.root.innerHTML,/class="bm-cell bm-run" data-bm-cell="13,3"/);assert.doesNotMatch(s.root.innerHTML,/bm-reach" data-bm-cell/);assert.match(s.root.innerHTML,/class="bm-warn">Пройдено за этот ход: 16 м из 12 м\. Больше одного действия перемещения/);
  s.cell(13,9);assert.match(s.root.innerHTML,/Больше, чем позволяет перемещение вместе с «Бегом»/);
  assert.equal(s.act('undo').dirty,true);assert.deepEqual(plain(c.map.tokens),[{id:'p1',x:9,y:3}]);assert.equal(s.view().spent.p1,8);
  assert.match(s.root.innerHTML,/data-bm-act="undo" disabled/);
@@ -263,6 +263,32 @@ test('a received map is cleaned before it is drawn',()=>{
  assert.equal(B.sharedHTML({order,map:null},'ru'),'');assert.equal(B.sharedHTML(null,'ru'),'');assert.equal(B.sharedHTML({order:[],map:{w:1,h:1}},'en'),'');
 });
 
+test('the highlight never promises more than Move plus Run still allows',()=>{
+ // MOVE 4 from the template: 8 squares in a turn with the Run Action.
+ const c=camp(mapOf([{id:'n1',x:0,y:5}])),s=scene(c),marked=cls=>(s.root.innerHTML.match(new RegExp('class="bm-cell '+cls+'" data-bm-cell="[^"]+"','g'))||[]).map(m=>m.match(/data-bm-cell="([^"]+)"/)[1]);
+ s.cell(0,5);s.cell(2,5);s.cell(5,5);
+ assert.match(s.root.innerHTML,/Пройдено за этот ход: 10 м из 8 м\./);
+ assert.deepEqual(marked('bm-reach'),[]);
+ const run=marked('bm-run');assert.ok(run.includes('8,5')&&run.includes('2,5'),'3 squares are left');
+ assert.ok(run.every(k=>{const [x,y]=k.split(',').map(Number);return Math.max(Math.abs(x-5),Math.abs(y-5))<=3}),'nothing 4 squares away is marked: '+run.join(' '));
+ assert.equal(run.length,48);
+ s.cell(8,5);assert.match(s.root.innerHTML,/Пройдено за этот ход: 16 м из 8 м\./);assert.deepEqual(marked('bm-run'),[],'Move plus Run is used up');
+ s.cell(10,5);assert.match(s.root.innerHTML,/Больше, чем позволяет перемещение вместе с «Бегом»/);assert.deepEqual(marked('bm-run'),[]);assert.deepEqual(marked('bm-reach'),[]);
+});
+
+test('archive merge: an added campaign keeps its tokens under the new roster ids',()=>{
+ const app=read('app.js'),line=app.split('\n').find(l=>l.includes('const added=plan.campaigns.filter('));
+ assert.ok(line,'the merge still copies added campaigns in one statement');
+ const src=camp(mapOf([{id:'p1',x:0,y:0,m:5},{id:'n1',x:3,y:3},{id:'n2',x:4,y:4},{id:'n3',x:6,y:1}],[[5,2]]));
+ let n=0;
+ const added=vm.runInNewContext('(()=>{'+line+';return added})()',{window:W,plan:{campaigns:[{kind:'new',index:0}]},x:{campaigns:[src]},ids:new Map([['c1','local1']]),state:{characters:[{id:'local1'}]},safeId:()=>'uuid'+(++n),pruneRoster:(c,drop)=>{c.roster=c.roster.filter(r=>!drop(r))}});
+ assert.equal(added.length,1);const copy=added[0];
+ assert.deepEqual(plain(copy.roster.map(r=>r.id)),['uuid2','uuid3','uuid4','uuid5']);
+ assert.deepEqual(plain(B.read(copy)),{v:1,w:14,h:10,tokens:[{id:'uuid2',x:0,y:0,m:5},{id:'uuid3',x:3,y:3},{id:'uuid4',x:4,y:4},{id:'uuid5',x:6,y:1}],cover:[[5,2]]});
+ assert.deepEqual(plain(copy.map.tokens.map(t=>t.id)),['uuid2','uuid3','uuid4','uuid5'],'no orphaned ids stay in storage');
+ assert.deepEqual(plain(src.map.tokens.map(t=>t.id)),['p1','n1','n2','n3'],'the backup object is not rewritten');
+});
+
 test('import: the tokens follow the new roster ids',()=>{
  const old=camp(mapOf([{id:'p1',x:0,y:0,m:5},{id:'n1',x:3,y:3},{id:'gone',x:5,y:5}],[[1,1]]));
  const copy={...old,roster:old.roster.map((r,i)=>({...r,id:'new'+i}))};
@@ -280,6 +306,7 @@ test('the map is wired into the tracker, the import, the room and the page with 
  assert.ok(campaigns.includes("${window.BattleMap?.render?.(c,characters,lang)||''}"));
  assert.ok(campaigns.includes("if(c&&window.BattleMap?.owns?.(e)){if(!current())return stale();const r=window.BattleMap.handle(e,c,ctx);if(r.dirty)ctx.save();return true}"));
  assert.ok(app.includes("window.BattleMap?.rekey?.(copy,k.roster);pruneRoster("));
+ assert.ok(app.includes("window.BattleMap?.rekey?.(copy,src.roster);pruneRoster(copy,q=>"),'the archive merge rekeys the map as well');
  assert.ok(room.includes("...(global.BattleMap?.sharedPart?.(camp,shown.map(x=>x.r))||{})"));
  assert.ok(room.includes("map:global.BattleMap?.cleanShared?.(d.map,Math.min(d.order.length,40))||null"));
  assert.ok(room.includes("${global.BattleMap?.sharedHTML?.(combat,lang())||''}"));

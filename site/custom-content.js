@@ -42,7 +42,7 @@ const T={
   import:'Открыть файл набора',preview:'ПРЕДПРОСМОТР НАБОРА',untitled:'Набор без названия',
   plan:(a,u,s)=>`Новых: ${a} · заменит ваши: ${u} · без изменений: ${s}`,rejected:n=>`Не прочитано и будет пропущено: ${n}`,overflow:n=>`Не поместится (предел записей): ${n}`,
   tagNew:'новое',tagUpdate:'заменит',tagSame:'уже есть',more:n=>`…и ещё ${n}`,apply:'Добавить в свои материалы',nothing:'В наборе нет ничего нового.',
-  imported:(a,u)=>`Набор загружен. Добавлено: ${a}, обновлено: ${u}.`,fromBackup:n=>`Свои материалы из копии: ${n}.`,
+  imported:(a,u)=>`Набор загружен. Добавлено: ${a}, обновлено: ${u}.`,fromBackup:(n,kept)=>`Свои материалы из копии: ${n}.`+(kept?` Не изменено: ${kept} — у вас уже есть свои версии этих записей.`:''),
   bad:{size:'Файл слишком большой для набора (больше 1 МБ).',json:'Это не файл набора: его не удалось прочитать.',format:'Это не файл набора «Своих материалов».',newer:'Набор сделан в более новой версии приложения. Обновите страницу и попробуйте снова.',empty:'В наборе нет ни одной читаемой записи.'},
   unreadable:'Сохранённые свои материалы не удалось прочитать. Исходная копия отложена в этом браузере.',unreadableGet:'Скачать исходную копию',unreadableDrop:'Удалить копию',
   mark:'Своё',
@@ -73,7 +73,7 @@ const T={
   import:'Open a pack file',preview:'PACK PREVIEW',untitled:'Untitled pack',
   plan:(a,u,s)=>`New: ${a} · replaces yours: ${u} · unchanged: ${s}`,rejected:n=>`Unreadable, will be skipped: ${n}`,overflow:n=>`Will not fit (entry limit): ${n}`,
   tagNew:'new',tagUpdate:'replaces',tagSame:'already here',more:n=>`…and ${n} more`,apply:'Add to my content',nothing:'The pack holds nothing new.',
-  imported:(a,u)=>`Pack loaded. Added: ${a}, updated: ${u}.`,fromBackup:n=>`Custom content from the backup: ${n}.`,
+  imported:(a,u)=>`Pack loaded. Added: ${a}, updated: ${u}.`,fromBackup:(n,kept)=>`Custom content from the backup: ${n}.`+(kept?` Left as they are: ${kept} — you already have your own versions of these entries.`:''),
   bad:{size:'The file is too large for a pack (over 1 MB).',json:'This is not a pack file: it could not be read.',format:'This is not a “My content” pack file.',newer:'The pack was made by a newer version of the app. Reload the page and try again.',empty:'The pack has no readable entries.'},
   unreadable:'The saved custom content could not be read. The original copy was set aside in this browser.',unreadableGet:'Download the original copy',unreadableDrop:'Delete the copy',
   mark:'Custom',
@@ -200,11 +200,11 @@ function planImport(current,pack){
  }
  return plan;
 }
-function applyImport(current,pack){
+function applyImport(current,pack,addOnly){
  const plan=planImport(current,pack),next={items:current.items.slice(),npcs:current.npcs.slice()};
  for(const key of ['items','npcs'])for(const {entry,status} of plan[key]){
   if(status==='new')next[key].push(entry);
-  else if(status==='update')next[key]=next[key].map(x=>x.id===entry.id?entry:x);
+  else if(status==='update'&&!addOnly)next[key]=next[key].map(x=>x.id===entry.id?entry:x);
  }
  return {data:next,added:plan.added,updated:plan.updated,same:plan.same,overflow:plan.overflow};
 }
@@ -251,14 +251,18 @@ const getData=()=>JSON.parse(JSON.stringify(data));
 const npcEntries=()=>data.npcs.map(toNpcEntry);
 // The backup file carries the collection next to the main archive; a backup without it changes nothing here.
 function backupPart(){return data.items.length||data.npcs.length?{customContent:{format:FORMAT,version:VERSION,items:getData().items,npcs:getData().npcs}}:{}}
-function restoreFromBackup(file,quiet){
- const src=plainObject(file)&&plainObject(file.customContent)?file.customContent:null;if(!src)return {ok:false,changed:0};
- const pack=readPack(src);if(!pack.ok)return {ok:false,changed:0};
- const r=applyImport(data,pack),changed=r.added+r.updated;
- if(!changed)return {ok:true,changed:0};
- if(!persist(r.data))return {ok:false,changed:0};
- if(!quiet)notify(T[L(appLang())].fromBackup(changed));
- return {ok:true,changed};
+const backupPack=file=>{const src=plainObject(file)&&plainObject(file.customContent)?file.customContent:null,pack=src?readPack(src):null;return pack&&pack.ok?pack:null};
+// What adding a backup would do here, for a preview: `kept` are entries stored here under the same id with other content.
+function backupPlan(file){const pack=backupPack(file);if(!pack)return null;const p=planImport(data,pack);return {added:p.added,kept:p.updated,same:p.same,overflow:p.overflow}}
+// A backup only adds: an entry edited here is never replaced by the file's version, like the sheets of the main archive.
+// `overwrite` is for "replace everything with the archive", where the user has agreed to take the file's versions.
+function restoreFromBackup(file,opts){
+ const o=opts===true?{quiet:true}:plainObject(opts)?opts:{},overwrite=o.overwrite===true;
+ const pack=backupPack(file);if(!pack)return {ok:false,changed:0,kept:0};
+ const r=applyImport(data,pack,!overwrite),changed=r.added+(overwrite?r.updated:0),kept=overwrite?0:r.updated;
+ if(changed&&!persist(r.data))return {ok:false,changed:0,kept:0};
+ if(!o.quiet&&(changed||kept))notify(T[L(appLang())].fromBackup(changed,kept));
+ return {ok:true,changed,kept};
 }
 
 // ---------- UI ----------
@@ -444,5 +448,5 @@ global.addEventListener?.('storage',e=>{if(e&&e.key===KEY){load();syncCatalog(gl
 global.CustomContent={KEY,FORMAT,PACK_FORMAT,VERSION,MAX_ITEMS,MAX_NPCS,MAX_FILE_CHARS,CATEGORIES,WEAPON_SKILLS,
  checkItem,cleanItem,checkNpc,cleanNpc,cleanData,toCatalogItem,toNpcEntry,syncCatalog,statLine,humanityAtCreation,hpFromStats,parseSkills,parseAttacks,
  buildPack,readPack,parsePack,planImport,applyImport,saveItem,saveNpc,remove,
- load,getData,npcEntries,backupPart,restoreFromBackup,render,handle,openPack,reset};
+ load,getData,npcEntries,backupPart,backupPlan,restoreFromBackup,render,handle,openPack,reset};
 })(typeof window!=='undefined'?window:globalThis);

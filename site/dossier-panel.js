@@ -71,6 +71,15 @@ function statBase(c,stat){
  }
  return {sheet,value:sheet};
 }
+// The sheet refuses a REF or DEX roll while armor automation is on but the armor record does not add up (armorForRoll in app.js).
+function armorBlocked(c,stat){
+ if(stat!=='REF'&&stat!=='DEX')return false;
+ const f=global.EquipmentTools?.armorRollAdjustment;
+ if(typeof f!=='function')return c?.extra?.armorRollAutomation!==undefined;
+ try{return !f(c,stat)?.ok}catch{return true}
+}
+// A Stim set up for the next Skill or attack roll: that roll leaves the wound penalty out.
+function stimPrimed(c){try{return global.StimRoll?.primed?.(c)===true}catch{return false}}
 const SOURCE={injury:['критическая травма','Critical Injury'],cyber:['киберимплант','cyberware'],drug:['уличный наркотик','street drug']};
 // One row per thing acting on the character that changes this very check; the situational reminders go to `notes`.
 function effectRows(c,q,l){
@@ -99,12 +108,14 @@ function checkParts(c,q,l){
   if(base.armor)parts.push({label:ru?'Броня':'Armor',source:ru?'штраф надетой брони':'penalty of the armor worn',value:base.armor});
  }
  parts.push({label:q.levelLabel,source:q.levelSource,value:q.level});
- const w=wound(c);
- if(w.value)parts.push({label:w.id==='mortal'?(ru?'Смертельное ранение':'Mortally Wounded'):(ru?'Тяжёлое ранение':'Seriously Wounded'),source:ru?'состояние ранения':'wound state',value:w.value});
+ const w=wound(c),stim=!!w.value&&stimPrimed(c);
+ if(w.value&&!stim)parts.push({label:w.id==='mortal'?(ru?'Смертельное ранение':'Mortally Wounded'):(ru?'Тяжёлое ранение':'Seriously Wounded'),source:ru?'состояние ранения':'wound state',value:w.value});
  const fx=effectRows(c,{check:true,kind:q.kind,skill:q.skill,stat:q.stat},l);
  parts.push(...fx.rows);
  if(w.ignored)fx.notes.unshift(ru?'Тяжёлое ранение: штраф −2 сейчас не действует':'Seriously Wounded: the −2 penalty is not in force now');
- return {parts,notes:fx.notes,next:nextParts(c,l)};
+ if(stim)fx.notes.unshift(ru?`Stim учтён в этом броске: штраф ранения ${signed(w.value)} не действует`:`Stim is counted in this roll: the wound penalty ${signed(w.value)} is not in force`);
+ // `lifted` is what the roll adds back to the sheet's own number, which always has the wound penalty in it.
+ return {parts,notes:fx.notes,next:nextParts(c,l),lifted:stim?-w.value:0};
 }
 // What is set for the next roll only: the check modifier and the LUCK to spend.
 function nextParts(c,l){
@@ -122,6 +133,7 @@ function reconcile(parts,real,l){
  if(diff)parts.push({label:l==='en'?'Other':'Прочее',source:l==='en'?'other rules of the sheet':'другие правила листа',value:diff});
  return real;
 }
+function soloPrecision(c){try{const s=global.RoleTools?.soloRollBonuses?.(c);return s?.ok&&s.enabled?num(s.precision):0}catch{return 0}}
 function soloThreat(c){try{const s=global.RoleTools?.soloRollBonuses?.(c);return s?.ok&&s.enabled?num(s.threat):0}catch{return 0}}
 function skillSummary(skill,l){
  const row=(Array.isArray(global.SkillReference?.SKILLS)?global.SkillReference.SKILLS:[]).find(r=>r?.[0]===skill);
@@ -140,7 +152,7 @@ function skillBreakdown(c,o,l){
  const threat=skill==='Perception'?soloThreat(c):0;
  if(threat)parts.push({label:ru?'Обнаружение угроз':'Threat Detection',source:ru?'способность Соло':'Solo ability',value:threat});
  parts.push(...made.next);
- let real=NaN;try{const f=global.App?.checkBonus;if(typeof f==='function')real=Number(f(c,stat,c.skills?.[skill],'',skill))+threat}catch{}
+ let real=NaN;try{const f=global.App?.checkBonus;if(typeof f==='function')real=Number(f(c,stat,c.skills?.[skill],'',skill))+threat+made.lifted}catch{}
  const total=reconcile(parts,real,l);
  return {kind:'skill',key:skill,eyebrow:`${ru?'Навык':'Skill'} · ${stat}`,title:name,total:signed(total),value:total,formula:`1d10 + ${stat} + ${name}`,summary:skillSummary(skill,l),parts,notes:made.notes,facts:[],
   pages:ru?'Проверка навыка: Корбук, с. 128–130. Список навыков: с. 130–142. Штрафы ранений: с. 186–187.':'Skill Check: Corebook pp. 128–130. Skill list: pp. 130–142. Wound penalties: pp. 186–187.',
@@ -166,8 +178,11 @@ function weaponBreakdown(c,o,l){
  const made=checkParts(c,{stat,level,levelLabel:skillName,levelSource:spec?(ru?'уровень специализации':'specialization level'):(ru?'уровень навыка атаки':'attack Skill level'),kind,skill:spec?'':skill},l),parts=[...made.parts];
  const own=clamp(num(w.modifier),-100,100);
  if(own)parts.push({label:ru?'Модификатор оружия':'Weapon modifier',source:ru?'записан в карточке оружия':'written on the weapon entry',value:own});
+ // The attack roll adds the Solo's Precision Attack on top of the sheet's attack number (the attack handler in app.js).
+ const precision=soloPrecision(c);
+ if(precision)parts.push({label:ru?'Точность атаки':'Precision Attack',source:ru?'способность Соло':'Solo ability',value:precision});
  parts.push(...made.next);
- let real=NaN;try{const f=global.CharacterExtra?.attackBonus;if(typeof f==='function'){const v=f(c,index);if(v!==null&&v!==undefined)real=Number(v)}}catch{}
+ let real=NaN;try{const f=global.CharacterExtra?.attackBonus;if(typeof f==='function'){const v=f(c,index);if(v!==null&&v!==undefined)real=Number(v)+precision+made.lifted}}catch{}
  const total=reconcile(parts,real,l),name=String(o?.title||(typeof w.name==='string'?w.name:'')||(ru?'Оружие':'Weapon')).trim();
  const facts=[];
  if(w.damage)facts.push([ru?'Урон':'Damage',String(w.damage)]);
@@ -187,23 +202,30 @@ function statBreakdown(c,o,l){
  let value=base.value;
  if(stat==='EMP'&&base.value!==base.sheet)parts.push({label:ru?'Человечность':'Humanity',source:ru?`сейчас ${base.humanity}: EMP = десятки Человечности`:`now ${base.humanity}: EMP is its tens digit`,value:base.value-base.sheet});
  if(base.armor)parts.push({label:ru?'Броня':'Armor',source:ru?'штраф надетой брони':'penalty of the armor worn',value:base.armor});
- const fx=effectRows(c,stat==='MOVE'?{move:true,stat}:{stat},l);
+ // A STAT check takes the wound penalty and the «all Actions» penalties of Critical Injuries, same as App.check adds them.
+ const rollable=stat!=='LUCK'&&stat!=='MOVE',w=wound(c);
+ if(rollable&&w.value)parts.push({label:w.id==='mortal'?(ru?'Смертельное ранение':'Mortally Wounded'):(ru?'Тяжёлое ранение':'Seriously Wounded'),source:ru?'состояние ранения':'wound state',value:w.value});
+ const fx=effectRows(c,stat==='MOVE'?{move:true,stat}:{stat,check:rollable},l);
  parts.push(...fx.rows);value+=sum(fx.rows);
  if(stat==='MOVE')value=Math.max(base.sheet>0?1:0,value);
+ // `added` is what App.check puts on top of the number it is given; the button hands over the rest.
+ let added=0;
+ if(rollable){value+=w.value;added=w.value;try{added+=num(global.Effects?.checkModifier?.(c))}catch{}}
+ const blocked=rollable&&armorBlocked(c,stat);
  if(stat==='LUCK'){const x=isObject(c.extra)?c.extra:{},pool=x.luck===undefined||x.luck===''?base.sheet:Math.max(0,num(x.luck));facts.push([ru?'Осталось в запасе':'Left in the pool',`${pool} / ${base.sheet}`]);notes.push(ru?'LUCK не прибавляется сам: очки тратятся перед броском и возвращаются в начале следующей игровой встречи.':'LUCK is not added by itself: points are spent before a roll and come back at the start of the next session.')}
  if(stat==='BODY'||stat==='WILL')facts.push([ru?'Максимум HP':'Maximum HP',`${hpMax(c)} = 10 + 5 × ⌈(BODY + WILL) / 2⌉`]);
  if(stat==='BODY'){const penalty=Math.max(0,num(c.extra?.deathPenalty));facts.push([ru?'Спасбросок от смерти':'Death Save',ru?`1d10${penalty?' + '+penalty:''} должно быть ниже ${base.sheet}`:`1d10${penalty?' + '+penalty:''} must be under ${base.sheet}`])}
  if(stat==='EMP')facts.push([ru?'Человечность':'Humanity',String(num(c.humanity))]);
- const w=wound(c);
- if(w.value&&stat!=='LUCK'&&stat!=='MOVE')notes.push(ru?`${w.id==='mortal'?'Смертельное':'Тяжёлое'} ранение: ещё ${signed(w.value)} ко всем проверкам.`:`${w.id==='mortal'?'Mortally':'Seriously'} Wounded: another ${signed(w.value)} to every check.`);
+ if(rollable&&w.ignored)notes.push(ru?'Тяжёлое ранение: штраф −2 сейчас не действует':'Seriously Wounded: the −2 penalty is not in force now');
+ if(blocked)notes.push(ru?'Бросок отключён: проверьте экипированную броню и настройку автоматизации.':'The roll is switched off: check equipped armor and the automation setting.');
  // The Skills that use this STAT and are trained, strongest first.
  const linked=(Array.isArray(global.SkillReference?.SKILLS)?global.SkillReference.SKILLS:[]).filter(r=>r?.[2]===stat&&num(c.skills?.[r[0]])>0).map(r=>[skillLabel(r[0],ru?'ru':'en'),num(c.skills[r[0]])]).sort((a,b)=>b[1]-a[1]).slice(0,6);
  if(linked.length)facts.push([ru?'Развитые навыки':'Trained Skills',linked.map(([n,v])=>`${n} ${v}`).join(', ')]);
- const rollable=stat!=='LUCK'&&stat!=='MOVE',names=STAT_NAMES[stat];
- if(rollable)notes.push(ru?'Бросок отсюда — проверка без навыка: учитываются ранения и эффекты «ко всем действиям»; модификатор и LUCK следующего броска не тратятся.':'A roll from here is a check without a Skill: wounds and «all Actions» effects count; the modifier and LUCK set for the next roll are not used up.');
+ const names=STAT_NAMES[stat];
+ if(rollable)notes.push(ru?'Бросок отсюда — проверка без навыка: учитываются ранения и эффекты «ко всем действиям» и сложность (DV), выбранная для следующей проверки; модификатор и LUCK следующего броска не тратятся.':'A roll from here is a check without a Skill: wounds, «all Actions» effects and the DV set for the next check count; the modifier and LUCK set for the next roll are not used up.');
  return {kind:'stat',key:stat,eyebrow:ru?'Характеристика':'STAT',title:`${stat} · ${ru?names[0]:names[1]}`,total:String(value),value,formula:ru?'сейчас в проверках':'in checks right now',summary:'',parts,notes:[...notes,...fx.notes],facts,
   pages:ru?'Характеристики: Корбук, с. 72–73. Проверки: с. 128–130. Штрафы ранений: с. 186–187.':'STATs: Corebook pp. 72–73. Checks: pp. 128–130. Wound penalties: pp. 186–187.',
-  rolls:rollable?[{label:`${ru?'Бросить':'Roll'} 1d10 ${signed(value)}`,check:{base:value,label:ru?`Проверка ${stat}`:`${stat} check`},primary:true}]:[]};
+  rolls:rollable?[{label:`${ru?'Бросить':'Roll'} 1d10 ${signed(value)}`,check:{base:value-added,label:ru?`Проверка ${stat}`:`${stat} check`},disabled:blocked,primary:true}]:[]};
 }
 
 // ---------- markup ----------
@@ -331,7 +353,13 @@ function roll(button){
  const o=opened,selector=button.dataset.dossierRoll,base=button.dataset.dossierCheck,label=button.dataset.dossierLabel;
  close();
  if(selector){const target=doc.querySelector('.sheet-layout '+selector);if(target&&!target.disabled)target.click()}
- else if(base!==undefined){try{global.App?.check?.(num(base),label||'')}catch{}}
+ else if(base!==undefined){
+  // A STAT check follows the sheet's rolls: the same character and numbers as now, no roll with a broken armor record,
+  // and the DV set for the next check is used (and used up) here.
+  let check={base:num(base),label:label||''};
+  if(o?.kind==='stat'){const c=character(),r=c?statBreakdown(c,{stat:o.key},lang())?.rolls?.[0]:null;check=r&&!r.disabled?r.check:null}
+  if(check){let dv=0;try{dv=num(global.SheetTabs?.takeDV?.())}catch{}try{global.App?.check?.(check.base,check.label,dv>0?{dv}:{})}catch{}}
+ }
  if(o)refocusSoon(o);
 }
 function setFilter(id){

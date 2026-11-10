@@ -354,6 +354,160 @@ test('the Game Master grants and revokes; the co-GM runs initiative and clocks f
  await player.press('co-grant',{fp:co.me.fp});assert.equal(player.R.auth.deputyFp(),'');
 });
 
+/* ---------- Old signed messages sent again, clocks that disagree, old links ---------- */
+
+const raw=(t,sub,payload,retain=false)=>t.R.receive({topic:t.room.topic+'/'+sub,retain,payload}).then(()=>settle(5));
+
+test('a revoked co-GM cannot bring the rights back with the Game Master\'s old status, even when the Game Master clock runs ahead',async()=>{
+ const gm=await loadRoom().R.newIdentity(),s=await tab({pin:gm.fp}),R=s.R,bob=await R.newIdentity(),AHEAD=5*60000;
+ const grant=await s.bytes(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},{at:Date.now()+AHEAD});
+ await raw(s,'m/'+id(gm),grant);assert.equal(R.auth.deputyFp(),bob.fp);
+ await settle(20);
+ await s.give(gm,'m/'+id(gm),'member',GM,{at:Date.now()+AHEAD});assert.equal(R.auth.deputyFp(),'');
+ await s.give(bob,'c','combat',{...ORDER,round:7});assert.equal(R.state().combat,null);
+ await raw(s,'m/'+id(gm),grant);assert.equal(R.auth.deputyFp(),'','the same message again');
+ // Bob floods the room with messages of his own until the page forgets the ids it has seen, then sends the grant once more
+ for(let i=0;i<2001;i++){R.flood().n=0;await R.receive({topic:s.room.topic+'/e',retain:false,payload:await s.bytes(bob,'e','roll',{total:1},{from:bob.fp+'.'+(i%7).toString(16).padStart(8,'0')})})}
+ await raw(s,'m/'+id(gm),grant);
+ assert.equal(R.auth.deputyFp(),'','an older status of the Game Master is older by the Game Master\'s own clock');
+ R.buckets().clear();await s.give(bob,'c','combat',{...ORDER,round:7});assert.equal(R.state().combat,null);
+ // the Game Master's old initiative cannot be sent again either
+ const first=await s.bytes(gm,'c','combat',{...ORDER,round:3},{at:Date.now()+AHEAD});await raw(s,'c',first);
+ await settle(10);await s.give(gm,'c','combat',{...ORDER,round:4},{at:Date.now()+AHEAD});assert.equal(R.state().combat.round,4);
+ for(let i=0;i<2001;i++){R.flood().n=0;await R.receive({topic:s.room.topic+'/e',retain:false,payload:await s.bytes(bob,'e','roll',{total:1},{from:bob.fp+'.'+(i%7).toString(16).padStart(8,'0')})})}
+ await raw(s,'c',first);assert.equal(R.state().combat.round,4);
+});
+
+test('a page that has just joined takes a co-GM only from a status the Game Master signed just now',async()=>{
+ const gm=await loadRoom().R.newIdentity(),s=await tab({pin:gm.fp}),R=s.R,bob=await R.newIdentity();
+ // the rights were taken back since; Bob put the Game Master's earlier status back on the broker
+ await s.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},{at:Date.now()-11*60000,retain:true});
+ assert.equal(R.members().get(id(gm)).role,'gm');assert.equal(R.auth.deputyFp(),'');
+ await s.give(bob,'c','combat',{...ORDER,round:7});assert.equal(R.state().combat,null);
+ await s.give(gm,'c','combat',{...ORDER,round:1},{at:Date.now()-30000,retain:true});assert.equal(R.state().combat.round,1,'the Game Master\'s own table is shown');
+ // a status from the Game Master that is online names the co-GM as usual, and a stale copy naming somebody else ends the appointment
+ await s.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},{at:Date.now()-20000});assert.equal(R.auth.deputyFp(),bob.fp);
+ const t=await tab({pin:gm.fp}),eve=await t.R.newIdentity();
+ await t.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},{at:Date.now()-900000+1000});assert.equal(t.R.auth.deputyFp(),'');
+ await t.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},{at:Date.now()-60000});assert.equal(t.R.auth.deputyFp(),bob.fp);
+ t.R.auth.noteDeputy(eve.fp,Date.now()-50000,false);assert.equal(t.R.auth.deputyFp(),'','a newer status that is not live takes the rights from Bob and gives them to nobody');
+});
+
+test('with clocks that disagree the Game Master is still heard after a co-GM, and a revoke removes the co-GM table',async()=>{
+ const gm=await loadRoom().R.newIdentity(),s=await tab({pin:gm.fp}),R=s.R,bob=await R.newIdentity(),BEHIND=120000,late=()=>({at:Date.now()-BEHIND});
+ await s.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp},late());
+ await s.give(bob,'c','combat',{...ORDER,round:7});await s.give(bob,'k','clocks',CLOCKS);assert.equal(R.state().combat.round,7);assert.equal(R.state().clocks.length,1);
+ // a change made at the same moment: every page must pick the same one, so the times decide
+ await s.give(gm,'c','combat',{...ORDER,round:1},late());assert.equal(R.state().combat.round,7);
+ // a change that comes well after the co-GM's is a new one, whatever the Game Master's clock says
+ R.auth.age(6000);
+ await s.give(gm,'c','combat',{...ORDER,round:2},late());assert.equal(R.state().combat.round,2);
+ await s.give(gm,'k','cleared',{},late());assert.equal(R.state().clocks.length,0);
+ // …but not a copy a broker kept, and not the co-GM's earlier message sent again
+ const old=await s.bytes(bob,'c','combat',{...ORDER,round:8});await raw(s,'c',old);assert.equal(R.state().combat.round,8);
+ R.auth.age(6000);await s.give(gm,'c','combat',{...ORDER,round:3},{at:Date.now()-BEHIND,retain:true});assert.equal(R.state().combat.round,8);
+ await s.give(gm,'c','combat',{...ORDER,round:4},late());assert.equal(R.state().combat.round,4);
+ R.auth.age(6000);for(let i=0;i<2001;i++){R.flood().n=0;await R.receive({topic:s.room.topic+'/e',retain:false,payload:await s.bytes(bob,'e','roll',{total:1},{from:bob.fp+'.'+(i%7).toString(16).padStart(8,'0')})})}
+ await raw(s,'c',old);assert.equal(R.state().combat.round,4,'the co-GM cannot put an earlier table back');
+ R.buckets().clear();
+ // the symmetric case: the co-GM's clock is the one behind
+ const u=await tab({pin:gm.fp});
+ await u.give(gm,'m/'+id(gm),'member',{...GM,deputy:bob.fp});await u.give(gm,'c','combat',{...ORDER,round:4});
+ await u.give(bob,'c','combat',{...ORDER,round:5},late());assert.equal(u.R.state().combat.round,4);
+ u.R.auth.age(6000);await u.give(bob,'c','combat',{...ORDER,round:6},late());assert.equal(u.R.state().combat.round,6);
+ // revoke right after a co-GM change: the Game Master's table replaces it at once
+ await s.give(bob,'c','combat',{...ORDER,round:9});await s.give(bob,'k','clocks',CLOCKS);assert.equal(R.state().combat.round,9);
+ await s.give(gm,'m/'+id(gm),'member',GM,late());assert.equal(R.auth.deputyFp(),'');
+ await s.give(gm,'c','cleared',{},late());assert.equal(R.state().combat,null);
+ await s.give(gm,'k','cleared',{},late());assert.equal(R.state().clocks.length,0);
+ await s.give(gm,'c','combat',{...ORDER,round:1},late());assert.equal(R.state().combat.round,1);
+});
+
+test('after a handover the earlier invitation link changes nothing; a link to another key starts from a clean slate',async()=>{
+ const a=await loadRoom().R.newIdentity(),s=await tab({pin:a.fp}),A=s.A,R=s.R,b=await R.newIdentity(),c=await R.newIdentity();
+ const asked=[];s.window.confirm=m=>{asked.push(m);return true};
+ const ab=await A.extend(null,a,b.pub,s.room.topic);
+ await s.give(b,'m/'+id(b),'member',{...GM,proof:ab});assert.equal(R.session().gmFp,b.fp);
+ // the player opens the first invitation again: it names the key the handover led away from
+ assert.equal(R.auth.adoptPin(a.fp),false);
+ assert.equal(asked.length,0,'nothing to ask');assert.equal(R.session().gmFp,b.fp);assert.equal(R.session().gmPin,'handover');
+ await s.give(b,'m/'+id(b),'member',{...GM,proof:ab});assert.equal(R.members().get(id(b)).role,'gm');assert.equal(R.members().get(id(b)).impostor,false);
+ // also after the role went further, and after a reload
+ const abc=await A.extend(ab,b,c.pub,s.room.topic);
+ await s.give(c,'m/'+id(c),'member',{...GM,proof:abc});assert.equal(R.session().gmFp,c.fp);
+ assert.deepEqual([...JSON.parse(s.store.get('nightcity-red-room-v1')).gmWas],[a.fp,b.fp]);
+ assert.equal(R.auth.adoptPin(a.fp),false);assert.equal(R.auth.adoptPin(b.fp),false);assert.equal(asked.length,0);assert.equal(R.session().gmFp,c.fp);
+ // a link that names a key this page never followed is still a question, and a yes forgets the old handover time
+ const d=await R.newIdentity(),e=await R.newIdentity();
+ assert.equal(R.auth.adoptPin(d.fp),true);assert.equal(asked.length,1);
+ assert.equal(R.session().gmFp,d.fp);assert.equal(R.session().gmPin,'link');assert.equal(R.session().gmAt,undefined);assert.equal(R.session().gmWas,undefined);
+ // …so a handover the new key signed at any time is accepted (its clock may be behind the old Game Master's)
+ await s.give(e,'m/'+id(e),'member',{...GM,proof:[await A.signHandover(d.privateKey,d.pub,e.pub,s.room.topic,JSON.parse(ab[0].b).at-60000)]});
+ assert.equal(R.session().gmFp,e.fp);
+});
+
+test('a page that joins later learns from the Game Master which handovers are spent',async()=>{
+ const a=await tab({role:'gm',name:'A'}),A=a.A,bobKey=await a.R.newIdentity(),topic=a.room.topic;
+ assert.equal(a.R.auth.memberPayload().since,undefined,'nothing to say in a room that was never handed over');
+ // a handover that was cancelled: the device it was signed for keeps the signed chain
+ await a.give(bobKey,'m/'+id(bobKey),'member',{name:'Боб',role:'player'});
+ await a.press('handover',{fp:bobKey.fp});const kept=a.R.session().handoverTo.chain,keptAt=JSON.parse(kept[0].b).at;
+ await a.press('handover-cancel');
+ assert.equal(a.R.session().handoverTo,undefined);assert.equal(a.R.session().gmVoid,keptAt);assert.equal(a.R.auth.memberPayload().since,keptAt);
+ assert.match(a.notices.join('|'),/Передача отменена/);
+ // the Game Master's own page does not step down for it
+ await a.give(bobKey,'m/'+id(bobKey),'member',{...GM,proof:kept});assert.equal(a.R.session().role,'gm');
+ // a player who was there, and one who joins by the first link afterwards
+ const player=await tab({pin:a.me.fp});a.sent.length=0;a.R.auth.publishMember(true);await relay(a,player);
+ assert.equal(player.R.session().gmAt,keptAt);
+ await player.give(bobKey,'m/'+id(bobKey),'member',{...GM,proof:kept});
+ assert.equal(player.R.session().gmFp,a.me.fp);assert.equal(player.R.members().get(id(bobKey)).impostor,true);
+ // a new handover to the same device is a new signature and works
+ await settle(5);await a.press('handover',{fp:bobKey.fp});
+ await player.give(bobKey,'m/'+id(bobKey),'member',{...GM,proof:a.R.session().handoverTo.chain});assert.equal(player.R.session().gmFp,bobKey.fp);
+ // the role went a → b → a: the earlier a → b is spent for somebody who joins by the first link now
+ const x=await loadRoom().R.newIdentity(),late=await tab({pin:x.fp}),y=await late.R.newIdentity();
+ const xy=await A.extend(null,x,y.pub,topic),xyx=await A.extend(xy,y,x.pub,topic),backAt=JSON.parse(xyx[1].b).at;
+ await late.give(x,'m/'+id(x),'member',{...GM,proof:xyx,since:backAt});assert.equal(late.R.session().gmAt,backAt);
+ await late.give(y,'m/'+id(y),'member',{...GM,proof:xy});
+ assert.equal(late.R.session().gmFp,x.fp);assert.equal(late.R.members().get(id(y)).impostor,true);
+ await late.give(y,'c','combat',{...ORDER,round:9});assert.equal(late.R.state().combat,null);
+ // only the trusted Game Master is believed about it
+ const other=await tab({pin:x.fp});await other.give(y,'m/'+id(y),'member',{name:'Y',role:'player',since:backAt+1});await other.give(y,'m/'+id(y),'member',{...GM,since:backAt+1});
+ assert.equal(other.R.session().gmAt,undefined);
+ // and a device that is the Game Master by a chain says since when
+ const dev=await tab({pin:x.fp}),toDev=await A.extend(null,x,dev.me.pub,topic);
+ await dev.give(x,'e','handover',{to:dev.me.fp,chain:toDev});await until(()=>dev.R.session().role==='gm','takes over');
+ assert.equal(dev.R.auth.memberPayload().since,JSON.parse(toDev[0].b).at);assert.match(dev.notices.join('|'),/приглашайте новой ссылкой/);
+});
+
+test('two devices that both hold a signed handover of the room are told so',async()=>{
+ const gm=await tab({role:'gm',name:'Мастер'});await gm.press('gm-file');const text=gm.downloads[0].text;
+ const open=async()=>{const t=loadRoom();assert.equal(await t.R.auth.openGMFile(text,''),true);await until(()=>t.sent.some(m=>m.sub.startsWith('m/')),'announces itself');return {...t,room:gm.room,me:await t.R.ensureIdentity()}};
+ const first=await open();await settle(5);const second=await open();
+ await relay(first,second);await relay(second,first);await settle(60);
+ for(const [t,other] of [[first,second],[second,first]]){
+  assert.equal(t.R.session().role,'gm');
+  assert.equal(t.notices.filter(n=>n.includes('показывает подписанную передачу')&&n.includes(t.R.keyLabel(other.me.fp))).length,1,'told about the other device');
+ }
+ // said once, not with every heartbeat
+ second.R.auth.publishMember(true);await relay(second,first);await settle(60);
+ assert.equal(first.notices.filter(n=>n.includes('показывает подписанную передачу')).length,1);
+ // the room was handed over live after the file was saved: the device that opens the file later is told as well
+ const gm2=await tab({role:'gm'}),q=await gm2.R.newIdentity();await gm2.press('gm-file');
+ await settle(5);const live=await gm2.A.extend(null,gm2.me,q.pub,gm2.room.topic);
+ const dev=loadRoom();assert.equal(await dev.R.auth.openGMFile(gm2.downloads[0].text,''),true);await until(()=>dev.sent.some(m=>m.sub.startsWith('m/')),'announces itself');
+ const d={...dev,room:gm2.room},from=id(q);
+ await dev.R.receive({topic:gm2.room.topic+'/m/'+from,retain:false,payload:await dev.R.signedEnvelope(q,from,gm2.room.topic,gm2.room.key,'m/'+from,'member',{...GM,proof:live},Date.now(),'rv1')});await settle(60);
+ assert.equal(d.notices.filter(n=>n.includes('показывает подписанную передачу')).length,1);
+ // a stranger with a chain of their own is just an impostor, and the help text of the file says it stays valid
+ const eve=await dev.R.newIdentity(),own=await gm2.A.extend(null,eve,eve.pub,gm2.room.topic),ef=id(eve);
+ await dev.R.receive({topic:gm2.room.topic+'/m/'+ef,retain:false,payload:await dev.R.signedEnvelope(eve,ef,gm2.room.topic,gm2.room.key,'m/'+ef,'member',{...GM,proof:own},Date.now(),'rv2')});await settle(60);
+ assert.equal(d.notices.filter(n=>n.includes('показывает подписанную передачу')).length,1);
+ assert.match(gm.R.roomView(),/Файл не одноразовый/);assert.match(gm.A.t('fileHelp','en'),/not single-use/);
+ for(const t of [first,second,dev])t.window.Room._test.setTransport(null);
+});
+
 test('texts exist in Russian and English, and old saved sessions still load',async()=>{
  const en=await tab({role:'gm',lang:'en'}),bob=await en.R.newIdentity();
  await en.give(bob,'m/'+id(bob),'member',{name:'Bob',role:'player'});
