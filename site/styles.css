@@ -409,6 +409,17 @@ kbd { color: #77716b; font: inherit; }
 
 .campaign-combat-note { grid-column:1 / -1; margin-top:4px; }
 .campaign-combat-note textarea { min-height:58px; resize:vertical; }
+.campaign-combat-note > summary { min-height:32px; padding:6px 0; overflow:hidden; color:var(--muted); font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.campaign-combat-note .note-preview { margin-left:8px; color:var(--text); font-weight:400; }
+.campaign-combat-note[open] .note-preview { display:none; }
+.campaign-combat-note[open] > summary { margin-bottom:4px; }
+/* Turn controls stay in reach while the roster scrolls */
+.campaign-turnbar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px -6px 0; padding:8px 6px; background:var(--panel); }
+.campaign-turnbar .btn { min-height:44px; }
+.campaign-turnbar .btn.primary { flex:1 1 170px; }
+.campaign-turnbar .turn-now { flex:1 1 100%; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.campaign-turnbar + .campaign-controls { margin-top:8px; }
+@media (max-width: 820px) { .campaign-turnbar { top:56px; } }
 /* Tracker rows: named areas keep HP in its own readable column in every look; a PC row adds the HP-reason select on its own line.
    Compact two-line rows by default, one line once the list itself is wide enough (the list is narrow on phones and next to the aside on laptops). */
 .combat-list{container-type:inline-size}
@@ -429,3 +440,16 @@ kbd { color: #77716b; font: inherit; }
 .pwa-toast-close{background:none;border:0;color:inherit;font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
 .pwa-chip{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:999;min-height:36px;padding:6px 14px;color:#fff;background:var(--red,#e6463c);border:0;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.35);font:600 13px var(--body,Inter,system-ui,sans-serif);cursor:pointer}
 @media (max-width:960px){.pwa-chip{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}
+/* Scenario plan (Beat Chart) on the campaign page */
+.beat-build{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:12px 0}.beat-build .field{flex:0 0 120px;margin:0}.beat-build .btn{min-height:44px}
+.beat-status{margin:8px 0;padding:10px 12px;font-size:12px;border-left:3px solid var(--border)}.beat-status.good{border-color:#5fae7b}.beat-status.warn{border-color:#e5a964;color:#f0d1ac;background:#352722}
+.beat-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.beat{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1.3fr);gap:8px 10px;align-items:center;padding:10px;background:var(--panel-2);border-left:3px solid var(--border)}
+.beat .field{margin:0;min-width:0}.beat select,.beat input:not([type=checkbox]){width:100%}
+.beat-no{align-self:center;color:var(--muted);font:800 15px/1 var(--display);text-align:center}
+.beat-note,.beat-actions{grid-column:2/-1}.beat-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.beat-actions .btn{min-width:40px;min-height:40px;padding:0 10px}.beat-done{display:inline-flex;align-items:center;gap:6px;margin-right:auto;font-size:12px}
+.beat-hook{border-left-color:var(--yellow)}.beat-cliff{border-left-color:var(--red)}.beat-dev{border-left-color:#6aa3d8}.beat-climax{border-left-color:#c77ddb}.beat-res{border-left-color:#5fae7b}
+.beat.done{opacity:.6}.beat.flagged{outline:1px solid #e5a964}
+/* The row speaks for itself (kind, option, scene), so its labels are for screen readers only */
+.beat .beat-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media (max-width:560px){.beat{grid-template-columns:22px minmax(0,.85fr) minmax(0,1.15fr);gap:6px 8px;padding:8px}.beat-actions{gap:4px;flex-wrap:nowrap}.beat-actions .btn{min-width:34px;padding:0 6px}.beat-actions .rule-source{padding-left:2px;padding-right:2px;white-space:nowrap}.beat-done{font-size:11px;white-space:nowrap}}

@@ -31,3 +31,11 @@
 .cx-native > div { flex:1; min-width:200px; }
 .cx-native .field { max-width:210px; }
 .cx-native .cx-help { margin:5px 0 0; }
+/* Weapons in play: one line with what matters, the edit form folded away */
+.cx-weapon-line { display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 4px; color:#aaa09a; font-size:12px; }
+.cx-weapon-line b { color:#f5eee4; font-size:15px; }
+.cx-weapon .cx-entry-actions { margin-top:8px; }
+.cx-range { display:inline-flex; align-items:center; gap:8px; color:#aaa09a; font-size:12px; }
+.cx-range select { min-height:40px; }
+.cx-weapon-edit { margin-top:12px; }
+.cx-weapon-edit > summary { min-height:36px; padding:8px 0; color:#be8c83; font-size:12px; font-weight:700; cursor:pointer; }

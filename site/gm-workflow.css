@@ -26,3 +26,5 @@
 .jr-entry .skill-roll{grid-column:2;grid-row:1/3;align-self:start}
 .jr-tag{margin-left:6px;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
 @media (max-width:560px){.nl-add{grid-template-columns:1fr 90px}.nl-add .btn{grid-column:1/-1}.nl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Rolls of a preset: attack with its damage, then skills */
+.nl-rolls .btn{min-height:40px}.nl-attack{display:inline-flex;gap:2px}.nl-form .field>small{display:block;margin-top:4px}
