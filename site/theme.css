@@ -284,6 +284,39 @@ body {
   .sheet-quick-rolls b { font-size: 17px; }
 }
 
+/* Next roll: the check modifier and the LUCK to spend sit next to the roll buttons */
+.sheet-next-roll { display: none; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.sheet-extras[data-active-tab="skills"] .sheet-next-roll, .sheet-extras[data-active-tab="combat"] .sheet-next-roll { display: flex; }
+.nr-step { display: inline-flex; flex: 1 1 250px; align-items: center; gap: 6px; min-height: 44px; padding: 4px 6px 4px 12px; background: var(--panel); border: 1px solid var(--border); }
+.nr-step.on { border-color: var(--yellow); }
+.nr-step small { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.nr-step small:first-child { margin-right: auto; }
+.nr-step b { min-width: 38px; text-align: center; font: 800 19px/1 var(--display); }
+.nr-step.on b { color: var(--yellow); }
+.nr-step button { min-width: 40px; min-height: 36px; padding: 0 10px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); font: 800 17px/1 var(--display); }
+.nr-step button:hover:not(:disabled) { border-color: #84534c; }
+.nr-step button:disabled { opacity: .4; }
+.nr-step .nr-hold { font: 700 11px/1 var(--font, inherit); }
+.nr-step .nr-hold[aria-pressed="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
+.hud-chip.hud-pending { border-color: var(--yellow); }
+.hud-chip .hud-plus { color: var(--yellow); font-style: normal; font-weight: 800; }
+/* Quick HP panel under the HUD */
+.hud-hp-panel { display: grid; gap: 8px; margin: 0 0 8px; padding: 10px; background: var(--panel); border: 1px solid var(--border); }
+.hud-hp-panel[hidden] { display: none; }
+.hud-hp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hud-hp-row > [data-hp-step] { flex: 1 1 52px; min-height: 44px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); font: 800 17px/1 var(--display); }
+.hud-hp-row > [data-hp-step]:hover { border-color: #84534c; }
+.hud-hp-now { flex: 1 1 84px; text-align: center; white-space: nowrap; }
+.hud-hp-now b { font: 800 26px/1 var(--display); }
+.hud-hp-now small, .hud-hp-reasons small, .hud-hp-row label { color: var(--muted); font-size: 12px; }
+.hud-hp-now small { margin-left: 4px; }
+.hud-hp-row label { display: inline-flex; align-items: center; gap: 8px; }
+.hud-hp-row input { width: 84px; min-height: 40px; }
+.hud-hp-row .btn.small { min-height: 40px; }
+.hud-hp-reasons button { min-height: 36px; padding: 0 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
+.hud-hp-reasons button[aria-checked="true"] { color: #fff; background: var(--red-dark); border-color: var(--red); }
+.hud-hp[aria-expanded="true"] { border-color: var(--red); }
+
 /* Characters: import/export grouped in one menu */
 .data-menu { position: relative; }
 .data-menu > summary { list-style: none; cursor: pointer; user-select: none; }
