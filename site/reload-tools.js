@@ -106,7 +106,7 @@ function commit(c,expected,lang,options={}){
  return {ok:true,dirty:true,loaded:check.quote.capacity};
 }
 function render(c,lang){
- const t=text(lang),d=draft(c);let out=`<section class="card reload-tools" data-reload-root><div class="card-heading"><span>${esc(t.title)}</span><span>170 / 344</span></div><p class="reload-note">${esc(t.intro)} ${esc(t.starterIntro)}</p><p class="reload-note">${esc(t.manual)}</p>`;
+ const t=text(lang),d=draft(c);let out=`<section class="card reload-tools" data-reload-root><div class="card-heading"><span>${esc(t.title)}</span><span data-page-ref>170 / 344</span></div><p class="reload-note">${esc(t.intro)} ${esc(t.starterIntro)}</p><p class="reload-note">${esc(t.manual)}</p>`;
  if(!d)return out+`<p class="reload-note">${esc(t.scope)}</p></section>`;
  const allWeapons=Array.isArray(c?.extra?.weapons)?c.extra.weapons.filter(w=>w&&typeof w==='object'&&!Array.isArray(w)):[];
  const weapons=allWeapons.filter(w=>weaponProfile(w)&&lookup(c,'weapons',w.id)===w);

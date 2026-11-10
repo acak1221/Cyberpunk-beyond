@@ -31,7 +31,10 @@ test('shared character summaries carry only numbers and short text',()=>{
  const s=R.characterSummary({name:'Ви',role:'solo',rank:4,hp:20,humanity:60,head:11,bodyArmor:12,stats:{BODY:8,WILL:6,LUCK:6,REF:7,DEX:6},extra:{luck:3},notes:'secret',extra2:{x:1}});
  assert.deepEqual(plain(s),{name:'Ви',role:'solo',rank:4,hp:20,max:45,humanity:60,luck:3,luckMax:6,head:11,body:12,ref:7,dex:6});
  const dirty=R.cleanSummary({name:'<img src=x onerror=alert(1)>'.repeat(10),hp:'1e9',max:-5,role:{evil:true},luck:'7',extra:'drop me'});
- assert.equal(dirty.name.length,60);assert.equal(dirty.hp,9999);assert.equal(dirty.max,1);assert.equal(dirty.role,'[object Object]'.slice(0,20));assert.equal(dirty.luck,7);assert.equal('extra' in dirty,false);
+ assert.equal(dirty.name.length,60);assert.equal(dirty.hp,9999);assert.equal(dirty.max,1);assert.equal(dirty.role,'');assert.equal(dirty.luck,7);assert.equal('extra' in dirty,false);
+ // Text is taken only from text and numbers: an object in its place is not turned into words (and its toString is never called).
+ let called=0;const sly=R.cleanSummary({name:{toString(){called++;return 'x'}},role:['solo'],hp:5});
+ assert.equal(sly.name,'');assert.equal(sly.role,'');assert.equal(called,0);assert.equal(R.cleanSummary({name:42,role:7}).name,'42');
  assert.equal(R.cleanSummary(null),null);assert.equal(R.cleanSummary([1,2]),null);
 });
 
