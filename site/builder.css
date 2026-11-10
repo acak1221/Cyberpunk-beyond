@@ -4,7 +4,7 @@
 .builder-actions {display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
 .builder-progress {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 18px;}
 .builder-progress button {display:flex;align-items:center;gap:8px;min-width:0;padding:12px;color:#aaa09a;background:#19191b;border:1px solid #3c3637;text-align:left;font-size:11px;font-weight:700;}
-.builder-progress button span {color:#db6356;font-family:monospace;}.builder-progress button.active {color:#f8f0e4;border-color:#db6356;background:#302321;}.builder-progress button i {margin-left:auto;color:#e9c66d;font-style:normal;}
+.builder-progress button span {color:#e8796e;font-family:monospace;}.builder-progress button.active {color:#f8f0e4;border-color:#db6356;background:#302321;}.builder-progress button i {margin-left:auto;color:#e9c66d;font-style:normal;}
 .builder-panel {padding:24px;}.builder-panel .card-heading {display:flex;justify-content:space-between;gap:10px;color:#e8c66d;font-size:10px;font-weight:800;letter-spacing:.1em;}
 .builder-help {color:#bbb1a8;font-size:12px;line-height:1.65;margin:12px 0 18px;}.builder-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
 .builder-info,.builder-derived {display:flex;align-items:center;flex-wrap:wrap;gap:16px;margin-top:20px;padding:14px;background:#232020;border-left:3px solid #e3423c;font-size:11px;}

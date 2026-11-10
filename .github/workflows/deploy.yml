@@ -29,6 +29,22 @@ jobs:
         with:
           path: dist
 
+  # The app in a real browser: every screen in both languages, keyboard, offline start, a room over a local broker and
+  # the accessibility rules. It gates pull requests; a release waits only for `test`, so a browser download that fails
+  # on the runner cannot hold back a fix.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Needed by the browser run only, so they are not dependencies of the app.
+      - run: npm install --no-save --no-audit --no-fund playwright@1.63.0 aedes@0.51.3 ws@8.22.2 axe-core@4.14.0
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: test
