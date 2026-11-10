@@ -39,3 +39,7 @@
 .cx-range select { min-height:40px; }
 .cx-weapon-edit { margin-top:12px; }
 .cx-weapon-edit > summary { min-height:36px; padding:8px 0; color:#be8c83; font-size:12px; font-weight:700; cursor:pointer; }
+/* Reputation and Facedown */
+.cx-reputation { margin-top:14px; padding-top:14px; border-top:1px solid #3b3737; }
+.cx-check { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.cx-check input { width:22px; height:22px; flex:0 0 auto; }
