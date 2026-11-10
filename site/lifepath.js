@@ -126,7 +126,7 @@ function handle(e,lang,characters,options={}){
  return {handled:true};
 }
 function resetGeneral(){state.results={};state.native='';state.target=''}
-window.Lifepath={render,handle,roll:rollSingle,rollAll,setChoice:setSingle,applyToCharacter,resultText,displayField,storeTranslation,sameGenerated,resetGeneral,generalSignature:()=>JSON.stringify(state),restoreGeneral:saved=>{state.results=saved.results;state.native=saved.native;state.target=saved.target},labels,rows,languages,relationTables:{friends:friendRows,enemyWho,enemyCause,enemyForce,revenge,romance:loveRows}};
+window.Lifepath={render,handle,roll:rollSingle,rollAll,setChoice:setSingle,applyToCharacter,resultText,displayField,storeTranslation,sameGenerated,resetGeneral,setGeneralTarget:id=>{state.target=typeof id==='string'?id:''},generalSignature:()=>JSON.stringify(state),restoreGeneral:saved=>{state.results=saved.results;state.native=saved.native;state.target=saved.target},labels,rows,languages,relationTables:{friends:friendRows,enemyWho,enemyCause,enemyForce,revenge,romance:loveRows}};
 })();
 
 // Role-specific Lifepaths, Corebook print pp. 54–69.
@@ -261,5 +261,7 @@ function setScope(scope){
  scopeId=scope;api.resetGeneral();rs.role='';rs.target='';rs.results={};
  const draft=scope!==null?draftsByScope.get(scope):null;if(draft){api.restoreGeneral(draft.general);rs.role=draft.role.role;rs.target=draft.role.target;rs.results=draft.role.results}
 }
-Object.assign(api,{roleTables:roles,rollRole,rollAllRole,setRoleChoice,roleText,applyRole,setScope});
+// Coming from a sheet: both generators point at that character, and the role tables at its Role.
+function setTarget(id,role){const value=typeof id==='string'?id:'';api.setGeneralTarget(value);rs.target=value;if(roles[role])rs.role=role}
+Object.assign(api,{roleTables:roles,rollRole,rollAllRole,setRoleChoice,roleText,applyRole,setScope,setTarget});
 })();

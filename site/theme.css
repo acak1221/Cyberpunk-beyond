@@ -300,6 +300,16 @@ body {
 .nr-step .nr-hold[aria-pressed="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
 .hud-chip.hud-pending { border-color: var(--yellow); }
 .hud-chip .hud-plus { color: var(--yellow); font-style: normal; font-weight: 800; }
+/* «Не гасить экран» */
+.hud-awake { margin-left: auto; }
+.hud-awake span { color: var(--muted); }
+:is(.hud-awake, .keep-awake).active { border-color: var(--yellow); }
+:is(.hud-awake, .keep-awake).active span { color: var(--yellow); }
+.page-header .keep-awake { margin-top: 12px; }
+/* Gear tab: straight to the catalog with this character as the buyer */
+.sheet-shop { display: none; margin-bottom: 8px; }
+.sheet-extras[data-active-tab="gear"] .sheet-shop { display: block; }
+.sheet-shop .btn { min-height: 44px; }
 /* Quick HP panel under the HUD */
 .hud-hp-panel { display: grid; gap: 8px; margin: 0 0 8px; padding: 10px; background: var(--panel); border: 1px solid var(--border); }
 .hud-hp-panel[hidden] { display: none; }

@@ -37,12 +37,12 @@ function vitals(c){
 function hud(c){
  if(!c)return '';
  const ru=lang()==='ru',v=vitals(c),n=pending(c),w={full:ru?'Без ранений':'Unhurt',light:ru?'Лёгкое ранение':'Lightly wounded',serious:ru?'Тяжёлое ранение · −2':'Seriously wounded · −2',mortal:ru?'Смертельное ранение · −4':'Mortally wounded · −4'}[v.wound];
- return `<div class="sheet-hud" data-wound="${v.wound}">${global.Portrait?.html(c,'hud-avatar',{small:true})||''}<button type="button" class="hud-chip hud-hp" data-hud-hp aria-expanded="${hpOpen}" aria-controls="hud-hp-panel" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip${n.use?' hud-pending':''}" data-hud-next data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small>${n.use?`<i class="hud-plus">+${n.use}</i>`:''}</button>${n.mod?`<button type="button" class="hud-chip hud-pending" data-hud-next data-hud-jump="sheet-resources"><small>${ru?'Модификатор':'Modifier'}</small><b>${sign(n.mod)}</b></button>`:''}</div>`;
+ return `<div class="sheet-hud" data-wound="${v.wound}">${global.Portrait?.html(c,'hud-avatar',{small:true})||''}<button type="button" class="hud-chip hud-hp" data-hud-hp aria-expanded="${hpOpen}" aria-controls="hud-hp-panel" title="${html(w)}"><span aria-hidden="true">♥</span><b>${v.hp}</b><small>/ ${v.max}</small><em>${html(w)}</em></button><button type="button" class="hud-chip" data-hud-jump="sheet-vitals"><span aria-hidden="true">◈</span><small>HUM</small><b>${v.humanity}</b><small>EMP ${v.emp}</small></button><button type="button" class="hud-chip${n.use?' hud-pending':''}" data-hud-next data-hud-jump="sheet-resources"><span aria-hidden="true">✳</span><small>LUCK</small><b>${v.luck}</b><small>/ ${v.luckMax}</small>${n.use?`<i class="hud-plus">+${n.use}</i>`:''}</button>${n.mod?`<button type="button" class="hud-chip hud-pending" data-hud-next data-hud-jump="sheet-resources"><small>${ru?'Модификатор':'Modifier'}</small><b>${sign(n.mod)}</b></button>`:''}${global.KeepAwake?.button?.(lang(),true)||''}</div>`;
 }
 function extras(c){
  if(!c)return '';
  const ru=lang()==='ru';
- return `${nextRoll(c)}${quickRolls(c)}<div class="sheet-stat-strip" aria-label="${ru?'Характеристики':'Statistics'}">${STATS.map(k=>`<div><small>${k}</small><b>${html(c?.stats?.[k]??'—')}</b></div>`).join('')}</div>`;
+ return `${nextRoll(c)}${quickRolls(c)}<div class="sheet-shop"><button type="button" class="btn ghost" data-sheet-shop>${ru?'Купить в каталоге':'Buy from the catalog'} →</button></div><div class="sheet-stat-strip" aria-label="${ru?'Характеристики':'Statistics'}">${STATS.map(k=>`<div><small>${k}</small><b>${html(c?.stats?.[k]??'—')}</b></div>`).join('')}</div>`;
 }
 const sign=n=>(n<0?'−':'+')+Math.abs(n);
 // What is set for the next roll: the check modifier and the LUCK to spend (never more than the pool).
@@ -93,11 +93,12 @@ function setNext(kind,delta){
 function refreshHud(c){
  lastCharacter=c||lastCharacter;
  const dock=global.document.querySelector('.sheet-dock');if(!dock||!lastCharacter)return;
- const doc=global.document,keep=doc.activeElement?.dataset?.keep,hpFocus=doc.activeElement?.hasAttribute?.('data-hud-hp');
+ const doc=global.document,keep=doc.activeElement?.dataset?.keep,hpFocus=doc.activeElement?.hasAttribute?.('data-hud-hp'),awakeFocus=doc.activeElement?.hasAttribute?.('data-keep-awake')&&dock.contains(doc.activeElement);
  const old=dock.querySelector('.sheet-hud-wrap');if(old)old.innerHTML=hud(lastCharacter);
  const more=doc.querySelector('.sheet-extras');if(more)more.innerHTML=extras(lastCharacter);
  if(keep)more?.querySelector(`[data-keep="${String(keep).replace(/[^\w-]/g,'')}"]`)?.focus?.({preventScroll:true});
  if(hpFocus)dock.querySelector('[data-hud-hp]')?.focus?.({preventScroll:true});
+ if(awakeFocus)dock.querySelector('[data-keep-awake]')?.focus?.({preventScroll:true});
  const panel=dock.querySelector('.hud-hp-panel');
  if(panel){panel.hidden=!hpOpen;const v=vitals(lastCharacter),now=panel.querySelector('[data-hp-now]');if(now)now.innerHTML=`<b>${v.hp}</b><small>/ ${v.max}</small>`;for(const b of panel.querySelectorAll('[data-hp-reason]'))b.setAttribute('aria-checked',String(b.dataset.hpReason===hpReason))}
 }
@@ -142,6 +143,8 @@ global.document.addEventListener('click',e=>{
   else{const field=hp.closest('.hud-hp-panel')?.querySelector('[data-hp-amount]'),amount=Math.trunc(num(field?.value));if(amount>0){setHp(now-amount,'damage');field.value=''}else field?.focus?.()}
   return;
  }
+ if(e.target.closest?.('[data-sheet-shop]')){global.App?.shopFor?.(lastCharacter?.id);return}
+ if(e.target.closest?.('[data-sheet-lifepath]')){global.App?.lifepathFor?.(global.App?.active?.()?.id||lastCharacter?.id);return}
  const next=e.target.closest?.('[data-next-roll]');
  if(next){setNext(next.dataset.nextRoll,Math.trunc(num(next.dataset.delta)));return}
  // With the roll buttons in view, the LUCK and modifier chips lead to the next-roll bar, not away to another tab.

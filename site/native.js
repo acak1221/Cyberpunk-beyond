@@ -63,8 +63,12 @@ function scan(scope){
   bar.dataset.nx='1';
   const target=bar.querySelector('#catalog-target')?.closest('label'),purchase=bar.nextElementSibling?.classList.contains('catalog-purchase')?bar.nextElementSibling:null;
   if(!target&&!purchase)continue;
-  const box=doc.createElement('details');box.className='nx-filters';if(filtersOpen)box.open=true;
-  box.innerHTML=`<summary>${ru()?'Покупка для персонажа':'Buy for a character'}</summary><div class="nx-filters-body"></div>`;
+  // The summary names the buyer; with nobody chosen the block starts open, so the choice is in plain sight.
+  const select=bar.querySelector('#catalog-target'),buyer=()=>select?.value?select.selectedOptions?.[0]?.textContent||'':'';
+  const box=doc.createElement('details');box.className='nx-filters';if(filtersOpen||select&&!select.value)box.open=true;
+  box.innerHTML=`<summary><span data-nx-buyer></span></summary><div class="nx-filters-body"></div>`;
+  const paint=()=>{const who=buyer();box.querySelector('[data-nx-buyer]').textContent=who?(ru()?'Покупка для: ':'Buying for: ')+who:(ru()?'Покупка для персонажа: не выбран':'Buy for a character: not chosen')};
+  paint();select?.addEventListener('change',paint);
   box.addEventListener('toggle',()=>{filtersOpen=box.open});
   const body=box.lastElementChild;if(target)body.appendChild(target);if(purchase)body.appendChild(purchase);
   bar.after(box);
