@@ -19,7 +19,7 @@ test('the effect numbers agree with the injury table the players read (pp. 187�
 test('active injuries add up; a Quick Fix or healing takes the effect away',()=>{
  const {E}=load();
  const c=hero([['head',5],['head',3],['body',8],['body',9],['head',4]]);
- assert.deepEqual(plain({...E.collect(c),sources:undefined}),{all:-4,melee:-2,ranged:-2,move:-4,death:1});
+ assert.deepEqual(plain({...E.collect(c),sources:undefined}),{all:-4,melee:-2,ranged:-2,move:-4,death:1,initiative:0,ignoreSerious:false,skills:{}});
  assert.equal(E.checkModifier(c),-4,'Concussion and Brain Injury: −2 each to all Actions');
  assert.equal(E.checkModifier(c,'melee'),-6,'plus Torn Muscle');assert.equal(E.checkModifier(c,'ranged'),-6,'plus Damaged Eye');
  const treated=hero([['head',5,'fixed'],['head',3,'healed'],['body',8,'fixed']]);
@@ -54,10 +54,51 @@ test('the sheet lists each effect with its name, and situational ones as reminde
 test('rolls, buttons, MOVE and the Death Save hint all read the same layer',()=>{
  const app=source('app.js'),sheet=source('character-extra.js');
  assert.match(source('index.html'),/<script src="combat-tools\.js"><\/script><script src="effects\.js">/);
- assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind\)\+/,'the number on a button');
- assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c\)\+modifier\+spent/,'a skill check');
+ assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind,skill\)\+/,'the number on a button');
+ assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,'',s\[0\]\)\+modifier\+spent/,'a skill check');
  assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,q\.attackKind\)/,'checks and attacks from the sheet tools');
  assert.match(app,/mod=wounds&&c\?woundPenalty\(c\)\+effectModifier\(c\):0/,'rolls made through the bridge');
  assert.match(app,/String\(effectMove\(c,state==='mortal'\?Math\.max\(1,move-6\):move\)\)/);
  assert.match(app,/data-action="death-base-fix"/);assert.match(sheet,/attackKind:window\.Effects\?\.attackKind\?\.\(skill\)\|\|''/);
+});
+
+const withCyber=(ids,extra={})=>({stats:{MOVE:6,BODY:8,REF:7},extra:{equipment:{installs:ids.map((id,i)=>typeof id==='string'?{id:'x'+i,catalogId:id}:id)},...extra}});
+
+test('installed cyberware: only always-on effects are applied, and twice the same implant counts once',()=>{
+ const {E}=load();
+ const c=withCyber(['cyberware-kerenzikov','cyberware-kerenzikov','cyberware-toxin-binders','cyberware-voice-stress-analyzer','cyberware-techscanner-implant','cyberware-pain-editor']);
+ assert.equal(E.initiative(c),2,'Kerenzikov: +2 Initiative, speedware does not stack');assert.equal(E.ignoresSerious(c),true);
+ assert.equal(E.checkModifier(c,'','Resist Torture/Drugs'),2);assert.equal(E.checkModifier(c,'','Human Perception'),2);assert.equal(E.checkModifier(c,'','Interrogation'),2);
+ for(const k of ['Basic Tech','Cybertech','Land Vehicle Tech','Sea Vehicle Tech','Air Vehicle Tech','Electronics/Security Tech','Weaponstech'])assert.equal(E.checkModifier(c,'',k),2,k);
+ assert.equal(E.checkModifier(c,'','Perception'),0);assert.equal(E.checkModifier(c,'ranged','Handgun'),0);assert.equal(E.checkModifier(c),0,'no skill named, no skill bonus');
+});
+
+test('removed implants and unknown records do nothing',()=>{
+ const {E}=load();
+ const c=withCyber([{id:'a',catalogId:'cyberware-kerenzikov',removedAt:'2045-01-01'},{id:'b',catalogId:'cyberware-unknown'},null,{id:'c'},{id:'d',catalogId:5}]);
+ assert.equal(E.initiative(c),0);assert.deepEqual(plain(E.lines(c,'ru')),[]);
+ assert.equal(E.initiative({extra:{equipment:{installs:'oops'}}}),0);assert.equal(E.initiative(null),0);
+});
+
+test('situational implants and those that change the sheet are reminders only',()=>{
+ const {E}=load();
+ const c=withCyber(['cyberware-sandevistan','cyberware-targeting-scope','cyberware-subdermal-armor','cyberware-grafted-muscle-and-bone-lace']);
+ assert.equal(E.initiative(c),0,'Sandevistan needs to be switched on');assert.equal(E.checkModifier(c,'ranged','Handgun'),0,'Targeting Scope is for Aimed Shots only');
+ const text=E.lines(c,'ru').map(x=>x.text).join(' | ');
+ assert.match(text,/\+3 к инициативе на минуту/);assert.match(text,/\+1 к прицельным выстрелам/);assert.match(text,/SP 11 на голове и теле/);assert.match(text,/BODY \+2, но не выше 10/);
+});
+
+test('injuries and cyberware add up in one total',()=>{
+ const {E}=load();
+ const c=withCyber(['cyberware-medscanner-implant','cyberware-kerenzikov'],{criticalInjuries:{version:1,entries:[{id:'i',location:'head',score:5,status:'active',detail:''}]}});
+ assert.equal(E.checkModifier(c,'','First Aid'),0,'+2 Medscanner − 2 Concussion');assert.equal(E.checkModifier(c,'','Paramedic'),0);assert.equal(E.checkModifier(c,'','Stealth'),-2);assert.equal(E.initiative(c),2);
+ assert.equal(E.lines(c,'en').length,3);
+});
+
+test('the sheet, the tracker and the wound penalty read the cyberware effects',()=>{
+ const app=source('app.js');
+ assert.match(app,/soloBonus\(c,'initiative'\)\+effectInitiative\(c\)\}/,'the number the tracker and the quick button use');
+ assert.match(app,/speed=effectInitiative\(c\),total=effectiveRef\+first\+modifier\+bonus\+speed,/,'the initiative roll on the sheet');
+ assert.match(app,/Math\.ceil\(hpMax\(c\)\/2\)\?\(noSerious\(c\)\?0:-2\):0;/,'Pain Editor removes only the Seriously Wounded penalty');
+ assert.match(app,/skillTotal\(c,s\)\{const n=checkBonus\(c,s\[2\],c\?\.skills\?\.\[s\[0\]\],'',s\[0\]\)/);
 });
