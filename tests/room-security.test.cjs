@@ -184,3 +184,51 @@ test('a dropped connection is announced by the broker, and a member who is still
  s.sent.length=0;await s.R.receive({topic:s.room.topic+'/m/'+s.id(s.me,'000000b1'),retain:false,payload:await s.bytes(s.me,'m/'+s.id(s.me,'000000b1'),'gone',{},{from:s.id(s.me,'000000b1')})});await settle();
  assert.ok(s.sent.some(x=>x.sub==='m/'+s.id(s.me,'000000b1')&&x.retain),'the member status is published again');
 });
+
+// ---------- room features ----------
+function gmScene(roster,characters=[]){
+ const tab=loadRoom(),R=tab.R;
+ const state={lang:'ru',view:'room',characters,campaigns:[{id:'k1',name:'Job',round:1,turnIndex:0,roster}]};
+ const count={saves:0};R.setApp({getState:()=>state,notify:m=>tab.notices.push(m)});tab.window.App={save(){count.saves++},render(){}};
+ return {...tab,state,count};
+}
+
+test('hidden participants are not sent to players; when one acts, players only learn that somebody hidden does',async()=>{
+ const s=gmScene([{id:'a',kind:'npc',name:'Ганг',initiative:20,order:1},{id:'b',kind:'npc',name:'Снайпер',initiative:18,order:2,hidden:true},{id:'c',kind:'npc',name:'Босс',initiative:5,order:3}]);
+ const room=await s.R.deriveRoom(CODE),me=await s.R.ensureIdentity();s.R.setKey(room.key);s.R.setSession({code:CODE,role:'gm',name:'GM',memberId:me.fp+'.000000a1',gmFp:me.fp,campaignId:'k1'},room.topic);
+ let p=s.R.combatPayload();assert.deepEqual(plain(p.order.map(r=>r.name+(r.current?'*':''))),['Ганг*','Босс']);assert.equal(p.veiled,undefined);
+ s.state.campaigns[0].turnIndex=1;p=s.R.combatPayload();assert.deepEqual(plain(p.order.map(r=>r.name+(r.current?'*':''))),['Ганг','Босс']);assert.equal(p.veiled,true);
+ s.state.campaigns[0].turnIndex=2;p=s.R.combatPayload();assert.deepEqual(plain(p.order.map(r=>r.name+(r.current?'*':''))),['Ганг','Босс*']);assert.equal(p.veiled,undefined);
+ assert.equal(JSON.stringify(p).includes('Снайпер'),false);
+});
+
+test('a row made from a sheet sent through the room names its owner, and that player page knows its own row',async()=>{
+ const dev='0123456789abcdef',pc={id:'gm-copy',name:'Ви',extra:{sourceKey:'room-dev:'+dev+':v1'}},other={id:'n1',name:'Нокс',extra:{}};
+ const s=gmScene([{id:'a',kind:'pc',characterId:'gm-copy',initiative:9,order:1},{id:'b',kind:'pc',characterId:'n1',initiative:8,order:2}],[pc,other]);
+ const room=await s.R.deriveRoom(CODE),me=await s.R.ensureIdentity();s.R.setKey(room.key);s.R.setSession({code:CODE,role:'gm',name:'GM',memberId:me.fp+'.000000a1',gmFp:me.fp,campaignId:'k1'},room.topic);
+ const order=s.R.combatPayload().order;assert.equal(order[0].own,dev+':v1');assert.equal(order[1].own,undefined,'a sheet the GM made has no owner');
+ assert.equal(s.R.ownerOf({extra:{sourceKey:'link:abc'}}),'');assert.equal(s.R.ownerOf({extra:{sourceKey:'room-dev:XYZ:v1'}}),'');
+ // the player side
+ const p=loadRoom();p.store.set('nightcity-red-room-device',dev);
+ p.R.setApp({getState:()=>({lang:'ru',characters:[{id:'v1',name:'Ви'}],campaigns:[]}),notify(){}});
+ p.R.setSession({code:CODE,role:'player',name:'Аня',memberId:'x',characterId:'v1'},room.topic);
+ assert.equal(p.R.isMine({pc:true,name:'Кто-то',own:dev+':v1'}),true);assert.equal(p.R.isMine({pc:true,name:'Ви',own:'ffffffffffffffff:v1'}),false,'the same name on another device is not mine');
+ assert.equal(p.R.isMine({pc:true,name:' ви ',own:''}),true,'without an owner the name decides');assert.equal(p.R.isMine({pc:false,name:'Ви',own:''}),false);
+});
+
+test('a player\'s initiative roll lands on their row in the linked campaign, and nowhere else',async()=>{
+ const dev='0123456789abcdef',pc={id:'gm-copy',name:'Ви',extra:{sourceKey:'room-dev:'+dev+':v1'}};
+ const s=gmScene([{id:'a',kind:'npc',name:'Ганг',initiative:12,order:1},{id:'b',kind:'pc',characterId:'gm-copy',initiative:0,order:2,ties:[3]}],[pc]);
+ const room=await s.R.deriveRoom(CODE),me=await s.R.ensureIdentity(),ann=await s.R.newIdentity(),eve=await s.R.newIdentity();s.R.setKey(room.key);
+ s.R.setSession({code:CODE,role:'gm',name:'GM',memberId:me.fp+'.000000a1',gmFp:me.fp,campaignId:'k1',toasts:false},room.topic);
+ const say=async(who,sub,t,d)=>{await s.R.receive({topic:room.topic+'/'+sub,retain:false,payload:await s.R.signedEnvelope(who,who.fp+'.000000b1',room.topic,room.key,sub,t,d,Date.now(),'i'+Math.random().toString(16).slice(2,10))});await settle(5)};
+ await say(ann,'m/'+ann.fp+'.000000b1','member',{name:'Аня',role:'player',dev,cid:'v1',character:{name:'Ви',hp:31,max:45}});
+ await say(eve,'m/'+eve.fp+'.000000b1','member',{name:'Ева',role:'player',dev:'ffffffffffffffff',cid:'v1'});
+ const row=s.state.campaigns[0].roster[1];
+ await say(eve,'e','roll',{who:'Ева',label:'Инициатива',detail:'',total:99,init:true,cid:'v1'});assert.equal(row.initiative,0,'another device cannot set it');
+ await say(ann,'e','roll',{who:'Аня',label:'Проверка',detail:'',total:17,cid:'v1'});assert.equal(row.initiative,0,'an ordinary roll does not');
+ await say(ann,'e','roll',{who:'Аня',label:'Инициатива',detail:'',total:15,init:true,cid:'v1'});
+ assert.equal(row.initiative,15);assert.deepEqual(plain(row.ties),[]);assert.equal(s.count.saves,1);assert.match(s.notices.at(-1),/Инициатива записана в трекер: Ви — 15/);
+ assert.equal(s.state.campaigns[0].turnIndex,1,'Ганг still has the turn although the order changed');
+ assert.deepEqual(plain(s.R.liveFor(pc)),{hp:31,max:45});assert.equal(s.window.Room.liveText(pc),'♥ 31/45 в комнате');assert.equal(s.window.Room.liveText({id:'z',extra:{}}),'');
+});

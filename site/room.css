@@ -129,3 +129,5 @@ html.ui-native.ui-light .room-send-status { background: rgba(0, 0, 0, .04); }
 .room-badge.warn { color: #fff; background: var(--red-dark); letter-spacing: 0; }
 .room-mute { min-height: 32px; margin-left: auto; padding: 4px 10px; color: var(--muted); background: transparent; border: 1px solid var(--border); font-size: 11px; }
 .room-mute:hover { color: var(--text); }
+.room-order li.mine { outline: 1px solid var(--yellow); }
+.room-toast.turn b { color: #111; background: var(--yellow); }

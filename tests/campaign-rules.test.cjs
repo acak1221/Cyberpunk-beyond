@@ -93,3 +93,11 @@ test('book NPCs carry armor, BODY and full HP; all NPCs can be removed at once',
  h.act('next');h.act('next');assert.equal(h.campaign.roster[h.campaign.turnIndex]?.id!==undefined,true);
  h.act('clear-npcs');assert.deepEqual(plain(h.campaign.roster.map(r=>r.id)),['p']);assert.equal(h.campaign.turnIndex,0);
 });
+
+test('an NPC can be hidden from players and shown again; a character cannot be hidden',()=>{
+ const h=setup({characters:[vi()]});
+ h.act('hide','a');assert.equal(h.by('a').hidden,true);assert.match(h.render(),/camp-chip-hidden">Скрыт от игроков</);assert.match(h.render(),/data-campaign-action="hide" data-id="a">Показать игрокам</);
+ h.act('hide','a');assert.equal(h.by('a').hidden,undefined);
+ h.act('hide','p');assert.equal(h.by('p').hidden,undefined);
+ const pcRow=h.render().split('class="combatant').find(x=>x.includes('data-camp-live="v1"'));assert.ok(pcRow,'a character row has the place for live HP');assert.doesNotMatch(pcRow,/data-campaign-action="hide"/);
+});
