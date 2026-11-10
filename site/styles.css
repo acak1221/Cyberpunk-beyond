@@ -409,6 +409,17 @@ kbd { color: #77716b; font: inherit; }
 
 .campaign-combat-note { grid-column:1 / -1; margin-top:4px; }
 .campaign-combat-note textarea { min-height:58px; resize:vertical; }
+.campaign-combat-note > summary { min-height:32px; padding:6px 0; overflow:hidden; color:var(--muted); font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.campaign-combat-note .note-preview { margin-left:8px; color:var(--text); font-weight:400; }
+.campaign-combat-note[open] .note-preview { display:none; }
+.campaign-combat-note[open] > summary { margin-bottom:4px; }
+/* Turn controls stay in reach while the roster scrolls */
+.campaign-turnbar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px -6px 0; padding:8px 6px; background:var(--panel); }
+.campaign-turnbar .btn { min-height:44px; }
+.campaign-turnbar .btn.primary { flex:1 1 170px; }
+.campaign-turnbar .turn-now { flex:1 1 100%; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.campaign-turnbar + .campaign-controls { margin-top:8px; }
+@media (max-width: 820px) { .campaign-turnbar { top:56px; } }
 /* Tracker rows: named areas keep HP in its own readable column in every look; a PC row adds the HP-reason select on its own line.
    Compact two-line rows by default, one line once the list itself is wide enough (the list is narrow on phones and next to the aside on laptops). */
 .combat-list{container-type:inline-size}
