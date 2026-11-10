@@ -115,6 +115,7 @@ function collect(c){
   for(const [skill,bonus] of Object.entries(e.skills||{}))total.skills[skill]=Math.max(total.skills[skill]||0,bonus);
   total.sources.push({kind:'cyber',name:{ru:catalogName(i.id,'ru'),en:catalogName(i.id,'en')},parts:e,note:e.note||null});
  }
+ try{globalThis.window?.Implants?.contribute?.(c,total)}catch{}
  for(const i of activeInjuries(c)){
   const e=i.effect;for(const k of ['all','melee','ranged','move','death'])total[k]+=e[k]||0;
   total.sources.push({kind:'injury',name:{ru:injuryName(i.location,i.score,'ru'),en:injuryName(i.location,i.score,'en')},parts:e,note:e.note||null});
