@@ -70,6 +70,8 @@ html.ui-native :is(.text-button, .text-link) { color: var(--red); text-transform
 html.ui-native .sheet-quick-rolls button { color: var(--text); background-color: var(--panel-2); justify-content: space-between; }
 html.ui-native .sheet-quick-rolls b { color: var(--red); font: 700 19px/1 var(--display); }
 html.ui-native :is(.nr-step, .hud-hp-panel) { border: 0; border-radius: 12px; background: var(--panel); }
+html.ui-native .builder-stepper button { border-radius: 10px; }
+html.ui-native .builder-meter-sticky { border-radius: 12px; }
 html.ui-native .nr-step.on { box-shadow: inset 0 0 0 1px var(--red); }
 html.ui-native .nr-step.on b, html.ui-native .hud-chip .hud-plus { color: var(--red); }
 html.ui-native :is(.nr-step button, .hud-hp-row > [data-hp-step], .hud-hp-reasons button) { border: 0; border-radius: 10px; background-color: var(--panel-2); }

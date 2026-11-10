@@ -61,6 +61,7 @@ html.ui-native.ui-light .builder-meter { border: 1px solid #c7bbb2; background: 
 html.ui-native.ui-light .builder-stat { background: #ececec; }
 html.ui-native.ui-light .builder-skill { border-bottom: 1px solid #c8c6c8; }
 html.ui-native.ui-light .builder-skill small { color: #685f5a; }
+html.ui-native.ui-light .builder-stepper button { color: #1c1b1d; background: #e9e6e4; border-color: #c7bbb2; }
 html.ui-native.ui-light .builder-specific { color: #5e554f; }
 html.ui-native.ui-light .builder-extra { border: 1px solid #cdc5c1; background: #ececec; }
 html.ui-native.ui-light .builder-remove { color: #731f16; }

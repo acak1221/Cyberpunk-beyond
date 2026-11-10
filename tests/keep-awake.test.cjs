@@ -67,3 +67,12 @@ test('a sheet leads to the catalog and to the Lifepath generator with the charac
  assert.match(sheet,/data-sheet-lifepath/);
  assert.match(life,/function setTarget\(id,role\)\{const value=typeof id==='string'\?id:'';api\.setGeneralTarget\(value\);rs\.target=value;if\(roles\[role\]\)rs\.role=role\}/);
 });
+
+test('the skills step of the wizard has a sticky counter, steppers and search',()=>{
+ const builder=source('builder.js'),css=source('builder.css');
+ assert.match(builder,/class="builder-meter builder-meter-sticky"/);assert.match(css,/\.builder-meter-sticky \{position:sticky;top:0;/);
+ assert.match(builder,/data-builder-bump="-1"/);assert.match(builder,/data-builder-bump="1"/);
+ assert.doesNotMatch(builder,/data-builder-step="-1"/,'the steppers must not share the attribute of the step navigation');
+ assert.match(builder,/Math\.max\(0,Math\.min\(6,now\+/,'the same 0–6 limits as the field (p. 85)');
+ assert.match(builder,/data-builder-skill-search/);assert.match(builder,/data-builder-skill-row=/);
+});
