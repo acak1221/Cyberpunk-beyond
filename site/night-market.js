@@ -82,10 +82,16 @@ function handle(e,lang,rng=Math.random){
  else if(a==='stall'){if(!market||!rerollStall(market,int(b.dataset.nmStall,0,5,-1),rng))return true}
  else if(a==='item'){if(!market||!rerollItem(market,int(b.dataset.nmStall,0,5,-1),int(b.dataset.nmItem,0,19,-1),rng))return true}
  else return false;
+ storeMarket();
  const l=lang||root.dataset.lang;if(typeof root.outerHTML==='string'&&root.isConnected!==false)root.outerHTML=render(l);
  return true;
 }
-function reset(){market=null;settings={categories:2,items:'d10',cap:'superluxury'}}
+function reset(){market=null;settings={categories:2,items:'d10',cap:'superluxury'};storeMarket()}
+// The generated market stays on this device between reloads, so prep done before the session is not lost.
+const MARKET_KEY='nc-night-market-v1';
+function storeMarket(){try{if(market)window.localStorage?.setItem(MARKET_KEY,JSON.stringify({v:1,market,settings}));else window.localStorage?.removeItem(MARKET_KEY)}catch(_){}}
+function loadMarket(){const before={market,settings};try{const saved=JSON.parse(window.localStorage?.getItem(MARKET_KEY)||'null');if(!saved||saved.v!==1||!saved.market||typeof saved.market!=='object')return;market=saved.market;if(saved.settings&&typeof saved.settings==='object')settings={...settings,...saved.settings};if(typeof render('ru')!=='string')throw new Error('unreadable')}catch(_){market=before.market;settings=before.settings}}
+loadMarket();
 if(typeof document!=='undefined'&&document.addEventListener){for(const type of ['click','change'])document.addEventListener(type,e=>{handle(e)})}
 window.NightMarket={CATEGORIES,PRICE_TIERS,categoryOf,pool,tierOf,rollCategories,pickItems,generate,rerollItem,rerollStall,render,handle,reset,get market(){return market}};
 })();

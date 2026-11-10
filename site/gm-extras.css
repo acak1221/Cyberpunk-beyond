@@ -53,3 +53,5 @@
 .gm-extras .gx-hint{margin:8px 0 0;color:#d4cbc0}
 .gm-extras .gx-earlier{margin:14px 0 0}
 @media (max-width:560px){.gm-extras .gx-new{grid-template-columns:1fr}.gm-extras .gx-clock-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.gm-extras .gx-clock{padding:10px 8px}.gm-extras .gx-count{gap:4px}.gm-extras .gx-clock-svg{width:100px;height:100px}.gm-extras .gx-dl{grid-template-columns:1fr}.gm-extras .gx-dl dt{margin-top:4px}}
+/* Keep a result: write it to a campaign journal */
+.gm-extras .gx-entry-actions{display:flex;justify-content:flex-end;margin:4px 0 8px}.gm-extras .gx-entry-actions .btn{min-height:36px;padding:6px 12px;font-size:11px}.gm-extras .gx-journal-pick{margin:8px 0}

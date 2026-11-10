@@ -1,7 +1,9 @@
 /* GM extras: progress clocks (saved in state.gmExtras.clocks), random tables (names & handles,
    gigs, loot, yes/no oracle) and Night City weather. All table text here is original fan content
-   written for this app; it does not reproduce the corebook or any official tables. Loot draws real
-   items from the app catalog (window.CATALOG). Table and weather results live in memory only. */
+   written for this app; it does not reproduce the corebook or any official tables. The three book
+   tables live in book-tables.js and are marked with their pages. Loot draws real items from the app
+   catalog (window.CATALOG). Recent table and weather results are kept on this device, so session
+   prep survives a reload, and any result can be written into a campaign journal. */
 (function(){
 'use strict';
 const SIZES=Object.freeze([4,6,8,10,12]);
@@ -222,17 +224,35 @@ function genWeather(season,rng=Math.random,date){
 // ---------- UI text ----------
 const T={
  ru:{group:'ИНСТРУМЕНТЫ ВЕДУЩЕГО',clocks:'ЧАСЫ ПРОГРЕССА',clocksSub:'СОХРАНЯЮТСЯ',clocksIntro:'Отмечайте угрозы, погони и долгие планы: сегменты заполняются по ходу игры. Щёлкните сегмент, чтобы заполнить часы до него (повторный щелчок снимает его).',newName:'Название',newPlaceholder:'Напр. «Банда идёт по следу»',segments:'Сегментов',create:'Создать часы',none:'Часов пока нет.',limit:'Достигнут предел — 30 часов.',shared:'Показывать игрокам',reset:'Сбросить',del:'Удалить',confirm:'Точно удалить?',minus:'Убрать сегмент',plus:'Добавить сегмент',seg:'Сегмент',full:'Заполнено!',rename:'Название часов',untitled:'Без названия',
-  tables:'СЛУЧАЙНЫЕ ТАБЛИЦЫ',tablesSub:'ОРИГИНАЛЬНЫЕ',tablesIntro:'Быстрые подсказки для импровизации. Таблицы написаны для этого приложения, а не взяты из книги. Последние результаты видны ниже до перезагрузки страницы.',names:'Имена и клички',one:'1 имя',five:'5 имён',handle:'Кличка',gigs:'Заказы',gig:'Заказ',loot:'Добыча',pockets:'Карманы',stash:'Тайник',oracle:'Оракул «да/нет»',likely:'Вероятность',ask:'Спросить',history:'Последние результаты',empty:'Пока пусто — нажмите любую кнопку.',clear:'Очистить',client:'Заказчик',job:'Работа',where:'Где',twist:'Осложнение',pay:'Оплата',payNote:'на команду, торг уместен',cash:'Наличные',die:'d10',
+  tables:'СЛУЧАЙНЫЕ ТАБЛИЦЫ',tablesSub:'ОРИГИНАЛЬНЫЕ',tablesIntro:'Быстрые подсказки для импровизации. Таблицы написаны для этого приложения, а не взяты из книги. Последние результаты хранятся на этом устройстве; нужное запишите в журнал кампании.',names:'Имена и клички',one:'1 имя',five:'5 имён',handle:'Кличка',gigs:'Заказы',gig:'Заказ',loot:'Добыча',pockets:'Карманы',stash:'Тайник',oracle:'Оракул «да/нет»',likely:'Вероятность',ask:'Спросить',history:'Последние результаты',book:'Из книги',bookHeadline:'Заголовок новостей',bookVendit:'Вендит',bookBodega:'Бодега',toJournal:'В журнал',journalFor:'Журнал кампании',journalNone:'Чтобы сохранять результаты в журнал, создайте кампанию.',journalDone:name=>`Записано в журнал кампании «${name}».`,journalFail:'Не удалось записать в журнал.',weatherWord:'Погода',empty:'Пока пусто — нажмите любую кнопку.',clear:'Очистить',client:'Заказчик',job:'Работа',where:'Где',twist:'Осложнение',pay:'Оплата',payNote:'на команду, торг уместен',cash:'Наличные',die:'d10',
   weather:'ПОГОДА В НАЙТ-СИТИ',weatherSub:'1D10',weatherIntro:'Погода на сегодняшнюю ночь. Подсказки — лишь идеи для сцены, а не правила.',season:'Сезон',auto:'Авто (по дате)',roll:'Бросить погоду',again:'Бросить ещё',temp:'Температура',earlier:'Раньше'},
  en:{group:'GM TOOLS',clocks:'PROGRESS CLOCKS',clocksSub:'SAVED',clocksIntro:'Track threats, chases and long plans: segments fill as the game goes on. Click a segment to fill the clock up to it (click it again to clear it).',newName:'Name',newPlaceholder:'E.g. "The gang is on our trail"',segments:'Segments',create:'Create clock',none:'No clocks yet.',limit:'Limit reached — 30 clocks.',shared:'Show to players',reset:'Reset',del:'Delete',confirm:'Really delete?',minus:'Remove a segment',plus:'Add a segment',seg:'Segment',full:'Full!',rename:'Clock name',untitled:'Untitled',
-  tables:'RANDOM TABLES',tablesSub:'ORIGINAL',tablesIntro:'Quick prompts for improvising. These tables were written for this app, not taken from the book. Recent results stay below until the page reloads.',names:'Names & handles',one:'1 name',five:'5 names',handle:'Handle',gigs:'Gigs',gig:'Gig',loot:'Loot',pockets:'Pockets',stash:'Stash',oracle:'Yes/No oracle',likely:'Likelihood',ask:'Ask',history:'Recent results',empty:'Nothing yet — press any button.',clear:'Clear',client:'Client',job:'Job',where:'Where',twist:'Complication',pay:'Pay',payNote:'per crew, haggling expected',cash:'Cash',die:'d10',
+  tables:'RANDOM TABLES',tablesSub:'ORIGINAL',tablesIntro:'Quick prompts for improvising. These tables were written for this app, not taken from the book. Recent results stay below until the page reloads.',names:'Names & handles',one:'1 name',five:'5 names',handle:'Handle',gigs:'Gigs',gig:'Gig',loot:'Loot',pockets:'Pockets',stash:'Stash',oracle:'Yes/No oracle',likely:'Likelihood',ask:'Ask',history:'Recent results',book:'From the book',bookHeadline:'News headline',bookVendit:'Vendit',bookBodega:'Bodega',toJournal:'To journal',journalFor:'Campaign journal',journalNone:'Create a campaign to keep results in its journal.',journalDone:name=>`Written to the journal of “${name}”.`,journalFail:'Could not write to the journal.',weatherWord:'Weather',empty:'Nothing yet — press any button.',clear:'Clear',client:'Client',job:'Job',where:'Where',twist:'Complication',pay:'Pay',payNote:'per crew, haggling expected',cash:'Cash',die:'d10',
   weather:'NIGHT CITY WEATHER',weatherSub:'1D10',weatherIntro:'Tonight’s weather. Hints are scene ideas, not rules.',season:'Season',auto:'Auto (from date)',roll:'Roll weather',again:'Roll again',temp:'Temperature',earlier:'Earlier'}
 };
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ---------- in-memory UI state ----------
-let log=[],weatherLog=[],ui={size:6,likelihood:'even',season:'auto',armed:null,draft:''};
-function pushLog(entry){log.unshift(entry);log=log.slice(0,LOG_SIZE)}
+let log=[],weatherLog=[],ui={size:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};
+// Session prep stays on this device between reloads. Anything that no longer renders is dropped on load.
+const PREP_KEY='nc-gm-prep-v1';
+function storePrep(){try{window.localStorage?.setItem(PREP_KEY,JSON.stringify({v:1,log,weatherLog}))}catch(_){}}
+function usable(render,e){try{return !!e&&typeof e==='object'&&!!render(e)}catch(_){return false}}
+function loadPrep(){
+ try{
+  const saved=JSON.parse(window.localStorage?.getItem(PREP_KEY)||'null');if(!saved||saved.v!==1)return;
+  const t=T.ru;
+  if(Array.isArray(saved.log))log=saved.log.filter(e=>usable(x=>entryHtml(x,'ru',t),e)).slice(0,LOG_SIZE);
+  if(Array.isArray(saved.weatherLog))weatherLog=saved.weatherLog.filter(e=>usable(x=>weatherHtml(x,'ru',t,true),e)).slice(0,4);
+ }catch(_){log=[];weatherLog=[]}
+}
+function pushLog(entry){log.unshift(entry);log=log.slice(0,LOG_SIZE);storePrep()}
+// Plain text of a result for the campaign journal, made from the same markup the GM sees.
+function plainText(html){return String(html).replace(/<button[^>]*>.*?<\/button>/g,'').replace(/<\/dt>/g,': ').replace(/<\/(dd|li|strong|h4)>/g,'; ').replace(/<\/span>/g,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').replace(/(; )+/g,'; ').replace(/ ;/g,';').replace(/[;:\s]+$/,'').trim()}
+function prepCampaigns(){const st=appState();return (Array.isArray(st?.campaigns)?st.campaigns:[]).filter(c=>c&&typeof c.id==='string')}
+function journalTarget(){const list=prepCampaigns();return list.find(c=>c.id===ui.campaign)||list[0]||null}
+function journalPicker(t){const list=prepCampaigns();if(!list.length)return `<p class="gx-note">${esc(t.journalNone)}</p>`;const target=journalTarget();return `<label class="field gx-journal-pick">${esc(t.journalFor)}<select data-gx-field="campaign">${list.map(c=>`<option value="${esc(c.id)}"${c===target?' selected':''}>${esc(c.name||'—')}</option>`).join('')}</select></label>`}
+function toJournal(text,t){const target=journalTarget(),say=m=>{try{window.App?.notify?.(m)}catch(_){}};if(!target||!text||!window.Campaigns?.journalAdd?.(target,text.slice(0,2000),false)){say(t.journalFail);return false}try{window.App.save()}catch(_){}say(t.journalDone(target.name||'—'));return true}
 
 function appState(){return typeof window!=='undefined'&&window.App&&typeof window.App.getState==='function'?window.App.getState():null}
 
@@ -258,6 +278,7 @@ function entryHtml(e,l,t){
  if(e.kind==='names')return `<div class="gx-entry"><span class="overline">${esc(e.handleOnly?t.handle:t.names)}</span><ul class="gx-list">${e.names.map(n=>`<li>${esc(e.handleOnly?L({ru:n.handle[0],en:n.handle[1]},l):formatName(n,l))}</li>`).join('')}</ul></div>`;
  if(e.kind==='gig'){const g=e.gig;return `<div class="gx-entry"><span class="overline">${esc(t.gig)}</span><dl class="gx-dl"><dt>${esc(t.client)}</dt><dd>${esc(L(g.client,l))}</dd><dt>${esc(t.job)}</dt><dd>${esc(L(g.job,l))}</dd><dt>${esc(t.where)}</dt><dd>${esc(L(g.place,l))}</dd><dt>${esc(t.twist)}</dt><dd>${esc(L(g.complication,l))}</dd><dt>${esc(t.pay)}</dt><dd><span class="gx-mono">${g.pay.min}–${g.pay.max}eb</span> · ${esc(t.payNote)}</dd></dl></div>`}
  if(e.kind==='loot'){const o=e.loot;return `<div class="gx-entry"><span class="overline">${esc(t.loot)} · ${esc(o.mode==='stash'?t.stash:t.pockets)}</span><ul class="gx-list">${o.items.map(i=>`<li>${esc(L(i.name,l))} <span class="gx-mono">${esc(i.price)}eb</span>${i.page?` <button class="rule-source" type="button" data-action="book-page" data-page="${esc(i.page)}">${l==='en'?'p.':'стр.'} ${esc(i.page)}</button>`:''}</li>`).join('')}${o.flavor.map(f=>`<li class="gx-flavor">${esc(L(f,l))}</li>`).join('')}<li>${esc(t.cash)}: <span class="gx-mono">${o.cash}eb</span></li></ul></div>`}
+ if(e.kind==='book')return window.BookTables?.html?.(e.book,l)||'';
  if(e.kind==='oracle'){const o=e.oracle,lv=LIKELIHOOD.find(x=>x.id===o.likelihood);return `<div class="gx-entry gx-oracle-out"><span class="overline">${esc(t.oracle)} · ${esc(lv[l])}</span><div class="gx-oracle-row"><span class="gx-die" aria-label="${esc(t.die)}: ${o.roll}">${o.roll}</span><strong class="gx-answer ${o.answer.startsWith('yes')?'yes':'no'}">${esc(ANSWERS[o.answer][l])}</strong><span class="gx-note">${esc(t.die)} ≥ ${lv.min}</span></div></div>`}
  return '';
 }
@@ -268,13 +289,15 @@ function renderTables(l,t){
  h+=`<div class="gx-tool"><h4>${esc(t.gigs)}</h4><div class="gx-actions">${btn('gig',t.gig)}</div></div>`;
  h+=`<div class="gx-tool"><h4>${esc(t.loot)}</h4><div class="gx-actions">${btn('loot-pockets',t.pockets)}${btn('loot-stash',t.stash)}</div></div>`;
  h+=`<div class="gx-tool"><h4>${esc(t.oracle)}</h4><label class="field">${esc(t.likely)}<select data-gx-field="likelihood">${LIKELIHOOD.map(x=>`<option value="${x.id}"${x.id===ui.likelihood?' selected':''}>${esc(x[l])}</option>`).join('')}</select></label><div class="gx-actions">${btn('oracle',t.ask)}</div></div>`;
- h+=`</div><div class="gx-log-head"><strong>${esc(t.history)}</strong>${log.length?btn('clear-log',t.clear):''}</div><div class="gx-log" role="status" aria-live="polite">${log.length?log.map(e=>entryHtml(e,l,t)).join(''):`<p class="gx-note">${esc(t.empty)}</p>`}</div>`;
+ if(window.BookTables)h+=`<div class="gx-tool"><h4>${esc(t.book)}</h4><div class="gx-actions">${btn('book-headline',t.bookHeadline)}${btn('book-vendit',t.bookVendit)}${btn('book-bodega',t.bookBodega)}</div></div>`;
+ const canJournal=prepCampaigns().length>0;
+ h+=`</div><div class="gx-log-head"><strong>${esc(t.history)}</strong>${log.length?btn('clear-log',t.clear):''}</div>${journalPicker(t)}<div class="gx-log" role="status" aria-live="polite">${log.length?log.map((e,i)=>entryHtml(e,l,t)+(canJournal?`<div class="gx-entry-actions">${btn('journal',t.toJournal,` data-gx-index="${i}"`)}</div>`:'')).join(''):`<p class="gx-note">${esc(t.empty)}</p>`}</div>`;
  return h+'</section>';
 }
 function weatherHtml(w,l,t,main){const s=SEASONS.find(x=>x.id===w.season),c=WEATHER[w.condition];return `<div class="gx-weather${main?' main':''}"><div class="gx-oracle-row"><span class="gx-die" aria-label="${esc(t.die)}: ${w.roll}">${w.roll}</span><strong class="gx-cond">${esc(c[l])}</strong><span class="gx-mono">${w.temp[0]}…${w.temp[1]} °C</span><span class="gx-note">${esc(s[l])}</span></div>${main?`<p class="gx-hint">${esc(c.hint[l])}</p>`:''}</div>`}
 function renderWeather(l,t){
  let h=`<section class="card gx-card gx-weather-card" data-gx-section="weather"><div class="card-heading"><span>${esc(t.weather)}</span><span>${esc(t.weatherSub)}</span></div><p class="gx-note">${esc(t.weatherIntro)}</p><div class="gx-new"><label class="field">${esc(t.season)}<select data-gx-field="season"><option value="auto"${ui.season==='auto'?' selected':''}>${esc(t.auto)} — ${esc(SEASONS.find(s=>s.id===seasonFor())[l])}</option>${SEASONS.map(s=>`<option value="${s.id}"${ui.season===s.id?' selected':''}>${esc(s[l])}</option>`).join('')}</select></label><button type="button" class="btn primary" data-gx-action="weather">☂ ${esc(weatherLog.length?t.again:t.roll)}</button></div>`;
- if(weatherLog.length){h+=`<div role="status" aria-live="polite">${weatherHtml(weatherLog[0],l,t,true)}</div>`;if(weatherLog.length>1)h+=`<p class="overline gx-earlier">${esc(t.earlier)}</p>${weatherLog.slice(1).map(w=>weatherHtml(w,l,t,false)).join('')}`}
+ if(weatherLog.length){h+=`<div role="status" aria-live="polite">${weatherHtml(weatherLog[0],l,t,true)}</div>${prepCampaigns().length?`<div class="gx-entry-actions"><button type="button" class="btn ghost" data-gx-action="journal-weather">${esc(t.toJournal)}</button></div>`:''}`;if(weatherLog.length>1)h+=`<p class="overline gx-earlier">${esc(t.earlier)}</p>${weatherLog.slice(1).map(w=>weatherHtml(w,l,t,false)).join('')}`}
  return h+'</section>';
 }
 let lateRender=false;
@@ -312,8 +335,13 @@ function act(a,b,root,rng){
   case 'loot-pockets':pushLog({kind:'loot',loot:genLoot('pockets',rng)});return true;
   case 'loot-stash':pushLog({kind:'loot',loot:genLoot('stash',rng)});return true;
   case 'oracle':{const v=root.querySelector?.('[data-gx-field="likelihood"]')?.value;if(LIKELIHOOD.some(x=>x.id===v))ui.likelihood=v;pushLog({kind:'oracle',oracle:oracle(ui.likelihood,rng)});return true}
-  case 'clear-log':log=[];return true;
-  case 'weather':{const v=root.querySelector?.('[data-gx-field="season"]')?.value;if(v==='auto'||SEASONS.some(s=>s.id===v))ui.season=v;weatherLog.unshift(genWeather(ui.season==='auto'?null:ui.season,rng));weatherLog=weatherLog.slice(0,4);return true}
+  case 'book-headline':pushLog({kind:'book',book:window.BookTables.headline(rng)});return true;
+  case 'book-vendit':pushLog({kind:'book',book:window.BookTables.vendit(rng)});return true;
+  case 'book-bodega':pushLog({kind:'book',book:window.BookTables.bodega(rng)});return true;
+  case 'journal':{const entry=log[Number(b.dataset.gxIndex)];if(!entry)return true;const l=root.dataset?.lang==='en'?'en':'ru',t=T[l];toJournal(entry.kind==='book'?window.BookTables?.text?.(entry.book,l)||'':plainText(entryHtml(entry,l,t)),t);return true}
+  case 'journal-weather':{if(!weatherLog[0])return true;const l=root.dataset?.lang==='en'?'en':'ru',t=T[l];toJournal(t.weatherWord+': '+plainText(weatherHtml(weatherLog[0],l,t,true)),t);return true}
+  case 'clear-log':log=[];storePrep();return true;
+  case 'weather':{const v=root.querySelector?.('[data-gx-field="season"]')?.value;if(v==='auto'||SEASONS.some(s=>s.id===v))ui.season=v;weatherLog.unshift(genWeather(ui.season==='auto'?null:ui.season,rng));weatherLog=weatherLog.slice(0,4);storePrep();return true}
  }
  return false;
 }
@@ -326,6 +354,7 @@ function handle(e,lang,rng=Math.random){
  if(e.type==='change'){
   if(f==='draft')return true;
   if(f==='size'){const s=Number(target.value);if(SIZES.includes(s))ui.size=s;return true}
+  if(f==='campaign'){ui.campaign=String(target.value||'').slice(0,200);return true}
   if(f==='likelihood'){if(LIKELIHOOD.some(x=>x.id===target.value))ui.likelihood=target.value;return true}
   if(f==='season'){if(target.value==='auto'||SEASONS.some(s=>s.id===target.value))ui.season=target.value;return true}
   // Rename saves without re-rendering so a click elsewhere is not swallowed by the DOM swap.
@@ -341,7 +370,8 @@ function handle(e,lang,rng=Math.random){
  rerender(root,lang);
  return true;
 }
-function reset(){log=[];weatherLog=[];ui={size:6,likelihood:'even',season:'auto',armed:null,draft:''}}
+function reset(){log=[];weatherLog=[];ui={size:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};storePrep()}
+loadPrep();
 if(typeof document!=='undefined'&&document.addEventListener){for(const type of ['click','change','input','keydown'])document.addEventListener(type,e=>{handle(e)})}
 window.GMExtras={SIZES,MAX_CLOCKS,MAX_NAME,LIKELIHOOD,SEASONS,WEATHER,SEASON_TABLE,FIRST,LAST,HANDLES,CLIENTS,JOBS,PLACES,COMPLICATIONS,FLAVOR,
  cleanClock,readClocks,writeClocks,sharedClocks,addClock,updateClock,clickSegment,step,genName,formatName,genGig,genLoot,lootPool,oracle,oracleAnswer,seasonFor,genWeather,render,handle,reset,get log(){return log},get weatherLog(){return weatherLog}};
