@@ -499,3 +499,4 @@ html.ui-native.ui-light :is(input[type="checkbox"], input[type="radio"]) { accen
 
 /* ---------- Manual fixes ---------- */
 html.ui-native.ui-light .quick-progress button.active { color: var(--red-dark); border-color: var(--red); }
+html.ui-native.ui-light .beat-status.warn { color: #6b3d06; background: #f6ead8; }
