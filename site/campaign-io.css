@@ -1,0 +1,56 @@
+/* Campaign transfer (campaign-io.js) and the shared session journal (room-journal.js).
+   Only theme variables are used, so the cards follow all three looks and the light theme. */
+.cio{display:grid;gap:16px;margin-top:18px;min-width:0}
+.cio .card{min-width:0}
+.cio-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+html .cio .cio-actions .btn.btn{min-height:44px}
+.cio-opts{border:1px solid var(--border);border-radius:var(--radius,0);margin:12px 0 0;padding:8px 12px 10px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 16px}
+.cio-opts legend{padding:0 6px;font-size:.8rem;color:var(--muted)}
+.cio-check{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0;cursor:pointer;color:var(--text);overflow-wrap:anywhere}
+.cio-check input{flex:none;width:20px;height:20px;margin:0;accent-color:var(--red)}
+.cio-check input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.cio-check span{min-width:0}
+.cio-error,.cio-warn{margin:12px 0 0;padding:8px 12px;border-left:3px solid var(--red);background:var(--panel-2);color:var(--text);overflow-wrap:anywhere}
+.cio-warn{border-left-color:var(--yellow)}
+.cio-preview{border-color:var(--red)}
+.cio-preview #cio-preview-title:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+.cio-file{margin:0 0 8px;overflow-wrap:anywhere}
+.cio-safe{margin:0 0 6px;padding:8px 12px;border-left:3px solid var(--green);background:var(--panel-2);color:var(--text)}
+.cio-section{margin-top:14px;padding-top:10px;border-top:1px solid var(--border);min-width:0}
+.cio-sub{margin:0 0 4px;font-weight:700;color:var(--text)}
+.cio-n{color:var(--muted);font-weight:400}
+.cio-list,.cio-rows{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.cio-item{min-width:0}
+.cio-item.off .cio-detail{opacity:.6}
+.cio-detail{padding-left:30px;color:var(--muted);font-size:.9rem;overflow-wrap:anywhere}
+.cio-detail p{margin:0 0 4px}
+.cio-rename{color:var(--text)}
+.cio-rename b{color:var(--yellow)}
+.cio-rows{padding-left:30px}
+.cio-rows li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;padding:4px 0;border-bottom:1px dashed var(--border);min-width:0}
+.cio-rows li span{min-width:0;overflow-wrap:anywhere;color:var(--text)}
+.cio-rows li small{color:var(--green);font-size:.82rem}
+.cio-rows li.skip small{color:var(--muted)}
+
+/* Journal for players: what the Game Master marks under a campaign */
+.rj-status{margin:10px 0;padding:8px 12px;border-left:3px solid var(--border);background:var(--panel-2);color:var(--text);overflow-wrap:anywhere}
+.rj-rows{display:grid;gap:2px;max-height:26rem;overflow:auto;margin-top:8px;border-top:1px solid var(--border)}
+.rj-row{display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;min-width:0}
+.rj-row input{flex:none;width:20px;height:20px;margin:2px 0 0;accent-color:var(--red)}
+.rj-row input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.rj-row-text{display:grid;gap:2px;min-width:0;overflow-wrap:anywhere;color:var(--text)}
+.rj-row-text time{font-size:.75rem;color:var(--muted)}
+.rj-row-text>span{font-size:.92rem;font-weight:400;line-height:1.45}
+.rj-row,.cio-check{letter-spacing:0;text-transform:none}
+
+/* The journal on the room page */
+.room-journal .rj-campaign{margin-top:6px;font-weight:700;color:var(--text)}
+.room-journal .rj-list{display:grid;gap:10px;margin-top:12px}
+.rj-entry{border-top:1px solid var(--border);padding-top:8px;min-width:0}
+.rj-entry time{display:block;font-size:.75rem;color:var(--muted)}
+.rj-entry p{margin:2px 0 0;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--text)}
+.rj-more{margin-top:12px}
+.rj-more summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--text);font-weight:600}
+.rj-more summary:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+html .room-journal .btn.rj-save{margin-top:14px;min-height:44px}
+@media (max-width:560px){.cio-actions .btn{flex:1 1 100%}.cio-detail,.cio-rows{padding-left:0}}
