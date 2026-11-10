@@ -317,11 +317,7 @@ function publishCombat(force=false){
  refresh();
 }
 function publishClocks(force=false){
-<<<<<<< HEAD
- if(!session||session.role!=='gm')return;global.RoomJournal?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;lastClocks=s;clocks=d;
-=======
- if(!drives())return;const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
->>>>>>> feat/room-cogm
+ if(!drives())return;global.RoomJournal?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
  const at=Date.now();clocksAt=at;
  if(d.length)send('k','clocks',{list:d},true,transport,at);else send('k','cleared',{},true,transport,at);
  refresh();
@@ -393,15 +389,10 @@ async function receive(p){
   if(!was&&myTurn(combat)&&!p.retain){if(session.toasts!==false)toast({total:'▶',who:t('yourTurn'),label:t('yourTurnHint'),kind:'turn'});try{if(global.localStorage?.getItem('nc-haptics')!=='off')global.navigator?.vibrate?.([120,80,120])}catch{}}
   repaint();
  }else if((m.t==='clocks'||m.t==='cleared')&&sub==='k'){
-<<<<<<< HEAD
-  if(!fromGM||at<clocksAt||Date.now()-at>STATE_TTL)return;
-  clocksAt=at;clocks=m.t==='cleared'?[]:cleanClocks(m.d.list);repaint();
- }else if(m.t==='journal'&&sub==='j'){
-  if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();
-=======
   if(!(fromGM||fromDeputy)||at<clocksAt||Date.now()-at>STATE_TTL)return;
   clocksAt=at;clocksBy=fp;clocks=m.t==='cleared'?[]:cleanClocks(m.d.list);repaint();
->>>>>>> feat/room-cogm
+ }else if(m.t==='journal'&&sub==='j'){
+  if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();
  }else if(m.t==='sheet'&&sub==='e'){
   if(session.role!=='gm'||m.d.to!==session.memberId||!fresh)return;
   let got=null;try{got=await readSheet(m.d)}catch{return}
