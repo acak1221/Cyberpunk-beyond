@@ -504,3 +504,6 @@ html.ui-native.ui-light .camp-chip-serious { color: #6b3d06; border-color: #b981
 html.ui-native.ui-light .turn-death { color: #a01f16; }
 html.ui-native.ui-light .playstyle > summary { color: #2a1e11; }
 html.ui-native.ui-light .playstyle-box { border-color: #c9c5c5; }
+html.ui-native.ui-light .room-key { color: #4d4136; }
+html.ui-native.ui-light .room-key b { color: #1c1b1d; }
+html.ui-native.ui-light .camp-live { color: #a01f16; }

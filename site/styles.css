@@ -462,3 +462,4 @@ kbd { color: #77716b; font: inherit; }
 .camp-more-row .btn{min-height:40px;padding:6px 12px;font-size:11px}
 .camp-more-row label{display:grid;gap:4px;color:var(--muted);font-size:11px}.camp-more-row input{width:76px}.camp-more-row select{max-width:210px}
 .turn-death{color:#ff9b8f}
+.camp-chip-hidden{border-style:dashed;color:var(--muted)}.camp-live:empty{display:none}.camp-live{display:block;color:#ff9b8f;font-weight:700}

@@ -29,7 +29,7 @@ test('a room code derives a stable private topic and a key that only it can open
 test('shared character summaries carry only numbers and short text',()=>{
  const R=loadRoom().Room._test;
  const s=R.characterSummary({name:'Ви',role:'solo',rank:4,hp:20,humanity:60,head:11,bodyArmor:12,stats:{BODY:8,WILL:6,LUCK:6,REF:7,DEX:6},extra:{luck:3},notes:'secret',extra2:{x:1}});
- assert.deepEqual(plain(s),{name:'Ви',role:'solo',rank:4,hp:20,max:45,humanity:60,luck:3,luckMax:6,head:11,body:12,ref:7,dex:6});
+ assert.deepEqual(plain(s),{name:'Ви',role:'solo',rank:4,hp:20,max:45,humanity:60,luck:3,luckMax:6,head:11,body:12,ref:7,dex:6,rep:0});
  const dirty=R.cleanSummary({name:'<img src=x onerror=alert(1)>'.repeat(10),hp:'1e9',max:-5,role:{evil:true},luck:'7',extra:'drop me'});
  assert.equal(dirty.name.length,60);assert.equal(dirty.hp,9999);assert.equal(dirty.max,1);assert.equal(dirty.role,'');assert.equal(dirty.luck,7);assert.equal('extra' in dirty,false);
  // Text is taken only from text and numbers: an object in its place is not turned into words (and its toString is never called).
@@ -97,8 +97,11 @@ test('shared clocks are sanitised and drawn as numbered segments only',()=>{
 
 test('room state ignores stale copies, keyless clears and honours encrypted leave markers',async()=>{
  const R=loadRoom().Room._test;
- const room=await R.deriveRoom('K7RQM2XAPZ9E');R.setKey(room.key);R.setSession({code:'K7RQM2XAPZ9E',role:'player',name:'V',memberId:'me'},room.topic);
- let n=0;const msg=async(sub,t,d,at,retain=true)=>({topic:room.topic+'/'+sub,retain,payload:await R.seal({v:2,id:'m'+(n++),from:'gm1',t,at,d})});
+ const room=await R.deriveRoom('K7RQM2XAPZ9E');R.setKey(room.key);
+ // The Game Master is another device with its own key; this player trusts that key.
+ const gm=await R.newIdentity(),gm1=gm.fp+'.000000a1',me=await R.ensureIdentity();
+ R.setSession({code:'K7RQM2XAPZ9E',role:'player',name:'V',memberId:me.fp+'.000000b1',gmFp:gm.fp},room.topic);
+ let n=0;const msg=async(sub,t,d,at,retain=true)=>({topic:room.topic+'/'+sub,retain,payload:await R.signedEnvelope(gm,gm1,room.topic,room.key,sub,t,d,at,'m'+(n++))});
  const now=Date.now();
  await R.receive(await msg('c','combat',{campaign:'A',round:3,order:[{name:'Ганг',init:12}]},now-1000));
  assert.equal(R.state().combat.round,3);
@@ -110,15 +113,15 @@ test('room state ignores stale copies, keyless clears and honours encrypted leav
  assert.equal(R.state().combat,null);
  await R.receive(await msg('k','clocks',{list:[{name:'Тревога',size:4,filled:2}]},now-13*3600*1000)); // left over from an old session
  assert.equal(R.state().clocks.length,0);
- await R.receive(await msg('m/gm1','member',{name:'GM',role:'gm'},now-2000));
- assert.equal(R.members().get('gm1').name,'GM');
- await R.receive(await msg('m/gm1','member',{name:'Old name',role:'gm'},now-90000));
- assert.equal(R.members().get('gm1').name,'GM');
- await R.receive(await msg('m/gm1','left',{},now-100));
- assert.equal(R.members().has('gm1'),false);
- const old=await R.seal({v:1,id:'legacy',from:'gm1',t:'member',at:now,d:{name:'v1'}});
- await R.receive({topic:room.topic+'/m/gm1',retain:true,payload:old});
- assert.equal(R.members().has('gm1'),false);
+ await R.receive(await msg('m/'+gm1,'member',{name:'GM',role:'gm'},now-2000));
+ assert.equal(R.members().get(gm1).name,'GM');
+ await R.receive(await msg('m/'+gm1,'member',{name:'Old name',role:'gm'},now-90000));
+ assert.equal(R.members().get(gm1).name,'GM');
+ await R.receive(await msg('m/'+gm1,'left',{},now-100));
+ assert.equal(R.members().has(gm1),false);
+ const old=await R.seal({v:1,id:'legacy',from:gm1,t:'member',at:now,d:{name:'v1'}});
+ await R.receive({topic:room.topic+'/m/'+gm1,retain:true,payload:old});
+ assert.equal(R.members().has(gm1),false);
 });
 
 test('room codes are drawn without modulo bias',()=>{

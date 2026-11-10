@@ -17,8 +17,10 @@ function varint(n){const out=[];do{let byte=n%128;n=Math.floor(n/128);if(n>0)byt
 function packet(type,flags,body){return concat([Uint8Array.of((type<<4)|flags),varint(body.length),body])}
 
 const encode={
- connect({clientId,username,password,keepalive=KEEPALIVE}){
+ // `will` is {topic, payload}: what the broker publishes for this client if the connection drops without a DISCONNECT.
+ connect({clientId,username,password,keepalive=KEEPALIVE,will}){
   let flags=0x02;const payload=[str(clientId)];
+  if(will&&typeof will.topic==='string'&&will.payload instanceof Uint8Array&&will.payload.length<65536){flags|=0x04;payload.push(str(will.topic),concat([Uint8Array.of(will.payload.length>>8,will.payload.length&255),will.payload]))}
   if(username!==undefined){flags|=0x80;payload.push(str(username))}
   if(password!==undefined){flags|=0x40;payload.push(str(password))}
   return packet(1,0,concat([str('MQTT'),Uint8Array.of(4,flags,keepalive>>8,keepalive&255),...payload]));
@@ -51,7 +53,7 @@ function createParser(onPacket){
 }
 
 // One broker connection with automatic reconnect.
-function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl}){
+function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl,will}){
  let ws=null,timer=null,ping=null,probeTimer=null,closed=false,attempt=0,ready=false,lastRx=0;
  const id='ncr'+Math.random().toString(36).slice(2,12)+Date.now().toString(36).slice(-6);
  function status(s){ready=s==='online';onStatus?.(broker.url,s)}
@@ -64,7 +66,7 @@ function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl}){
    if(p.type===2){if(p.body[1]===0){attempt=0;status('online');ws.send(encode.subscribe(1,topic+'/#'))}else{status('refused');ws.close()}}
    else if(p.type===3)onMessage(p);
   });
-  ws.onopen=()=>{lastRx=Date.now();ws.send(encode.connect({clientId:id,username:broker.username,password:broker.password}));clearInterval(ping);ping=setInterval(()=>{
+  ws.onopen=()=>{lastRx=Date.now();let last=null;try{last=will?.()||null}catch{}ws.send(encode.connect({clientId:id,username:broker.username,password:broker.password,will:last}));clearInterval(ping);ping=setInterval(()=>{
    // A socket can stay "open" after a phone sleeps or the network changes while nothing arrives any more.
    if(Date.now()-lastRx>KEEPALIVE*1500){drop();return}
    try{ws.readyState===1&&ws.send(encode.ping())}catch{}
@@ -89,9 +91,9 @@ function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl}){
 }
 
 /* Connects to every broker at once; publishes everywhere and drops duplicate deliveries. */
-function create({topic,brokers,onMessage,onStatus,WebSocketImpl}){
+function create({topic,brokers,onMessage,onStatus,WebSocketImpl,will}){
  const states=new Map(),conns=[];
- for(const b of (brokers&&brokers.length?brokers:DEFAULT_BROKERS))conns.push(connectBroker(b,{topic,WebSocketImpl,onMessage:p=>onMessage(p),onStatus:(url,s)=>{states.set(url,s);onStatus?.(summary())}}));
+ for(const b of (brokers&&brokers.length?brokers:DEFAULT_BROKERS))conns.push(connectBroker(b,{topic,WebSocketImpl,will:()=>{const w=will?.();return w&&typeof w.subtopic==='string'?{topic:topic+'/'+w.subtopic,payload:w.payload}:null},onMessage:p=>onMessage(p),onStatus:(url,s)=>{states.set(url,s);onStatus?.(summary())}}));
  function summary(){const total=conns.length,online=conns.filter(c=>c.online()).length;return {total,online,states:Object.fromEntries(states)}}
  return {
   publish(subtopic,bytes,retain=false){const pkt=encode.publish(topic+'/'+subtopic,bytes,retain);let sent=0;for(const c of conns)if(c.send(pkt))sent++;return sent},
