@@ -1,0 +1,52 @@
+/* "Перенос и копии" (site/transfer.js). Colours come from the theme variables only, so every look and the light theme follow. */
+.xfer { scroll-margin-top: 72px; }
+.xfer h3 { overflow-wrap: anywhere; }
+.xfer p { overflow-wrap: anywhere; }
+.xfer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+/* Every control in the block is a full touch target in every look (the board and classic looks set smaller buttons). */
+html .xfer .btn, html .xfer .btn.small, html.ui-native.ui-board .xfer .btn { margin-left: 0; min-height: 44px; }
+.xfer .btn[disabled], .xfer .btn.disabled { opacity: .55; cursor: not-allowed; }
+.xfer-file { position: relative; cursor: pointer; }
+/* The input stays in the tab order (it is only visually hidden), so the label works from the keyboard. */
+.xfer-file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.xfer-file:focus-within { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.xfer-remind { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; font-size: 13px; }
+.xfer-remind select { min-height: 44px; max-width: 100%; padding: 6px 10px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); font: inherit; }
+.xfer-due { margin: 8px 0; padding: 10px 12px; border-left: 3px solid var(--yellow); background: var(--panel-2); color: var(--text); font-size: 13px; }
+.xfer-due .hint-link, .xfer-strip-links .hint-link { min-height: 32px; margin-left: 6px; }
+.xfer-strip-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.xfer-strip-links .hint-link { margin-left: 0; }
+.xfer-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 16px; padding: 12px 14px; border-left: 3px solid var(--green); background: var(--panel-2); color: var(--text); }
+.xfer-note > span { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.xfer-note .btn { margin-left: 0; min-height: 44px; }
+.xfer-error { color: var(--text); border-left: 3px solid var(--red); padding-left: 10px; }
+.xfer-note.xfer-error { padding-left: 14px; border-left-color: var(--red); }
+.xfer-preview { margin: 22px 0; padding: 16px; border: 1px solid var(--border); border-left: 3px solid var(--yellow); background: var(--panel-2); }
+.xfer-preview:focus, .xfer-note:focus, .xfer-live:focus { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.xfer-preview h3 { margin: 0 0 6px; font: 600 16px/1.3 var(--body); letter-spacing: 0; text-transform: none; }
+.xfer-preview h4 { margin: 0 0 8px; font: 600 14px/1.3 var(--body); letter-spacing: 0; text-transform: none; color: var(--text); }
+.xfer-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+.xfer-option { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px; border: 1px solid var(--border); background: var(--panel); }
+.xfer-option > .btn, .xfer-option .xfer-actions { margin-top: auto; }
+.xfer-option .btn { margin-left: 0; min-height: 44px; justify-content: center; }
+.xfer-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.xfer-list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; overflow-wrap: anywhere; }
+.xfer-mark { color: var(--muted); font-weight: 800; text-align: center; }
+.btn.xfer-danger { color: var(--text); background: transparent; border: 2px solid var(--red); }
+.xfer-code-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 12px 0; padding: 14px; border: 1px dashed var(--border); background: var(--panel-2); }
+.xfer-code-label { flex: 1 0 100%; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.xfer-code { font: 700 clamp(20px, 6.2vw, 30px)/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; color: var(--text); user-select: all; white-space: nowrap; }
+.xfer-entry label { display: block; margin-bottom: 6px; font-size: 13px; }
+.xfer-entry-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.xfer-code-input { flex: 1 1 200px; box-sizing: border-box; min-width: 0; min-height: 44px; height: 44px; padding: 8px 12px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); font: 700 18px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; text-transform: uppercase; }
+.xfer-entry-row .btn { margin-left: 0; min-height: 44px; }
+.xfer-intro { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.xfer-live { margin: 10px 0; }
+.xfer-live p { margin: 6px 0; }
+.xfer-progress { display: flex; align-items: center; gap: 10px; }
+.xfer-progress progress { display: block; flex: 1 1 auto; min-width: 0; height: 10px; margin: 0; accent-color: var(--yellow); }
+@media (max-width: 720px) {
+ .xfer-options { grid-template-columns: minmax(0, 1fr); }
+ .xfer-actions .btn, .xfer-entry-row .btn { flex: 1 1 100%; width: auto; justify-content: center; }
+ .xfer-preview { padding: 12px; }
+}
