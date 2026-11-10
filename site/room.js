@@ -268,8 +268,9 @@ async function receive(p){
  if(!p.payload.length||!underCap())return;
  let outer;try{outer=await open(p.payload)}catch{return}
  if(!session)return;
- // A page that has not been updated yet speaks the previous protocol: say so instead of staying silent.
- if(outer&&outer.v===2&&typeof outer.from==='string'){if(Date.now()-oldSeen>120000){oldSeen=Date.now();app?.notify?.(t('oldVersion'));repaint()}return}
+ // A page that has not been updated yet speaks the previous protocol: say so instead of staying silent. Only live traffic counts:
+ // a copy a broker kept from before the update says nothing about who is in the room now.
+ if(outer&&outer.v===2&&typeof outer.from==='string'){if(!p.retain&&Date.now()-oldSeen>120000){oldSeen=Date.now();app?.notify?.(t('oldVersion'));repaint()}return}
  if(!outer||outer.v!==PROTOCOL||typeof outer.b!=='string'||typeof outer.s!=='string')return;
  let m;try{m=JSON.parse(outer.b)}catch{return}
  if(!m||typeof m.id!=='string'||m.id.length>32||seen.has(m.id)||typeof m.from!=='string'||!MEMBER_ID.test(m.from)||!m.d||typeof m.d!=='object'||Array.isArray(m.d)||!isCoord(m.pk?.x)||!isCoord(m.pk?.y))return;

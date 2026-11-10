@@ -137,7 +137,9 @@ test('a hidden member is dropped until shown again; the Game Master cannot be hi
 test('a page on the previous protocol is named instead of being silently invisible',async()=>{
  const s=await scene();
  const old=await s.R.seal({v:2,id:'o1',from:'abc',t:'member',at:Date.now(),d:{name:'Old'}});
- await s.R.receive({topic:s.room.topic+'/m/abc',retain:true,payload:old});await s.R.receive({topic:s.room.topic+'/m/abc',retain:true,payload:old});
+ await s.R.receive({topic:s.room.topic+'/m/abc',retain:true,payload:old});
+ assert.equal(s.notices.length,0,'a copy the broker kept from before the update is not somebody in the room');assert.doesNotMatch(s.R.roomView(),/старая версия приложения/);
+ await s.R.receive({topic:s.room.topic+'/m/abc',retain:false,payload:old});await s.R.receive({topic:s.room.topic+'/m/abc',retain:false,payload:old});
  assert.equal(s.notices.length,1);assert.match(s.notices[0],/старая версия приложения/);assert.equal(s.R.members().size,0);assert.match(s.R.roomView(),/старая версия приложения/);
 });
 
