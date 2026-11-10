@@ -206,7 +206,7 @@ html.ui-native .set-aside h3 { font: 600 15px/1.3 var(--body); letter-spacing: 0
 /* A notice with an undo button: the notice lets clicks through, only its button takes them. */
 .app-notice { overflow-wrap: anywhere; } /* a long one-word name must not push the action off the screen */
 .app-notice:has(> .notice-action) { display: flex; align-items: center; justify-content: space-between; gap: 14px; white-space: normal; }
-.app-notice .notice-action { flex: 0 0 auto; }
+.app-notice .notice-action { flex: 0 0 auto; min-height: 44px; }
 /* A newer notice shown while an action («Вернуть») is still pending: the action keeps its own row below it. */
 .app-notice > .notice-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); white-space: normal; }
 .app-notice > .notice-row > span { min-width: 0; }
