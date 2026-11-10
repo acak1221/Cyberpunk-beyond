@@ -309,3 +309,124 @@ test('wiring: index.html loads the cart before app.js and its stylesheet after t
   assert.match(app, /a\.startsWith\('cart-'\)/); assert.doesNotMatch(app.slice(app.indexOf('function snapshotAppState'), app.indexOf('function snapshotAppState') + 1500), /cart/i, 'the cart is not part of the saved state');
   assert.doesNotMatch(read('shop-cart.js'), /nightcity-red-v1'|confirm\(/);
 });
+
+// ---- Regressions found in review: two tabs, lost clicks, focus, phone layout ----
+// A second rig with the parts of a browser the fixes touch: a shared storage box, a window with a
+// storage event, a queue for deferred work, a focused element, and a dock with a position on screen.
+function rig2(options = {}) {
+  const box = options.box || new Map(), queue = [], scrolled = [], vars = {}, marks = [], focused = [], notices = [], saved = [], listeners = {}, winListeners = {};
+  const dock = { top: options.dockTop ?? 56, height: 130, getBoundingClientRect() { return { top: this.top, bottom: this.top + this.height, height: this.height }; } };
+  const nodes = { '#shop-money': { innerHTML: '' }, '#shop-toggle': { textContent: '', setAttribute() {}, focus: () => focused.push('#shop-toggle') }, '#shop-cart': { innerHTML: '', hidden: true }, '#shop-dock': dock, '#catalog-target': { classList: { toggle: (name, on) => marks.push([name, on]) } } };
+  const doc = { activeElement: null, documentElement: { style: { setProperty: (k, v) => { vars[k] = v; } } }, querySelector: sel => nodes[sel] || { focus: () => focused.push(sel) }, addEventListener: (type, fn) => { listeners[type] = fn; } };
+  const win = { innerHeight: 780, getComputedStyle: () => ({ top: '56px' }), scrollBy: o => scrolled.push(o), addEventListener: (type, fn) => { winListeners[type] = fn; } };
+  const storage = { getItem: k => (box.has(k) ? box.get(k) : null), setItem: (k, v) => box.set(k, v), removeItem: k => box.delete(k) };
+  const world = { buyerId: 'p1', people: [person({ cash: 1000, gearBudget: 500 })] };
+  const ctl = SC.controller({ lang: () => 'en', characters: () => world.people, buyerId: () => world.buyerId, nameOf: c => c.name, catalog: () => CATALOG, scope: () => 's', epoch: () => 1, current: () => true, stale: () => notices.push('STALE'), notify: m => notices.push(m), save: () => saved.push(1), needBuyer: () => notices.push('NEED BUYER'), openSheet() {}, document: doc, storage, window: win, defer: fn => queue.push(fn) });
+  const run = () => { while (queue.length) queue.shift()(); };
+  return { ctl, nodes, doc, dock, box, queue, run, scrolled, vars, marks, focused, notices, saved, world, listeners, winListeners, click: (action, data = {}) => ctl.click(action, { dataset: data }), panel: () => nodes['#shop-cart'].innerHTML, toggle: () => nodes['#shop-toggle'].textContent };
+}
+
+test('two tabs: a cart paid for in one tab is gone from the other and cannot be paid again or written back', () => {
+  const box = new Map(), a = rig2({ box });
+  a.click('cart-add', { id: PISTOL }); a.click('cart-add', { id: HEAVY });
+  const b = rig2({ box }); assert.equal(b.ctl.cart.lines.length, 2, 'tab B loads the shared cart');
+  b.click('cart-review'); assert.match(b.panel(), /cart-pay/);
+  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.cash, 850); assert.equal(box.has(SC.KEY), false);
+  // The storage event reaches tab B: its cart, bar and panel follow.
+  b.winListeners.storage({ key: SC.KEY });
+  assert.equal(b.ctl.cart.lines.length, 0); assert.equal(b.toggle(), 'Cart is empty'); assert.doesNotMatch(b.panel(), /cart-pay|cart-review/);
+  // Even if the event has not arrived, every action re-reads the stored cart first.
+  const c = rig2({ box }); a.click('cart-add', { id: PISTOL }); c.click('cart-review'); assert.match(c.panel(), /cart-pay/);
+  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.cash, 800);
+  c.click('cart-pay');
+  assert.equal(c.saved.length, 0); assert.equal(c.world.people[0].extra.cash, 1000); assert.equal(c.world.people[0].extra.weapons.length, 0); assert.equal(c.notices.at(-1), 'STALE'); assert.equal(c.ctl.cart.lines.length, 0);
+  c.click('cart-inc', { key: PISTOL + '||' }); c.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '4' }); c.ctl.setMode('cash');
+  assert.equal(box.has(SC.KEY), false, 'a stale tab does not write the bought lines back');
+  // A cart built in one tab after the other was opened is joined, not overwritten.
+  a.click('cart-add', { id: HEAVY }); c.click('cart-add', { id: PISTOL });
+  assert.deepEqual(JSON.parse(box.get(SC.KEY)).lines.map(l => l.itemId), [HEAVY, PISTOL]);
+  a.winListeners.storage({ key: SC.KEY }); assert.equal(a.toggle(), 'Cart: 2 · 150 eb');
+  a.winListeners.storage({ key: 'nightcity-red-v1' }); assert.equal(a.ctl.cart.lines.length, 2, 'other keys are ignored');
+});
+
+test('typed quantity: the panel is not rebuilt under a pressed pointer, so Buy all, Remove and +/- still get their click', () => {
+  const r = rig2(); r.click('cart-add', { id: PISTOL }); r.click('cart-add', { id: HEAVY }); r.click('cart-toggle');
+  const before = r.panel();
+  r.listeners.pointerdown(); r.listeners.mousedown();
+  r.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '7' });
+  assert.equal(r.toggle(), 'Cart: 8 · 450 eb', 'the bar follows at once'); assert.equal(r.panel(), before, 'the panel under the pointer is left alone'); assert.equal(r.queue.length, 0);
+  r.listeners.pointerup(); r.listeners.mouseup(); assert.equal(r.panel(), before, 'still there when the click is dispatched');
+  r.click('cart-review'); r.listeners.click();
+  assert.match(r.panel(), /Pay 450 eb/); r.run(); assert.match(r.panel(), /Pay 450 eb/, 'the late repaint does not undo the review');
+  // A press that never becomes a click (released elsewhere) still ends in an up-to-date panel.
+  r.click('cart-back'); r.listeners.pointerdown(); r.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '2' }); const stale = r.panel();
+  r.listeners.pointerup(); r.run(); assert.notEqual(r.panel(), stale); assert.match(r.panel(), /50 eb × 2 = <b>100 eb/);
+});
+
+test('typed quantity and Tab: focus is not forced back into the field; the control that got focus keeps it', () => {
+  const r = rig2(); r.click('cart-add', { id: PISTOL }); r.click('cart-toggle');
+  const at = r.focused.length, before = r.panel();
+  r.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '3' });
+  assert.equal(r.focused.length, at, 'no focus call while the keyboard is leaving the field'); assert.equal(r.panel(), before); assert.equal(r.queue.length, 1);
+  // By the time the deferred repaint runs, Tab has moved focus to the + button.
+  r.doc.activeElement = { closest: sel => sel === '#shop-cart', dataset: { action: 'cart-inc', key: PISTOL + '||' } };
+  r.run();
+  assert.match(r.panel(), /50 eb × 3 = <b>150 eb/); assert.equal(r.focused.at(-1), `[data-action="cart-inc"][data-key="${PISTOL}||"]`);
+  // Enter leaves focus in the field, and the repaint keeps it there.
+  r.doc.activeElement = { closest: sel => sel === '#shop-cart', dataset: { cartQty: PISTOL + '||' } };
+  r.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '4' }); r.run(); assert.equal(r.focused.at(-1), `[data-cart-qty="${PISTOL}||"]`);
+});
+
+test('Pay from: changing the budget keeps focus on the select, so Escape still closes the cart', () => {
+  const r = rig2(); r.click('cart-add', { id: PISTOL }); r.click('cart-toggle');
+  r.ctl.setMode('gearBudget'); assert.equal(r.focused.at(-1), '#catalog-mode');
+  assert.equal(r.ctl.key({ key: 'Escape', target: { closest: () => ({}) } }), true); assert.equal(r.ctl.state().open, false);
+});
+
+test('buyer select: the "nobody chosen" mark follows the buyer on every repaint', () => {
+  const r = rig2(); r.world.buyerId = ''; r.ctl.changed(); assert.deepEqual(r.marks.at(-1), ['is-empty', true]);
+  r.world.buyerId = 'p1'; r.ctl.changed(); assert.deepEqual(r.marks.at(-1), ['is-empty', false]);
+});
+
+test('opening the cart while the dock is not stuck yet scrolls the page so the panel is on screen', () => {
+  const low = rig2({ dockTop: 367 }); low.dock.height = 500; low.click('cart-add', { id: PISTOL }); assert.equal(low.scrolled.length, 0);
+  low.click('cart-toggle'); assert.deepEqual(plain(low.scrolled), [{ top: 311, behavior: 'instant' }]);
+  low.click('cart-inc', { key: PISTOL + '||' }); assert.equal(low.scrolled.length, 1, 'only when it opens');
+  const stuck = rig2({ dockTop: 56 }); stuck.dock.height = 500; stuck.click('cart-toggle'); assert.equal(stuck.scrolled.length, 0, 'a stuck dock stays put');
+  const fits = rig2({ dockTop: 300 }); fits.dock.height = 200; fits.click('cart-toggle'); assert.equal(fits.scrolled.length, 0, 'a panel that fits is left alone');
+  // The dock reports how much of the top of the screen it covers (its sticky offset plus its height, capped).
+  assert.equal(fits.vars['--shop-dock-h'], '256px'); assert.equal(low.vars['--shop-dock-h'], '468px');
+});
+
+test('stylesheet: phone dock without the page-wide shadow, readable red in the cyberpunk look, room for focus and toast', () => {
+  const css = read('shop-cart.css'), phone = css.slice(css.indexOf('@media (max-width: 820px)'), css.indexOf('/* Original cyberpunk look'));
+  // The default look removes every clip-path, so nothing in the cart may rely on one to hide a huge shadow.
+  assert.match(read('native.css'), /html\.ui-native \* \{ clip-path: none !important; \}/);
+  assert.doesNotMatch(css, /clip-path\s*:/); assert.doesNotMatch(css, /box-shadow:[^;]*100vmax/);
+  assert.match(phone, /\.shop-dock \{[^}]*box-shadow: none;[^}]*border-image: [^;}]*var\(--panel\)[^;}]*100vmax/);
+  // Shortage and error text in the cyberpunk look: at least 4.5:1 on both dock backgrounds.
+  const red = css.match(/html:not\(\.ui-native\) :is\(\.shop-after\.is-short, \.shop-after\.is-short b, \.shop-total \.is-short, \.shop-total \.is-short b, \.shop-line-error, \.shop-blocker\) \{ color: (#[0-9a-f]{6}); \}/);
+  assert.ok(red, 'cyberpunk override for red text');
+  const lum = hex => { const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)); return .2126 * r + .7152 * g + .0722 * b; };
+  const ratio = (a, b) => (Math.max(lum(a), lum(b)) + .05) / (Math.min(lum(a), lum(b)) + .05);
+  const base = read('styles.css'), v = name => base.match(new RegExp(name + ':\\s*(#[0-9a-f]{6})'))[1];
+  assert.ok(ratio(v('--red'), v('--panel-2')) < 4.5, 'the look\'s own red is too dim, hence the override');
+  for (const bg of ['--panel', '--panel-2']) assert.ok(ratio(red[1], v(bg)) >= 4.5, bg + ' ' + ratio(red[1], v(bg)).toFixed(2));
+  // Card controls scrolled into view by the keyboard stop below the sticky dock.
+  assert.match(css, /#catalog-list :is\(button, a, \[tabindex\]\) \{ scroll-margin-top: calc\(var\(--shop-dock-h, 96px\) \+ 8px\); \}/);
+  assert.match(phone, /#catalog-list :is\(button, a, \[tabindex\]\) \{ scroll-margin-top: calc\(var\(--shop-dock-h, 240px\) \+ 8px\); \}/);
+  assert.doesNotMatch(css, /scroll-padding/, 'page padding would also move focus inside the dock');
+  // Phone: the toast leaves the bottom of the screen while the cart is open.
+  assert.match(phone, /html:has\(#shop-cart:not\(\[hidden\]\)\) \.app-notice:not\(\.roll-notice\) \{ top: [^;]+; bottom: auto; \}/);
+});
+
+test('paying never resets the current LUCK of a character whose sheet was not opened yet', () => {
+  const c = person(); c.stats = { EMP: 6, LUCK: 6 }; delete c.extra.luck;
+  const cart = cartOf(PISTOL), p = SC.plan(c, cart, CATALOG, 'en');
+  const paid = SC.checkout(c, cart, CATALOG, 'en', { confirmed: true, signature: p.signature });
+  assert.equal(paid.ok, true); assert.equal(c.extra.cash, 950);
+  assert.ok(c.extra.luck === undefined || c.extra.luck === 6, 'LUCK is ' + c.extra.luck);
+  const kept = person({ luck: 2 }); kept.stats = { EMP: 6, LUCK: 6 };
+  const cart2 = cartOf(PISTOL), p2 = SC.plan(kept, cart2, CATALOG, 'en');
+  assert.equal(SC.checkout(kept, cart2, CATALOG, 'en', { confirmed: true, signature: p2.signature }).ok, true); assert.equal(kept.extra.luck, 2);
+});

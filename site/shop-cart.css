@@ -78,11 +78,19 @@
 .catalog-actions { gap: 6px; margin-left: auto; }
 .catalog-foot .btn { min-height: 44px; padding: 8px 12px; margin: 0; }
 
+/* The dock is sticky: card controls that the keyboard scrolls into view stop below it (the script measures it).
+   A margin on the cards, not padding on the page: padding would also apply to the controls inside the dock. */
+#catalog-list :is(button, a, [tabindex]) { scroll-margin-top: calc(var(--shop-dock-h, 96px) + 8px); }
+
 /* Phone: the header is sticky and 56px tall, so the bar rides right under it, edge to edge. */
 @media (max-width: 820px) {
-  /* Full-bleed without negative margins (the page gutter differs between looks): the panel colour is
-     spread sideways by a clipped shadow, which never adds horizontal scroll. */
-  .shop-dock { top: calc(56px + env(safe-area-inset-top, 0px)); margin: 0 0 12px; padding: 8px 0; border-width: 0 0 1px; border-radius: 0; box-shadow: 0 0 0 100vmax var(--panel); clip-path: inset(0 -100vmax -1px -100vmax); }
+  /* Full-bleed without negative margins (the page gutter differs between looks): the panel colour and
+     its bottom line are painted sideways by a border image with a side outset. That is paint only, so it
+     never adds horizontal scroll, and it needs no clip-path (the default look switches clip-path off). */
+  .shop-dock { top: calc(56px + env(safe-area-inset-top, 0px)); margin: 0 0 12px; padding: 8px 0 9px; border: 0; border-radius: 0; box-shadow: none; border-image: linear-gradient(var(--panel) calc(100% - 1px), var(--border) 0) fill 0 / 0 / 0 100vmax; }
+  #catalog-list :is(button, a, [tabindex]) { scroll-margin-top: calc(var(--shop-dock-h, 240px) + 8px); }
+  /* While the cart is open its action row sits where the toast normally appears: show the toast at the top instead. */
+  html:has(#shop-cart:not([hidden])) .app-notice:not(.roll-notice) { top: calc(8px + env(safe-area-inset-top, 0px)); bottom: auto; }
   .shop-bar { gap: 6px 8px; }
   .shop-buyer { flex: 1 1 100%; }
   .shop-money { flex: 1 1 100%; font-size: 12px; }
@@ -100,6 +108,9 @@ html:not(.ui-native) :is(.shop-pay, .shop-done) { border-radius: 0; }
 
 /* Its primary button is cream on bright red (below AA): the cart uses the darker red of the same palette. */
 html:not(.ui-native) :is(.shop-dock, .catalog-foot) .btn.primary { color: #fff; background-color: var(--red-dark); border-color: var(--red-dark); }
+
+/* Its red is too dim for small text on the dark panels (below AA): shortage and error text use a lighter red. */
+html:not(.ui-native) :is(.shop-after.is-short, .shop-after.is-short b, .shop-total .is-short, .shop-total .is-short b, .shop-line-error, .shop-blocker) { color: #ff7a72; }
 
 html.ui-native .shop-dock { border-radius: var(--radius, 14px); }
 html.ui-native.ui-board :is(.shop-dock, .catalog-foot) .btn { min-height: 44px; }

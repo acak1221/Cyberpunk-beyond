@@ -248,7 +248,8 @@
     if (!fresh.ok) return fail(fresh.blockers[0].reason, fresh.blockers[0].message, fresh.blockers[0].key);
     if (options.signature !== fresh.signature) return fail('stale', t(lang, 'stale'));
     let stage;
-    try { stage = { id: c.id, extra: JSON.parse(JSON.stringify(c.extra)) }; } catch { return fail('purchaseFail'); }
+    // The copy keeps the rest of the character (stats above all): defaults such as the current LUCK are derived from it.
+    try { stage = { ...c, extra: JSON.parse(JSON.stringify(c.extra)) }; } catch { return fail('purchaseFail'); }
     const created = [], bought = [];
     for (let i = 0; i < cart.lines.length; i++) {
       const line = cart.lines[i], expected = fresh.lines[i];
@@ -326,27 +327,85 @@
   // ---------- 3. Controller ----------
 
   // host: { lang(), characters(), buyerId(), nameOf(c), catalog(), scope(), epoch(), current(c, scope), stale(),
-  //         notify(text), save(), needBuyer(), openSheet(id), document?, storage? }
+  //         notify(text), save(), needBuyer(), openSheet(id), document?, storage?, window?, defer?(fn) }
   function controller(host) {
     const doc = host.document || (typeof document !== 'undefined' ? document : null);
     const storage = 'storage' in host ? host.storage : (() => { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } })();
+    const win = host.window || (typeof window !== 'undefined' ? window : null);
+    const later = host.defer || (typeof setTimeout === 'function' ? fn => setTimeout(fn, 0) : fn => fn());
+    const raw = () => { try { return storage?.getItem?.(KEY) ?? null; } catch { return null; } };
+    // The stored text this tab last read or wrote. Anything else in storage was put there by another tab.
+    let seen = raw();
     const cart = load(storage, host.catalog());
     let open = false, review = null, receipt = null;
+    // shown: the panel was open at the last paint. pressing: a pointer is down. pending: the panel is waiting to be rebuilt.
+    let shown = false, pressing = false, pending = false;
     const $ = sel => doc?.querySelector?.(sel) || null;
     const buyer = () => { const id = host.buyerId(); return (host.characters() || []).find(c => c.id === id) || null; };
     const view = () => { const c = buyer(), lang = host.lang(); return { lang, buyer: c, buyerName: c ? host.nameOf(c) : '', characters: host.characters(), nameOf: host.nameOf, plan: plan(c, cart, host.catalog(), lang), open, review: !!review, receipt }; };
-    const persist = () => store(storage, cart);
-
-    // Repaints the money region, the cart button and (when open) the panel. Missing nodes are skipped.
-    function paint() {
-      const v = view(), money = $('#shop-money'), toggle = $('#shop-toggle'), panel = $('#shop-cart');
-      if (money) { const html = moneyHTML(v); if (money.innerHTML !== html) money.innerHTML = html; }
-      if (toggle) { toggle.textContent = toggleText(v.lang, v.plan); toggle.setAttribute?.('aria-expanded', String(open)); }
-      if (panel) { panel.hidden = !open; panel.innerHTML = open ? panelHTML(v) : ''; }
-      return v;
+    const persist = () => { store(storage, cart); seen = raw(); };
+    // Another tab changed the stored cart (bought it, cleared it, edited it): take its version, so that
+    // a cart that was already paid for cannot be paid again here or written back. True when it changed.
+    function sync() {
+      const now = raw();
+      if (now === seen) return false;
+      seen = now;
+      const fresh = load(storage, host.catalog());
+      cart.mode = fresh.mode; cart.lines.splice(0, cart.lines.length, ...fresh.lines);
+      review = null;
+      return true;
     }
     const focus = sel => { const el = $(sel); el?.focus?.({ preventScroll: false }); return !!el; };
     const attr = key => String(key).replace(/["\\]/g, '\\$&');
+    // A selector that finds the same control again after the panel has been rebuilt.
+    function selectorOf(el) {
+      const d = el?.dataset || {};
+      if (!el?.closest?.('#shop-cart')) return '';
+      if (el.id) return '#' + el.id;
+      if (d.cartQty !== undefined) return `[data-cart-qty="${attr(d.cartQty)}"]`;
+      if (d.cartOption !== undefined) return `[data-cart-option="${attr(d.cartOption)}"]`;
+      if (d.action) return `[data-action="${d.action}"]` + (d.key !== undefined ? `[data-key="${attr(d.key)}"]` : '');
+      return '';
+    }
+    // Tells the stylesheet how much of the top of the screen the sticky dock covers, so that a control
+    // scrolled into view by the keyboard stops below it instead of under it.
+    function measure() {
+      const dock = $('#shop-dock'), root = doc?.documentElement;
+      if (!dock?.getBoundingClientRect || !root?.style?.setProperty || !win?.getComputedStyle) return;
+      const stick = parseFloat(win.getComputedStyle(dock).top) || 0;
+      root.style.setProperty('--shop-dock-h', Math.round(Math.min(stick + dock.getBoundingClientRect().height, (win.innerHeight || 800) * .6)) + 'px');
+    }
+    // The dock only sticks once the page is scrolled. When the cart opens while the dock still sits lower
+    // in the page and would run off the bottom, scroll the page so the dock sticks and the panel is on screen.
+    function reveal() {
+      const dock = $('#shop-dock');
+      if (!dock?.getBoundingClientRect || !win?.scrollBy || !win?.getComputedStyle) return;
+      const stick = parseFloat(win.getComputedStyle(dock).top) || 0, box = dock.getBoundingClientRect();
+      if (box.top > stick + 1 && box.bottom > (win.innerHeight || 0) - 76) win.scrollBy({ top: box.top - stick, behavior: 'instant' });
+    }
+
+    // Repaints the money region, the cart button and (when open) the panel. Missing nodes are skipped.
+    // barOnly leaves the panel alone (it stays pending); keep puts the keyboard back on the control it was on.
+    function paint(how = {}) {
+      const v = view(), money = $('#shop-money'), toggle = $('#shop-toggle'), panel = $('#shop-cart');
+      if (money) { const html = moneyHTML(v); if (money.innerHTML !== html) money.innerHTML = html; }
+      if (toggle) { toggle.textContent = toggleText(v.lang, v.plan); toggle.setAttribute?.('aria-expanded', String(open)); }
+      $('#catalog-target')?.classList?.toggle?.('is-empty', !v.buyer);
+      if (how.barOnly) return v;
+      pending = false;
+      const keep = how.keep && open ? selectorOf(doc?.activeElement) : '';
+      if (panel) { panel.hidden = !open; panel.innerHTML = open ? panelHTML(v) : ''; }
+      if (open && !shown) reveal();
+      shown = open;
+      if (keep) focus(keep) || focus('#shop-cart-title');
+      measure();
+      return v;
+    }
+    // Rebuilding the panel destroys the button under a pressed pointer (the click is lost) and the control
+    // the Tab key is moving to. So a typed quantity repaints the bar at once and the panel a moment later:
+    // after the press has turned into a click, or after the focus has moved.
+    const flush = () => { if (pending) paint({ keep: true }); };
+    const soon = () => { pending = true; if (!pressing) later(flush); };
     function setOpen(next, focusSel) {
       open = next; if (!next) { review = null; receipt = null; }
       paint();
@@ -388,14 +447,17 @@
       cart, paint,
       shell() {
         // Coming back to the catalog from another screen starts with the panel closed.
-        if (!$('#shop-dock')) { open = false; review = null; receipt = null; }
+        if (!$('#shop-dock')) { open = false; shown = false; review = null; receipt = null; }
+        sync();
         return shellHTML(view());
       },
       // Buyer or budget changed elsewhere, or a character was edited: re-price and repaint.
       changed() { review = null; paint(); },
-      setMode(mode) { if (setMode(cart, mode)) edited(); },
+      setMode(mode) { if (sync()) paint({ keep: true }); if (setMode(cart, mode)) edited('#catalog-mode'); },
+      sync,
       click(action, button) {
         const lang = host.lang(), key = button?.dataset?.key, catalog = host.catalog();
+        if (sync()) paint({ keep: true });
         if (action === 'cart-add') {
           const item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang);
           if (!r.ok) { host.notify(r.message); return true; }
@@ -431,7 +493,9 @@
       // A quantity field or an option select inside a cart line changed.
       field(el) {
         const data = el?.dataset || {}, catalog = host.catalog();
-        if (data.cartQty !== undefined) { if (setQuantity(cart, data.cartQty, el.value, catalog)) edited(`[data-cart-qty="${attr(data.cartQty)}"]`); return true; }
+        if (sync()) paint({ keep: true });
+        // No forced focus here: the change usually fires because the keyboard or the pointer is leaving the field.
+        if (data.cartQty !== undefined) { if (setQuantity(cart, data.cartQty, el.value, catalog)) { review = null; receipt = null; persist(); paint({ barOnly: true }); soon(); } return true; }
         if (data.cartOption !== undefined) { const next = setOption(cart, data.cartOption, el.value, catalog); if (next) edited(`[data-cart-option="${attr(next)}"]`) ; return true; }
         return false;
       },
@@ -445,7 +509,13 @@
       },
       state: () => ({ open, review: !!review, receipt })
     };
-    doc?.addEventListener?.('keydown', event => { if (api.key(event)) event.preventDefault?.(); });
+    doc?.addEventListener?.('keydown', event => { if (event?.key === 'Tab') measure(); if (api.key(event)) event.preventDefault?.(); });
+    for (const type of ['pointerdown', 'mousedown']) doc?.addEventListener?.(type, () => { pressing = true; }, true);
+    for (const type of ['pointerup', 'pointercancel', 'mouseup']) doc?.addEventListener?.(type, () => { pressing = false; if (pending) later(flush); }, true);
+    // Runs after the app's own click handler, so an action pressed right after typing sees the panel it was pressed in.
+    doc?.addEventListener?.('click', () => { pressing = false; flush(); });
+    // The cart is shared by every tab of the app; follow what the other tabs do with it.
+    win?.addEventListener?.('storage', event => { if ((event?.key == null || event.key === KEY) && sync()) paint({ keep: true }); });
     return api;
   }
 
