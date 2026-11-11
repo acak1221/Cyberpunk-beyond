@@ -48,6 +48,7 @@ function ledger(c,lang){
   const list=doses(c);
   rows=`<div class="rt-subhead">${ru?'ГОТОВЫЕ ДОЗЫ':'DOSES ON HAND'}</div>`+(list.length?`<ul class="rp-list rp-doses">${list.map(([,name,n])=>`<li><strong>${esc(name)}</strong> × ${n}</li>`).join('')}</ul>`:`<p class="rt-help">${ru?'Доз нет. Синтез: проверка DV 13, час работы, 200 eb материалов.':'No doses. Synthesis: a DV 13 check, one hour, 200 eb of materials.'}</p>`);
  }
+ else if(role==='solo')rows=soloBar(c,l);
  const page=PAGES[role];
  if(!page)return rows?`<section class="rt-section rp-ledger">${rows}</section>`:'';
  return `<section class="rt-section rp-ledger">${rows}<button type="button" class="rt-button rp-open" data-rp-open="${page[0]}">${esc(ru?page[1]:page[2])} →</button></section>`;
@@ -147,6 +148,44 @@ function firstWithRole(chars,role){
  if(!Array.isArray(chars))return null;
  const has=c=>obj(c)&&(c.role===role||(Array.isArray(c.extra?.advancement?.additionalRoles)&&c.extra.advancement.additionalRoles.some(r=>obj(r)&&r.role===role)));
  return chars.find(c=>has(c)&&typeof c.id==='string')||null;
+}
+
+// ---------- Solo: the round of the fight ----------
+/* Spot Weakness and Damage Deflection work once a round and keep a journal by «fight + round». The sheet keeps the current
+   fight and round (`extra.soloRound = {version:1, battle, round, n}`), fills both forms from it, and moves on with one button. */
+const hasSolo=c=>{try{return global.RoleTools?.hasSolo?global.RoleTools.hasSolo(c)===true:c?.role==='solo'}catch{return c?.role==='solo'}};
+function soloRound(c,lang){
+ const ru=lng(lang)==='ru',x=c?.extra?.soloRound,name=n=>(ru?'Бой ':'Fight ')+n;
+ if(!obj(x)||x.version!==1||typeof x.battle!=='string'||!x.battle.trim()||x.battle.length>100||!int(x.round,1,9999))return {battle:name(1),round:1,n:1,saved:false};
+ return {battle:x.battle.trim(),round:x.round,n:int(x.n,1,99999)?x.n:1,saved:true};
+}
+// kind: 'next' — the next round of the same fight; 'new' — a new fight from round 1. -> the value for extra.soloRound.
+function soloAdvance(c,kind,lang){
+ const s=soloRound(c,lang),ru=lng(lang)==='ru';
+ if(kind==='new'){const n=Math.min(99999,s.n+1);return {version:1,battle:(ru?'Бой ':'Fight ')+n,round:1,n}}
+ return {version:1,battle:s.battle,round:Math.min(9999,s.round+1),n:s.n};
+}
+const same=(a,b)=>norm(a)===norm(b);
+// What was already used in the current round, by the journals of the two abilities.
+function soloUsed(c,lang){
+ const s=soloRound(c,lang),x=c?.extra||{};
+ const spot=Array.isArray(x.soloSpotUsage?.uses)&&x.soloSpotUsage.uses.some(u=>obj(u)&&u.round===s.round&&same(u.battle,s.battle));
+ const deflect=Array.isArray(x.soloDeflection?.entries)&&x.soloDeflection.entries.some(u=>obj(u)&&u.round===s.round&&same(u.encounter,s.battle));
+ return {spot,deflect};
+}
+function soloBar(c,lang){
+ if(!obj(c)||!hasSolo(c))return '';
+ const l=lng(lang),ru=l==='ru',v=c.extra?.roleTools?.solo?.values||{},weak=Number(v.weakness)||0,defl=Number(v.deflect)||0;
+ if(!(c.extra?.soloRollAutomation?.enabled===true)||(!weak&&!defl))return '';
+ const s=soloRound(c,l),u=soloUsed(c,l);
+ const mark=(on,name,used)=>on?`<span class="${used?'rp-used':''}">${esc(name)}${used?(ru?' — уже в этом раунде':' — used this round'):(ru?' — доступно':' — ready')}</span>`:'';
+ return `<div class="rp-round" data-rp-solo-bar><span>${esc(s.battle)} · ${ru?'раунд':'round'} <b>${s.round}</b></span>${mark(weak>0,`Spot Weakness +${weak}`,u.spot)}${mark(defl>0,`Damage Deflection −${defl}`,u.deflect)}<button type="button" class="rt-button" data-rp-solo="next">${ru?'Новый раунд':'Next round'}</button><button type="button" class="rt-button" data-rp-solo="new">${ru?'Новый бой':'New fight'}</button></div>`;
+}
+// The Damage Deflection form follows the round of the sheet until the player types something else in it.
+function soloFill(c,draft,lang){
+ if(!obj(draft)||!obj(c)||!hasSolo(c))return;
+ const s=soloRound(c,lang),stamp=s.battle+'#'+s.round;
+ if(draft.soloStamp!==stamp){draft.deflectEncounter=s.battle;draft.deflectRound=String(s.round);draft.soloStamp=stamp;draft.pending=null}
 }
 
 // ---------- NET combat: damage after a hit ----------
@@ -275,6 +314,14 @@ if(doc?.addEventListener){
  doc.addEventListener('click',e=>{
   const t=e.target;if(!t?.closest)return;
   const open=t.closest('[data-rp-open]');if(open){e.preventDefault?.();openTools(open.dataset.rpOpen);return}
+  const solo=t.closest('[data-rp-solo]');if(solo){
+   const A=global.App,c=A?.active?.();if(!c||!hasSolo(c))return;
+   const l=A.lang?.(),next=soloAdvance(c,solo.dataset.rpSolo==='new'?'new':'next',l);
+   c.extra={...(obj(c.extra)?c.extra:{}),soloRound:next};
+   try{A.save?.();A.render?.()}catch{}
+   try{A.notify?.(l==='en'?`${next.battle}, round ${next.round}. Spot Weakness and Damage Deflection are ready again.`:`${next.battle}, раунд ${next.round}. Spot Weakness и Damage Deflection снова доступны.`)}catch{}
+   return;
+  }
   // The «Роль» chip: on a phone the panel is far below the chips, so it is brought into view.
   if(t.closest('[data-dossier-filter="role"]')){setTimeout(sheetRoleIntoView,40);return}
   if(t.closest('[data-sheet-tab="role"]'))setTimeout(refreshSummary,0);
@@ -282,5 +329,6 @@ if(doc?.addEventListener){
 }
 
 global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools,
- netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp};
+ netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp,
+ soloRound,soloAdvance,soloUsed,soloBar,soloFill};
 })(window);

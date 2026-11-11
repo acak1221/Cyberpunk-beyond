@@ -174,6 +174,48 @@ test('the module is loaded before the app and after the tools it ties together',
   assert.ok(index.indexOf('href="role-play.css"') > index.indexOf('href="board.css"'));
 });
 
+// ---------- Solo: the round of the fight ----------
+test('Solo round: defaults for an old save, next round, new fight, what is used this round', () => {
+  const w = load(['role-play.js']), R = w.RolePlay;
+  const c = { role: 'solo', rank: 4, extra: { soloRollAutomation: { version: 1, enabled: true }, roleTools: { solo: { values: { deflect: 1, weakness: 2 } } } } };
+  assert.deepEqual(plain(R.soloRound(c, 'ru')), { battle: 'Бой 1', round: 1, n: 1, saved: false });
+  assert.deepEqual(plain(R.soloRound({ extra: { soloRound: { version: 2, battle: 'x', round: 3 } } }, 'en')), { battle: 'Fight 1', round: 1, n: 1, saved: false });
+  assert.deepEqual(plain(R.soloAdvance(c, 'next', 'ru')), { version: 1, battle: 'Бой 1', round: 2, n: 1 });
+  c.extra.soloRound = R.soloAdvance(c, 'next', 'ru');
+  assert.deepEqual(plain(R.soloAdvance(c, 'new', 'ru')), { version: 1, battle: 'Бой 2', round: 1, n: 2 });
+  c.extra.soloRound = { version: 1, battle: 'Склад', round: 3, n: 4 };
+  assert.deepEqual(plain(R.soloAdvance(c, 'new', 'en')), { version: 1, battle: 'Fight 5', round: 1, n: 5 });
+  assert.deepEqual(plain(R.soloUsed(c, 'ru')), { spot: false, deflect: false });
+  c.extra.soloSpotUsage = { version: 1, uses: [{ battle: ' склад ', round: 3 }, { battle: 'Склад', round: 2 }] };
+  c.extra.soloDeflection = { version: 1, entries: [{ encounter: 'Склад', round: 2 }] };
+  assert.deepEqual(plain(R.soloUsed(c, 'ru')), { spot: true, deflect: false });
+  const bar = R.soloBar(c, 'ru');
+  assert.match(bar, /Склад · раунд <b>3<\/b>/); assert.match(bar, /class="rp-used">Spot Weakness \+2 — уже в этом раунде/); assert.match(bar, /Damage Deflection −1 — доступно/);
+  assert.match(bar, /data-rp-solo="next">Новый раунд/); assert.match(bar, /data-rp-solo="new">Новый бой/);
+  assert.match(R.soloBar(c, 'en'), /Next round/);
+  // No bar without the automation or for another Role.
+  assert.equal(R.soloBar({ role: 'solo', rank: 4, extra: {} }, 'ru'), '');
+  assert.equal(R.soloBar({ role: 'tech', rank: 4, extra: c.extra }, 'ru'), '');
+});
+test('Solo round fills the Damage Deflection form until the player types another fight; the sheet forms are prefilled', () => {
+  const R = load(['role-play.js']).RolePlay;
+  const c = { role: 'solo', rank: 4, extra: { soloRound: { version: 1, battle: 'Бой 2', round: 4, n: 2 } } };
+  const d = { deflectEncounter: '', deflectRound: '1', pending: { x: 1 } };
+  R.soloFill(c, d, 'ru');
+  assert.equal(d.deflectEncounter, 'Бой 2'); assert.equal(d.deflectRound, '4'); assert.equal(d.pending, null);
+  d.deflectEncounter = 'Своё'; d.pending = { y: 1 };
+  R.soloFill(c, d, 'ru');
+  assert.equal(d.deflectEncounter, 'Своё', 'a typed value stays while the round is the same'); assert.deepEqual(d.pending, { y: 1 });
+  c.extra.soloRound.round = 5; R.soloFill(c, d, 'ru');
+  assert.equal(d.deflectEncounter, 'Бой 2'); assert.equal(d.deflectRound, '5');
+  const other = { deflectEncounter: '', deflectRound: '1' };
+  R.soloFill({ role: 'tech', extra: {} }, other, 'ru');
+  assert.equal(other.deflectEncounter, '');
+  const cx = read('character-extra.js'), da = read('damage-apply.js');
+  assert.match(cx, /data-cx-spot-field="battle" maxlength="100" value="\$\{html\(window\.RolePlay\?\.soloRound/);
+  assert.match(da, /window\.RolePlay\?\.soloFill\?\.\(c,d,language\)/);
+});
+
 // ---------- NET combat ----------
 test('NET damage: dice by attacker and target, Armor, REZ down to Derezzed', () => {
   const R = load(['role-play.js'], () => 0.5).RolePlay;
