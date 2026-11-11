@@ -3,3 +3,16 @@
 /* The sheet is drawn again after every saving action; the browser's own scroll anchoring then picks a wrong block
    and the page jumps. The app restores the place itself (PlayCombat.keepPlace), so anchoring is off on the sheet. */
 body:has(.sheet-layout){overflow-anchor:none}
+
+/* The condition line under the HP chip: wounds, death, unconsciousness. */
+.pc-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 8px; padding: 7px 10px; border: 1px solid var(--border); border-left: 4px solid #c9892b; background: var(--panel); color: var(--text); font-size: 12px; line-height: 1.35; }
+.pc-status b { font-size: 13px; }
+.pc-status span { flex: 1 1 160px; color: var(--muted); }
+.pc-status .btn { flex: 0 0 auto; min-height: 36px; }
+.pc-status[data-pc-state="mortal"], .pc-status[data-pc-state="dead"] { border-left-color: #c8102e; }
+.pc-status[data-pc-state="dead"] { background: #c8102e; border-color: #c8102e; color: #fff; }
+.pc-status[data-pc-state="dead"] b { flex: 1 1 auto; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+html .pc-status[data-pc-state="dead"] .btn.ghost.small { color: #fff; border: 1px solid rgba(255, 255, 255, .75); background: transparent; }
+html.ui-native .pc-status { border-radius: 8px; }
+/* On a wide screen the HP chip itself carries the wound label. */
+@media (min-width: 821px) { .pc-status[data-pc-state="serious"] { display: none; } }
