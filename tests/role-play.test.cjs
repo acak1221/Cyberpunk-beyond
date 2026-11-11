@@ -173,3 +173,61 @@ test('the module is loaded before the app and after the tools it ties together',
   assert.ok(index.indexOf('src="role-play.js"') < index.indexOf('src="app.js"'));
   assert.ok(index.indexOf('href="role-play.css"') > index.indexOf('href="board.css"'));
 });
+
+// ---------- Medtech pharmacy ----------
+function pharmacy() {
+  const w = load(['wallet.js', 'role-play.js', 'pharmacy-tools.js']), m = w.PharmacyTools; m.setScope('a');
+  const doc = { id: 'doc', name: 'Doc', role: 'medtech', rank: 4, stats: { TECH: 6 }, extra: { cash: 300, roleTools: { medtech: { values: { pharma: 2, 'drug-speedheal': true }, team: [] } } } };
+  const solo = { id: 'solo', name: 'Solo', role: 'solo', rank: 4, hp: 12, stats: { BODY: 8, WILL: 6 } };
+  const chars = [solo, doc], ctx = { lang: 'ru', characters: chars, isCurrent: (c, s) => chars.includes(c) && s === 'a' };
+  const values = { doctor: 'doc', drug: 'speedheal', tech: '6', skill: '5', modifier: '0', patient: '', day: '', time: '', ack: true, pay: true };
+  const root = { isConnected: true, querySelector: q => { const k = q.match(/data-pharmacy-([a-z]+)/)?.[1]; return k in values ? (k === 'ack' || k === 'pay' ? { checked: values[k] } : { value: values[k] }) : null; } };
+  const act = op => { const b = { isConnected: true, dataset: { pharmacyAction: op }, closest: q => q === '[data-pharmacy-root]' ? root : null }; return m.handle({ type: 'click', target: { closest: q => q === '[data-pharmacy-action]' ? b : null } }, ctx); };
+  return { w, m, doc, solo, ctx, values, act };
+}
+test('pharmacy starts on the Medtech with a learned drug, and synthesis pays 200 eb through the wallet', () => {
+  const x = pharmacy();
+  const html = x.m.render(x.ctx);
+  assert.match(html, /<option value="doc" selected>Doc<\/option>/);
+  assert.doesNotMatch(html, /Сначала создайте персонажа/);
+  assert.match(html, /<option value="speedheal" selected>/);
+  assert.match(html, /data-pharmacy-pay checked> Списать 200 eb за материалы <small>сейчас 300 eb, останется 100 eb/);
+  const r = x.act('synth');
+  assert.equal(r.dirty, true);
+  assert.equal(x.doc.extra.cash, 100); assert.equal(x.doc.extra.walletLog[0].delta, -200);
+  assert.equal(x.doc.extra.pharmacy.doses.speedheal, 5);
+  assert.match(r.notify, /Синтез Speedheal: 17 > 13 — успех, получено доз: 5\. Списано 200 eb, осталось 100 eb\./);
+  assert.equal(x.m.state(plain(x.doc)).kind, 'ok');
+  // Not enough money: nothing is rolled, nothing is spent.
+  const again = x.act('synth');
+  assert.equal(again.dirty, undefined); assert.match(again.notify, /Не хватает 100 eb/);
+  assert.equal(x.doc.extra.cash, 100); assert.equal(x.doc.extra.pharmacy.history.length, 1);
+  assert.match(x.m.render(x.ctx), /data-pharmacy-pay disabled>/);
+  // Without the payment tick the old behaviour stays: the money is not touched.
+  x.values.pay = false;
+  assert.equal(x.act('synth').dirty, true); assert.equal(x.doc.extra.cash, 100); assert.equal(x.doc.extra.pharmacy.doses.speedheal, 10);
+});
+test('pharmacy keeps the chosen drug, the confirmation and the patient across a redraw, and names what is missing', () => {
+  const x = pharmacy(); x.m.render(x.ctx);
+  x.values.pay = false; x.values.drug = 'stim'; x.values.ack = false;
+  assert.match(x.act('speedheal-sheet').notify, /галочку подтверждения/);
+  x.values.ack = true;
+  assert.match(x.act('speedheal-sheet').notify, /Выберите пациента/);
+  x.values.patient = 'solo';
+  assert.match(x.act('speedheal-sheet').notify, /Нет доз Speedheal/);
+  x.values.drug = 'speedheal'; x.act('synth');
+  const html = x.m.render(x.ctx);
+  assert.match(html, /<option value="speedheal" selected>/);
+  assert.match(html, /data-pharmacy-ack checked>/);
+  assert.match(html, /<option value="solo" selected>Solo<\/option>/);
+  assert.match(x.act('speedheal-sheet').notify, /Укажите игровую дату/);
+  x.values.day = '2045-04-06'; x.values.drug = 'antibiotic';
+  assert.equal(x.act('speedheal-sheet').dirty, true, 'the Speedheal button does not look at the synthesis select');
+  assert.equal(x.solo.hp, 26); assert.equal(x.doc.extra.pharmacy.doses.speedheal, 4);
+  assert.match(x.m.render(x.ctx), /data-pharmacy-day[^>]*value="2045-04-06"/);
+  x.values.drug = 'rapidetox'; x.values.time = '10:00';
+  assert.match(x.act('timed-sheet').notify, /Stim или Surge/);
+  // Another doctor starts with a clean form.
+  x.m.select('solo');
+  assert.doesNotMatch(x.m.render(x.ctx), /data-pharmacy-ack checked/);
+});
