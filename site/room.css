@@ -131,3 +131,17 @@ html.ui-native.ui-light .room-send-status { background: rgba(0, 0, 0, .04); }
 .room-mute:hover { color: var(--text); }
 .room-order li.mine { outline: 1px solid var(--yellow); }
 .room-toast.turn b { color: #111; background: var(--yellow); }
+
+/* Tracker: players who can be added from the room, and the HP a player keeps on their own sheet. */
+.room-roster-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.room-roster-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--border, #444); border-radius: 8px; }
+.room-roster-list li > div { display: grid; min-width: 0; }
+.room-roster-list small { color: var(--muted, #aaa); }
+.room-roster-list .btn { flex: none; white-space: nowrap; }
+.camp-hp input[readonly] { opacity: .75; cursor: default; border-style: dashed; }
+/* The turn is this player's: the pill in the header says so until the turn passes. */
+.room-pill.turn, html.ui-native .room-pill.turn, html.ui-native.ui-light .room-pill.turn { color: #111; background: #f0c419; border-color: #f0c419; }
+.room-pill.turn .room-dot { display: none; }
+.room-pill.turn .room-pill-label { display: inline; }
+.room-wound { color: var(--yellow, #e9c66d); font-weight: 800; }
+.room-wound.mortal { color: var(--red, #d0453a); }
