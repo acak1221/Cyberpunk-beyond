@@ -264,4 +264,18 @@ test('App.check and App.report took what the sheet rolls need', () => {
   assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false}={})"));
   assert.ok(app.includes("report(label,detail,total,faces,show){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
 });
+
+test('Role Ability checks take the wound penalty of the character', () => {
+  assert.equal(PC.woundMod(solo({}, 45)), 0); assert.equal(PC.woundMod(solo({}, 20)), -2); assert.equal(PC.woundMod(solo({}, 0)), -4);
+  assert.equal(PC.woundMod(solo({ deathRecord: { version: 1, dead: true } }, 0)), 0);
+  const w = { PlayCombat: PC, confirm: () => true }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date };
+  vm.createContext(ctx); vm.runInContext(read('role-tools.js'), ctx);
+  const fixer = hp => ({ id: 'f', role: 'fixer', rank: 4, hp, stats: { COOL: 6, BODY: 8, WILL: 6 }, skills: { Trading: 4 }, extra: {} });
+  const roll = hp => { const c = fixer(hp), b = { dataset: { rtAction: 'fixer-roll' } }; const r = w.RoleTools.handle({ type: 'click', target: { closest: sel => sel === '[data-rt-action]' ? b : null, hasAttribute: () => false, dataset: {} } }, c, 'en', { isCurrent: () => true }); assert.equal(r.handled, true); const m = String(c.extra.roleTools.fixer.last).match(/1d10 (\d+)(?: ([+−]) (\d+))?[^→]*→ (-?\d+)/); return Number(m[4]) - (Number(m[1]) + (m[2] ? (m[2] === '+' ? 1 : -1) * Number(m[3]) : 0)); };
+  assert.equal(roll(45), 14, 'COOL 6 + Trading 4 + Operator 4');
+  assert.equal(roll(20), 12, 'Seriously Wounded: −2');
+  assert.equal(roll(0), 10, 'Mortally Wounded: −4');
+  const source = read('role-tools.js');
+  assert.ok(source.includes('mod=clamp(v.modifier??0,-100,100)+woundMod(c);')); assert.ok(source.includes('check(base+level,modifier+woundMod(c),dv)'));
+});
 // ---------- next section ----------

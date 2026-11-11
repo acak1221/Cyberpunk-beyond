@@ -100,6 +100,8 @@ function deathPlan(c,need){
  const nextBase=int(base+need-counted,0,100),nextPenalty=int(penalty+nextBase-base,nextBase,100);
  return {ok:!!x,base,penalty,need,nextBase,nextPenalty,changed:!!x&&(nextBase!==base||nextPenalty!==penalty||(known?int(x.deathInjuryBase,0,100)!==need:need>0))};
 }
+// The penalty a wound state gives to every check of the character (0 when an effect in force removes it).
+function woundMod(c){const s=condition(c);return s.state==='serious'||s.state==='mortal'?s.penalty:0}
 function deathNeed(c){try{return int(global.Effects?.collect?.(c)?.death,0,100)}catch{return 0}}
 // Brings the stored penalty in line with the injuries. Returns what changed; the caller saves.
 function syncDeathBase(c){
@@ -370,7 +372,7 @@ function modeClick(b){
  }
 }
 
-const API={loadedLine,aimSelect,takeAim,autoDV,rangeNote,burstResult,burstDamage,unarmedDice,weaponModes,unarmed,sheetCheck,markOf,scrollFix,keepPlace,condition,deathPlan,syncDeathBase,syncDeathBaseAll,deathTarget,statusLine,hitArgs,hitQuote,hitText,hitApply,hitUndo,hitForm,hitState:()=>hit,tr};
+const API={woundMod,loadedLine,aimSelect,takeAim,autoDV,rangeNote,burstResult,burstDamage,unarmedDice,weaponModes,unarmed,sheetCheck,markOf,scrollFix,keepPlace,condition,deathPlan,syncDeathBase,syncDeathBaseAll,deathTarget,statusLine,hitArgs,hitQuote,hitText,hitApply,hitUndo,hitForm,hitState:()=>hit,tr};
 try{
  const doc=global.document;
  if(doc?.addEventListener)for(const type of ['pointerdown','click','change','input'])doc.addEventListener(type,remember,true);
