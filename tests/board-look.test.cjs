@@ -118,6 +118,7 @@ test('the stylesheet puts the sections under the board tabs',()=>{
  assert.match(css,/\[data-active-tab="role"\] \.sheet-primary > #sheet-features \{ display: block; \}/);
  assert.match(css,/\[data-active-tab="life"\] \.sheet-primary > :is\(#sheet-identity, #sheet-stats, \.hustle-tools\) \{ display: block; \}/);
  assert.match(css,/\[data-active-tab="life"\] \.cx-root > #sheet-resources \{ display: block; \}/);
+ assert.match(css,/\[data-active-tab="life"\] \.sheet-primary > :is\(\.delete-button, #sheet-none\) \{ display: inline-block; \}/,'the character can still be deleted; the id gives the rule its weight');
  assert.match(css,/\[data-active-tab="role"\] \.cx-root > #sheet-specializations \{ display: block; \}/);
  assert.match(css,/#sheet-skills > \.skills-list \{ max-height: none; overflow: visible; \}/,'the skills are one long list, not a box that scrolls');
  assert.doesNotMatch(css,/#sheet-skills \{[^}]*position: sticky/);

@@ -15,7 +15,7 @@ html.ui-native.ui-board .sheet-stat-strip > [data-dossier="stat"]:hover b,
 html.ui-native.ui-board .sheet-stat-strip > [data-dossier="stat"][aria-expanded="true"] b { color: var(--red); }
 
 /* ---------- The chips ---------- */
-html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter {
+html.ui-native.ui-board .dossier-filter[data-on] {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; grid-column: 1 / -1; min-width: 0; margin: 0 0 12px;
 }
 html.ui-native.ui-board .dossier-filter button {
@@ -91,10 +91,10 @@ html.ui-native.ui-board .dossier-actions .btn[disabled] { opacity: .55; cursor: 
 }
 /* On the wide board the sheet is one grid; the chips sit in the panel column, right under the tabs. */
 @media screen and (min-width: 1024px) {
-  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 2; grid-row: 7; }
+  html.ui-native.ui-board .dossier-filter[data-on] { grid-column: 2; grid-row: 7; }
 }
 @media screen and (min-width: 1360px) {
-  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 3; grid-row: 5; }
+  html.ui-native.ui-board .dossier-filter[data-on] { grid-column: 3; grid-row: 5; }
 }
 @media print {
   html.ui-native.ui-board :is(.dossier-panel, .dossier-backdrop, .dossier-filter) { display: none !important; }

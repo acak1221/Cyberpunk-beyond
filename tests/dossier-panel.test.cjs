@@ -105,6 +105,18 @@ test('the chosen chip is remembered on the device only, and an unknown one is re
  assert.equal(h.D.countLine('limited',{shown:1,total:2},{shown:0,total:5},'en'),'Shown: weapons 1 of 2, quick rolls 0 of 5');
 });
 
+test('a link to a block that the chosen chip hides puts the chip back to «Все»',()=>{
+ const h=load(),block=sel=>({closest:s=>s===sel?{}:null});
+ h.D.setFilter('attacks');
+ assert.equal(h.D.reveal(block('#sheet-weapons')),false,'the weapons are shown by «Атаки»');assert.equal(h.D.filter(),'attacks');
+ assert.equal(h.D.reveal(block('#sheet-skills')),false,'a block the chips never touch');
+ assert.equal(h.D.reveal(block('#sheet-damage')),true);assert.equal(h.D.filter(),'all');
+ assert.equal(h.D.reveal(block('#sheet-damage')),false,'nothing to do with «Все»');
+ h.D.setFilter('role');assert.equal(h.D.reveal(block('[data-dossier-off]')),true,'a single hidden row counts too');assert.equal(h.D.filter(),'all');
+ assert.equal(h.D.reveal(null),false);
+ assert.match(source('sheet-tabs.js'),/DossierPanel\?\.reveal\?\.\(target\)/);
+});
+
 test('the filter never writes to the character',()=>{
  const c=V({extra:{weapons:[{id:'w',name:'Pistol',skill:'Handgun',capacity:8,ammo:8}]}}),before=JSON.stringify(c),h=load({character:c});
  for(const id of ['attacks','quick','role','other','limited','all'])h.D.setFilter(id);

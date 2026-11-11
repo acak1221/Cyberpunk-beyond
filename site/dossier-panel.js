@@ -266,8 +266,11 @@ function decorate(layout){
 const off=(el,hide)=>{if(hide){if(!el.hasAttribute('data-dossier-off'))el.setAttribute('data-dossier-off','')}else if(el.hasAttribute('data-dossier-off'))el.removeAttribute('data-dossier-off')};
 function applyFilter(layout){
  const l=lang(),c=character(),combat=layout.dataset.activeTab==='combat',id=combat?filter:'all';
- let bar=layout.querySelector('.dossier-filter');
- if(!bar){layout.insertAdjacentHTML('afterbegin',barHtml(filter,l));bar=layout.querySelector('.dossier-filter')}
+ // The chips stand right under the tabs, before anything they can hide, so a tap never moves them.
+ const extras=doc.querySelector('.sheet-extras');
+ let bar=doc.querySelector('.dossier-filter');
+ if(extras&&(!bar||bar.nextElementSibling!==extras)){bar?.remove();extras.insertAdjacentHTML('beforebegin',barHtml(filter,l));bar=doc.querySelector('.dossier-filter')}
+ if(bar){if(combat){if(!bar.hasAttribute('data-on'))bar.setAttribute('data-on','')}else if(bar.hasAttribute('data-on'))bar.removeAttribute('data-on')}
  if(bar)for(const b of bar.querySelectorAll('[data-dossier-filter]')){const on=String(b.dataset.dossierFilter===filter);if(b.getAttribute('aria-pressed')!==on)b.setAttribute('aria-pressed',on)}
  const w={shown:0,total:0},q={shown:0,total:0};
  for(const row of layout.querySelectorAll('#sheet-weapons .cx-weapon')){
@@ -418,5 +421,11 @@ if(doc?.addEventListener){
   }
  }catch{}
 }
-global.DossierPanel={FILTERS:FILTERS.map(f=>f[0]),visible,countLine,barHtml,wound,statBase,effectRows,skillBreakdown,weaponBreakdown,statBreakdown,render,open,close,sync,setFilter,filter:()=>filter,opened:()=>opened&&{...opened}};
+// A link to a block of «Действия» must not land on something a chip hides: the chip goes back to «Все».
+function reveal(el){
+ if(!el?.closest||filter==='all')return false;
+ const hidden=el.closest('[data-dossier-off]')||SECTIONS.some(([sel,kind])=>el.closest(sel)&&!visible(filter,{type:'section',kind}));
+ return hidden?setFilter('all'):false;
+}
+global.DossierPanel={reveal,FILTERS:FILTERS.map(f=>f[0]),visible,countLine,barHtml,wound,statBase,effectRows,skillBreakdown,weaponBreakdown,statBreakdown,render,open,close,sync,setFilter,filter:()=>filter,opened:()=>opened&&{...opened}};
 })(window);

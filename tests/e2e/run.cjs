@@ -178,6 +178,10 @@ async function main() {
     const tab = async id => { await wide.page.evaluate(id => window.SheetTabs.select(id, { scroll: false }), id); await wait(150); return seen(); };
     want(await tab('role'), ['#sheet-features'], '«Особенности»');
     want(await tab('life'), ['#sheet-identity'], '«Персонаж»');
+    if (!(await wide.page.evaluate(() => document.querySelector('.sheet-primary > .delete-button').getClientRects().length))) fail('the character cannot be deleted: no button on «Персонаж»');
+    await wide.page.evaluate(() => { window.DossierPanel.setFilter('attacks'); document.querySelector('[data-hud-hp]').click(); }); await wait(150);
+    await wide.page.evaluate(() => document.querySelector('[data-hud-jump="sheet-damage"]').click()); await wait(250);
+    if (!(await wide.page.evaluate(() => document.querySelector('#sheet-damage').getClientRects().length))) fail('«С учётом брони» leads to a block the chip hides');
     await tab('combat');
     if (board.scroll > 0) fail('the page scrolls sideways by ' + board.scroll);
     if (board.pressed !== 'board') fail('the switch does not mark «Досье»: ' + board.pressed);

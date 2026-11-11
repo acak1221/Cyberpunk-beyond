@@ -167,8 +167,10 @@ function apply(c){
  let dock=doc.querySelector('.sheet-dock'),tabs=dock?.querySelector('.sheet-tabs');
  let more=doc.querySelector('.sheet-extras');
  const wantNet=global.NetrunTab?.interfaceRank?.(lastCharacter)>0,hasNet=!!dock?.querySelector('[data-sheet-tab="netrun"]');
- if(!dock||!more||more.nextElementSibling!==layout||dock.nextElementSibling!==more||wantNet!==hasNet||(dock.dataset.board==='1')!==board()){
-  dock?.remove();more?.remove();
+ // The chips of the «Досье» look may stand between the two.
+ const mid=dock?.nextElementSibling,afterDock=mid?.classList?.contains?.('dossier-filter')?mid.nextElementSibling:mid;
+ if(!dock||!more||more.nextElementSibling!==layout||afterDock!==more||wantNet!==hasNet||(dock.dataset.board==='1')!==board()){
+  dock?.remove();more?.remove();doc.querySelector('.dossier-filter')?.remove();
   layout.insertAdjacentHTML('beforebegin',`<div class="sheet-dock" data-active-tab="${tab}" data-board="${board()?1:0}"><div class="sheet-hud-wrap">${hud(lastCharacter)}</div><div class="hud-hp-panel" id="hud-hp-panel"${hpOpen?'':' hidden'}>${hpPanel(lastCharacter)}</div>${bar()}</div><div class="sheet-extras" data-active-tab="${tab}">${extras(lastCharacter)}</div>`);
  }else{
   dock.dataset.activeTab=tab;more.dataset.activeTab=tab;
@@ -210,10 +212,10 @@ global.document.addEventListener('click',e=>{
  const toBar=e.target.closest?.('[data-hud-next]');
  if(toBar&&(shown()==='skills'||shown()==='combat'||boardWide())){global.document.querySelector('.sheet-next-roll')?.scrollIntoView?.({block:'center'});return}
  const hudJump=e.target.closest?.('[data-hud-jump]');
- if(hudJump){const id=hudJump.dataset.hudJump;select(owner(id)||'main',{scroll:false});global.document.getElementById(id)?.scrollIntoView({block:'start'});return}
+ if(hudJump){const id=hudJump.dataset.hudJump,tab=owner(id)||'main';if(tab!==shown())select(tab,{scroll:false});const target=global.document.getElementById(id);global.DossierPanel?.reveal?.(target);target?.scrollIntoView({block:'start'});return}
  // A jump-nav link in "full sheet" mode, or any in-app link to a hidden section, reveals its tab first.
  const jump=e.target.closest?.('[data-sheet-jump]');
- if(jump&&current!=='all'){const tab=owner(jump.dataset.sheetJump);if(tab&&tab!==shown())select(tab,{scroll:false})}
+ if(jump&&shown()!=='all'){const tab=owner(jump.dataset.sheetJump);if(tab&&tab!==shown())select(tab,{scroll:false})}
 },true);
 global.document.addEventListener('keydown',e=>{
  const tab=e.target.closest?.('.sheet-tabs [data-sheet-tab]');if(!tab||!['ArrowLeft','ArrowRight'].includes(e.key))return;
