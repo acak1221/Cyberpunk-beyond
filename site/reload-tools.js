@@ -15,7 +15,7 @@ const WEAPONS=Object.freeze({
  'weapon-grenade-launcher':{types:['grenade'],caps:[2,4,6]},
  'weapon-rocket-launcher':{types:['rocket'],caps:[1,2,3]}
 });
-const T={ru:{title:'ПЕРЕЗАРЯДКА ИЗ ИНВЕНТАРЯ',intro:'Выберите стандартное оружие и купленные боеприпасы. Перезаряжается только пустой магазин полностью, одним типом боеприпасов; частично заполненный или нестандартный учтите вручную (стр. 170, 174, 344–346).',weapon:'Оружие',ammo:'Запись боеприпасов',choose:'Выберите…',stock:'В запасе',mag:'Магазин',load:'Перезарядить',ready:'Будет израсходовано',need:'Нужно полностью заполнить магазин; недостаточно боеприпасов.',empty:'Оружие или подходящие купленные боеприпасы не найдены.',scope:'Подождите, данные ещё загружаются.',manual:'Проверяйте установленный магазин и свойства выбранных боеприпасов вручную; действие и специальные эффекты не применяются автоматически.',confirm:'Перезарядить пустой магазин полностью? Проверьте установленный магазин и совместимость. Потратить',rounds:'шт.',action:'Это занимает одно действие по книге; его расход учитывайте вручную.',ok:'Оружие перезаряжено, боеприпасы списаны.',stale:'Данные изменились. Проверьте и повторите действие.',invalid:'Проверьте оружие, остаток, размер магазина и выбранную запись боеприпасов.',occupied:'Автоматически перезаряжается только пустой магазин. Смену или смешение боеприпасов учтите вручную.'},en:{title:'RELOAD FROM INVENTORY',intro:'Select a standard weapon and purchased ammunition. Only an empty magazine is fully reloaded with one ammunition type; handle partly loaded or nonstandard weapons manually (pp. 170, 174, 344–346).',weapon:'Weapon',ammo:'Ammunition entry',choose:'Choose…',stock:'In stock',mag:'Magazine',load:'Reload',ready:'Will use',need:'A full magazine is required; not enough ammunition.',empty:'No eligible weapon or matching purchased ammunition was found.',scope:'Please wait, data is still loading.',manual:'Check the installed magazine and ammunition effects yourself; the Action and special effects are not applied automatically.',confirm:'Fully reload the empty magazine? Check the installed magazine and compatibility. Spend',rounds:'units',action:'This takes one Action under the Corebook; track it manually.',ok:'Weapon reloaded and ammunition deducted.',stale:'The data changed. Check and try again.',invalid:'Check the weapon, remaining rounds, magazine capacity and selected ammunition entry.',occupied:'Only an empty magazine can be reloaded automatically. Handle a change or mixing of ammunition manually.'}};
+const T={ru:{title:'ПЕРЕЗАРЯДКА ИЗ ИНВЕНТАРЯ',intro:'Выберите стандартное оружие и купленные боеприпасы. Перезаряжается только пустой магазин полностью, одним типом боеприпасов; частично заполненный или нестандартный учтите вручную (стр. 170, 174, 344–346).',weapon:'Оружие',ammo:'Запись боеприпасов',choose:'Выберите…',stock:'В запасе',mag:'Магазин',load:'Перезарядить',ready:'Будет израсходовано',need:'Здесь магазин заполняется только полностью; боеприпасов не хватает. Кнопка «Перезарядить» на карточке оружия зарядит сколько есть.',empty:'Оружие или подходящие купленные боеприпасы не найдены.',scope:'Подождите, данные ещё загружаются.',manual:'Проверяйте установленный магазин и свойства выбранных боеприпасов вручную; действие и специальные эффекты не применяются автоматически.',confirm:'Перезарядить пустой магазин полностью? Проверьте установленный магазин и совместимость. Потратить',rounds:'шт.',action:'Это занимает одно действие по книге; его расход учитывайте вручную.',ok:'Оружие перезаряжено, боеприпасы списаны.',stale:'Данные изменились. Проверьте и повторите действие.',invalid:'Проверьте оружие, остаток, размер магазина и выбранную запись боеприпасов.',occupied:'Здесь перезаряжается только пустой магазин. Кнопка «Перезарядить» на карточке оружия дозаряжает начатый; смешение разных боеприпасов учтите вручную.',quickFull:'Магазин полон.',quickNone:'В запасе нет подходящих боеприпасов.',quickDone:'Заряжено',quickBack:'Остаток возвращён в запас',quickShort:'Магазин заполнен не полностью: в запасе больше нет.'},en:{title:'RELOAD FROM INVENTORY',intro:'Select a standard weapon and purchased ammunition. Only an empty magazine is fully reloaded with one ammunition type; handle partly loaded or nonstandard weapons manually (pp. 170, 174, 344–346).',weapon:'Weapon',ammo:'Ammunition entry',choose:'Choose…',stock:'In stock',mag:'Magazine',load:'Reload',ready:'Will use',need:'This form only fills a whole magazine; not enough ammunition. «Reload» on the weapon card loads what there is.',empty:'No eligible weapon or matching purchased ammunition was found.',scope:'Please wait, data is still loading.',manual:'Check the installed magazine and ammunition effects yourself; the Action and special effects are not applied automatically.',confirm:'Fully reload the empty magazine? Check the installed magazine and compatibility. Spend',rounds:'units',action:'This takes one Action under the Corebook; track it manually.',ok:'Weapon reloaded and ammunition deducted.',stale:'The data changed. Check and try again.',invalid:'Check the weapon, remaining rounds, magazine capacity and selected ammunition entry.',occupied:'This form reloads an empty magazine only. «Reload» on the weapon card tops up a used one; handle mixed ammunition manually.',quickFull:'The magazine is full.',quickNone:'No matching ammunition in stock.',quickDone:'Loaded',quickBack:'The rest went back to stock',quickShort:'The magazine is not full: nothing more in stock.'}};
 Object.assign(T.ru,{lastReload:'Последняя подтверждённая перезарядка',lastNote:'Это запись последней операции, а не гарантия текущего содержимого магазина: его можно изменить вручную.',unknownReceipt:'Формат записи о последней перезарядке не поддерживается; автоматическая перезарядка отключена, запись сохранена.'});
 Object.assign(T.en,{lastReload:'Last confirmed reload',lastNote:'This records the last operation, not the current magazine contents: those can be edited manually.',unknownReceipt:'The last-reload record has an unsupported format; automatic reloading is disabled and the record is preserved.'});
 Object.assign(T.ru,{starterIntro:'Можно использовать подходящие патроны стартового набора или подтверждённой покупки.',recognize:'Распознать старые стартовые патроны',recognizeConfirm:'Проверьте, что для каждой записи указано количество патронов, оставшихся вне магазина после всех предыдущих ручных зарядок. Количество не изменится и патроны не начислятся. Подтвердить распознавание?',recognizeDone:'Стартовые патроны распознаны; их количество не изменилось.'});
@@ -79,7 +79,7 @@ function quote(c,weaponId,ammoId,lang){
 }
 function quoteUnload(c,weaponId,lang){
  const t=text(lang),w=lookup(c,'weapons',weaponId),profile=weaponProfile(w),receipt=w?.lastReload;
- if(!scope||!validId(c?.id)||!w||!profile||!validReceipt(receipt)||receipt.unloadCompleted===true||receipt.units!==w.capacity||!integer(w.ammo,1,receipt.units))return {ok:false,reason:'unloadUnavailable',message:t.unloadUnavailable};
+ if(!scope||!validId(c?.id)||!w||!profile||!validReceipt(receipt)||receipt.unloadCompleted===true||!integer(receipt.units,1,w.capacity)||!integer(w.ammo,1,receipt.units))return {ok:false,reason:'unloadUnavailable',message:t.unloadUnavailable};
  const a=lookup(c,'items',receipt.ammoRecordId),spec=ammunition(c,a);
  if(!a||!spec||receipt.ammoCatalogId!==a.catalogId||receipt.ammoType!==a.ammoType||!profile.types.includes(spec.type)||a.quantity+w.ammo>99999)return {ok:false,reason:'unloadUnavailable',message:t.unloadUnavailable};
  const option=window.EquipmentTools?.ammoTypeName?.(spec.type,lang)||spec.type,itemName=spec.item.name?.[lang==='en'?'en':'ru']||spec.item.name?.en||'';
@@ -105,6 +105,43 @@ function commit(c,expected,lang,options={}){
  w.lastReload={...(w.lastReload||{}),version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:check.quote.capacity,...(w.lastReload?.unloadCompleted===true?{unloadCompleted:false}:{})};
  return {ok:true,dirty:true,loaded:check.quote.capacity};
 }
+/* «Перезарядить» on the weapon card. After a fight the magazine is rarely empty and the stock is rarely a full magazine,
+   so this one tops up, takes what is left, and when the rounds in stock are of another kind returns the rest first.
+   Rounds never appear from nowhere: only what a receipt says came from stock can go back to it. */
+function quickPlan(c,weaponId,lang){
+ const t=text(lang),w=lookup(c,'weapons',weaponId),profile=weaponProfile(w);
+ if(!scope||!validId(c?.id)||!w||!profile)return {ok:false,reason:'invalid',message:t.invalid};
+ if(w.lastReload!==undefined&&!validReceipt(w.lastReload))return {ok:false,reason:'unknownReceipt',message:t.unknownReceipt};
+ const cap=w.capacity,cur=w.ammo,receipt=w.lastReload;
+ if(cur>=cap)return {ok:false,reason:'full',message:t.quickFull};
+ const stock=(Array.isArray(c.extra?.items)?c.extra.items:[]).filter(a=>a&&lookup(c,'items',a.id)===a&&ammunition(c,a)&&profile.types.includes(a.ammoType));
+ // The rounds in the magazine are known to be of the receipt's kind only while they are not more than it loaded.
+ const known=cur>0&&!!receipt&&receipt.unloadCompleted!==true&&cur<=receipt.units,home=known?stock.find(a=>a.id===receipt.ammoRecordId&&a.catalogId===receipt.ammoCatalogId&&a.ammoType===receipt.ammoType)||null:null;
+ const pick=(receipt?stock.find(a=>a.id===receipt.ammoRecordId&&a.quantity>0):null)||stock.find(a=>a.quantity>0);
+ if(!pick)return {ok:false,reason:'none',message:t.quickNone};
+ const same=known&&pick.id===receipt.ammoRecordId,swap=cur>0&&!same&&!!home&&home.quantity+cur<=99999,back=swap?cur:0,keep=cur-back,load=Math.min(pick.quantity,cap-keep),units=Math.min(100,same?keep+load:load);
+ const l=lang==='en'?'en':'ru',itemName=ammunition(c,pick).item.name?.[l]||ammunition(c,pick).item.name?.en||'',typeName=window.EquipmentTools?.ammoTypeName?.(pick.ammoType,lang)||pick.ammoType;
+ const q={scope,characterId:c.id,weaponId:w.id,ammoId:pick.id,backId:swap?home.id:'',back,keep,load,units,capacity:cap,after:keep+load,stockAfter:pick.quantity-load,mode:swap?'swap':cur>0?'topup':'fill',itemName:String(itemName),typeName:String(typeName),priorReceipt:receipt===undefined?null:receipt};
+ return {ok:true,quote:q,signature:JSON.stringify(q)};
+}
+function quickCommit(c,expected,lang,options={}){
+ const t=text(lang);if(!expected||typeof expected!=='object'||!expected.quote||typeof expected.signature!=='string')return {ok:false,reason:'invalid',message:t.invalid};
+ let current=false;try{current=typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}
+ if(!scope||!current)return {ok:false,reason:'stale',message:t.stale};
+ const check=quickPlan(c,expected.quote.weaponId,lang);if(!check.ok||check.signature!==expected.signature)return {ok:false,reason:'stale',message:t.stale};
+ const q=check.quote,w=lookup(c,'weapons',q.weaponId),a=lookup(c,'items',q.ammoId);
+ if(q.back){const home=lookup(c,'items',q.backId);home.quantity+=q.back}
+ a.quantity-=q.load;w.ammo=q.after;
+ w.lastReload={...(w.lastReload||{}),version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:q.units,...(w.lastReload?.unloadCompleted===true?{unloadCompleted:false}:{})};
+ return {ok:true,dirty:true,loaded:q.load,returned:q.back};
+}
+function quickMessage(q,lang){const t=text(lang);return `${t.quickDone} +${q.load}: ${q.itemName} · ${q.typeName}. ${t.mag} ${q.after}/${q.capacity}, ${t.stock.toLowerCase()} ${q.stockAfter}.${q.back?` ${t.quickBack}: ${q.back}.`:''}${q.after<q.capacity?` ${t.quickShort}`:''}`}
+// The kind of rounds in the magazine, for the weapon card and the damage roll: known only from a receipt.
+function loadedName(w,lang){
+ const r=w?.lastReload;if(!w||!integer(w.ammo,1,9999)||!validReceipt(r)||r.unloadCompleted===true||w.ammo>r.units)return '';
+ const l=lang==='en'?'en':'ru',entry=Array.isArray(window.CATALOG)?window.CATALOG.find(x=>x.id===r.ammoCatalogId):null;
+ return String(entry?.name?.[l]||entry?.name?.en||'');
+}
 function render(c,lang){
  const t=text(lang),d=draft(c);let out=`<section class="card reload-tools" data-reload-root><div class="card-heading"><span>${esc(t.title)}</span><span data-page-ref>170 / 344</span></div><p class="reload-note">${esc(t.intro)} ${esc(t.starterIntro)}</p><p class="reload-note">${esc(t.manual)}</p>`;
  if(!d)return out+`<p class="reload-note">${esc(t.scope)}</p></section>`;
@@ -129,14 +166,10 @@ function handle(e,c,lang,options={}){
   // Row shortcut on the weapon list: same quote/confirm/commit path as the reload section, using the first stocked compatible ammo.
   let ok=false;try{ok=b.isConnected===true&&typeof options.isCurrent==='function'&&options.isCurrent(c,scope)===true}catch{}if(!ok)return {handled:true,notify:t.stale};
   const w=lookup(c,'weapons',b.dataset.weaponId),profile=weaponProfile(w);if(!w||!profile)return {handled:true,notify:t.invalid};
-  if(w.ammo!==0)return {handled:true,notify:t.occupied};
-  const pick=(Array.isArray(c?.extra?.items)?c.extra.items:[]).find(a=>a&&lookup(c,'items',a.id)===a&&ammunition(c,a)&&profile.types.includes(a.ammoType)&&a.quantity>=w.capacity);
-  if(!pick)return {handled:true,notify:t.need};
-  const before=quote(c,w.id,pick.id,lang);if(!before.ok)return {handled:true,notify:before.message};
-  const q=before.quote;if(!window.confirm(`${t.confirm} ${q.capacity} ${t.rounds}: ${q.itemName} · ${q.typeName}? ${t.action}`))return {handled:true};
-  try{ok=b.isConnected===true&&options.isCurrent(c,scope)===true}catch{ok=false}if(!ok||draft(c)!==d)return {handled:true,notify:t.stale};
-  const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
-  d.weapon=w.id;d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
+  // No dialog: the notice says what was loaded, and «Вернуть остаток в запас» below takes it back.
+  const before=quickPlan(c,w.id,lang);if(!before.ok)return {handled:true,notify:before.message};
+  const result=quickCommit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
+  d.weapon=w.id;d.ammo='';return {handled:true,dirty:true,rerender:true,notify:quickMessage(before.quote,lang)};
  }
  const root=b.closest?.('[data-reload-root]'),connected=()=>!!root&&root.isConnected===true&&b.isConnected===true&&b.closest?.('[data-reload-root]')===root;
  if(!connected())return {handled:true,notify:t.stale};
@@ -164,5 +197,5 @@ function handle(e,c,lang,options={}){
  if(!window.confirm(prompt))return {handled:true};if(!connected()||draft(c)!==d||d.weapon!==q.weaponId||d.ammo!==q.ammoId)return {handled:true,notify:t.stale};const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
  d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
 }
-window.ReloadTools={WEAPONS,weaponProfile,setScope,quote,commit,quoteUnload,commitUnload,render,handle,validReceipt};
+window.ReloadTools={WEAPONS,weaponProfile,setScope,quote,commit,quoteUnload,commitUnload,quickPlan,quickCommit,quickMessage,loadedName,render,handle,validReceipt};
 })();

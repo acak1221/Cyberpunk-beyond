@@ -1,0 +1,37 @@
+/* The player's fight on the sheet (site/play-combat.js). */
+
+/* The sheet is drawn again after every saving action; the browser's own scroll anchoring then picks a wrong block
+   and the page jumps. The app restores the place itself (PlayCombat.keepPlace), so anchoring is off on the sheet. */
+body:has(.sheet-layout){overflow-anchor:none}
+
+/* The condition line under the HP chip: wounds, death, unconsciousness. */
+.pc-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 8px; padding: 7px 10px; border: 1px solid var(--border); border-left: 4px solid #c9892b; background: var(--panel); color: var(--text); font-size: 12px; line-height: 1.35; }
+.pc-status b { font-size: 13px; }
+.pc-status span { flex: 1 1 160px; color: var(--muted); }
+.pc-status .btn { flex: 0 0 auto; min-height: 36px; }
+.pc-status[data-pc-state="mortal"], .pc-status[data-pc-state="dead"] { border-left-color: #c8102e; }
+.pc-status[data-pc-state="dead"] { background: #c8102e; border-color: #c8102e; color: #fff; }
+.pc-status[data-pc-state="dead"] b { flex: 1 1 auto; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+html .pc-status[data-pc-state="dead"] .btn.ghost.small { color: #fff; border: 1px solid rgba(255, 255, 255, .75); background: transparent; }
+html.ui-native .pc-status { border-radius: 8px; }
+/* A hit taken: the short form in the HP panel. Its switches look like the «new damage / correction» pair above them. */
+.pc-hit { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.pc-hit .pc-hit-set { gap: 6px; }
+.pc-hit .pc-hit-set button:disabled { opacity: .45; }
+.pc-hit .pc-hit-set button[role="checkbox"][aria-checked="true"]::before { content: "✓ "; }
+.pc-hit-preview { margin: 0; color: var(--text); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.pc-hit-done { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.pc-hit-done:empty { display: none; }
+.pc-hit-done span { flex: 1 1 180px; }
+/* The weapon card: aimed shot, burst, suppressive fire and what they came to. */
+.pc-modes { margin-top: 8px; }
+.pc-modes .cx-entry-actions { margin-top: 0; }
+.pc-mode-result { margin: 8px 0; padding: 7px 10px; border-left: 3px solid var(--red); background: var(--panel-2); color: var(--text); font-size: 13px; line-height: 1.4; }
+.pc-loaded b { font-size: 12px !important; }
+/* The card rolls the burst and takes the 10 rounds itself, so the bare «−10» counter button is not shown twice. */
+.cx-weapon:has([data-pc-mode="burst"]) .wa-btn[data-wa="burst"] { display: none; }
+.pc-unarmed .cx-entry-actions + .cx-entry-actions { margin-top: 8px; }
+/* The panel sits in the sticky dock: PlayCombat gives it the room left above the bottom bar and it scrolls inside itself. */
+.hud-hp-panel { overflow-y: auto; overscroll-behavior: contain; }
+/* On a wide screen the HP chip itself carries the wound label. */
+@media (min-width: 821px) { .pc-status[data-pc-state="serious"] { display: none; } }

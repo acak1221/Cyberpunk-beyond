@@ -57,7 +57,7 @@ test('rolls, buttons, MOVE and the Death Save hint all read the same layer',()=>
  assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind,skill,stat\)\+/,'the number on a button');
  assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,'',s\[0\],s\[2\]\)\+modifier\+spent/,'a skill check');
  assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,q\.attackKind,q\.skillKey,q\.statKey\)/,'checks and attacks from the sheet tools');
- assert.match(app,/mod=wounds&&c\?woundPenalty\(c\)\+effectModifier\(c\):0/,'rolls made through the bridge');
+ assert.match(app,/mod=\(wounds&&c\?woundPenalty\(c\)\+effectModifier\(c\):0\)/,'rolls made through the bridge');
  assert.match(app,/String\(effectMove\(c,state==='mortal'\?Math\.max\(1,move-6\):move\)\)/);
  assert.match(app,/data-action="death-base-fix"/);assert.match(sheet,/attackKind:window\.Effects\?\.attackKind\?\.\(skill\)\|\|''/);
 });
