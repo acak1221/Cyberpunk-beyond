@@ -46,7 +46,8 @@ function practitionerCurrent(ctx,patient,pending,requireCurrent=true){
  if(!pending?.doctor)return !ui.doctor;
  const p=practitioner(ctx,patient,requireCurrent);return p.kind==='linked'&&p.character===pending.doctor&&p.signature===pending.doctorSignature&&ui.doctor===p.character.id;
 }
-function humanInfo(c){const h=c?.humanity,base=c?.stats?.EMP,e=c?.extra?.equipment;if(!integer(h,-999,1000)||!integer(base,0,20)||!e||typeof e!=='object'||Array.isArray(e)||!integer(e.maxHumanity,0,base*10)||h>e.maxHumanity)return null;return {humanity:h,max:e.maxHumanity}}
+// With no confirmed maximum on the sheet the equipment module works it out from EMP and the recorded implants.
+function humanInfo(c){const h=c?.humanity,base=c?.stats?.EMP,e=c?.extra?.equipment;if(!integer(h,-999,1000)||!integer(base,0,20)||e!==undefined&&e!==null&&(typeof e!=='object'||Array.isArray(e)))return null;const max=e&&e.maxHumanity!==undefined?e.maxHumanity:window.EquipmentTools?.humanityMax?.(c);if(!integer(max,0,base*10)||h>max)return null;return {humanity:h,max}}
 function signature(c){return JSON.stringify([scope,c?.id,c?.humanity,c?.stats?.EMP,c?.extra?.equipment])}
 function drugSignature(c){try{return JSON.stringify([scope,c])}catch{return null}}
 function tracked(c){try{const m=window.DrugTools,s=m?.state?.(c);if(!m||!m.DRUGS||s?.kind==='invalid')return null;if(s?.kind==='new')return [];if(s?.kind!=='ok'||!s.value?.records)return null;return Object.keys(m.DRUGS).filter(k=>s.value.records[k]?.addicted===true)}catch{return null}}

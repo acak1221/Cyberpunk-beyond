@@ -342,7 +342,7 @@
     const head = title => `<div class="shop-cart-head"><h2 id="shop-cart-title" tabindex="-1">${esc(title)}</h2><button type="button" class="btn ghost shop-close" data-action="cart-close" aria-label="${esc(t(lang, 'closeCart'))}">${esc(t(lang, 'close'))}</button></div>`;
     if (view.receipt) {
       const r = view.receipt;
-      return head(t(lang, 'receipt')) + `<p class="shop-done">${esc(t(lang, 'done', r.bought.length, r.total, t(lang, r.mode), r.remaining))}</p><ul class="shop-review-list">${r.bought.map(x => `<li><span>${esc(x.name)}${x.variant ? ' · ' + esc(x.variant) : ''} × ${x.quantity}</span><b>${x.total} eb</b></li>`).join('')}</ul><div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-close">${esc(t(lang, 'keepShopping'))}</button><button type="button" class="btn primary" data-action="cart-open-sheet" data-id="${esc(r.buyerId)}">${esc(t(lang, 'openSheet', r.buyerName))}</button></div>`;
+      return head(t(lang, 'receipt')) + `<p class="shop-done">${esc(t(lang, 'done', r.bought.length, r.total, t(lang, r.mode), r.remaining))}</p><ul class="shop-review-list">${r.bought.map(x => `<li><span>${esc(x.name)}${x.variant ? ' · ' + esc(x.variant) : ''} × ${x.quantity}</span><b>${x.total} eb</b></li>`).join('')}</ul>${window.GearFlow?.receiptHTML?.(r.armor) || ''}<div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-close">${esc(t(lang, 'keepShopping'))}</button><button type="button" class="btn primary" data-action="cart-open-sheet" data-id="${esc(r.buyerId)}">${esc(t(lang, 'openSheet', r.buyerName))}</button></div>`;
     }
     if (!p.lines.length) return head(t(lang, 'cart')) + `<p class="shop-empty">${esc(t(lang, 'emptyHelp'))}</p>` + modeHTML(lang, c, p);
     if (view.review && p.ok) {
@@ -484,6 +484,8 @@
       const r = checkout(token.c, cart, host.catalog(), lang, { confirmed: true, signature: token.signature });
       if (!r.ok) { paint(); host.notify(r.reason === 'stale' ? r.message : t(lang, 'blocked') + ': ' + r.message); focus('#shop-cart-title'); return; }
       clear(cart); persist();
+      // New armor goes straight onto a bare location; the receipt says what was put on and what is still unprotected.
+      try { r.armor = window.GearFlow?.wearBought?.(token.c, r.created, lang) || null; } catch { r.armor = null; }
       receipt = { ...r, buyerId: token.c.id, buyerName: host.nameOf(token.c) };
       host.save();
       open = true; paint();
