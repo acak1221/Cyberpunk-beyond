@@ -1,0 +1,5 @@
+/* The player's fight on the sheet (site/play-combat.js). */
+
+/* The sheet is drawn again after every saving action; the browser's own scroll anchoring then picks a wrong block
+   and the page jumps. The app restores the place itself (PlayCombat.keepPlace), so anchoring is off on the sheet. */
+body:has(.sheet-layout){overflow-anchor:none}
