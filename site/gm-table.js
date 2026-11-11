@@ -188,6 +188,16 @@ function awardStage(members,plan,reason,options){
  }
  return {ok:true,changes};
 }
+/* Undo touches only the fields an action changed, so a save that stamps the sheet in between does not block it.
+   snap() -> a JSON string of those fields; restore() puts them back. */
+const PC_KEYS=[['hp'],['head'],['bodyArmor'],['extra','deathPenalty'],['extra','medical'],['extra','equipment']],NPC_KEYS=[['hp'],['sp'],['maxHp'],['deathPenalty']],AWARD_KEYS=[['extra','cash'],['extra','walletLog'],['extra','ipLog']];
+function snap(obj,keys){try{return JSON.stringify(keys.map(k=>{const v=k.length===1?obj?.[k[0]]:obj?.extra?.[k[1]];return v===undefined?null:{v}}))}catch{return ''}}
+function restore(obj,keys,json){
+ const values=JSON.parse(json);
+ keys.forEach((k,i)=>{const x=values[i],own=k.length===1;
+  if(x===null){if(own)delete obj[k[0]];else if(isObj(obj.extra))delete obj.extra[k[1]]}
+  else if(own)obj[k[0]]=x.v;else{if(!isObj(obj.extra))obj.extra={};obj.extra[k[1]]=x.v}});
+}
 const newId=()=>globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 
 /* Hands a catalog item to a character: free, or sold for its price through Wallet. Changes nothing:
@@ -297,20 +307,19 @@ function handle(e,c,ctx){
   const target=own?row:c.roster.find(x=>x.id===read('target')?.value);if(!target||target===row&&!own)return {notify:t.needTarget};
   const args={raw,location:read('location')?.value==='head'?'head':'body',type:read('type')?.value,critical:read('critical')?.checked===true};
   const pc=pcOf(target);if(target.kind==='pc'&&!pc)return {notify:t.needTarget};
-  let before;try{before=JSON.stringify(pc||target)}catch{return {notify:t.failed}}
+  const keys=pc?PC_KEYS:NPC_KEYS,before=snap(pc||target,keys);
   const hit=pc?hitPc(pc,args):hitNpc(target,args);
   if(!hit.ok)return {notify:t.failed};
   const line=hitText(lang,nameOf(target),hit),changed=!hit.stopped;
-  let after='';try{after=JSON.stringify(pc||target)}catch{}
-  keep(results,row.id,{lines:[...(res?.lines||[]).slice(-2),line],target:target.id,...(changed&&after?{undo:{target:target.id,pc:!!pc,before,after}}:{})});
-  if(changed)open(target.id);
+  const after=snap(pc||target,keys);
+  keep(results,row.id,{lines:[...(res?.lines||[]).slice(-2),line],target:target.id,...(changed&&before&&after?{undo:{target:target.id,pc:!!pc,before,after}}:{})});
   return {dirty:changed,rerender:true,notify:line};
  }
  if(a==='undo-hit'){
   const res=row?results.get(row.id):null,u=res?.undo,target=u?c.roster.find(x=>x.id===u.target):null,obj=u?.pc?pcOf(target):target;
-  let same=false;try{same=!!obj&&JSON.stringify(obj)===u.after}catch{}
-  if(!same){if(res){delete res.undo}return {rerender:true,notify:t.undoStale}}
-  const old=JSON.parse(u.before);for(const k of Object.keys(obj))if(!Object.hasOwn(old,k))delete obj[k];Object.assign(obj,old);
+  const keys=u?.pc?PC_KEYS:NPC_KEYS;
+  if(!obj||snap(obj,keys)!==u.after){if(res){delete res.undo}return {rerender:true,notify:t.undoStale}}
+  restore(obj,keys,u.before);
   keep(results,row.id,{lines:[t.undone],target:res.target});
   return {dirty:true,rerender:true,notify:t.undone};
  }
@@ -319,7 +328,7 @@ function handle(e,c,ctx){
   if(!plan.ok)return {notify:plan.reason==='invalid'?t.awardBad:t.previewNone};
   const staged=awardStage(list,plan,d.reason,{note:t.awardNote});
   if(!staged.ok)return {notify:staged.reason==='max'?t.awardMax(staged.name):t.awardFail};
-  const undo=[];for(const ch of staged.changes){const p=list.find(x=>x.id===ch.id);undo.push({id:p.id,before:JSON.stringify(p.extra??null),after:JSON.stringify(ch.extra)});p.extra=ch.extra}
+  const undo=[];for(const ch of staged.changes){const p=list.find(x=>x.id===ch.id);const before=snap(p,AWARD_KEYS);p.extra=ch.extra;undo.push({id:p.id,before,after:snap(p,AWARD_KEYS)})}
   const rows=plan.rows.filter(r=>r.cash>0||r.ip>0).map(r=>t.previewRow(r.name,r.cash,r.ip)).join('; '),entry=newId();
   try{window.Campaigns?.journalAdd?.(c,t.awardJournal(rows,String(d.reason||'').trim()),true,Date.now(),entry)}catch{}
   keep(lastAward,c.id,{undo,entry});
@@ -329,8 +338,8 @@ function handle(e,c,ctx){
  if(a==='award-undo'){
   const last=lastAward.get(c.id);if(!last)return {rerender:true};
   const pairs=last.undo.map(u=>[characters.find(p=>p.id===u.id),u]);
-  if(pairs.some(([p,u])=>!p||JSON.stringify(p.extra??null)!==u.after)){lastAward.delete(c.id);return {rerender:true,notify:t.undoStale}}
-  for(const [p,u] of pairs){const old=JSON.parse(u.before);if(old===null)delete p.extra;else p.extra=old}
+  if(pairs.some(([p,u])=>!p||!u.before||snap(p,AWARD_KEYS)!==u.after)){lastAward.delete(c.id);return {rerender:true,notify:t.undoStale}}
+  for(const [p,u] of pairs)restore(p,AWARD_KEYS,u.before);
   if(Array.isArray(c.journal))c.journal=c.journal.filter(x=>x?.id!==last.entry);
   lastAward.delete(c.id);
   return {dirty:true,rerender:true,notify:t.awardUndone};
@@ -377,7 +386,7 @@ if(typeof document!=='undefined'&&document.addEventListener)document.addEventLis
  else if(e.target?.closest?.('[data-action="navigate"],[data-action="open"]'))fromCampaign=null;
 },true);
 
-window.GMTable={text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,
+window.GMTable={text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
  isOpen,open,rowClass,toggleHTML,headHTML,helpHTML,rowExtras,partyHTML,backLink,giveButton,owns,handle,
  reset(){rowOpen.clear();results.clear();drafts.clear();lastAward.clear();fromCampaign=null;lastRecipient=''}};
 })();
