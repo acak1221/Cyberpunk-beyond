@@ -150,6 +150,93 @@ function firstWithRole(chars,role){
  return chars.find(c=>has(c)&&typeof c.id==='string')||null;
 }
 
+// ---------- Netrunner: NET Actions and the programs of a deck during a run ----------
+/* A deck entry may carry the state of the run: `active` (rezzed), `rez` (current REZ) and `down` (Derezzed). Old saves have
+   none of them and read as: not active, full REZ. Attacker programs (REZ 0 in the catalog) have no state to keep. */
+const BOOST={'extra-program-worm':'Backdoor','extra-program-eraser':'Cloak','extra-program-see-ya':'Pathfinder'};
+function catalogProgram(id){const all=Array.isArray(global.CATALOG)?global.CATALOG:[];return all.find(p=>obj(p)&&p.id===id&&p.category==='programs')||null}
+function progState(e){
+ const max=Number(catalogProgram(e?.catalogId)?.stats?.rez),top=int(max,1,999)?max:0;
+ if(!top||!obj(e)||e.kind==='hardware')return null;
+ const down=e.down===true;
+ return {max:top,active:e.active===true&&!down,down,rez:down?0:int(e.rez,0,top)?e.rez:top};
+}
+function netLeft(c,rank){
+ let max=0;try{max=Number(global.RoleTools?.netActions?.(rank))||0}catch{}
+ if(!max){const r=Math.max(1,Math.min(10,Math.trunc(Number(rank)||1)));max=r<=3?2:r<=6?3:r<=9?4:5}
+ const used=Math.max(0,Math.min(100,Math.trunc(Number(c?.extra?.roleTools?.netrunner?.values?.used)||0)));
+ return {max,used,left:Math.max(0,max-used)};
+}
+// extra with the NET Action counter set to `used`; nothing else is touched.
+function withUsed(extra,used){
+ const x=obj(extra)?extra:{},rt=obj(x.roleTools)?x.roleTools:{},nr=obj(rt.netrunner)?rt.netrunner:{},v=obj(nr.values)?nr.values:{};
+ return {...x,roleTools:{...rt,netrunner:{team:[],...nr,values:{...v,used}}}};
+}
+// +2 from a rezzed booster to its ability (Worm — Backdoor, Eraser — Cloak, See Ya — Pathfinder); the same program does not stack.
+function netBonus(c,ability){
+ const decks=c?.extra?.cyberdecks?.decks,names=[];if(!Array.isArray(decks))return {value:0,names};
+ for(const d of decks)for(const e of Array.isArray(d?.entries)?d.entries:[])if(obj(e)&&BOOST[e.catalogId]===ability&&progState(e)?.active){const n=String(e.name?.en||e.catalogId);if(!names.includes(n))names.push(n)}
+ return {value:names.length*2,names};
+}
+function deckEntryHtml(c,deck,e,lang){
+ const s=progState(e);if(!s)return '';
+ const ru=lng(lang)==='ru',id=esc(e.id),btn=(op,label,off,title)=>`<button type="button" class="rt-button" data-rp-deck="${op}" data-deck-entry="${id}"${off?' disabled':''}${title?` aria-label="${esc(title)}"`:''}>${esc(label)}</button>`;
+ return `<div class="rp-prog-row"><span class="rp-badge ${s.down?'off':s.active?'on':''}">${s.down?'Derezzed':s.active?(ru?'Активна':'Rezzed'):(ru?'Не активна':'Not rezzed')}</span>${btn('toggle',s.active||s.down?(ru?'Деактивировать':'Deactivate'):(ru?'Активировать':'Activate'))}<span>REZ</span>${btn('rez-','−',s.rez<=0,'REZ −1')}<b>${s.rez}</b>${btn('rez+','+',s.rez>=s.max||s.down,'REZ +1')}<span>/ ${s.max}</span></div>`;
+}
+function deckFootHtml(c,deck,lang){
+ const ru=lng(lang)==='ru';
+ if(!Array.isArray(deck?.entries)||!deck.entries.some(e=>progState(e)))return '';
+ return `<div class="rp-actions"><button type="button" class="rt-button" data-rp-deck="jackout">${ru?'Jack Out: сбросить активность и REZ':'Jack Out: reset activation and REZ'}</button></div><p class="rt-help">${ru?'Активация и деактивация тратят NET-действие. При REZ 0 программа Derezzed: деактивируйте и активируйте её снова, чтобы восстановить.':'Activating and deactivating cost a NET Action. At REZ 0 a program is Derezzed: deactivate and activate it again to restore it.'}</p>`;
+}
+// How many copies of a program the character owns and has not installed yet (bought in the catalog).
+function ownedFree(c,catalogId){
+ const x=c?.extra||{},owned=(Array.isArray(x.items)?x.items:[]).filter(i=>obj(i)&&i.catalogId===catalogId).reduce((n,i)=>n+Math.max(0,Math.trunc(Number(i.quantity)||0)),0);
+ const installed=(Array.isArray(x.cyberdecks?.decks)?x.cyberdecks.decks:[]).reduce((n,d)=>n+(Array.isArray(d?.entries)?d.entries.filter(e=>obj(e)&&e.catalogId===catalogId).length:0),0);
+ return {owned,installed,free:Math.max(0,owned-installed)};
+}
+function ownedMark(c,catalogId,lang){const o=ownedFree(c,catalogId);return o.owned?(lng(lang)==='ru'?` · куплено ${o.owned}, свободно ${o.free}`:` · owned ${o.owned}, free ${o.free}`):''}
+/* op: 'toggle' | 'rez-' | 'rez+' for one entry, 'jackout' for the deck. `rank` is the Interface rank.
+   -> {ok:true, extra, message?} | {ok:false, message}. Never mutates `c`. */
+function deckAct(c,deckId,entryId,op,rank,lang){
+ const ru=lng(lang)==='ru',stale={ok:false,message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ if(!obj(c)||!obj(c.extra)||!obj(c.extra.cyberdecks)||!Array.isArray(c.extra.cyberdecks.decks))return stale;
+ let decks;try{decks=clone(c.extra.cyberdecks)}catch{return stale}
+ const deck=decks.decks.find(d=>obj(d)&&d.id===deckId);if(!deck||!Array.isArray(deck.entries))return stale;
+ let extra={...c.extra,cyberdecks:decks};
+ if(op==='jackout'){
+  for(const e of deck.entries)if(obj(e)){delete e.active;delete e.rez;delete e.down}
+  return {ok:true,extra:withUsed(extra,0),message:ru?'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.'};
+ }
+ const e=deck.entries.find(x=>obj(x)&&x.id===entryId),s=progState(e);if(!s)return stale;
+ if(op==='toggle'){
+  const n=netLeft(c,rank);
+  if(n.left<1)return {ok:false,message:ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.'};
+  if(s.active||s.down){delete e.active;delete e.down;delete e.rez}
+  else{e.active=true;delete e.down;e.rez=s.max}
+  return {ok:true,extra:withUsed(extra,n.used+1)};
+ }
+ if(op==='rez-'||op==='rez+'){
+  const next=Math.max(0,Math.min(s.max,s.rez+(op==='rez-'?-1:1)));
+  if(next===s.rez)return stale;
+  e.rez=next;if(next===0){e.down=true;delete e.active}
+  return {ok:true,extra,message:next===0?(ru?`${e.name?.en||''}: REZ 0 — Derezzed.`:`${e.name?.en||''}: REZ 0 — Derezzed.`):''};
+ }
+ return stale;
+}
+// The NETRUN tab: the DV for the next check, the NET Actions of the turn.
+let netDv=0;
+function netrunBar(c,rank,lang){
+ const ru=lng(lang)==='ru',n=netLeft(c,rank);
+ return `<div class="rp-round rp-netbar" data-rp-netbar><span>${ru?'NET-действия':'NET Actions'}: <b>${n.left}</b> ${ru?'из':'of'} ${n.max}</span><button type="button" class="rt-button" data-rp-net-turn>${ru?'Новый ход':'New turn'}</button><label class="rp-dv">${ru?'DV проверки':'Check DV'} <input type="number" min="0" max="99" inputmode="numeric" data-rp-net-dv value="${netDv||''}" placeholder="${ru?'нет':'none'}"></label></div><p class="netrun-lead">${ru?'Кнопка способности бросает проверку и тратит одно NET-действие (Scanner — физическое действие, не тратит). Активные Worm, Eraser и See Ya дают +2 к своей способности.':'An ability button rolls the check and spends one NET Action (Scanner is a Meat Action and spends none). Rezzed Worm, Eraser and See Ya give +2 to their ability.'}</p>`;
+}
+/* One press on an ability of the NETRUN tab. -> {ok:true, base, label, dv, extra|null} | {ok:false, message}. */
+function netrunPlan(c,rank,ability,dv,lang){
+ const ru=lng(lang)==='ru',meat=ability==='Scanner',n=netLeft(c,rank);
+ if(!meat&&n.left<1)return {ok:false,message:ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.'};
+ const b=netBonus(c,ability),free=['Scanner','Pathfinder','Cloak'].includes(ability),target=free?0:Math.max(0,Math.min(99,Math.trunc(Number(dv)||0)));
+ return {ok:true,base:rank+b.value,dv:target,label:`${ability} (Interface ${rank}${b.value?` + ${b.names.join(', ')} ${b.value}`:''})`,extra:meat?null:withUsed(c.extra,n.used+1)};
+}
+
 // ---------- Solo: the round of the fight ----------
 /* Spot Weakness and Damage Deflection work once a round and keep a journal by «fight + round». The sheet keeps the current
    fight and round (`extra.soloRound = {version:1, battle, round, n}`), fills both forms from it, and moves on with one button. */
@@ -299,9 +386,10 @@ function refreshSummary(){
    after that, so the page used to jump away from the pressed button. The button is put back where it was. */
 function holdButton(e){
  const b=e.target?.closest?.('#sheet-role button');if(!b||!b.getBoundingClientRect)return;
- const all=()=>[...doc.querySelectorAll('#sheet-role button')],index=all().indexOf(b),text=b.textContent,top=b.getBoundingClientRect().top;
+ const sign=x=>{try{return JSON.stringify(Object.entries(x.dataset))}catch{return ''}};
+ const all=()=>[...doc.querySelectorAll('#sheet-role button')],index=all().indexOf(b),mark=sign(b),top=b.getBoundingClientRect().top;
  setTimeout(()=>{
-  const next=all()[index];if(!next||next.textContent!==text)return;
+  const next=all()[index];if(!next||sign(next)!==mark)return;
   const delta=next.getBoundingClientRect().top-top;
   if(Math.abs(delta)>2)try{global.scrollBy(0,delta)}catch{}
   // The result line stands under the button; it must not end up under the bottom bar of a phone.
@@ -309,11 +397,39 @@ function holdButton(e){
   if(line&&room>0){const over=line.getBoundingClientRect().bottom-room;if(over>0)try{global.scrollBy(0,over)}catch{}}
  },0);
 }
+// A press on an ability of the NETRUN tab: the check with the DV and the boosters, then one NET Action is spent.
+function netrunRoll(c,rank,ability){
+ const A=global.App;if(!A||!c)return false;
+ const field=doc.querySelector('[data-rp-net-dv]');if(field)netDv=Math.max(0,Math.min(99,Math.trunc(Number(field.value)||0)));
+ const p=netrunPlan(c,rank,ability,netDv,A.lang?.());
+ if(!p.ok){A.notify?.(p.message);return true}
+ A.check(p.base,p.label,{dv:p.dv});
+ if(p.dv)netDv=0;
+ if(p.extra){c.extra=p.extra;try{A.save?.()}catch{}}
+ // The toast stays; only the counter and the DV field are redrawn.
+ const bar=doc.querySelector('[data-rp-netbar]');
+ if(bar){const t=doc.createElement('div');t.innerHTML=netrunBar(c,rank,A.lang?.());const next=t.querySelector('[data-rp-netbar]');if(next)bar.innerHTML=next.innerHTML}
+ try{global.RoleTools?.refresh?.(doc.querySelector('[data-rt-root]'),c,A.lang?.())}catch{}
+ return true;
+}
 if(doc?.addEventListener){
+ doc.addEventListener('input',e=>{const f=e.target?.closest?.('[data-rp-net-dv]');if(f)netDv=Math.max(0,Math.min(99,Math.trunc(Number(f.value)||0)))});
  doc.addEventListener('click',holdButton,true);
  doc.addEventListener('click',e=>{
   const t=e.target;if(!t?.closest)return;
   const open=t.closest('[data-rp-open]');if(open){e.preventDefault?.();openTools(open.dataset.rpOpen);return}
+  const deckButton=t.closest('[data-rp-deck]');if(deckButton){
+   const A=global.App,c=A?.active?.(),rank=global.NetrunTab?.interfaceRank?.(c)||Number(c?.rank)||1;if(!c)return;
+   const r=deckAct(c,deckButton.closest('[data-deck-id]')?.dataset.deckId,deckButton.dataset.deckEntry,deckButton.dataset.rpDeck,rank,A.lang?.());
+   if(r.ok){c.extra=r.extra;try{A.save?.();A.render?.()}catch{}}
+   if(r.message)try{A.notify?.(r.message)}catch{}
+   return;
+  }
+  if(t.closest('[data-rp-net-turn]')){
+   const A=global.App,c=A?.active?.();if(!c)return;
+   c.extra=withUsed(c.extra,0);try{A.save?.();A.render?.()}catch{}
+   return;
+  }
   const solo=t.closest('[data-rp-solo]');if(solo){
    const A=global.App,c=A?.active?.();if(!c||!hasSolo(c))return;
    const l=A.lang?.(),next=soloAdvance(c,solo.dataset.rpSolo==='new'?'new':'next',l);
@@ -330,5 +446,6 @@ if(doc?.addEventListener){
 
 global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools,
  netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp,
- soloRound,soloAdvance,soloUsed,soloBar,soloFill};
+ soloRound,soloAdvance,soloUsed,soloBar,soloFill,
+ progState,netLeft,netBonus,deckEntryHtml,deckFootHtml,ownedFree,ownedMark,deckAct,netrunBar,netrunPlan,netrunRoll};
 })(window);

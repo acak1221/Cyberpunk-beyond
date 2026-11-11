@@ -174,6 +174,69 @@ test('the module is loaded before the app and after the tools it ties together',
   assert.ok(index.indexOf('href="role-play.css"') > index.indexOf('href="board.css"'));
 });
 
+// ---------- Netrunner: NET Actions and deck programs ----------
+function runner() {
+  const E = (id, cat, name) => ({ id, catalogId: cat, name: { ru: name, en: name }, kind: 'program', slots: 1 });
+  return { id: 'n', name: 'Net', role: 'netrunner', rank: 4, hp: 40, extra: { keep: 1, items: [{ catalogId: 'extra-program-eraser', quantity: 2 }], cyberdecks: { version: 1, decks: [{ id: 'd1', name: 'Deck', slots: 7, hardwareOnly: 0, entries: [E('e1', 'extra-program-sword', 'Sword'), E('e2', 'extra-program-armor', 'Armor'), E('e3', 'extra-program-worm', 'Worm'), E('e4', 'extra-program-eraser', 'Eraser')] }] } } };
+}
+test('deck programs: an old save reads as not active with full REZ; activation costs a NET Action; REZ 0 is Derezzed; Jack Out resets', () => {
+  const w = load(['catalog.js', 'catalog-extra.js', 'role-play.js', 'role-tools.js']), R = w.RolePlay;
+  let c = runner(); const before = JSON.stringify(c);
+  assert.deepEqual(plain(R.progState(c.extra.cyberdecks.decks[0].entries[1])), { max: 7, active: false, down: false, rez: 7 });
+  assert.equal(R.progState(c.extra.cyberdecks.decks[0].entries[0]), null, 'an attacker has no REZ to keep');
+  assert.deepEqual(plain(R.netLeft(c, 4)), { max: 3, used: 0, left: 3 });
+  let r = R.deckAct(c, 'd1', 'e3', 'toggle', 4, 'ru');
+  assert.equal(JSON.stringify(c), before, 'the character is not mutated');
+  assert.equal(r.ok, true); c.extra = r.extra;
+  assert.equal(c.extra.cyberdecks.decks[0].entries[2].active, true); assert.equal(c.extra.roleTools.netrunner.values.used, 1); assert.equal(c.extra.keep, 1);
+  assert.equal(w.RoleTools.deckState(c).kind, 'ok', 'the saved deck is still valid for the Role tools');
+  assert.deepEqual(plain(R.netBonus(c, 'Backdoor')), { value: 2, names: ['Worm'] });
+  assert.deepEqual(plain(R.netBonus(c, 'Cloak')), { value: 0, names: [] });
+  // REZ down to 0: Derezzed, no bonus any more.
+  for (let i = 0; i < 7; i++) { r = R.deckAct(c, 'd1', 'e3', 'rez-', 4, 'ru'); assert.equal(r.ok, true); c.extra = r.extra; }
+  assert.match(r.message, /Derezzed/);
+  assert.deepEqual(plain(R.progState(c.extra.cyberdecks.decks[0].entries[2])), { max: 7, active: false, down: true, rez: 0 });
+  assert.equal(R.netBonus(c, 'Backdoor').value, 0);
+  assert.equal(R.deckAct(c, 'd1', 'e3', 'rez-', 4, 'ru').ok, false);
+  // No actions left: activation is refused and nothing changes.
+  c.extra = R.deckAct(c, 'd1', 'e2', 'toggle', 4, 'ru').extra; c.extra = R.deckAct(c, 'd1', 'e4', 'toggle', 4, 'ru').extra;
+  assert.equal(R.netLeft(c, 4).left, 0);
+  r = R.deckAct(c, 'd1', 'e2', 'toggle', 4, 'ru');
+  assert.equal(r.ok, false); assert.match(r.message, /исчерпаны/);
+  assert.equal(R.armorUp(c), true);
+  r = R.deckAct(c, 'd1', '', 'jackout', 4, 'ru'); c.extra = r.extra;
+  assert.deepEqual(plain(c.extra.cyberdecks.decks[0].entries.map(e => [e.active, e.rez, e.down])), [[null, null, null], [null, null, null], [null, null, null], [null, null, null]]);
+  assert.equal(R.netLeft(c, 4).left, 3); assert.equal(R.armorUp(c), false);
+  assert.equal(R.deckAct(c, 'nope', 'e2', 'toggle', 4, 'ru').ok, false);
+  assert.equal(R.deckAct({ extra: {} }, 'd1', 'e2', 'toggle', 4, 'ru').ok, false);
+  // The deck card shows the state and marks bought copies.
+  const html = w.RoleTools.render(c, 'ru');
+  assert.match(html, /data-rp-deck="toggle" data-deck-entry="e2">Активировать/); assert.match(html, /data-rp-deck="jackout"/);
+  assert.match(html, /Eraser · 1 сл\. · куплено 2, свободно 1/);
+  assert.deepEqual(plain(R.ownedFree(c, 'extra-program-worm')), { owned: 0, installed: 1, free: 0 });
+});
+test('NETRUN tab: an ability spends one NET Action, takes the DV and the booster; Scanner spends nothing', () => {
+  const w = load(['catalog.js', 'catalog-extra.js', 'role-play.js', 'role-tools.js']), R = w.RolePlay;
+  const c = runner(); c.extra.cyberdecks.decks[0].entries[2].active = true;
+  let p = R.netrunPlan(c, 4, 'Backdoor', 8, 'ru');
+  assert.equal(p.ok, true); assert.equal(p.base, 6); assert.equal(p.dv, 8); assert.equal(p.label, 'Backdoor (Interface 4 + Worm 2)');
+  assert.equal(p.extra.roleTools.netrunner.values.used, 1); assert.equal(c.extra.roleTools, undefined);
+  p = R.netrunPlan(c, 4, 'Pathfinder', 8, 'ru');
+  assert.equal(p.dv, 0, 'a result-only ability has no DV'); assert.equal(p.base, 4);
+  c.extra = R.netrunPlan(c, 4, 'Control', 0, 'ru').extra; c.extra = R.netrunPlan(c, 4, 'Control', 0, 'ru').extra; c.extra = R.netrunPlan(c, 4, 'Control', 0, 'ru').extra;
+  p = R.netrunPlan(c, 4, 'Virus', 0, 'en');
+  assert.equal(p.ok, false); assert.match(p.message, /No NET Actions remain/);
+  p = R.netrunPlan(c, 4, 'Scanner', 0, 'ru');
+  assert.equal(p.ok, true); assert.equal(p.extra, null);
+  const bar = R.netrunBar(c, 4, 'ru');
+  assert.match(bar, /NET-действия: <b>0<\/b> из 3/); assert.match(bar, /data-rp-net-turn/); assert.match(bar, /data-rp-net-dv/);
+  // The Interface check of the Role card uses the same counter.
+  const T = w.RoleTools, click = () => T.handle({ type: 'click', target: { closest: () => ({ dataset: { rtAction: 'net-roll' } }) } }, c, 'ru');
+  assert.match(click().notify, /исчерпаны/);
+  c.extra.roleTools.netrunner.values.used = 2;
+  assert.equal(click().dirty, true); assert.equal(c.extra.roleTools.netrunner.values.used, 3);
+});
+
 // ---------- Solo: the round of the fight ----------
 test('Solo round: defaults for an old save, next round, new fight, what is used this round', () => {
   const w = load(['role-play.js']), R = w.RolePlay;
