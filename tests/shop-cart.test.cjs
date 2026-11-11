@@ -331,13 +331,14 @@ test('two tabs: a cart paid for in one tab is gone from the other and cannot be 
   a.click('cart-add', { id: PISTOL }); a.click('cart-add', { id: HEAVY });
   const b = rig2({ box }); assert.equal(b.ctl.cart.lines.length, 2, 'tab B loads the shared cart');
   b.click('cart-review'); assert.match(b.panel(), /cart-pay/);
-  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.cash, 850); assert.equal(box.has(SC.KEY), false);
+  // The buyer still holds a starting gear budget (500 eb), so the shop pays from it before touching cash.
+  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.gearBudget, 350); assert.equal(a.world.people[0].extra.cash, 1000); assert.equal(box.has(SC.KEY), false);
   // The storage event reaches tab B: its cart, bar and panel follow.
   b.winListeners.storage({ key: SC.KEY });
   assert.equal(b.ctl.cart.lines.length, 0); assert.equal(b.toggle(), 'Cart is empty'); assert.doesNotMatch(b.panel(), /cart-pay|cart-review/);
   // Even if the event has not arrived, every action re-reads the stored cart first.
   const c = rig2({ box }); a.click('cart-add', { id: PISTOL }); c.click('cart-review'); assert.match(c.panel(), /cart-pay/);
-  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.cash, 800);
+  a.click('cart-review'); a.click('cart-pay'); assert.equal(a.world.people[0].extra.gearBudget, 300);
   c.click('cart-pay');
   assert.equal(c.saved.length, 0); assert.equal(c.world.people[0].extra.cash, 1000); assert.equal(c.world.people[0].extra.weapons.length, 0); assert.equal(c.notices.at(-1), 'STALE'); assert.equal(c.ctl.cart.lines.length, 0);
   c.click('cart-inc', { key: PISTOL + '||' }); c.ctl.field({ dataset: { cartQty: PISTOL + '||' }, value: '4' }); c.ctl.setMode('cash');
