@@ -27,7 +27,7 @@
   };
   const words = lang => W[lang === 'en' ? 'en' : 'ru'];
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const int = (value, min, max) => { const n = Math.trunc(Number(value)); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min; };
+  const int = (value, min, max) => { const n = Math.trunc(Number(value)); return Math.min(max, Math.max(min, Number.isFinite(n) ? n : 0)); };
   const wallet = () => window.Wallet || null;
   const money = n => wallet()?.format ? wallet().format(n) : String(n);
   const cashOf = c => wallet()?.cash ? wallet().cash(c) : int(c?.extra?.cash, 0, 999999999);
