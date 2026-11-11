@@ -1,5 +1,6 @@
 /* Grants from the Game Master (room-grants.js): the player's tray of offers and the GM's «Выдать» dialog. */
-.rg-tray { position: fixed; right: 16px; bottom: 16px; z-index: 1090; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 560px); padding: 10px; overflow-y: auto; color: var(--text, #eee); background: var(--panel, #1c1c1f); border: 2px solid var(--yellow, #e9c66d); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .55); font-size: 13px; }
+/* The tray sits above the place where the app's own notices appear, so «Применено» never covers the next offer's buttons. */
+.rg-tray { position: fixed; right: 16px; bottom: 88px; z-index: 1090; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 560px); padding: 10px; overflow-y: auto; color: var(--text, #eee); background: var(--panel, #1c1c1f); border: 2px solid var(--yellow, #e9c66d); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .55); font-size: 13px; }
 .rg-tray-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .rg-tray-head span { min-width: 22px; padding: 1px 6px; color: #111; background: var(--yellow, #e9c66d); border-radius: 999px; font-weight: 800; text-align: center; }
 .rg-offer { display: grid; gap: 4px; padding: 10px; background: rgba(127, 127, 127, .12); border: 1px solid var(--border, #444); border-radius: 8px; }
@@ -32,6 +33,6 @@ dialog.rg-dialog { width: min(460px, calc(100vw - 32px)); }
 .rg-form .dialog-actions { margin-top: 4px; }
 
 @media (max-width: 650px) {
-  .rg-tray { right: 8px; left: 8px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: 55vh; }
+  .rg-tray { right: 8px; left: 8px; bottom: calc(136px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: 50vh; }
 }
 @media print { .rg-tray { display: none; } }
