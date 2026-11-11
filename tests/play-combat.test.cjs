@@ -276,6 +276,6 @@ test('Role Ability checks take the wound penalty of the character', () => {
   assert.equal(roll(20), 12, 'Seriously Wounded: −2');
   assert.equal(roll(0), 10, 'Mortally Wounded: −4');
   const source = read('role-tools.js');
-  assert.ok(source.includes('mod=clamp(v.modifier??0,-100,100)+woundMod(c);')); assert.ok(source.includes('check(base+level,modifier+woundMod(c),dv)'));
+  assert.ok(source.includes('mod=clamp(v.modifier??0,-100,100)+woundMod(c);')); assert.ok(source.includes('check(base+level,modifier+km.total,dv)'), 'the Media check takes wound and effects through RoleKit.takeMods');
 });
 // ---------- next section ----------
