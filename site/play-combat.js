@@ -303,6 +303,7 @@ const hasCyberarm=c=>(Array.isArray(c?.extra?.items)?c.extra.items:[]).some(i=>i
 const grenades=c=>(Array.isArray(c?.extra?.items)?c.extra.items:[]).filter(i=>i&&typeof i==='object'&&i.ammoType==='grenade'&&typeof i.id==='string'&&Number.isSafeInteger(i.quantity)&&i.quantity>0);
 const THROW=[[0,6,16],[7,12,15],[13,25,15]];
 function soloBonus(c){let s=null;try{s=global.RoleTools?.soloRollBonuses?.(c)||null}catch{}if(!s)return {ok:true,precision:0,fumble:false};if(!s.ok)return {ok:false};return {ok:true,precision:s.enabled?int(s.precision,0,10):0,fumble:s.enabled&&s.fumble===true}}
+const precision=c=>soloBonus(c).precision||0;
 const statNow=(c,stat)=>{let v=null;try{v=global.DossierPanel?.statBase?.(c,stat)?.value}catch{}return Number.isFinite(Number(v))?Number(v):num(c?.stats?.[stat])};
 /* One check through the sheet's own numbers. App.checkBonus already holds the STAT after armor, wounds, effects, the modifier
    and the LUCK set for the next roll; like every sheet roll this one then uses them up. */
@@ -372,7 +373,7 @@ function modeClick(b){
  }
 }
 
-const API={woundMod,loadedLine,aimSelect,takeAim,autoDV,rangeNote,burstResult,burstDamage,unarmedDice,weaponModes,unarmed,sheetCheck,markOf,scrollFix,keepPlace,condition,deathPlan,syncDeathBase,syncDeathBaseAll,deathTarget,statusLine,hitArgs,hitQuote,hitText,hitApply,hitUndo,hitForm,hitState:()=>hit,tr};
+const API={woundMod,precision,loadedLine,aimSelect,takeAim,autoDV,rangeNote,burstResult,burstDamage,unarmedDice,weaponModes,unarmed,sheetCheck,markOf,scrollFix,keepPlace,condition,deathPlan,syncDeathBase,syncDeathBaseAll,deathTarget,statusLine,hitArgs,hitQuote,hitText,hitApply,hitUndo,hitForm,hitState:()=>hit,tr};
 try{
  const doc=global.document;
  if(doc?.addEventListener)for(const type of ['pointerdown','click','change','input'])doc.addEventListener(type,remember,true);
