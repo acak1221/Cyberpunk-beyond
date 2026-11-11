@@ -114,7 +114,26 @@ html.ui-native.ui-board .sheet-hud[data-wound="mortal"] .hud-hp { color: #fff; b
 html.ui-native.ui-board .hud-avatar { border-radius: 4px; }
 
 html.ui-native.ui-board .sheet-stat-strip { gap: 6px; margin-bottom: 10px; border: 0; border-radius: 0; overflow: visible; background: none; }
-html.ui-native.ui-board .sheet-extras[data-active-tab="main"] .sheet-stat-strip { display: grid; }
+/* What each tab of this look holds. «Действия»: the fight and the tools of the Role. «Особенности»: the Role Ability and
+   what is in force. «Персонаж»: who it is — identity, STATs, resources — and life between jobs. */
+html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] .sheet-primary > #sheet-role { display: block; }
+html.ui-native.ui-board .sheet-layout[data-active-tab="role"] .sheet-primary > :is(#sheet-role, .hustle-tools) { display: none; }
+html.ui-native.ui-board .sheet-layout[data-active-tab="role"] .sheet-primary > #sheet-features { display: block; }
+html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .sheet-primary > :is(#sheet-identity, #sheet-stats, .hustle-tools) { display: block; }
+/* The id in the list is there for weight only: the rule it overrides hides by a list of ids. */
+html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .sheet-primary > :is(.delete-button, #sheet-none) { display: inline-block; }
+html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .cx-root > #sheet-resources { display: block; }
+/* Until there is room for a column of its own, the condition block is part of «Персонаж»; the HP chip on top covers a fight. */
+@media screen and (max-width: 1359.98px) {
+  html.ui-native.ui-board .sheet-layout:not([data-active-tab="life"]) > .sheet-aside { display: none; }
+}
+@media screen and (max-width: 1023.98px) {
+  html.ui-native.ui-board .sheet-layout[data-active-tab="life"] > .sheet-aside { display: grid; }
+  /* The STAT boxes lead, as on the wide board; the next-roll bar and the quick rolls follow. */
+  html.ui-native.ui-board .sheet-extras { display: flex; flex-direction: column; }
+  html.ui-native.ui-board .sheet-extras .sheet-stat-strip { order: -1; }
+  html.ui-native.ui-board .sheet-layout [id^="sheet-"] { scroll-margin-top: 130px; }
+}
 html.ui-native.ui-board .sheet-stat-strip div { padding: 8px 2px 9px; border: 1px solid transparent; border-image: var(--board-frame-accent) 16 fill / 12px; }
 html.ui-native.ui-board .sheet-stat-strip small { color: var(--muted); font: 700 11px/1.2 var(--board-label); letter-spacing: .08em; }
 html.ui-native.ui-board .sheet-stat-strip b { display: block; margin-top: 2px; font: 700 26px/1.05 var(--board-label); }
@@ -165,23 +184,26 @@ html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--borde
   html.ui-native.ui-board .hud-hp-panel { position: absolute; z-index: 40; grid-row: 4; grid-column: 1 / -1; top: -4px; left: 0; width: min(460px, 100%); box-shadow: 0 14px 34px rgba(0, 0, 0, .35); }
   html.ui-native.ui-board .sheet-extras .sheet-stat-strip { display: grid; grid-row: 4; grid-column: 1 / -1; margin-bottom: 12px; }
   html.ui-native.ui-board .sheet-extras .sheet-next-roll { display: flex; grid-row: 5; grid-column: 1 / -1; margin-bottom: 8px; }
-  html.ui-native.ui-board .sheet-extras .sheet-quick-rolls { display: grid; grid-row: 6; grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); margin-bottom: 12px; }
+  /* The quick rolls are actions: they stand in the panel of «Действия», under its chips. */
+  html.ui-native.ui-board .sheet-extras .sheet-quick-rolls { display: none; }
+  html.ui-native.ui-board .sheet-extras[data-active-tab="combat"] .sheet-quick-rolls { display: grid; grid-row: 8; grid-column: 2; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); margin-bottom: 12px; }
   html.ui-native.ui-board .sheet-next-roll .nr-step { flex: 1 1 0; }
-  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 7; grid-column: 2; margin-bottom: 12px; }
+  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 6; grid-column: 2; margin-bottom: 12px; flex-wrap: wrap; overflow: visible; }
+  html.ui-native.ui-board .sheet-layout[data-active-tab="life"] > .sheet-aside { display: contents; }
+  /* Without a column of its own the condition leads «Персонаж», as it does on a phone. */
+  html.ui-native.ui-board .sheet-layout[data-active-tab="life"] > .sheet-aside > #sheet-vitals { grid-row: 7; }
   html.ui-native.ui-board .sheet-tabs [data-sheet-tab="skills"] { display: none; }
   /* The panel: whatever the chosen tab shows, in the right column, one under another. */
   html.ui-native.ui-board .sheet-extras .sheet-shop,
   html.ui-native.ui-board .sheet-primary > *,
   html.ui-native.ui-board .sheet-layout > .sheet-aside > * { grid-column: 2; min-width: 0; }
-  /* The skills are always there, in their own column, and scroll on their own. */
-  html.ui-native.ui-board .sheet-layout .sheet-primary > #sheet-skills { grid-column: 1; grid-row: 7 / 39; position: sticky; top: 10px; margin-bottom: 12px; display: flex !important; flex-direction: column; max-height: calc(100vh - 20px); }
-  /* The card is as tall as the window at most; the list takes what is left and scrolls. */
-  html.ui-native.ui-board #sheet-skills > * { flex: 0 0 auto; }
-  html.ui-native.ui-board #sheet-skills > .skills-list { flex: 1 1 auto; max-height: none; min-height: 180px; }
+  /* The skills are always there, in their own column, the whole list at once: the page scrolls, not the card. */
+  html.ui-native.ui-board .sheet-layout .sheet-primary > #sheet-skills { grid-column: 1; grid-row: 6 / 39; margin-bottom: 12px; display: block !important; }
+  html.ui-native.ui-board #sheet-skills > .skills-list { max-height: none; overflow: visible; }
   html.ui-native.ui-board #sheet-skills > p.muted, html.ui-native.ui-board #sheet-skills > .nx-more,
   html.ui-native.ui-board #sheet-skills .sheet-skill-filter > p:not([data-skill-filter-count]) { display: none; }
-  /* Without a «Навыки» tab the specializations live under «Основное». */
-  html.ui-native.ui-board .sheet-layout[data-active-tab="main"] .cx-root > #sheet-specializations { display: block; }
+  /* Without a «Навыки» tab the specializations live under «Особенности». */
+  html.ui-native.ui-board .sheet-layout[data-active-tab="role"] .cx-root > #sheet-specializations { display: block; }
   html.ui-native.ui-board .content > .footer { grid-row: 39; grid-column: 1 / -1; }
   html.ui-native.ui-board .sheet-layout [id^="sheet-"] { scroll-margin-top: 12px; }
   html.ui-native.ui-board .cx-root { margin-bottom: 12px; }
@@ -194,13 +216,13 @@ html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--borde
   html.ui-native.ui-board .hud-hp-panel { grid-row: 3; left: auto; right: 0; }
   html.ui-native.ui-board .sheet-extras .sheet-stat-strip { grid-row: 3; }
   html.ui-native.ui-board .sheet-extras .sheet-next-roll { grid-row: 4; grid-column: 1 / 3; margin-bottom: 12px; }
-  html.ui-native.ui-board .sheet-extras .sheet-quick-rolls { grid-row: 4; grid-column: 3; }
-  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 5; grid-column: 3; }
+  html.ui-native.ui-board .sheet-dock .sheet-tabs { grid-row: 4; grid-column: 3; align-self: end; }
+  html.ui-native.ui-board .sheet-extras[data-active-tab="combat"] .sheet-quick-rolls { grid-row: 6; grid-column: 3; }
   html.ui-native.ui-board .sheet-extras .sheet-shop,
   html.ui-native.ui-board .sheet-primary > * { grid-column: 3; }
   html.ui-native.ui-board .sheet-layout .sheet-primary > #sheet-skills { grid-column: 2; grid-row: 5 / 37; }
   html.ui-native.ui-board .sheet-layout > .sheet-aside { display: grid !important; grid-column: 1; grid-row: 5 / 37; gap: 12px; margin-bottom: 12px; }
-  html.ui-native.ui-board .sheet-layout > .sheet-aside > * { grid-column: auto; margin-bottom: 0; }
+  html.ui-native.ui-board .sheet-layout > .sheet-aside > *, html.ui-native.ui-board .sheet-layout[data-active-tab="life"] > .sheet-aside > #sheet-vitals { grid-column: auto; grid-row: auto; margin-bottom: 0; }
   html.ui-native.ui-board .content > .footer { grid-row: 37; }
 }
 

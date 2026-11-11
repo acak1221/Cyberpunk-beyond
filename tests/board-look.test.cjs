@@ -82,11 +82,48 @@ function tabs({board=true,wide=true,saved='skills'}={}){
  return {T:window.SheetTabs,layout,inserted,media,root,selected:()=>selected(inserted.at(-1))};
 }
 
-test('on a wide board the «Навыки» tab shows «Основное»: the skills already stand in their own column',()=>{
+test('on a wide board the «Навыки» tab shows «Действия»: the skills already stand in their own column',()=>{
  const h=tabs();
- assert.equal(h.T.current(),'skills','the choice itself is kept');assert.equal(h.T.shown(),'main');
- assert.equal(h.layout.dataset.activeTab,'main');assert.equal(h.selected(),'main');
- assert.match(h.inserted[0],/class="sheet-dock" data-active-tab="main"/);assert.match(h.inserted[0],/class="sheet-extras" data-active-tab="main"/);
+ assert.equal(h.T.current(),'skills','the choice itself is kept');assert.equal(h.T.shown(),'combat');
+ assert.equal(h.layout.dataset.activeTab,'combat');assert.equal(h.selected(),'combat');
+ assert.match(h.inserted[0],/class="sheet-dock" data-active-tab="combat" data-board="1"/);assert.match(h.inserted[0],/class="sheet-extras" data-active-tab="combat"/);
+});
+
+test('the board has its own tabs: «Действия», «Особенности» and «Персонаж», without «Основное» and «Весь лист»',()=>{
+ const h=tabs(),bar=h.inserted[0],ids=[...bar.matchAll(/data-sheet-tab="(\w+)"/g)].map(m=>m[1]);
+ assert.deepEqual(ids,['combat','skills','gear','role','life']);assert.deepEqual([...h.T.boardTabs],['combat','skills','gear','role','life','netrun']);
+ for(const label of ['Действия','Навыки','Снаряжение','Особенности','Персонаж'])assert.ok(bar.includes(`</span>${label}</button>`),label);
+ for(const gone of ['Основное','Весь лист','>Бой<'])assert.ok(!bar.includes(gone),gone);
+ const plain=tabs({board:false}).inserted[0];
+ assert.deepEqual([...plain.matchAll(/data-sheet-tab="(\w+)"/g)].map(m=>m[1]),['main','skills','combat','gear','role','life','all']);assert.match(plain,/data-board="0"/);
+});
+
+test('a tab saved in another look that the board does not have opens «Действия», and the choice is kept',()=>{
+ for(const saved of ['main','all'])for(const wide of [true,false]){const h=tabs({saved,wide});assert.equal(h.T.current(),saved);assert.equal(h.T.shown(),'combat');assert.equal(h.layout.dataset.activeTab,'combat');assert.equal(h.selected(),'combat')}
+ for(const saved of ['main','all']){const h=tabs({saved,board:false});assert.equal(h.T.shown(),saved)}
+});
+
+test('each section of the sheet knows the tab it stands under in the board',()=>{
+ const wide=tabs({saved:'gear'}).T,phone=tabs({saved:'gear',wide:false}).T,plain=tabs({board:false}).T;
+ for(const id of ['sheet-identity','sheet-stats','sheet-resources','sheet-reputation'])for(const T of [wide,phone])assert.equal(T.owner(id),'life',id);
+ for(const T of [wide,phone]){assert.equal(T.owner('sheet-role'),'combat');assert.equal(T.owner('sheet-role-ability'),'role');assert.equal(T.owner('sheet-features'),'role');assert.equal(T.owner('sheet-weapons'),'combat');assert.equal(T.owner('sheet-items'),'gear')}
+ assert.equal(wide.owner('sheet-specializations'),'role');assert.equal(phone.owner('sheet-specializations'),'skills');
+ assert.equal(wide.owner('sheet-vitals'),'gear','with a column of its own the condition is on every tab');assert.equal(phone.owner('sheet-vitals'),'life');
+ assert.equal(plain.owner('sheet-identity'),'main');assert.equal(plain.owner('sheet-role'),'role');assert.equal(plain.owner('sheet-vitals'),'main');
+});
+
+test('the stylesheet puts the sections under the board tabs',()=>{
+ assert.match(css,/\[data-active-tab="combat"\] \.sheet-primary > #sheet-role \{ display: block; \}/);
+ assert.match(css,/\[data-active-tab="role"\] \.sheet-primary > :is\(#sheet-role, \.hustle-tools\) \{ display: none; \}/);
+ assert.match(css,/\[data-active-tab="role"\] \.sheet-primary > #sheet-features \{ display: block; \}/);
+ assert.match(css,/\[data-active-tab="life"\] \.sheet-primary > :is\(#sheet-identity, #sheet-stats, \.hustle-tools\) \{ display: block; \}/);
+ assert.match(css,/\[data-active-tab="life"\] \.cx-root > #sheet-resources \{ display: block; \}/);
+ assert.match(css,/\[data-active-tab="life"\] \.sheet-primary > :is\(\.delete-button, #sheet-none\) \{ display: inline-block; \}/,'the character can still be deleted; the id gives the rule its weight');
+ assert.match(css,/\[data-active-tab="role"\] \.cx-root > #sheet-specializations \{ display: block; \}/);
+ assert.match(css,/#sheet-skills > \.skills-list \{ max-height: none; overflow: visible; \}/,'the skills are one long list, not a box that scrolls');
+ assert.doesNotMatch(css,/#sheet-skills \{[^}]*position: sticky/);
+ assert.match(source('theme.css'),/\.sheet-features \{ display: none; \}/,'the card of effects is hidden in the other looks');
+ assert.match(source('app.js'),/id="sheet-features"[^`]*data-calc-effects/);
 });
 
 test('on a narrow board, and in the other looks, «Навыки» is an ordinary tab',()=>{
@@ -94,13 +131,13 @@ test('on a narrow board, and in the other looks, «Навыки» is an ordinary
 });
 
 test('other tabs are never replaced',()=>{
- for(const tab of ['main','combat','gear','role','life','all']){const h=tabs({saved:tab});assert.equal(h.layout.dataset.activeTab,tab);assert.equal(h.T.shown(),tab)}
+ for(const tab of ['combat','gear','role','life']){const h=tabs({saved:tab});assert.equal(h.layout.dataset.activeTab,tab);assert.equal(h.T.shown(),tab)}
 });
 
 test('when the window becomes narrow or wide the sheet is laid out again',()=>{
  const h=tabs();assert.equal(h.media.listeners.length,1);
  h.media.matches=false;h.media.listeners[0]();assert.equal(h.layout.dataset.activeTab,'skills');
- h.media.matches=true;h.media.listeners[0]();assert.equal(h.layout.dataset.activeTab,'main');
+ h.media.matches=true;h.media.listeners[0]();assert.equal(h.layout.dataset.activeTab,'combat');
 });
 
 test('a browser without matchMedia keeps the ordinary tabs',()=>{
