@@ -197,8 +197,18 @@ function hitForm(c,l){
  const check=(k,label)=>`<button type="button" role="checkbox" data-pc-hit="${k}" aria-checked="${hit[k]===true}">${esc(label)}</button>`;
  return `<div class="pc-hit" data-pc-hit-root><div class="hud-hp-row"><label>${esc(tr(l,'hitRaw'))}<input type="number" inputmode="numeric" min="1" max="1000" step="1" data-pc-hit="raw" data-hp-amount placeholder="0" value="${esc(hit.raw)}"></label><div class="hud-hp-reasons pc-hit-set" role="radiogroup" aria-label="${esc(tr(l,'hitGroup'))}">${radio('body',`${tr(l,'hitBody')} · SP ${int(c.bodyArmor,0,1000)}`)}${radio('head',`${tr(l,'hitHead')} · SP ${int(c.head,0,1000)}`)}${radio('direct',tr(l,'hitDirect'))}</div></div><div class="hud-hp-row hud-hp-reasons pc-hit-set" role="group" aria-label="${esc(tr(l,'hitOptions'))}">${check('melee',tr(l,'hitMelee'))}${check('ap',tr(l,'hitAp'))}${check('crit',tr(l,'hitCrit'))}</div><p class="pc-hit-preview" data-pc-hit-preview aria-live="polite"></p><div class="hud-hp-row"><button type="button" class="btn small primary" data-pc-hit="apply">${esc(tr(l,'hitApply'))}</button><button type="button" class="btn ghost small" data-hud-jump="sheet-damage">${esc(tr(l,'hitFull'))}</button></div><div class="pc-hit-done" data-pc-hit-done role="status"></div></div>`;
 }
+/* The HP panel is part of the dock that sticks to the top. On a short phone the panel with this form is taller than what
+   is left above the bottom bar, so it gets exactly that room and scrolls inside itself: «Применить» can always be reached. */
+function fitPanel(){
+ try{
+  const doc=global.document,p=doc?.querySelector?.('.hud-hp-panel');if(!p||p.hidden||!p.getBoundingClientRect)return;
+  const nav=doc.querySelector('.bottom-nav'),floor=nav&&nav.getClientRects().length?nav.getBoundingClientRect().top:global.innerHeight;
+  p.style.maxHeight=Math.max(160,Math.floor(floor-p.getBoundingClientRect().top-8))+'px';
+ }catch{}
+}
 // Brings the drawn form in line with the state without touching the number field the player is typing in.
 function hitRefresh(){
+ fitPanel();
  const doc=global.document,root=doc?.querySelector?.('[data-pc-hit-root]');if(!root)return;
  const c=global.App?.active?.(),l=lang();if(!c)return;
  const direct=hit.location==='direct';
@@ -383,6 +393,7 @@ try{
  doc?.addEventListener?.('input',e=>{if(e.target?.dataset?.pcHit==='raw'){hit.raw=String(e.target.value||'').slice(0,5);hitRefresh()}});
  // The form lives in the HP panel, which the sheet draws again on its own schedule.
  let timer=0;for(const type of ['click','change','input'])doc?.addEventListener?.(type,()=>{clearTimeout(timer);timer=setTimeout(hitRefresh,30)});
+ global.addEventListener?.('resize',fitPanel);
 }catch{}
 global.PlayCombat=API;
 })(window);

@@ -31,7 +31,7 @@ html.ui-native .pc-status { border-radius: 8px; }
 /* The card rolls the burst and takes the 10 rounds itself, so the bare «−10» counter button is not shown twice. */
 .cx-weapon:has([data-pc-mode="burst"]) .wa-btn[data-wa="burst"] { display: none; }
 .pc-unarmed .cx-entry-actions + .cx-entry-actions { margin-top: 8px; }
-/* The panel sits in the sticky dock: on a short phone it scrolls inside itself, so «Применить» can always be reached. */
-@media (max-width: 820px) { .hud-hp-panel { max-height: calc(100dvh - 230px); overflow-y: auto; overscroll-behavior: contain; } }
+/* The panel sits in the sticky dock: PlayCombat gives it the room left above the bottom bar and it scrolls inside itself. */
+.hud-hp-panel { overflow-y: auto; overscroll-behavior: contain; }
 /* On a wide screen the HP chip itself carries the wound label. */
 @media (min-width: 821px) { .pc-status[data-pc-state="serious"] { display: none; } }
