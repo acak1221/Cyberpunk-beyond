@@ -183,7 +183,7 @@ test('stale sheets and foreign events are refused; the page loads the module bef
   const r = h.K.handle({ type: 'click', target: control({ rkAction: 'deal-apply', rkDelta: '-10', rkKind: 'buy' }) }, c, 'ru', { isCurrent: () => false });
   assert.equal(r.handled, true); assert.equal(r.dirty, undefined); assert.equal(c.extra.cash, 2000);
   assert.equal(h.K.handle({ type: 'click', target: { closest: () => null } }, c, 'ru', {}).handled, false);
-  assert.match(source('index.html'), /<script src="role-kit\.js"><\/script><script src="app\.js">/);
+  assert.match(source('index.html'), /<script src="role-kit\.js"><\/script>.*<script src="app\.js">/);
   assert.match(source('index.html'), /href="role-kit\.css"/);
   assert.ok(!/\b(confirm|alert|prompt)\(/.test(source('role-kit.js')));
 });

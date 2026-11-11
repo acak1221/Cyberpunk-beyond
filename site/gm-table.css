@@ -1,0 +1,89 @@
+/* The Game Master's table (gm-table.js): compact tracker rows, attacks from a row, the party reward, the give dialog. */
+
+/* The fight comes first on the campaign page: the tracker and the reward stand above the notes. */
+.campaign-layout > div > .campaign-roster { order: -2; }
+.campaign-layout > div > .gt-party { order: -1; }
+
+.gt-help { margin: 6px 0 0; }
+.gt-help > summary { min-height: 32px; padding: 6px 0; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+/* ---------- compact rows ---------- */
+.gt-head { display: grid; grid-template-columns: 20px minmax(0, 1fr) 58px 58px 40px; gap: 6px; align-items: end; padding: 0 12px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.gt-head .gt-all { grid-column: 1 / -1; grid-row: 1; justify-self: end; min-height: 32px; padding: 4px 0; border: 0; background: none; color: var(--muted); font: inherit; text-decoration: underline; cursor: pointer; }
+.gt-toggle { grid-area: tog; justify-self: end; align-self: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--border); background: transparent; color: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.gt-toggle:hover, .gt-toggle:focus-visible { border-color: var(--red); }
+
+.combatant.gt-row { grid-template-columns: 20px repeat(3, minmax(0, 1fr)) 40px; grid-template-areas: "ord name name name tog" ". init bonus hp hp"; }
+.combatant.gt-row.has-hp-reason { grid-template-areas: "ord name name name tog" ". init bonus hp hp" ". reason reason reason reason"; }
+.combatant.gt-row > .camp-remove { grid-area: auto; grid-column: 1 / -1; order: 9; justify-self: end; }
+
+.combatant.gt-row:not(.gt-open) { grid-template-columns: 20px minmax(0, 1fr) 58px 58px 40px; grid-template-areas: "ord name init hp tog" "state state state state state"; align-items: center; gap: 2px 6px; padding-top: 6px; padding-bottom: 6px; }
+.combatant.gt-row:not(.gt-open) > .camp-bonus,
+.combatant.gt-row:not(.gt-open) > .camp-hp-reason,
+.combatant.gt-row:not(.gt-open) > .camp-remove,
+.combatant.gt-row:not(.gt-open) > .campaign-combat-note,
+.combatant.gt-row:not(.gt-open) > p.campaign-combat-note,
+.combatant.gt-row:not(.gt-open) .combat-name small,
+.combatant.gt-row:not(.gt-open) .combat-name .camp-open,
+.combatant.gt-row:not(.gt-open) > label small { display: none; }
+.combatant.gt-row:not(.gt-open) .combat-name .camp-live:not(:empty) { display: block; }
+.combatant.gt-row:not(.gt-open) .combat-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combatant.gt-row:not(.gt-open) > label { display: block; font-size: 0; line-height: 0; }
+.combatant.gt-row:not(.gt-open) > label input { width: 100%; min-height: 40px; margin: 0; padding: 4px 6px; font-size: 15px; line-height: 1.2; text-align: center; }
+.combatant.gt-row:not(.gt-open) > .camp-state { grid-area: state; padding-left: 26px; }
+.combatant.gt-row:not(.gt-open) > .camp-state .camp-chip { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+
+@container (min-width: 520px) {
+  .gt-head { grid-template-columns: 26px minmax(0, 1fr) 76px 76px 40px; gap: 10px; }
+  .combatant.gt-row { grid-template-columns: 26px minmax(0, 1fr) 76px 64px 76px 40px; grid-template-areas: "ord name init bonus hp tog"; }
+  .combatant.gt-row.has-hp-reason { grid-template-areas: "ord name init bonus hp tog" "ord name reason reason reason ."; }
+  .combatant.gt-row:not(.gt-open) { grid-template-columns: 26px minmax(0, auto) minmax(0, 1fr) 76px 76px 40px; grid-template-areas: "ord name state init hp tog"; gap: 4px 10px; }
+  .combatant.gt-row:not(.gt-open) > .camp-state { padding-left: 0; }
+}
+
+/* ---------- inside «Действия» ---------- */
+.gt-box { display: grid; gap: 8px; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--border); }
+.gt-title { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.gt-box p { margin: 0; }
+.gt-attacks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gt-attacks li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gt-weapon { flex: 1 1 150px; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.gt-weapon small { display: block; color: var(--muted); font-weight: 400; }
+.gt-attacks .btn, .gt-apply .btn, .gt-undo { min-height: 40px; padding: 6px 12px; font-size: 11px; }
+.gt-result { display: grid; gap: 8px; padding: 8px 10px; border-left: 3px solid var(--red); background: rgba(127, 127, 127, .1); font-size: 13px; overflow-wrap: anywhere; }
+.gt-apply { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.gt-apply label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; }
+.gt-apply input[type="number"] { width: 76px; }
+.gt-apply select { width: auto; max-width: 220px; margin-top: 0; }
+.gt-check { display: flex !important; align-items: center; gap: 6px; min-height: 40px; }
+.gt-check input { width: 18px; height: 18px; margin: 0; }
+.gt-undo { justify-self: start; }
+.camp-more-row label.camp-crit { display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.camp-more-row label.camp-crit input { width: 18px; height: 18px; margin: 0; }
+
+/* ---------- party reward ---------- */
+.gt-party-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.gt-party-grid .gt-reason { grid-column: 1 / -1; }
+.gt-members { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.gt-members li { display: grid; grid-template-columns: minmax(0, 1fr) 84px auto; align-items: center; gap: 8px; }
+.gt-members .gt-check span { font-weight: 700; overflow-wrap: anywhere; }
+.gt-members small, .gt-unit { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.gt-members input[type="number"] { width: 100%; min-height: 40px; }
+.gt-preview { margin: 12px 0 0; padding: 8px 10px; border-left: 3px solid var(--border); font-size: 13px; overflow-wrap: anywhere; }
+.gt-party .campaign-controls { margin: 12px 0 0; }
+@media (max-width: 560px) { .gt-party-grid { grid-template-columns: 1fr 1fr; } .gt-party-grid label:first-child { grid-column: 1 / -1; } }
+
+/* ---------- give to a character ---------- */
+.gt-give { min-height: 32px; margin-left: 8px; padding: 3px 10px; font-size: 11px; }
+.night-market .nm-items li { grid-template-columns: 1fr auto auto auto auto; }
+.night-market .nm-items li .gt-give { margin-left: 0; }
+@media (max-width: 560px) { .night-market .nm-items li { grid-template-columns: 1fr auto auto; } }
+.gt-dialog { width: min(420px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--border, #555); background: var(--panel, #1b1a18); color: var(--text, #f3efe8); }
+.gt-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.gt-dialog h2 { margin: 0 0 10px; font-size: 18px; }
+.gt-dialog-item { margin: 0 0 14px; font-weight: 700; overflow-wrap: anywhere; }
+.gt-dialog-item span { margin-left: 6px; color: var(--muted); font-weight: 400; }
+.gt-dialog select { width: 100%; }
+.gt-dialog-error { margin: 12px 0 0; color: var(--red, #d33); font-weight: 700; }
+.gt-dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.gt-dialog-actions .btn { min-height: 44px; }

@@ -54,7 +54,7 @@ test('damage to an NPC goes through armor, ablates it by 1 and doubles on the he
 
 test('damage to a Mortally Wounded NPC raises its Death Save Penalty (p. 188)',()=>{
  const h=setup();h.by('b').hp=0;h.act('damage','b',{dmg:'4'});
- assert.equal(h.by('b').hp,-4);assert.equal(h.by('b').deathPenalty,1);assert.match(h.notices.at(-1),/критическое ранение/);
+ assert.equal(h.by('b').hp,0,'HP stops at 0: negatives are not tracked');assert.equal(h.by('b').deathPenalty,1);assert.match(h.notices.at(-1),/критическое ранение/);
 });
 
 test('an NPC Death Save: under BODY to live, 10 always fails, the penalty grows by 1 each time (p. 188)',()=>{
