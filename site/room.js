@@ -21,6 +21,8 @@ const combatSeen=new Map(),clocksSeen=new Map(),rivals=new Map();
 
 Object.assign(T.ru,{keyMine:'Ваш ключ ведущего',keyLink:'Ведущий подтверждён ссылкой, его ключ',keyFirst:'Ключ ведущего запомнен при входе; если входили по коду, сверьте его с ведущим',gmFirst:'Ведущий комнаты: {name}. Его ключ {key} запомнен. Если вы входили по коду, а не по ссылке, сверьте ключ с ведущим.',impostor:'называет себя ведущим',impostorNote:'Кто-то ещё называет себя ведущим. Инициатива, счётчики и листы принимаются только от ведущего с ключом этой комнаты.',mute:'Скрыть',muteTitle:'Не показывать этого участника и не принимать его сообщения',mutedCount:'Скрыто участников',unmute:'Показать всех',oldVersion:'У кого-то в комнате старая версия приложения. Попросите его обновить страницу, иначе вы не увидите друг друга.',pinNote:'Ссылка называет ключ ведущего',yourTurn:'Ваш ход',yourTurnHint:'Инициатива перешла к вашему персонажу',veiled:'Ходит скрытый участник',initSet:'Инициатива записана в трекер',liveHp:'в комнате',pinChange:'Эта ссылка называет другого ведущего: ключ {new} вместо {old}. Доверять новому ключу?'});
 Object.assign(T.en,{keyMine:'Your Game Master key',keyLink:'Game Master confirmed by the link, their key',keyFirst:'Game Master key remembered on joining; if you joined by code, check it with your GM',gmFirst:'Game Master of this room: {name}. Their key {key} is remembered. If you joined by code and not by link, check the key with your GM.',impostor:'claims to be the Game Master',impostorNote:'Someone else claims to be the Game Master. Initiative, clocks and sheets are accepted only from the GM with this room’s key.',mute:'Hide',muteTitle:'Stop showing this member and drop their messages',mutedCount:'Hidden members',unmute:'Show all',oldVersion:'Someone in the room has an older version of the app. Ask them to reload the page, or you will not see each other.',pinNote:'The link names the Game Master key',yourTurn:'Your turn',yourTurnHint:'Initiative has come to your character',veiled:'A hidden participant is acting',initSet:'Initiative written to the tracker',liveHp:'in the room',pinChange:'This link names another Game Master: key {new} instead of {old}. Trust the new key?'});
+Object.assign(T.ru,{initAdded:'Добавлен в трекер из комнаты',initNoCampaign:'Игрок бросил инициативу, но для комнаты не выбрана кампания. Выберите её на странице «Игра онлайн» — и броски игроков будут попадать в трекер.',initNotShown:'Бросок виден в ленте комнаты, но вашего персонажа пока нет в трекере ведущего: он не выбрал кампанию для комнаты. Назовите результат голосом.',initPickChar:'Чтобы инициатива попала в трекер ведущего, выберите этого персонажа на странице «Игра онлайн».',fromRoom:'Игроки в комнате',fromRoomHelp:'Игрок попадает в трекер и получает сигнал «Ваш ход», даже если ещё не прислал лист. Его бросок инициативы запишется сам.',fromRoomAdd:'В трекер',fromRoomAll:'Все игроки комнаты уже в трекере.',fromRoomNone:'В комнате пока нет игроков с персонажем.',fromRoomAdded:'Добавлен в трекер',liveTitle:'HP ведёт сам игрок на своём листе. Чтобы изменить — нажмите «Выдать».',liveOff:'не в сети',fromRoomTag:'из комнаты'});
+Object.assign(T.en,{initAdded:'Added to the tracker from the room',initNoCampaign:'A player rolled initiative, but no campaign is chosen for the room. Choose one on the “Online play” page and players’ rolls will go to the tracker.',initNotShown:'The roll is in the room feed, but your character is not in the GM’s tracker yet: no campaign is chosen for the room. Say the result out loud.',initPickChar:'To send initiative to the GM’s tracker, choose this character on the “Online play” page.',fromRoom:'Players in the room',fromRoomHelp:'A player joins the tracker and gets the “Your turn” signal even before sending a sheet. Their initiative roll is written by itself.',fromRoomAdd:'To tracker',fromRoomAll:'Every player in the room is already in the tracker.',fromRoomNone:'No players with a character are in the room yet.',fromRoomAdded:'Added to the tracker',liveTitle:'The player keeps HP on their own sheet. To change it, press “Give”.',liveOff:'offline',fromRoomTag:'from the room'});
 const lang=()=>{try{return app?.getState?.().lang==='en'?'en':'ru'}catch{return 'ru'}};
 const t=k=>T[lang()][k]??T.ru[k]??k;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -130,7 +132,14 @@ async function acceptSheet(i){
  if(!res){refresh();return}
  if(!res.ok){if(!SHEET_RETRY.includes(res.reason))incoming=incoming.filter(x=>x!==item);app?.notify?.(t(SHEET_FAIL[res.reason]||'sheetBad'));refresh();return}
  let added=false;const st=app?.getState?.(),camp=session?.campaignId?st?.campaigns?.find(c=>c.id===session.campaignId):null;
- if(camp&&Array.isArray(camp.roster)&&!camp.roster.some(r=>r.kind==='pc'&&r.characterId===res.id)){camp.roster.push({id:'r'+hex(rand(6)),kind:'pc',characterId:res.id,initiative:0,order:Date.now()});global.App?.save?.();added=true}
+ if(camp&&Array.isArray(camp.roster)){
+  // A row this player got from the room before sending the sheet becomes the sheet's row: one participant, the same initiative.
+  const own=item.dev?item.dev+':'+clip(item.character.id,60):'',has=camp.roster.some(r=>r.kind==='pc'&&r.characterId===res.id),was=own?camp.roster.filter(r=>rowOwn(r)===own):[];
+  if(!has&&was.length){const r=was.shift();for(const k of ['own','name','ref','hp','maxHp','sp','dead','deathPenalty'])delete r[k];Object.assign(r,{kind:'pc',characterId:res.id});added=true}
+  else if(!has){camp.roster.push({id:'r'+hex(rand(6)),kind:'pc',characterId:res.id,initiative:0,order:Date.now()});added=true}
+  if(was.length)keepTurn(camp,()=>{camp.roster=camp.roster.filter(r=>!was.includes(r))});
+  if(added||was.length)global.App?.save?.();
+ }
  send('e','sheet-ack',{to:item.from,name:clip(item.character.name,60),...(item.ref?{ref:item.ref}:{})},false);
  item.saved=res.id;app?.notify?.(`${t(res.how==='copy'?'sheetCopied':res.updated?'sheetUpdated':'sheetSaved')}: ${clip(c.name,60)||'—'}${added?' '+t('addedRoster'):''}${res.kept?'. '+t('sheetKept'):''}`);
  global.App?.render?.();
@@ -193,28 +202,89 @@ function liveFor(c){
  for(const m of members.values())if(!m.me&&m.dev&&m.cid&&own===m.dev+':'+m.cid&&m.character&&isOnline(m))return {hp:m.character.hp,max:m.character.max};
  return null;
 }
+/* A player in the room is in the tracker without a sheet: a row that carries «device:character» (own) instead of a saved character.
+   The player's page knows the row is theirs (so «Ваш ход» works), their initiative roll lands on it, and its HP follows their status.
+   When the sheet arrives later, the row becomes that character's row (see acceptSheet). */
+const rowOwn=r=>r&&r.kind==='npc'&&typeof r.own==='string'&&OWN.test(r.own)?r.own:'';
+const memberOwning=own=>{if(!own)return null;for(const [id,m] of members)if(!m.me&&m.dev&&m.cid&&own===m.dev+':'+m.cid&&m.character&&isOnline(m))return [id,m];return null};
+const linkedCampaign=()=>{if(session?.role!=='gm'||!session.campaignId)return null;const camp=app?.getState?.()?.campaigns?.find(x=>x.id===session.campaignId);return camp&&Array.isArray(camp.roster)?camp:null};
+const inRoster=(camp,own)=>{const chars=app?.getState?.()?.characters||[];return camp.roster.some(r=>rowOwn(r)===own||(r.kind==='pc'&&ownerOf(chars.find(c=>c?.id===r.characterId))===own))};
+const sameOrder=list=>[...list].sort((a,b)=>(Number(b.initiative)||0)-(Number(a.initiative)||0)||(Number(a.order)||0)-(Number(b.order)||0));
+// Adding a row must not move the turn away from whoever has it.
+function keepTurn(camp,change){const active=sameOrder(camp.roster)[int(camp.turnIndex,0,500)];change();if(active){const i=sameOrder(camp.roster).indexOf(active);if(i>=0)camp.turnIndex=i}}
+function rowFromRoom(camp,m){
+ const own=m.dev+':'+m.cid;if(!OWN.test(own)||!m.character||inRoster(camp,own)||camp.roster.filter(r=>rowOwn(r)).length>=MAX_MEMBERS)return null;
+ const row={id:'r'+hex(rand(6)),kind:'npc',own,name:clip(m.character.name,60)||clip(m.name,40)||'?',ref:m.character.ref,hp:m.character.hp,maxHp:m.character.max,initiative:0,order:Date.now()};
+ camp.roster.push(row);return row;
+}
+// The Game Master presses «В трекер» next to a player in the room.
+function addFromRoom(id){
+ const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev||!m.cid||!isOnline(m))return false;
+ let row=null;keepTurn(camp,()=>{row=rowFromRoom(camp,m)});if(!row)return false;
+ try{global.App?.save?.();global.App?.render?.()}catch{}
+ app?.notify?.(`${t('fromRoomAdded')}: ${row.name}`);publishCombat();return true;
+}
+// A row added from the room follows its player's status.
+function syncRows(id){
+ const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev||!m.cid||!m.character)return;
+ const own=m.dev+':'+m.cid,s=m.character;let changed=false;
+ for(const r of camp.roster)if(rowOwn(r)===own){const name=clip(s.name,60)||r.name;if(r.hp!==s.hp||r.maxHp!==s.max||r.name!==name||r.ref!==s.ref){Object.assign(r,{hp:s.hp,maxHp:s.max,name,ref:s.ref});changed=true}}
+ if(changed){try{global.App?.save?.()}catch{}publishCombat()}
+}
+let noCampaignAt=0;
 // A player rolled initiative on their sheet: put it on their row in the campaign this room is linked to.
 function applyInitiative(from,cid,total){
- if(session?.role!=='gm'||!session.campaignId||!cid)return;
- const st=app?.getState?.(),camp=st?.campaigns?.find(x=>x.id===session.campaignId),dev=members.get(from)?.dev;if(!camp||!dev||!Array.isArray(camp.roster))return;
- const key='room-dev:'+dev+':'+cid,pc=st.characters?.find(c=>c?.extra?.sourceKey===key),row=pc&&camp.roster.find(r=>r.kind==='pc'&&r.characterId===pc.id);if(!row)return;
- const order=list=>[...list].sort((a,b)=>(Number(b.initiative)||0)-(Number(a.initiative)||0)||(Number(a.order)||0)-(Number(b.order)||0)),active=order(camp.roster)[int(camp.turnIndex,0,500)];
- row.initiative=int(total,-99,999);row.ties=[];
- if(active){const i=order(camp.roster).indexOf(active);if(i>=0)camp.turnIndex=i}
+ if(session?.role!=='gm'||!cid)return;
+ if(!session.campaignId){if(Date.now()-noCampaignAt>60000){noCampaignAt=Date.now();app?.notify?.(t('initNoCampaign'))}return}
+ const st=app?.getState?.(),camp=st?.campaigns?.find(x=>x.id===session.campaignId),m=members.get(from),dev=m?.dev;if(!camp||!dev||!Array.isArray(camp.roster))return;
+ const own=dev+':'+cid,key='room-dev:'+own,pc=st.characters?.find(c=>c?.extra?.sourceKey===key);
+ let row=(pc&&camp.roster.find(r=>r.kind==='pc'&&r.characterId===pc.id))||camp.roster.find(r=>rowOwn(r)===own),added=false;
+ keepTurn(camp,()=>{
+  // No sheet at the Game Master's yet: the player gets a row from the room, for the character they are in the room with.
+  if(!row&&m.cid===cid){row=rowFromRoom(camp,m);added=!!row}
+  if(row){row.initiative=int(total,-99,999);row.ties=[]}
+ });
+ if(!row)return;
  try{global.App?.save?.()}catch{}
- app?.notify?.(`${t('initSet')}: ${clip(pc.name,60)||'—'} — ${row.initiative}`);
+ app?.notify?.(`${t(added?'initAdded':'initSet')}: ${clip(pc?pc.name:row.name,60)||'—'} — ${row.initiative}`);
  if(st.view==='campaigns')try{global.App?.render?.()}catch{}
  publishCombat();
 }
-function paintLive(){const st=app?.getState?.();for(const el of doc.querySelectorAll?.('[data-camp-live]')||[]){const c=st?.characters?.find(x=>x.id===el.dataset.campLive);el.textContent=c?global.Room.liveText(c):''}}
+// What the tracker shows for a participant whose player is in the room: their own HP, which the Game Master does not type over.
+function liveRow(r,c){
+ if(session?.role!=='gm')return null;
+ if(c){const live=liveFor(c);return live?{...live,title:t('liveTitle')}:null}
+ const hit=memberOwning(rowOwn(r));return hit?{hp:hit[1].character.hp,max:hit[1].character.max,title:t('liveTitle')}:null;
+}
+function rosterCard(camp){
+ if(session?.role!=='gm'||!camp||camp.id!==session.campaignId||!Array.isArray(camp.roster))return '';
+ const here=[...members.entries()].filter(([,m])=>!m.me&&m.role!=='gm'&&m.dev&&m.cid&&m.character&&isOnline(m)),free=here.filter(([,m])=>!inRoster(camp,m.dev+':'+m.cid));
+ return `<section class="card room-roster" data-room-roster="${esc(camp.id)}"><div class="card-heading"><span>${esc(t('fromRoom'))}</span><span>${here.length}</span></div><p class="muted">${esc(t('fromRoomHelp'))}</p>${free.length?`<ul class="room-roster-list">${free.map(([id,m])=>`<li><div><b>${esc(m.character.name||'—')}</b><small>${esc(m.name)} · REF ${m.character.ref} · HP ${m.character.hp}/${m.character.max}</small></div><button type="button" class="btn ghost" data-room-action="roster-add" data-id="${esc(id)}">＋ ${esc(t('fromRoomAdd'))}</button></li>`).join('')}</ul>`:`<p class="muted">${esc(t(here.length?'fromRoomAll':'fromRoomNone'))}</p>`}</section>`;
+}
+// Live parts of the open tracker, without redrawing it under the Game Master's hands: the «в комнате» labels, the HP of
+// participants whose players are online, and the list of players who can be added from the room.
+function paintLive(){
+ const st=app?.getState?.();let flipped=false;
+ for(const el of doc.querySelectorAll?.('[data-camp-live],[data-camp-live-row]')||[]){
+  const c=el.dataset.campLive?st?.characters?.find(x=>x.id===el.dataset.campLive):null,r=c?null:(st?.campaigns||[]).flatMap(k=>Array.isArray(k?.roster)?k.roster:[]).find(x=>x.id===el.dataset.campLiveRow);
+  const live=c||r?liveRow(r,c):null,text=c?global.Room.liveText(c):r?global.Room.liveText(r):'';
+  if(el.textContent!==text)el.textContent=text;
+  const input=el.closest?.('.combatant')?.querySelector?.('[data-camp-hp]');if(!input)continue;
+  if(!!live!==!!input.readOnly)flipped=true;else if(live&&doc.activeElement!==input&&input.value!==String(live.hp))input.value=String(live.hp);
+ }
+ const card=doc.querySelector?.('[data-room-roster]');
+ if(card){const camp=st?.campaigns?.find(x=>x.id===card.dataset.roomRoster),html=rosterCard(camp);if(html){const box=doc.createElement('div');box.innerHTML=html;if(box.firstElementChild&&box.firstElementChild.innerHTML!==card.innerHTML)card.innerHTML=box.firstElementChild.innerHTML}}
+ // A player came or went: the row changes shape (its HP field, the «Выдать» button), so the tracker is drawn again unless something in it is being typed.
+ if(flipped&&st?.view==='campaigns'&&!['INPUT','TEXTAREA','SELECT'].includes(doc.activeElement?.tagName))try{global.App?.render?.()}catch{}
+}
 function combatPayload(){
  if(!drives()||!session.campaignId)return null;
  const st=app?.getState?.(),camp=st?.campaigns?.find(x=>x.id===session.campaignId);if(!camp)return null;
  const roster=[...(camp.roster||[])].sort((a,b)=>{let n=(Number(b.initiative)||0)-(Number(a.initiative)||0);if(n)return n;const x=a.ties||[],y=b.ties||[];for(let i=0;i<Math.max(x.length,y.length);i++){n=(Number(y[i])||0)-(Number(x[i])||0);if(n)return n}return (Number(a.order)||0)-(Number(b.order)||0)});
- const turn=int(camp.turnIndex,0,500),shown=roster.map((r,i)=>({r,now:i===turn})).filter(x=>x.r.hidden!==true||x.r.kind==='pc');
+ const turn=int(camp.turnIndex,0,500),shown=roster.map((r,i)=>({r,now:i===turn})).filter(x=>x.r.hidden!==true||x.r.kind==='pc'||rowOwn(x.r));
  // A row whose character was deleted keeps a visible name for older pages; newer ones read 'none' and show «без персонажа».
  // Hidden participants are not sent at all; when one of them acts, players only learn that somebody hidden does.
- return {campaign:clip(camp.name,80),round:int(camp.round||1,1,9999),...(roster[turn]&&!shown.some(x=>x.now)?{veiled:true}:{}),order:shown.slice(0,40).map(({r,now})=>{const pc=r.kind==='pc',c=pc&&st.characters?.find(x=>x.id===r.characterId),own=pc&&c?ownerOf(c):'';return {name:clip(pc?c?.name||'—':r.name,60),pc,...(pc&&!c?{none:true}:{}),...(own?{own}:{}),init:int(r.initiative),current:now}}),...(global.BattleMap?.sharedPart?.(camp,shown.map(x=>x.r))||{})};
+ return {campaign:clip(camp.name,80),round:int(camp.round||1,1,9999),...(roster[turn]&&!shown.some(x=>x.now)?{veiled:true}:{}),order:shown.slice(0,40).map(({r,now})=>{const sheet=r.kind==='pc',c=sheet&&st.characters?.find(x=>x.id===r.characterId),own=sheet?(c?ownerOf(c):''):rowOwn(r),pc=sheet||!!own;return {name:clip(sheet?c?.name||'—':r.name,60),pc,...(sheet&&!c?{none:true}:{}),...(own?{own}:{}),init:int(r.initiative),current:now}}),...(global.BattleMap?.sharedPart?.(camp,shown.map(x=>x.r))||{})};
 }
 
 function cleanClocks(list){return Array.isArray(list)?list.slice(0,12).filter(x=>x&&typeof x==='object').map(x=>{const size=int(x.size,2,12);return {name:clip(x.name,60),size,filled:int(x.filled,0,size)}}):[]}
@@ -415,7 +485,7 @@ async function receive(p){
   else if(claims&&d.proof&&session.role==='gm')noteRival(fp,d.proof);
   if(!prev&&members.size>=MAX_MEMBERS&&!evictOne())return;
   if(outbox.length&&!p.retain)flushOutbox(); // someone (re)connected: give them the rolls made while offline
-  if(session.role==='gm')setTimeout(paintLive,0);
+  if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive()},0);
   members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',at:when});
   repaint();
  }else if((m.t==='combat'||m.t==='cleared')&&sub==='c'){
@@ -574,11 +644,15 @@ function refresh(){
  }
  const pill=doc.querySelector('[data-room-pill]');if(pill)pill.outerHTML=renderPill();
  try{global.RoomGrants?.refresh?.()}catch{}
+ // A player who left or went quiet: the open tracker gives the HP field back to the Game Master.
+ if(session?.role==='gm')try{paintLive()}catch{}
 }
 function renderPill(){
  if(!session)return '<span data-room-pill hidden></span>';
  const others=[...members.values()].filter(m=>!m.me&&isOnline(m)).length;
- return `<button type="button" class="room-pill ${netStatus.online?'ok':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${esc(t('nav'))}</span> · ${others+1}</button>`;
+ // While the turn is this player's, the pill says so on every page: the toast is gone in a few seconds.
+ const mine=myTurn(combat);
+ return `<button type="button" class="room-pill ${netStatus.online?'ok':''}${mine?' turn':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${mine?'▶ '+esc(t('yourTurn')):esc(t('nav'))}</span> · ${others+1}</button>`;
 }
 
 async function startSession(next){
@@ -607,6 +681,7 @@ doc.addEventListener('click',async e=>{
  else if(a==='accept-sheet'){await acceptSheet(Number(b.dataset.index));refresh()}
  else if(a==='decline-sheet'){incoming.splice(Number(b.dataset.index),1);refresh()}
  else if(a==='open-sheet'){if(app?.getState?.()?.characters?.some(c=>c?.id===b.dataset.id))global.App?.open?.(b.dataset.id);else refresh()}
+ else if(a==='roster-add'){addFromRoom(b.dataset.id)}
  else if(a==='co-grant'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('grantConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;setDeputy(fp)}
  else if(a==='co-revoke'){setDeputy('')}
  else if(a==='handover'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('handoverConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;b.disabled=true;await startHandover(fp)}
@@ -661,6 +736,11 @@ global.Room={
   const text=String(detail||''),crit=/Критический успех|Critical Success/i.test(text)?'crit':/Критический провал|Critical Failure/i.test(text)?'fumble':'';
   const item={who:clip(session.name,40),character:clip(character,60),label:clip(label,80),detail:clip(text,200),total:int(total,-999,9999),crit,...(initiative===true&&characterId&&characterId===session.characterId?{init:true,cid:clip(characterId,60)}:{})};
   const entry={...item,at:Date.now(),mine:true};feed.unshift(entry);feed=feed.slice(0,MAX_FEED);
+  if(initiative===true&&session.role==='player'){
+   if(!item.init)app?.notify?.(t('initPickChar'));
+   // The Game Master shows no initiative in the room: the roll cannot land anywhere, so say it instead of staying silent.
+   else if(session.broadcastRolls!==false){const code=session.code;setTimeout(()=>{if(session?.code===code&&!combat&&[...members.values()].some(m=>m.role==='gm'&&!m.me&&isOnline(m)))app?.notify?.(t('initNotShown'))},4000)}
+  }
   if(session.broadcastRolls!==false){
    const at=entry.at;
    if(!netStatus.online){entry.pending=true;outbox.push({payload:item,at,feed:entry,id:hex(rand(8))});outbox=outbox.slice(-MAX_OUTBOX)}
@@ -675,12 +755,15 @@ global.Room={
  grantLink:{
   who:()=>session?{role:session.role,code:session.code,memberId:session.memberId,characterId:session.characterId||''}:null,
   targets:()=>session?.role==='gm'?[...members.entries()].filter(([,m])=>!m.me&&m.role!=='gm'&&m.cid&&m.character&&isOnline(m)).map(([id,m])=>({id,name:m.name,cid:m.cid,character:m.character.name})):[],
-  memberFor:c=>{if(session?.role!=='gm')return '';const own=ownerOf(c);if(!own)return '';for(const [id,m] of members)if(!m.me&&m.role!=='gm'&&m.dev&&m.cid&&own===m.dev+':'+m.cid&&m.character&&isOnline(m))return id;return ''},
+  memberFor:x=>{if(session?.role!=='gm')return '';const hit=memberOwning(rowOwn(x)||ownerOf(x));return hit&&hit[1].role!=='gm'?hit[0]:''},
   send:(to,d)=>session?.role==='gm'&&members.has(to)?send('e','grant',{to,...d}):Promise.resolve(0),
   reply:(to,d)=>session&&session.role!=='gm'?send('e','grant-ack',{to,...d}):Promise.resolve(0),
  },
  // For the tracker: the live HP of the player this GM-side sheet belongs to, as text, or '' when they are not in the room.
- liveText(c){try{const live=liveFor(c);return live?`♥ ${live.hp}/${live.max} ${t('liveHp')}`:''}catch{return ''}},
- _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
+ // Takes a GM-side sheet, or a tracker row added from the room.
+ liveText(c){try{const row=rowOwn(c),live=row?liveRow(c,null):liveFor(c);return live?`♥ ${live.hp}/${live.max} ${t('liveHp')}`:row?`${t('fromRoomTag')} · ${t('liveOff')}`:''}catch{return ''}},
+ liveRow(r,c){try{return liveRow(r,c)}catch{return null}},
+ rosterCard(camp){try{return rosterCard(camp)}catch{return ''}},
+ _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,addFromRoom,syncRows,rosterCard,liveRow,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
 };
 })(window);
