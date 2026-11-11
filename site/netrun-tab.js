@@ -21,13 +21,13 @@ function abilities(){const list=global.RoleTools?.data?.netAbilities;return Arra
 function render(c,l){
  const r=interfaceRank(c);if(!r)return '';
  const d=T[lang(l)],ru=lang(l)==='ru',actions=global.RoleTools?.netActions?.(r)??'—';
- return `<section class="card netrun-card"><div class="card-heading"><span>${esc(d.title)}</span><span>INTERFACE</span></div><p class="netrun-lead">${esc(d.lead)}</p><div class="netrun-stats"><div><small>${esc(d.rank)}</small><b>${r}</b></div><div><small>${esc(d.actions)}</small><b>${esc(actions)}</b></div></div><div class="netrun-grid">${abilities().map(([name,ruText,enText])=>`<button type="button" class="netrun-ability" data-netrun-roll="${esc(name)}"><span><b>${esc(name)}</b><small>${esc(ru?ruText:enText)}</small></span><em>+${r}</em></button>`).join('')}</div><div class="netrun-actions"><button type="button" class="btn ghost" data-netrun-zap>⌁ ${esc(d.zap)}</button><button type="button" class="btn ghost" data-action="navigate" data-view="net">⌬ ${esc(d.open)}</button></div><p class="netrun-lead">${esc(d.deck)}</p></section>`;
+ return `<section class="card netrun-card"><div class="card-heading"><span>${esc(d.title)}</span><span>INTERFACE</span></div><p class="netrun-lead">${esc(d.lead)}</p><div class="netrun-stats"><div><small>${esc(d.rank)}</small><b>${r}</b></div><div><small>${esc(d.actions)}</small><b>${esc(actions)}</b></div></div>${global.RolePlay?.netrunBar?.(c,r,l)||''}<div class="netrun-grid">${abilities().map(([name,ruText,enText])=>`<button type="button" class="netrun-ability" data-netrun-roll="${esc(name)}"><span><b>${esc(name)}</b><small>${esc(ru?ruText:enText)}</small></span><em>+${r}</em></button>`).join('')}</div><div class="netrun-actions"><button type="button" class="btn ghost" data-netrun-zap>⌁ ${esc(d.zap)}</button><button type="button" class="btn ghost" data-action="navigate" data-view="net">⌬ ${esc(d.open)}</button></div><p class="netrun-lead">${esc(d.deck)}</p></section>`;
 }
 doc.addEventListener('click',e=>{
  const roll=e.target.closest?.('[data-netrun-roll]'),zap=e.target.closest?.('[data-netrun-zap]');
  if(!roll&&!zap)return;
  const c=global.App?.active?.(),r=interfaceRank(c);if(!r)return;
- if(roll)global.App.check(r,`${roll.dataset.netrunRoll} (Interface ${r})`);
+ if(roll){if(!global.RolePlay?.netrunRoll?.(c,r,roll.dataset.netrunRoll))global.App.check(r,`${roll.dataset.netrunRoll} (Interface ${r})`)}
  else global.App.dice?.(1,6,'Zap');
 });
 global.NetrunTab={render,interfaceRank};

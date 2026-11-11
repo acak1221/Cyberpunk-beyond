@@ -34,5 +34,5 @@ test('creation wizards use the formal forms',()=>{
  assert.match(b,/Распределите ровно 62 очка/);assert.match(b,/Распределите 86 очков/);assert.match(b,/Перед созданием проверьте:/);
  assert.match(q,/Подтвердите стартовое снаряжение/);assert.match(q,/Распределите 86 очков/);assert.match(q,/проверьте их эффекты/);
  assert.equal(b.match(/Не покупайте родной язык повторно/g).length,2);assert.match(q,/повторно не вычитайте\./);
- assert.match(src['role-tools.js'],/Перераспределяйте до инициативы/);assert.match(src['role-tools.js'],/Трекер обновляйте вручную/);
+ assert.match(src['role-tools.js'],/Перераспределяйте до инициативы/);assert.match(src['role-tools.js'],/В ход выберите физическое действие/);
 });
