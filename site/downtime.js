@@ -21,7 +21,7 @@
       sessionDone: 'Start of session: LUCK', sessionMod: 'roll modifier cleared', sessionNothing: 'LUCK is already full, nothing to clear',
       undo: 'Undo', sessionUndone: 'Start of session undone: LUCK', stale: 'Data changed. Please retry.',
       nav: 'Jump within the tab', money: 'Cash', ip: 'Experience (IP)', drugs: 'Substances', hustle: 'Hustle', living: 'Lifestyle & housing', story: 'History', notes: 'Notes',
-      cash: 'Cash of', pay: 'Pay', payAgain: 'Pay again', short: 'Short by', paid: 'Paid', left: 'left', refund: 'Refund', refunded: 'Payment reversed, the money is back',
+      cash: 'Cash,', pay: 'Pay', payAgain: 'Pay again', short: 'Short by', paid: 'Paid', left: 'left', refund: 'Refund', refunded: 'Payment reversed, the money is back',
       noCash: 'The sheet has no cash value.', doctor: "Doctor's materials", failed: 'The payment was not made and nothing was spent.',
     },
   };
