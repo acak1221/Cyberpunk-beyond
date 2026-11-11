@@ -255,7 +255,7 @@ test('a STAT roll uses, and uses up, the DV set for the next check, and rolls th
  same(calls,[[6,'Проверка COOL',{dv:15}]]);assert.equal(taken,1);
  c.hp=10;c.stats.COOL=4;h.D.open('stat','COOL');click();
  same(calls[1],[4,'Проверка COOL',{}],'no DV is left, and the STAT is read again at the click');
- assert.match(source('app.js'),/check\(base,label,\{wounds=true,dv=0\}=\{\}\)\{[^}]*checkRoll\(Number\(base\)\|\|0,0,mod,String\(label\|\|''\),\{dv\}\)/,'App.check passes the DV on to the roll');
+ assert.match(source('app.js'),/check\(base,label,\{wounds=true,dv=0[^}]*\}=\{\}\)\{[^}]*checkRoll\(Number\(base\)\|\|0,Number\(skill\)\|\|0,mod,String\(label\|\|''\),\{dv,/,'App.check passes the DV on to the roll');
 });
 
 test('a weapon: Solo Precision Attack is a row, and the total and the button include it',()=>{

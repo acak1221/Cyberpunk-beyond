@@ -153,4 +153,115 @@ test('a hit: the form is offered in the HP panel and the full form switches its 
   assert.ok(read('damage-apply.js').includes("d.pending=null;d.ammo='standard';d.critical=false;c.hp=q.hpAfter;"));
   assert.doesNotMatch(read('play-combat.js'), /\b(confirm|alert|prompt)\(/);
 });
+
+// ---------- aimed shot, burst, suppressive fire, unarmed, grenade ----------
+function fight(over = {}) {
+  const calls = [], listeners = {}, w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date, setTimeout: () => 0, clearTimeout: () => {} };
+  w.document = { documentElement: { lang: 'ru' }, addEventListener: (type, fn) => (listeners[type] ||= []).push(fn), querySelector: () => null };
+  ctx.document = w.document; ctx.globalThis.window = w; vm.createContext(ctx);
+  for (const f of ['combat-tools.js', 'weapon-ammo.js', 'play-combat.js']) vm.runInContext(read(f), ctx);
+  const c = { id: 'v', stats: { REF: 8, DEX: 7, BODY: 8, WILL: 6, LUCK: 6 }, skills: { Autofire: 4, Brawling: 4, Athletics: 4, 'Martial Arts': 3 }, hp: 45, extra: { luck: 4, luckUse: 1, modifier: -1, weapons: [
+    { id: 'ar', catalogId: 'weapon-assault-rifle', name: 'AR', skill: 'Shoulder Arms', modifier: 1, capacity: 25, ammo: 25, usesAmmo: true },
+    { id: 'pistol', catalogId: 'weapon-heavy-pistol', name: 'Pistol', skill: 'Handgun', capacity: 8, ammo: 8, usesAmmo: true }],
+    items: [{ id: 'g', name: 'Frag', quantity: 2, ammoType: 'grenade' }], ...over } };
+  w.CharacterExtra = { init: x => x.extra, rangeType: x => /assault/.test(x.catalogId) ? 'assault' : /smg/.test(x.catalogId) ? 'smg' : /pistol/.test(x.catalogId) ? 'pistol' : '' };
+  w.App = { active: () => c, lang: () => 'ru', save: () => calls.push(['save']), render: () => calls.push(['render']), notify: m => calls.push(['notify', m]), report: (...a) => { calls.push(['report', ...a]); return true; },
+    // the sheet's layer: STAT + level + wounds + the pending modifier and LUCK
+    checkBonus: (ch, stat, level) => ch.stats[stat] + level + ch.extra.modifier + Math.min(ch.extra.luck, ch.extra.luckUse),
+    check: (base, label, o) => { calls.push(['check', base, label, plain(o)]); return { total: over.total ?? 20, dv: o.dv, beat: o.dv ? (over.total ?? 20) > o.dv : null }; } };
+  // a tap on a button of the card; `range` is what the card's range select holds
+  const press = (data, range, box) => { const card = { querySelector: sel => sel === '[data-cx-range]' && range !== undefined ? { value: range } : null }, b = { dataset: data, disabled: false, closest: sel => sel === '.cx-weapon' ? card : sel === '.pc-unarmed' ? box || null : null }, e = { target: { closest: sel => sel === 'button[data-pc-mode]' ? b : null } }; for (const fn of listeners.click) fn(e); };
+  return { w, P: w.PlayCombat, c, calls, press };
+}
+
+test('burst: the margin over the DV gives the multiplier, capped by the weapon', () => {
+  assert.deepEqual(plain(PC.burstResult(20, 17, 4)), { hit: true, mult: 3, max: 4 });
+  assert.deepEqual(plain(PC.burstResult(30, 17, 4)), { hit: true, mult: 4, max: 4 });
+  assert.deepEqual(plain(PC.burstResult(30, 17, 3)), { hit: true, mult: 3, max: 3 });
+  assert.deepEqual(plain(PC.burstResult(17, 17, 4)), { hit: false, mult: 0, max: 4 }, 'a tie misses');
+  assert.deepEqual(plain(PC.burstResult(20, 0, 4)), { hit: null, mult: 0, max: 4 }, 'no DV chosen: the target dodges or the range is not set');
+  assert.deepEqual(plain(PC.burstDamage([3, 5], 3, 4, 'ru')), { total: 24, detail: '(3 + 5) × 3 = 24' });
+  assert.equal(PC.burstDamage([6, 6], 2, 4, 'en').detail, '(6 + 6) × 2 = 24 / Critical Injury: +5 damage directly to the target’s HP');
+  assert.equal(PC.burstDamage([1, 4], 0, 3, 'ru').detail, '1 + 4 = 5; по превышению: ×1 = 5 · ×2 = 10 · ×3 = 15');
+});
+
+test('unarmed damage follows BODY; a cyberarm gives 2d6 at least', () => {
+  assert.deepEqual([4, 5, 6, 7, 10, 11].map(b => PC.unarmedDice(b, false)), [1, 2, 2, 3, 3, 4]);
+  assert.equal(PC.unarmedDice(3, true), 2); assert.equal(PC.unarmedDice(12, true), 4);
+});
+
+test('a burst is a roll of the character: sheet numbers, weapon modifier, LUCK and modifier used up, 10 rounds spent, the autofire DV', () => {
+  const { w, P, c, calls } = fight(), ar = c.extra.weapons[0];
+  assert.equal(P.autoDV(ar, 2), 17); assert.equal(P.autoDV(ar, 6), null); assert.equal(P.rangeNote(ar, 0, 'ru'), ' · очередь DV 22'); assert.equal(P.rangeNote(c.extra.weapons[1], 0, 'ru'), '');
+  const out = P.sheetCheck(c, { stat: 'REF', level: 4, kind: 'ranged', skillKey: 'Autofire', label: 'Очередь: AR', dv: 17, extra: ar.modifier, solo: { precision: 1, fumble: true } });
+  assert.equal(out.total, 20);
+  assert.deepEqual(calls[0], ['check', 8, 'Очередь: AR · Precision Attack +1 · LUCK +1', { wounds: false, dv: 17, skill: 4, mod: 2, ignoreFumble: true }], 'REF 8 + Autofire 4, then −1 modifier +1 LUCK +1 weapon +1 Precision');
+  assert.deepEqual([c.extra.luck, c.extra.luckUse, c.extra.modifier], [3, 0, 0], 'LUCK and the modifier are used up like on any sheet roll');
+  c.extra.modifierHold = true; c.extra.modifier = -2; P.sheetCheck(c, { stat: 'REF', level: 4, label: 'x' }); assert.equal(c.extra.modifier, -2, 'a kept modifier stays');
+});
+
+test('tapping «Очередь» and «Подавление»: 10 rounds leave the magazine, the result stays on the card, the damage button knows the multiplier', () => {
+  const { P, c, calls, press } = fight({ modifier: 0, luckUse: 0 }), ar = c.extra.weapons[0];
+  press({ pcMode: 'burst', pcWeapon: 'ar' }, '2');
+  assert.equal(ar.ammo, 15);
+  assert.deepEqual(calls[0], ['check', 8, 'Очередь: AR', { wounds: false, dv: 17, skill: 4, mod: 1, ignoreFumble: false }]);
+  assert.deepEqual(calls.slice(1).map(x => x[0]), ['save', 'render']);
+  const card = P.weaponModes(c, ar, 'ru');
+  assert.match(card, /Очередь 20 против DV 17: попадание, урон 2d6 × 3\./); assert.match(card, /data-pc-mode="burst-damage" data-pc-weapon="ar">⬡ Урон очереди 2d6 × 3</);
+  calls.length = 0; press({ pcMode: 'burst-damage', pcWeapon: 'ar' });
+  const [, label, detail, total, faces, show] = calls[0];
+  assert.equal(calls[0][0], 'report'); assert.equal(label, 'Урон очереди: AR'); assert.equal(show, true); assert.equal(faces.length, 2);
+  assert.equal(total, (faces[0].v + faces[1].v) * 3); assert.ok(detail.startsWith(`(${faces[0].v} + ${faces[1].v}) × 3 = ${total}`));
+  // a range autofire cannot reach: nothing is rolled or spent
+  calls.length = 0; press({ pcMode: 'burst', pcWeapon: 'ar' }, '6');
+  assert.deepEqual(calls, [['notify', 'На этой дистанции очередью стрелять нельзя: автоматический огонь бьёт до 100 м.']]); assert.equal(ar.ammo, 15);
+  calls.length = 0; press({ pcMode: 'suppress', pcWeapon: 'ar' });
+  assert.equal(ar.ammo, 5); assert.equal(calls[0][2], 'Подавляющий огонь: AR'); assert.equal(calls[0][3].dv, 0);
+  assert.match(P.weaponModes(c, ar, 'ru'), /Подавление 20\. Все в 25 м вне укрытия бросают WILL \+ Концентрация \+ 1d10; у кого меньше 20, /);
+  calls.length = 0; press({ pcMode: 'burst', pcWeapon: 'ar' }, '2');
+  assert.deepEqual(calls, [['notify', 'Для очереди нужно 10 патронов в магазине.']]); assert.equal(ar.ammo, 5);
+  // a missed burst offers no damage roll; an aimed single shot then replaces the note on the card
+  const miss = fight({ modifier: 0, luckUse: 0, total: 15 }); miss.press({ pcMode: 'burst', pcWeapon: 'ar' }, '2');
+  assert.match(miss.P.weaponModes(miss.c, miss.c.extra.weapons[0], 'en'), /Burst 15 against DV 17: miss\./); assert.doesNotMatch(miss.P.weaponModes(miss.c, miss.c.extra.weapons[0], 'en'), /burst-damage/);
+});
+
+test('a thrown grenade leaves the inventory and rolls DEX + Athletics against the range DV', () => {
+  const { c, calls, press, w } = fight({ modifier: 0, luckUse: 0 });
+  press({ pcMode: 'throw' }, undefined, { querySelector: sel => sel === '[data-pc-grenade]' ? { value: 'g' } : sel === '[data-pc-throw-range]' ? { value: '1' } : null });
+  void w;
+  assert.equal(c.extra.items[0].quantity, 1);
+  assert.deepEqual(calls[0], ['check', 7, 'Бросок гранаты: Frag (осталось 1)', { wounds: false, dv: 15, skill: 4, mod: 0, ignoreFumble: false }]);
+});
+
+test('the weapon card: aimed shot is −8 once and names the damage rule; burst and suppression buttons only for automatic weapons', () => {
+  const { P, c } = fight(), [ar, pistol] = c.extra.weapons;
+  const select = P.aimSelect(c, pistol, 'ru');
+  assert.match(select, /data-pc-aim="pistol".*<option value="">нет<\/option><option value="head">в голову · −8<\/option>.*по предмету в руке · −8.*в ногу · −8/);
+  assert.equal(P.takeAim(c, pistol, 'ru'), null, 'nothing chosen');
+  assert.equal(P.weaponModes(c, pistol, 'ru'), '');
+  const modes = P.weaponModes(c, ar, 'ru');
+  assert.match(modes, /data-pc-mode="burst" data-pc-weapon="ar"[^>]*>⬡ Очередь −10 <b>\+13<\/b>/, 'REF 8 + Autofire 4 − 1 modifier + 1 LUCK + 1 weapon');
+  assert.match(modes, /data-pc-mode="suppress"/);
+  ar.ammo = 9; assert.match(P.weaponModes(c, ar, 'en'), /data-pc-mode="burst"[^>]* disabled>⬡ Burst −10/);
+  const ce = read('character-extra.js');
+  for (const piece of ["${window.PlayCombat?.aimSelect?.(c,w,l)||''}${action('attack',", "aim=window.PlayCombat?.takeAim?.(c,w,language(lang))||null", "+luck+(aim?aim.mod:0),luckSpent:luck", "${window.PlayCombat?.weaponModes?.(c,w,l)||''}", "${window.PlayCombat?.unarmed?.(c,l)||''}", "${window.PlayCombat?.rangeNote?.(w,b.band,l)||''}", "${window.PlayCombat?.loadedLine?.(w,l)||''}"]) assert.ok(ce.includes(piece), piece);
+});
+
+test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade only when one is in the inventory', () => {
+  const { P, c } = fight();
+  const html = P.unarmed(c, 'ru');
+  assert.match(html, /Без оружия.*Урон по BODY 8 <b>3d6<\/b>/);
+  assert.match(html, /data-proxy-roll='\[data-action="skill-roll"\]\[data-skill="Brawling"\]'>⬡ Рукопашный бой <b>\+11<\/b>/);
+  assert.match(html, /data-pc-mode="brawl-damage">⬡ Урон 3d6</); assert.match(html, /data-pc-mode="martial-damage"[^>]*>⬡ Урон 3d6 · SP ÷ 2</);
+  assert.match(html, /data-pc-grenade><option value="g">Frag · 2<\/option>.*0–6 м · DV 16.*13–25 м · DV 15.*data-pc-mode="throw">⬡ Бросить <b>\+11<\/b>/);
+  c.extra.items[0].quantity = 0; c.skills['Martial Arts'] = 0;
+  const bare = P.unarmed(c, 'en');
+  assert.doesNotMatch(bare, /data-pc-grenade|martial-damage/); assert.match(bare, /Unarmed.*Damage by BODY 8 <b>3d6<\/b>.*Brawling/);
+});
+
+test('App.check and App.report took what the sheet rolls need', () => {
+  const app = read('app.js');
+  assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false}={})"));
+  assert.ok(app.includes("report(label,detail,total,faces,show){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
+});
 // ---------- next section ----------
