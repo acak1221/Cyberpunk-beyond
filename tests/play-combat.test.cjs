@@ -104,4 +104,53 @@ test('the condition line: wound, death and unconsciousness in both languages', (
   assert.match(w.PlayCombat.statusLine(solo({ medical: { version: 1, unconscious: true } }, 40), 'ru'), /Без сознания.*data-pc-go="medical"/);
   assert.ok(read('sheet-tabs.js').includes("${global.PlayCombat?.statusLine?.(c,lang())||''}"));
 });
+
+// ---------- a hit taken ----------
+const withDamage = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['combat-tools.js', 'equipment-tools.js', 'effects.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); return w; };
+const target = (over = {}) => ({ id: 'v', stats: { BODY: 8, WILL: 6 }, hp: 40, head: 10, bodyArmor: 8, extra: {}, ...over });
+const blow = (over = {}) => ({ raw: '20', location: 'body', melee: false, ap: false, crit: false, ...over });
+
+test('a hit: the same arithmetic as the full form — armor, armor-piercing, head ×2, melee halves SP, +5 injury', () => {
+  const P = withDamage().PlayCombat, q = s => P.hitQuote(target(), blow(s)).q;
+  assert.deepEqual([q().damage, q().hpAfter, q().spAfter], [12, 28, 7]);
+  assert.deepEqual([q({ ap: true, crit: true }).damage, q({ ap: true, crit: true }).spAfter], [17, 6]);
+  assert.deepEqual([q({ location: 'head', raw: '14' }).damage, q({ location: 'head', raw: '14' }).spAfter], [8, 9]);
+  assert.deepEqual([q({ melee: true }).damage, q({ melee: true }).type], [16, 'melee']);
+  assert.deepEqual([q({ location: 'direct' }).damage, q({ location: 'direct' }).type], [20, 'direct']);
+  assert.equal(q({ melee: true, ap: true }).ammo, 'standard', 'armor-piercing is ammunition, not for a melee weapon');
+  assert.equal(P.hitQuote(target(), blow({ raw: '' })).reason, 'empty'); assert.equal(P.hitQuote(target(), blow({ raw: '2.5' })).reason, 'empty');
+  assert.equal(P.hitQuote(target({ hp: 'x' }), blow()).reason, 'manual');
+  assert.equal(P.hitText(q({ ap: true, crit: true }), 'ru'), 'По HP: 17 · HP 40 → 23 · SP 8 → 6 · ранение +5');
+  assert.equal(P.hitText(q({ raw: '5' }), 'en'), 'The armor stopped the hit · HP 40 → 40 · SP 8 → 8');
+});
+
+test('a hit: applying changes HP and armor without a browser dialog, and undo takes exactly that back', () => {
+  const P = withDamage().PlayCombat, c = target({ extra: { medical: { version: 1, stabilized: true, stabilizedHp: 40, note: 'kept' } } }), was = plain(c);
+  const r = P.hitApply(c, blow({ ap: true }));
+  assert.equal(r.ok, true); assert.equal(r.injury, '');
+  assert.deepEqual([c.hp, c.bodyArmor, c.head], [28, 6, 10]); assert.equal(c.extra.medical.stabilized, false); assert.equal(c.extra.medical.note, 'kept');
+  assert.equal(P.hitUndo(c, r.undo), true); assert.deepEqual(plain(c), was);
+  const again = P.hitApply(c, blow()); c.hp -= 1;
+  assert.equal(P.hitUndo(c, again.undo), false, 'the sheet changed after the hit'); assert.equal(c.hp, 27);
+  assert.equal(P.hitUndo({ ...c, id: 'other' }, again.undo), false);
+});
+
+test('a hit on a mortally wounded character: the Death Save penalty grows and the injury roll is offered', () => {
+  const P = withDamage().PlayCombat, c = target({ hp: 0, extra: { baseDeathPenalty: 0, deathPenalty: 1 } });
+  const r = P.hitApply(c, blow({ raw: '12' }));
+  assert.equal(r.ok, true); assert.equal(r.injury, 'body'); assert.equal(c.extra.deathPenalty, 2); assert.equal(c.hp, -9);
+  assert.match(P.hitText(r.q, 'ru'), /штраф Death Save 1 → 2 · при смерти/);
+  assert.equal(P.hitApply(target(), blow({ location: 'head', crit: true })).injury, 'head');
+});
+
+test('a hit: the form is offered in the HP panel and the full form switches its one-hit options off after applying', () => {
+  const P = withDamage().PlayCombat, form = P.hitForm(target(), 'ru');
+  for (const piece of ['data-pc-hit="raw"', 'data-value="body" aria-checked="true">Тело · SP 8<', 'Голова · SP 10', 'Мимо брони', 'data-pc-hit="ap"', 'data-pc-hit="crit"', 'data-pc-hit="melee"', 'data-pc-hit="apply"', 'data-hud-jump="sheet-damage"']) assert.ok(form.includes(piece), piece);
+  assert.match(P.hitForm(target(), 'en'), /Armor-piercing.*Crit\. Injury \+5.*Apply.*Full calculation/);
+  assert.equal(PC.hitForm(target(), 'ru'), null, 'without the damage rules the old row stays');
+  const tabs = read('sheet-tabs.js');
+  assert.ok(tabs.includes("const hit=global.PlayCombat?.hitForm?.(c,lang())||'';")); assert.ok(tabs.includes("${hit?'':`<div class=\"hud-hp-row\"><label>${ru?'Урон':'Damage'}"));
+  assert.ok(read('damage-apply.js').includes("d.pending=null;d.ammo='standard';d.critical=false;c.hp=q.hpAfter;"));
+  assert.doesNotMatch(read('play-combat.js'), /\b(confirm|alert|prompt)\(/);
+});
 // ---------- next section ----------
