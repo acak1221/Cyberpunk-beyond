@@ -174,6 +174,83 @@ test('the module is loaded before the app and after the tools it ties together',
   assert.ok(index.indexOf('href="role-play.css"') > index.indexOf('href="board.css"'));
 });
 
+// ---------- NET combat ----------
+test('NET damage: dice by attacker and target, Armor, REZ down to Derezzed', () => {
+  const R = load(['role-play.js'], () => 0.5).RolePlay;
+  assert.deepEqual(plain(R.netDamagePlan('ice', 'extra-ice-hellhound', 'person', false)), { dice: 2, to: 'brain' });
+  assert.equal(R.netDamagePlan('ice', 'extra-ice-hellhound', 'program', false), null, 'anti-personnel ICE does not hurt programs');
+  assert.deepEqual(plain(R.netDamagePlan('ice', 'extra-ice-killer', 'program', false)), { dice: 4, to: 'rez' });
+  assert.deepEqual(plain(R.netDamagePlan('program', 'extra-program-sword', 'program', true)), { dice: 3, to: 'rez' });
+  assert.deepEqual(plain(R.netDamagePlan('program', 'extra-program-sword', 'program', false)), { dice: 2, to: 'rez' });
+  assert.deepEqual(plain(R.netDamagePlan('program', 'extra-program-banhammer', 'program', true)), { dice: 2, to: 'rez' });
+  assert.deepEqual(plain(R.netDamagePlan('zap', '', 'person', false)), { dice: 1, to: 'brain' });
+  assert.deepEqual(plain(R.netDamagePlan('zap', '', 'program', true)), { dice: 1, to: 'rez' });
+  assert.equal(R.netDamagePlan('ice', 'extra-ice-asp', 'person', false), null);
+  assert.equal(R.netDamagePlan('encounter', 'extra-ice-hellhound', 'person', false), null);
+  assert.deepEqual(plain(R.netDamageRoll({ dice: 3, to: 'rez' }, () => 0.5)), { dice: [4, 4, 4], total: 12, to: 'rez' });
+  assert.equal(R.netDamageRoll({ dice: 2, to: 'rez' }, () => NaN), null);
+  assert.deepEqual(plain(R.netRezAfter({ rez: 20, state: 'waiting' }, 12)), { before: 20, after: 8, state: 'waiting' });
+  assert.deepEqual(plain(R.netRezAfter({ rez: 8, state: 'pursuing' }, 12)), { before: 8, after: 0, state: 'derezzed' });
+  assert.deepEqual(plain(R.netBrainAfter({ hp: 40 }, 7, false)), { before: 40, after: 33, taken: 7 });
+  assert.deepEqual(plain(R.netBrainAfter({ hp: 40 }, 3, true)), { before: 40, after: 40, taken: 0 });
+  assert.equal(R.armorUp({ extra: { cyberdecks: { decks: [{ entries: [{ catalogId: 'extra-program-armor', active: true }] }] } } }), true);
+  assert.equal(R.armorUp({ extra: { cyberdecks: { decks: [{ entries: [{ catalogId: 'extra-program-armor', active: true, down: true }] }] } } }), false);
+  assert.equal(R.armorUp({}), false);
+});
+test('NET damage is applied only through the returned values and can be undone', () => {
+  const R = load(['role-play.js']).RolePlay;
+  const ice = { name: 'Hellhound', rez: 20, state: 'waiting' }, runner = { id: 'n', name: 'Net', hp: 40, extra: { medical: { version: 1, stabilized: true, stabilizedHp: 30 }, keep: 1 } };
+  const before = JSON.stringify([ice, runner]);
+  let out = R.netApply({ total: 12, to: 'rez', iceKey: 'f:e', applied: null }, { l: 'ru', ice });
+  assert.equal(out.ok, true); assert.deepEqual(plain(out.ice), { rez: 8, state: 'waiting' }); assert.match(out.message, /REZ Hellhound: 20 → 8/);
+  assert.deepEqual(plain(out.undo), { kind: 'ice', rez: 20, state: 'waiting', after: 8 });
+  out = R.netApply({ total: 7, to: 'brain', applied: null }, { l: 'en', victim: runner, armor: true });
+  assert.equal(out.ok, true); assert.equal(out.victim.hp, 37); assert.equal(out.victim.extra.medical.stabilized, false); assert.equal(out.victim.extra.keep, 1);
+  assert.match(out.message, /Net: 3 brain damage \(Armor −4\), HP 40 → 37/);
+  assert.equal(JSON.stringify([ice, runner]), before, 'nothing is mutated');
+  assert.equal(R.netApply({ total: 7, to: 'brain', applied: null }, { l: 'ru', victim: null }).ok, false);
+  assert.equal(R.netApply({ total: 7, to: 'brain', applied: 'done' }, { l: 'ru', victim: runner }).ok, false);
+  assert.equal(R.netApply({ total: 7, to: 'rez', iceKey: '', applied: null }, { l: 'ru', ice }).ok, false);
+});
+test('NET calculator: a template ICE sets class and target, a hit rolls damage, «Применить» writes REZ and HP', () => {
+  const w = load(['catalog.js', 'catalog-extra.js', 'role-play.js', 'role-tools.js', 'net-tools.js'], () => 0.5), N = w.NetTools;
+  const reports = []; w.Rolls = { opposed: () => true, sum: (label, dice) => reports.push([label, dice.length]) };
+  N.setScope('s');
+  const runner = { id: 'n', name: 'Net', role: 'netrunner', rank: 4, hp: 40, extra: {} };
+  const arch = N.newArchitecture('ru'), entry = { ...N.newEntry(), type: 'ice', name: 'Hellhound', preset: 'Hellhound', per: 6, spd: 6, atk: 6, def: 2, rez: 20, maxRez: 20, state: 'waiting' };
+  arch.floors[0].entries.push(entry);
+  const ctx = { lang: 'ru', architectures: [arch], characters: [runner], isCurrent: () => true };
+  const click = (net, data = {}) => { const b = { dataset: { net, ...data }, isConnected: true, closest: () => null }; return N.handle({ type: 'click', target: { closest: s => s === '[data-net]' ? b : null } }, ctx); };
+  const change = (key, value, checked) => N.handle({ type: 'change', target: { dataset: { netCombat: key }, value, checked, closest: () => null } }, ctx);
+  click('open', { id: arch.id });
+  const iceKey = `${encodeURIComponent(arch.floors[0].id)}:${encodeURIComponent(entry.id)}`;
+  change('mode', 'ice'); change('ice', iceKey);
+  let html = N.render(ctx);
+  assert.match(html, /<option value="person" selected>/); assert.match(html, /<option value="antiPersonnel" selected>/);
+  // ATK 6 + 6 against Interface 4 + 6: a hit; 2d6 = 8 to the brain of the only Netrunner.
+  assert.equal(click('combat-roll').rerender, true);
+  html = N.render(ctx);
+  assert.match(html, /Hellhound · ATK: 6 \+ \(6\) = 12/); assert.match(html, /Нетраннер · Interface: 4 \+ \(6\) = 10/);
+  assert.match(html, /Урон · Hellhound: 2d6 \(4 \+ 4\) = <strong>8<\/strong> в мозг/);
+  assert.match(html, /HP Net: 40 → <strong>32<\/strong>/);
+  assert.deepEqual(reports.pop(), ['NET · урон · Hellhound', 2]);
+  assert.equal(change('armor', '', true).rerender, true);
+  assert.match(N.render(ctx), /HP Net: 40 → <strong>36<\/strong> \(8 − 4\)/, 'ticking Armor keeps the result on screen');
+  let r = click('combat-apply');
+  assert.equal(r.dirty, true); assert.equal(runner.hp, 36); assert.match(r.notify, /HP 40 → 36/);
+  assert.equal(click('combat-apply').dirty, undefined, 'the same damage is not applied twice');
+  assert.equal(click('combat-undo').dirty, true); assert.equal(runner.hp, 40);
+  // Changing the target moves the class with it, so the roll is never refused for a mismatch.
+  change('target', 'program'); assert.match(N.render(ctx), /<option value="antiProgram" selected>/);
+  // Zap against the ICE from the architecture: 1d6 off its REZ.
+  change('mode', 'zap'); change('target', 'program');
+  click('combat-roll');
+  html = N.render(ctx);
+  assert.match(html, /Hellhound · DEF: 2/); assert.match(html, /REZ Hellhound: 20 → <strong>16<\/strong>/);
+  r = click('combat-apply'); assert.equal(r.dirty, true); assert.equal(entry.rez, 16);
+  assert.equal(N.validArchitectures([arch]), true);
+});
+
 // ---------- Medtech pharmacy ----------
 function pharmacy() {
   const w = load(['wallet.js', 'role-play.js', 'pharmacy-tools.js']), m = w.PharmacyTools; m.setScope('a');

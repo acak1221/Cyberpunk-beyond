@@ -149,6 +149,87 @@ function firstWithRole(chars,role){
  return chars.find(c=>has(c)&&typeof c.id==='string')||null;
 }
 
+// ---------- NET combat: damage after a hit ----------
+// [dice against Black ICE or the only value, what is hit, dice against anything that is not Black ICE] (pp. 201–205).
+const NET_DMG={'extra-ice-hellhound':[2,'brain'],'extra-ice-giant':[3,'brain'],'extra-ice-kraken':[3,'brain'],'extra-ice-raven':[1,'brain'],'extra-ice-wisp':[1,'brain'],'extra-ice-dragon':[6,'rez'],'extra-ice-killer':[4,'rez'],'extra-ice-sabertooth':[6,'rez'],'extra-program-hellbolt':[2,'brain'],'extra-program-vrizzbolt':[1,'brain'],'extra-program-sword':[3,'rez',2],'extra-program-banhammer':[2,'rez',3]};
+// mode: 'program' | 'ice' | 'zap'; source: catalog id of what attacks; target: 'program' | 'person'. null when the hit has no dice of damage.
+function netDamagePlan(mode,source,target,vsBlackIce){
+ if(mode==='zap')return {dice:1,to:target==='person'?'brain':'rez'};
+ if(mode!=='program'&&mode!=='ice')return null;
+ const d=NET_DMG[source];if(!d)return null;
+ if((d[1]==='brain')!==(target==='person'))return null;
+ return {dice:d.length===3&&!vsBlackIce?d[2]:d[0],to:d[1]};
+}
+function netDamageRoll(plan,rng=Math.random){
+ if(!plan||!int(plan.dice,1,12))return null;
+ const dice=[];for(let i=0;i<plan.dice;i++){const v=rng(),f=typeof v==='number'&&v>=0&&v<1?1+Math.floor(v*6):null;if(f===null)return null;dice.push(f)}
+ return {dice,total:dice.reduce((a,b)=>a+b,0),to:plan.to};
+}
+// An active, not derezzed Armor on any deck of the character takes 4 off brain damage.
+function armorUp(c){
+ const decks=c?.extra?.cyberdecks?.decks;if(!Array.isArray(decks))return false;
+ return decks.some(d=>Array.isArray(d?.entries)&&d.entries.some(e=>obj(e)&&e.catalogId==='extra-program-armor'&&e.active===true&&e.down!==true));
+}
+function netRezAfter(entry,total){const before=Math.max(0,Math.trunc(Number(entry?.rez)||0)),after=Math.max(0,before-Math.max(0,Math.trunc(Number(total)||0)));return {before,after,state:after===0&&before>0?'derezzed':entry?.state}}
+function netBrainAfter(c,total,armor){const before=Math.trunc(Number(c?.hp)||0),taken=Math.max(0,Math.trunc(Number(total)||0)-(armor?4:0));return {before,after:before-taken,taken}}
+/* Called by the NET calculator right after an opposed roll. Names the two sides on the result and, on a hit, rolls the damage.
+   info: {l, mode, target, program, ice, iceKey, iceRef, runner, runners, draft}. */
+function netAfterRoll(r,info){
+ if(!obj(r)||!obj(info))return;
+ const l=lng(info.l),ru=l==='ru',mode=info.mode,person=info.target==='person';
+ const name=x=>String(x?.name?.[l]||x?.name?.en||x?.name||'').trim();
+ const runner=info.runner?String(info.runner.name||'').trim():'',iceName=info.ice?String(info.ice.name||'').trim()||'Black ICE':'',program=info.program?name(info.program):'';
+ const side=(who,what)=>[who,what].filter(Boolean).join(' · ');
+ if(mode==='program')r.labels={attack:side(runner||(ru?'Нетраннер':'Netrunner'),(program?program+' ':'')+'ATK + Interface'),defend:person?(ru?'Interface цели':'Target Interface'):side(iceName||(ru?'Цель':'Target'),'DEF')};
+ else if(mode==='ice')r.labels={attack:side(iceName||'Black ICE','ATK'),defend:person?side(runner||(ru?'Нетраннер':'Netrunner'),'Interface'):(ru?'DEF программы':'Program DEF')};
+ else if(mode==='zap')r.labels={attack:side(runner||(ru?'Нетраннер':'Netrunner'),'Zap · Interface'),defend:person?(ru?'Interface цели':'Target Interface'):side(iceName||(ru?'Цель':'Target'),'DEF')};
+ else if(mode==='encounter')r.labels={attack:side(iceName||'Black ICE','SPEED'),defend:side(runner||(ru?'Нетраннер':'Netrunner'),'Interface + Speed')};
+ if(!r.hit)return;
+ const source=mode==='program'?info.program?.id:mode==='ice'?info.iceRef?.id:'',vsIce=mode!=='ice'&&!!info.ice,plan=netDamagePlan(mode,source,info.target,vsIce),roll=netDamageRoll(plan);
+ if(!roll)return;
+ const what=mode==='zap'?'Zap':mode==='ice'?(name(info.iceRef)||iceName):program;
+ r.damage={dice:roll.dice,total:roll.total,to:roll.to,source:what,iceKey:roll.to==='rez'&&vsIce?String(info.iceKey||''):'',vsIce,applied:null};
+ if(roll.to==='brain'&&obj(info.draft)){
+  const d=info.draft,list=Array.isArray(info.runners)?info.runners:[];
+  // Who takes it: the attacker's own sheet is never the default target of his own program.
+  const others=mode==='ice'?list:list.filter(c=>c!==info.runner);
+  if(!d.victim||!list.some(c=>c.id===d.victim))d.victim=others.length===1?others[0].id:(mode==='ice'&&info.runner?info.runner.id:'');
+  const v=list.find(c=>c.id===d.victim);d.armor=armorUp(v);
+ }
+ try{global.Rolls?.sum?.('NET · '+(ru?'урон':'damage')+(what?' · '+what:''),roll.dice,6,{note:roll.to==='brain'?(ru?'в мозг, напрямую в HP':'to the brain, straight to HP'):'REZ'})}catch{}
+}
+function netDamageHtml(r,info){
+ const dm=r?.damage;if(!obj(dm)||!obj(info))return '';
+ const l=lng(info.l),ru=l==='ru',d=info.draft||{},dice=`${dm.dice.length}d6 (${dm.dice.join(' + ')}) = <strong>${dm.total}</strong>`;
+ let h=`<div class="rp-result" data-rp-net-damage><div>${ru?'Урон':'Damage'}${dm.source?' · '+esc(dm.source):''}: ${dice} ${dm.to==='brain'?(ru?'в мозг, напрямую в HP':'to the brain, straight to HP'):(ru?'по REZ':'to REZ')}</div>`;
+ if(dm.applied)return h+`<div class="rp-done">${esc(dm.applied)}</div>${dm.undo?`<div class="rp-actions"><button type="button" class="btn ghost" data-net="combat-undo">${ru?'Отменить применение':'Undo'}</button></div>`:''}</div>`;
+ if(dm.to==='rez'){
+  const e=info.ice;
+  if(e&&dm.iceKey){const n=netRezAfter(e,dm.total);h+=`<div>REZ ${esc(e.name||'Black ICE')}: ${n.before} → <strong>${n.after}</strong>${n.after===0&&n.before>0?' · '+(ru?'Derezzed':'Derezzed'):''}</div><div class="rp-actions"><button type="button" class="btn primary" data-net="combat-apply">${ru?'Применить к ICE':'Apply to the ICE'}</button></div>`}
+  else h+=`<p class="rp-note">${dm.vsIce?'':ru?(info.mode==='ice'?'Снизьте REZ программы на листе нетраннера: вкладка NETRUN, кибердека.':'Цель не выбрана из архитектуры: урон посчитан как по не-Black ICE. Снизьте REZ цели вручную.'):(info.mode==='ice'?'Lower the REZ of the program on the Netrunner’s sheet: NETRUN tab, cyberdeck.':'The target is not picked from the architecture: damage is rolled as against non-Black ICE. Lower the target’s REZ by hand.')}</p>`;
+ }else{
+  const list=Array.isArray(info.runners)?info.runners:[],v=list.find(c=>c.id===d.victim);
+  h+=`<label class="field">${ru?'Кто получает урон':'Who takes the damage'}<select data-net-combat="victim"><option value="">${ru?'Не выбран':'Not selected'}</option>${list.map(c=>`<option value="${esc(c.id)}"${c.id===d.victim?' selected':''}>${esc(c.name||'—')} · HP ${esc(c.hp)}</option>`).join('')}</select></label><label class="rp-check"><input type="checkbox" data-net-combat="armor"${d.armor?' checked':''}> ${ru?'Активна программа Armor: −4 к урону':'An Armor program is active: −4 damage'}</label>`;
+  if(v){const n=netBrainAfter(v,dm.total,d.armor===true);h+=`<div>HP ${esc(v.name||'—')}: ${n.before} → <strong>${n.after}</strong>${d.armor?` (${dm.total} − 4)`:''}</div><div class="rp-actions"><button type="button" class="btn primary" data-net="combat-apply">${ru?'Применить к листу':'Apply to the sheet'}</button></div>`}
+  else h+=`<p class="rp-note">${ru?'Выберите нетраннера с личного листа, чтобы списать HP, или учтите урон сами.':'Choose a Netrunner from the personal sheets to take the HP off, or track the damage yourself.'}</p>`;
+ }
+ return h+'</div>';
+}
+/* What applying the rolled damage changes. -> {ok:true, message, ice?:{rez,state}, victim?:{hp,extra}, undo} | {ok:false, message}.
+   Nothing is mutated here: the calculator writes the returned values. */
+function netApply(dm,info){
+ const l=lng(info?.l),ru=l==='ru',stale={ok:false,message:ru?'Данные изменились. Бросьте ещё раз.':'Data changed. Roll again.'};
+ if(!obj(dm)||dm.applied||!int(dm.total,0,999))return stale;
+ if(dm.to==='rez'){
+  const e=info.ice;if(!obj(e)||!dm.iceKey)return stale;
+  const n=netRezAfter(e,dm.total);
+  return {ok:true,ice:{rez:n.after,state:n.state},undo:{kind:'ice',rez:n.before,state:e.state,after:n.after},message:ru?`REZ ${e.name||'Black ICE'}: ${n.before} → ${n.after}${n.after===0&&n.before>0?' · Derezzed':''}.`:`${e.name||'Black ICE'} REZ: ${n.before} → ${n.after}${n.after===0&&n.before>0?' · Derezzed':''}.`};
+ }
+ const v=info.victim;if(!obj(v)||!Number.isFinite(Number(v.hp)))return {ok:false,message:ru?'Выберите, кто получает урон.':'Choose who takes the damage.'};
+ const n=netBrainAfter(v,dm.total,info.armor===true),med=v.extra?.medical,reopen=n.taken>0&&obj(med)&&med.stabilized===true;
+ return {ok:true,victim:{hp:n.after,extra:reopen?{...v.extra,medical:{...med,stabilized:false}}:null},undo:{kind:'victim',id:v.id,hp:n.before,after:n.after,medical:reopen?med:null},message:ru?`${v.name||'Нетраннер'}: урон в мозг ${n.taken}${info.armor?' (Armor −4)':''}, HP ${n.before} → ${n.after}.`:`${v.name||'Netrunner'}: ${n.taken} brain damage${info.armor?' (Armor −4)':''}, HP ${n.before} → ${n.after}.`};
+}
+
 // ---------- the page ----------
 const doc=global.document;
 function sheetRoleIntoView(){
@@ -200,5 +281,6 @@ if(doc?.addEventListener){
  });
 }
 
-global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools};
+global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools,
+ netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp};
 })(window);
