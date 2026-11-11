@@ -27,14 +27,38 @@ test('burst button only for autofire-capable weapons; empty state warns; reload 
  assert(/data-wa="shot"[^>]*disabled/.test(html));
  c.extra.weapons.push({id:'custom',name:'Home <b>',skill:'Handgun',capacity:6,ammo:6,usesAmmo:true});assert(!A.row(c,c.extra.weapons[3],'en').includes('data-reload'));
 });
-test('row reload reuses the reload flow: consumes stock, fills magazine, refuses non-empty',()=>{
- const w=setup(),c=character(),ctx=w.ReloadTools;
+test('row reload: fills an empty magazine, tops up a used one, takes what is left, and never asks a browser dialog',()=>{
+ const w=setup(),c=character(),ctx=w.ReloadTools,gun=c.extra.weapons[0],box=c.extra.items[0];
+ w.confirm=()=>{throw new Error('the weapon-card reload asks nothing')};
  const mk=()=>{const b={dataset:{reload:'quick',weaponId:'pistol'},isConnected:true,closest:s=>s==='[data-reload]'?b:null};return {type:'click',target:{closest:s=>s==='[data-reload]'?b:null}}};
- let r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,undefined);assert.equal(c.extra.weapons[0].ammo,12);
- c.extra.weapons[0].ammo=0;r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,true);assert.equal(c.extra.weapons[0].ammo,12);assert.equal(c.extra.items[0].quantity,18);
- c.extra.weapons[0].ammo=0;c.extra.items[0].quantity=5;const before=clone(c);r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert(!r.dirty);assert.deepEqual(clone(c),before);
- w.confirm=()=>false;c.extra.items[0].quantity=30;const b2=clone(c);r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert(!r.dirty);assert.deepEqual(clone(c),b2);
- w.confirm=()=>true;r=ctx.handle(mk(),c,'en',{isCurrent:()=>false});assert(!r.dirty);assert.deepEqual(clone(c),b2);
+ let r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,undefined);assert.equal(r.notify,'The magazine is full.');assert.equal(gun.ammo,12);
+ gun.ammo=0;r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,true);assert.equal(gun.ammo,12);assert.equal(box.quantity,18);assert.equal(gun.lastReload.units,12);
+ assert.equal(r.notify,'Loaded +12: Basic Ammunition · Medium Pistol. Magazine 12/12, in stock 18.');
+ // a partly used magazine is topped up with the same rounds
+ gun.ammo=5;r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,true);assert.equal(gun.ammo,12);assert.equal(box.quantity,11);assert.equal(gun.lastReload.units,12);
+ // fewer rounds in stock than the magazine holds: load what there is
+ gun.ammo=0;box.quantity=5;r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert.equal(r.dirty,true);assert.equal(gun.ammo,5);assert.equal(box.quantity,0);assert.equal(gun.lastReload.units,5);
+ assert.match(r.notify,/Magazine 5\/12, in stock 0\. The magazine is not full: nothing more in stock\./);
+ const empty=clone(c);r=ctx.handle(mk(),c,'en',{isCurrent:()=>true});assert(!r.dirty);assert.equal(r.notify,'No matching ammunition in stock.');assert.deepEqual(clone(c),empty);
+ // a part-filled magazine can go back to stock
+ assert.equal(ctx.quoteUnload(c,'pistol','en').ok,true);
+ box.quantity=30;const b2=clone(c);r=ctx.handle(mk(),c,'en',{isCurrent:()=>false});assert(!r.dirty);assert.deepEqual(clone(c),b2);
+});
+test('row reload: rounds of another kind — the rest goes back to its own stock first; hand-typed rounds are never returned',()=>{
+ const w=setup(),c=character(),ctx=w.ReloadTools,gun=c.extra.weapons[0],basic=c.extra.items[0];
+ c.extra.items.push({id:'ap',catalogId:'ammo-armor-piercing-ammunition',name:'AP',quantity:20,ammoType:'medium-pistol',purchase:{itemId:'ammo-armor-piercing-ammunition',ammoType:'medium-pistol',perPack:10,quantity:2,ammoCount:20,total:200}});
+ const ap=c.extra.items[1],opt={isCurrent:()=>true};
+ gun.ammo=0;let p=ctx.quickPlan(c,'pistol','en');assert.equal(p.quote.mode,'fill');assert.equal(ctx.quickCommit(c,p,'en',opt).ok,true);assert.equal(gun.lastReload.ammoRecordId,'ammo');
+ assert.equal(ctx.loadedName(gun,'en'),'Basic Ammunition');assert.equal(ctx.loadedName(gun,'ru'),'Базовые боеприпасы');
+ gun.ammo=4;basic.quantity=0;p=ctx.quickPlan(c,'pistol','en');
+ assert.deepEqual([p.quote.mode,p.quote.back,p.quote.load,p.quote.after],['swap',4,12,12]);
+ const stale=ctx.quickPlan(c,'pistol','en');ap.quantity=19;assert.equal(ctx.quickCommit(c,stale,'en',opt).reason,'stale');ap.quantity=20;
+ assert.equal(ctx.quickCommit(c,p,'en',opt).ok,true);assert.deepEqual([gun.ammo,basic.quantity,ap.quantity,gun.lastReload.ammoRecordId,gun.lastReload.units],[12,4,8,'ap',12]);
+ assert.match(ctx.quickMessage(p.quote,'ru'),/Заряжено \+12: .*Магазин 12\/12, в запасе 8\. Остаток возвращён в запас: 4\./);
+ // rounds typed in by hand have no receipt: topping up is allowed, but they cannot be «returned» to stock
+ delete gun.lastReload;gun.ammo=3;p=ctx.quickPlan(c,'pistol','en');assert.deepEqual([p.quote.mode,p.quote.back,p.quote.load,p.quote.units],['topup',0,4,4]);
+ assert.equal(ctx.quickCommit(c,p,'en',opt).ok,true);assert.equal(gun.ammo,7);assert.equal(basic.quantity,0);assert.equal(ctx.quoteUnload(c,'pistol','en').ok,false);assert.equal(ctx.loadedName(gun,'en'),'');
+ gun.lastReload={version:2};assert.equal(ctx.quickPlan(c,'pistol','en').reason,'unknownReceipt');
 });
 test('IPQuick: hidden at max or for unknown skills, title shows cost and balance',()=>{
  const w=setup(),c=character(),Q=w.IPQuick;
