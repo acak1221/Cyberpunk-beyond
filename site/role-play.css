@@ -2,6 +2,8 @@
    the finishing form of a Maker project, NET damage and the state of the programs on a deck. */
 .rt-last.rt-last-inline { margin:10px 0 4px; font-size:13px; }
 .rp-summary { margin:0 0 14px; }
+/* Outside «Досье» the Role tab already shows the Role tools themselves, so the summary would only repeat them. */
+html:not(.ui-board) .rp-summary { display:none; }
 .rp-summary .rt-derived { margin-bottom:10px; }
 .rp-ledger .rt-subhead { margin-bottom:6px; }
 .rp-list { margin:0 0 10px; padding:0; list-style:none; display:grid; gap:6px; font-size:13px; line-height:1.45; }
