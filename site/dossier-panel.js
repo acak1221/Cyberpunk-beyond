@@ -16,9 +16,12 @@ const FILTER_KEY='nc-dossier-combat-filter';
 const FILTERS=[
  ['all','Все','All','Всё оружие и все быстрые броски','Every weapon and every quick roll'],
  ['attacks','Атаки','Attacks','Оружие и бросок рукопашного боя','Weapons and the Brawling roll'],
- ['quick','Быстрые броски','Quick rolls','Только быстрые броски','Quick rolls only'],
- ['limited','С боезапасом','Limited use','Только оружие, у которого считаются патроны','Only weapons that count ammunition'],
+ ['quick','Броски','Rolls','Инициатива, уклонение и другие быстрые броски','Initiative, Evasion and the other quick rolls'],
+ ['role','Роль','Role','Инструменты и броски способности роли','The tools and rolls of the Role Ability'],
+ ['other','Прочее','Other','Получение урона, критические ранения, перезарядка','Taking damage, Critical Injuries, reloading'],
+ ['limited','Боезапас','Limited use','Только оружие, у которого считаются патроны','Only weapons that count ammunition'],
 ];
+const SECTIONS=[['#sheet-weapons','weapons'],['#sheet-role','role'],['#sheet-damage','damage'],['.critical-injury-tools','damage'],['#reload-tools-mount','reload']];
 const FILTER_IDS=new Set(FILTERS.map(f=>f[0]));
 const PHONE='(max-width: 820px)';
 let filter='all',opened=null,panel=null,backdrop=null,modal=false,lastHtml='',dirty=false,pendingFocus=null,focusTimer=0;
@@ -41,15 +44,17 @@ function visible(id,item){
  if(!item||!FILTER_IDS.has(id)||id==='all')return true;
  if(item.type==='weapon')return id==='attacks'||(id==='limited'&&item.ammo===true);
  if(item.type==='quick')return id==='quick'||(id==='attacks'&&item.attack===true);
+ // A whole block of the tab: {type:'section', kind:'weapons'|'role'|'damage'|'reload'}.
+ if(item.type==='section')return item.kind==='weapons'?id==='attacks'||id==='limited':item.kind==='role'?id==='role':item.kind==='damage'?id==='other':item.kind==='reload'?id==='other'||id==='limited':true;
  return true;
 }
 function countLine(id,w,q,l){
- if(id==='all'||!FILTER_IDS.has(id))return '';
+ if(id==='all'||id==='role'||id==='other'||!FILTER_IDS.has(id))return '';
  return l==='en'?`Shown: weapons ${w.shown} of ${w.total}, quick rolls ${q.shown} of ${q.total}`:`Показано: оружие ${w.shown} из ${w.total}, быстрые броски ${q.shown} из ${q.total}`;
 }
 function barHtml(id,l){
  const ru=l!=='en';
- return `<div class="dossier-filter" role="group" aria-label="${ru?'Фильтр раздела «Бой»':'Combat tab filter'}">${FILTERS.map(f=>`<button type="button" data-dossier-filter="${f[0]}" aria-pressed="${f[0]===id}" title="${esc(ru?f[3]:f[4])}">${esc(ru?f[1]:f[2])}</button>`).join('')}<span class="dossier-filter-count" role="status"></span></div>`;
+ return `<div class="dossier-filter" role="group" aria-label="${ru?'Фильтр раздела «Действия»':'Actions tab filter'}">${FILTERS.map(f=>`<button type="button" data-dossier-filter="${f[0]}" aria-pressed="${f[0]===id}" title="${esc(ru?f[3]:f[4])}">${esc(ru?f[1]:f[2])}</button>`).join('')}<span class="dossier-filter-count" role="status"></span></div>`;
 }
 
 // ---------- what a number is made of ----------
@@ -274,6 +279,7 @@ function applyFilter(layout){
   const show=visible(id,{type:'quick',attack:/data-skill="Brawling"/.test(b.dataset.proxyRoll||'')});
   off(b,!show);q.total++;if(show)q.shown++;
  }
+ for(const [sel,kind] of SECTIONS)for(const el of layout.querySelectorAll(sel))off(el,!visible(id,{type:'section',kind}));
  const rolls=doc.querySelector('.sheet-extras .sheet-quick-rolls');if(rolls)off(rolls,q.total>0&&q.shown===0);
  const count=bar?.querySelector('.dossier-filter-count'),text=countLine(id,w,q,l);
  if(count&&count.textContent!==text)count.textContent=text;

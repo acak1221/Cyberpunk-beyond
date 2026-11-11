@@ -67,14 +67,14 @@ test('on a phone the panel is a bottom sheet with full touch targets; print igno
 });
 
 // ---------- the chips ----------
-test('the chips: all, attacks, quick rolls, limited use — with labels in both languages',()=>{
+test('the chips: all, attacks, rolls, role, other, limited use — with labels in both languages',()=>{
  const {D}=load();
- same([...D.FILTERS],['all','attacks','quick','limited']);
+ same([...D.FILTERS],['all','attacks','quick','role','other','limited']);
  const ru=D.barHtml('attacks','ru'),en=D.barHtml('attacks','en');
- for(const label of ['Все','Атаки','Быстрые броски','С боезапасом'])assert.ok(ru.includes(`>${label}</button>`),label);
- for(const label of ['All','Attacks','Quick rolls','Limited use'])assert.ok(en.includes(`>${label}</button>`),label);
+ for(const label of ['Все','Атаки','Броски','Роль','Прочее','Боезапас'])assert.ok(ru.includes(`>${label}</button>`),label);
+ for(const label of ['All','Attacks','Rolls','Role','Other','Limited use'])assert.ok(en.includes(`>${label}</button>`),label);
  assert.match(ru,/data-dossier-filter="attacks" aria-pressed="true"/);assert.match(ru,/data-dossier-filter="all" aria-pressed="false"/);
- assert.match(ru,/role="group" aria-label="Фильтр раздела «Бой»"/);assert.match(en,/aria-label="Combat tab filter"/);
+ assert.match(ru,/role="group" aria-label="Фильтр раздела «Действия»"/);assert.match(en,/aria-label="Actions tab filter"/);
 });
 
 test('what each chip leaves on screen',()=>{
@@ -84,7 +84,13 @@ test('what each chip leaves on screen',()=>{
  same(seen('attacks'),[true,true,true,false]);
  same(seen('quick'),[false,false,true,true]);
  same(seen('limited'),[true,false,false,false]);
+ same(seen('role'),[false,false,false,false]);same(seen('other'),[false,false,false,false]);
  same(seen('nonsense'),[true,true,true,true],'an unknown filter hides nothing');
+ // whole blocks of the tab: the weapons, the Role tools, damage with Critical Injuries, reloading
+ const blocks=id=>['weapons','role','damage','reload'].map(kind=>D.visible(id,{type:'section',kind}));
+ same(blocks('all'),[true,true,true,true]);same(blocks('attacks'),[true,false,false,false]);same(blocks('quick'),[false,false,false,false]);
+ same(blocks('role'),[false,true,false,false]);same(blocks('other'),[false,false,true,true]);same(blocks('limited'),[true,false,false,true]);
+ same(blocks('nonsense'),[true,true,true,true]);assert.equal(D.visible('role',{type:'section',kind:'unknown'}),true);
  assert.equal(D.visible('limited',{type:'other'}),true);
 });
 
@@ -94,13 +100,14 @@ test('the chosen chip is remembered on the device only, and an unknown one is re
  assert.equal(h.D.setFilter('limited'),true);assert.equal(h.D.filter(),'limited');assert.equal(h.stored['nc-dossier-combat-filter'],'limited');
  assert.equal(h.D.setFilter('everything'),false);assert.equal(h.D.filter(),'limited');
  assert.equal(h.D.countLine('all',{shown:2,total:2},{shown:5,total:5},'ru'),'');
+ for(const id of ['role','other'])assert.equal(h.D.countLine(id,{shown:0,total:2},{shown:0,total:5},'ru'),'','no count where neither weapons nor quick rolls are the point');
  assert.equal(h.D.countLine('limited',{shown:1,total:2},{shown:0,total:5},'ru'),'Показано: оружие 1 из 2, быстрые броски 0 из 5');
  assert.equal(h.D.countLine('limited',{shown:1,total:2},{shown:0,total:5},'en'),'Shown: weapons 1 of 2, quick rolls 0 of 5');
 });
 
 test('the filter never writes to the character',()=>{
  const c=V({extra:{weapons:[{id:'w',name:'Pistol',skill:'Handgun',capacity:8,ammo:8}]}}),before=JSON.stringify(c),h=load({character:c});
- for(const id of ['attacks','quick','limited','all'])h.D.setFilter(id);
+ for(const id of ['attacks','quick','role','other','limited','all'])h.D.setFilter(id);
  assert.equal(JSON.stringify(c),before);
  assert.doesNotMatch(source('dossier-panel.js'),/\.save\?*\.?\(|nightcity-red-v1/);
 });

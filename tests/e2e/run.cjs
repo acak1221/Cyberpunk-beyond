@@ -153,16 +153,32 @@ async function main() {
     await ctx.close();
   });
 
-  await check('the «Досье» look: three columns on a wide screen, ordinary tabs on a phone', async fail => {
+  await check('the «Досье» look: three columns on a wide screen, its own tabs, chips that filter «Действия»', async fail => {
     const wide = await device({ look: 'board', theme: 'light', width: 1440 });
     await wide.page.goto(BASE + '#/sheet/v1'); await wait(500);
     const board = await wide.page.evaluate(() => {
       const box = sel => document.querySelector(sel).getBoundingClientRect(), aside = box('.sheet-aside'), skills = box('#sheet-skills'), tabs = box('.sheet-tabs');
-      return { columns: aside.right <= skills.left && skills.right <= tabs.left, skillsTab: getComputedStyle(document.querySelector('.sheet-tabs [data-sheet-tab="skills"]')).display, stats: document.querySelectorAll('.sheet-stat-strip > div').length, scroll: document.documentElement.scrollWidth - innerWidth, pressed: document.querySelector('[data-ui-style][aria-pressed="true"]')?.dataset.uiStyle };
+      return { columns: aside.right <= skills.left && skills.right <= tabs.left, skillsTab: getComputedStyle(document.querySelector('.sheet-tabs [data-sheet-tab="skills"]')).display, stats: document.querySelectorAll('.sheet-stat-strip > div').length, tabs: [...document.querySelectorAll('.sheet-tabs [data-sheet-tab]')].filter(b => b.getClientRects().length).map(b => b.dataset.sheetTab).join(','), active: document.querySelector('.sheet-layout').dataset.activeTab, skillsScroll: getComputedStyle(document.querySelector('#sheet-skills .skills-list')).overflowY, quickInPanel: box('.sheet-quick-rolls').left >= tabs.left - 1 && box('.sheet-quick-rolls').top > box('.dossier-filter').top, scroll: document.documentElement.scrollWidth - innerWidth, pressed: document.querySelector('[data-ui-style][aria-pressed="true"]')?.dataset.uiStyle };
     });
     if (!board.columns) fail('the condition, the skills and the panel are not three columns');
     if (board.skillsTab !== 'none') fail('the «Навыки» tab is still shown beside the skills column');
     if (board.stats !== 10) fail('the row of stat boxes is missing');
+    if (board.tabs !== 'combat,gear,role,life' || board.active !== 'combat') fail('the board tabs are not «Действия», «Снаряжение», «Особенности», «Персонаж»: ' + board.tabs + ' / ' + board.active);
+    if (board.skillsScroll !== 'visible') fail('the skills list scrolls inside its card: ' + board.skillsScroll);
+    if (!board.quickInPanel) fail('the quick rolls are not in the panel under the chips');
+    const seen = () => wide.page.evaluate(() => Object.fromEntries(['#sheet-weapons', '#sheet-role', '#sheet-damage', '.sheet-quick-rolls', '#sheet-features', '#sheet-identity'].map(s => [s, !!document.querySelector(s)?.getClientRects().length])));
+    const chip = async id => { await wide.page.evaluate(id => document.querySelector(`[data-dossier-filter="${id}"]`).click(), id); await wait(150); return seen(); };
+    const want = (got, shown, what) => { for (const [k, v] of Object.entries(got)) if (v !== shown.includes(k)) fail(`${what}: ${k} is ${v ? 'shown' : 'hidden'}`); };
+    want(await seen(), ['#sheet-weapons', '#sheet-role', '#sheet-damage', '.sheet-quick-rolls'], 'all');
+    want(await chip('role'), ['#sheet-role'], 'chip «Роль»');
+    want(await chip('other'), ['#sheet-damage'], 'chip «Прочее»');
+    want(await chip('quick'), ['.sheet-quick-rolls'], 'chip «Броски»');
+    want(await chip('attacks'), ['#sheet-weapons', '.sheet-quick-rolls'], 'chip «Атаки»');
+    await chip('all');
+    const tab = async id => { await wide.page.evaluate(id => window.SheetTabs.select(id, { scroll: false }), id); await wait(150); return seen(); };
+    want(await tab('role'), ['#sheet-features'], '«Особенности»');
+    want(await tab('life'), ['#sheet-identity'], '«Персонаж»');
+    await tab('combat');
     if (board.scroll > 0) fail('the page scrolls sideways by ' + board.scroll);
     if (board.pressed !== 'board') fail('the switch does not mark «Досье»: ' + board.pressed);
     await wide.page.evaluate(() => document.querySelector('[data-action="skill-roll"][data-skill="Athletics"]').click()); await wait(250);
@@ -172,7 +188,7 @@ async function main() {
     const phone = await device({ look: 'board', theme: 'dark', width: 390 });
     await phone.page.goto(BASE + '#/sheet/v1'); await wait(500);
     const small = await phone.page.evaluate(() => { window.SheetTabs.select('skills', { scroll: false }); return { active: document.querySelector('.sheet-layout').dataset.activeTab, grid: getComputedStyle(document.querySelector('#main-content')).display, scroll: document.documentElement.scrollWidth - innerWidth }; });
-    if (small.active !== 'skills' || small.grid === 'grid') fail('on a phone the sheet is not the ordinary tabbed one: ' + JSON.stringify(small));
+    if (small.active !== 'skills' || small.grid === 'grid') fail('on a phone the sheet is not a tabbed one: ' + JSON.stringify(small));
     if (small.scroll > 0) fail('the phone page scrolls sideways by ' + small.scroll);
     for (const e of phone.page.errs) fail(e);
     await phone.ctx.close();

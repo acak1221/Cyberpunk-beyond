@@ -91,10 +91,10 @@ html.ui-native.ui-board .dossier-actions .btn[disabled] { opacity: .55; cursor: 
 }
 /* On the wide board the sheet is one grid; the chips sit in the panel column, right under the tabs. */
 @media screen and (min-width: 1024px) {
-  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 2; }
+  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 2; grid-row: 7; }
 }
 @media screen and (min-width: 1360px) {
-  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 3; }
+  html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] > .dossier-filter { grid-column: 3; grid-row: 5; }
 }
 @media print {
   html.ui-native.ui-board :is(.dossier-panel, .dossier-backdrop, .dossier-filter) { display: none !important; }
