@@ -1,0 +1,44 @@
+/* Downtime: «Начало сессии» chip, jump links of the «Персонаж» tab, pay buttons of the medical page, lifestyle summary. */
+.hud-chip.dt-session { cursor: pointer; }
+.hud-chip.dt-session small { letter-spacing: .04em; }
+.hud-chip.dt-session-undo { border-color: var(--yellow, #e8c547); }
+
+.dt-jump { display: none; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.sheet-extras[data-active-tab="life"] .dt-jump { display: flex; }
+.dt-jump button { flex: 0 0 auto; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border, #514643); border-radius: 6px; color: var(--text, #e9d8c8); background: var(--panel, #242021); font: inherit; font-size: 13px; cursor: pointer; }
+.dt-jump button:hover, .dt-jump button:focus-visible { border-color: var(--accent, #c8413a); background: var(--panel-hover, #2d2829); }
+.dt-jump button b { font-weight: 700; }
+@media screen and (min-width: 1024px) {
+  html.ui-native.ui-board .sheet-extras .dt-jump { grid-column: 2; min-width: 0; }
+}
+/* 1024–1359 px: the condition block leads «Персонаж» in row 7 of the board grid; the links go above it. */
+@media screen and (min-width: 1024px) and (max-width: 1359.98px) {
+  html.ui-native.ui-board .sheet-extras[data-active-tab="life"] .dt-jump { grid-row: 7; }
+  html.ui-native.ui-board .sheet-layout[data-active-tab="life"] > .sheet-aside > #sheet-vitals { grid-row: 8; }
+}
+@media screen and (min-width: 1360px) {
+  html.ui-native.ui-board .sheet-extras .dt-jump { grid-column: 3; }
+}
+@media print { .dt-jump, .dt-session, .dt-pay { display: none !important; } }
+
+.dt-pay { margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--border, #514643); border-radius: 6px; }
+.dt-pay-line { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 8px; }
+.dt-pay-short, .living-short { color: var(--danger, #e0554c); font-weight: 700; }
+.dt-pay-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dt-pay-actions .btn { min-height: 44px; }
+.dt-pay-done { font-weight: 700; }
+
+.living-summary { margin: 10px 0; }
+.living-status { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 8px; }
+.living-mark.done { font-weight: 700; }
+.living-summary .living-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.living-summary .btn { min-height: 44px; }
+.living-hint { margin: 6px 0 0; font-size: 12px; opacity: .75; }
+
+/* Light themes: the «short by» line needs a darker red to stay readable on the pale card. */
+html.ui-native.ui-light .dt-pay-short, html.ui-native.ui-light .living-short { color: #8f1a10; }
+/* Phone, «Досье»: the pinned header must stay short, so «Начало сессии» is an icon there (its name stays for screen readers). */
+@media (max-width: 600px) {
+  html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) { min-width: 44px; justify-content: center; }
+}

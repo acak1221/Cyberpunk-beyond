@@ -1,0 +1,49 @@
+/* Role play at the table (role-play.js): the result under the pressed button, the Role summary on «Особенности»,
+   the finishing form of a Maker project, NET damage and the state of the programs on a deck. */
+.rt-last.rt-last-inline { margin:10px 0 4px; font-size:13px; }
+.rp-summary { margin:0 0 14px; }
+/* Outside «Досье» the Role tab already shows the Role tools themselves, so the summary would only repeat them. */
+html:not(.ui-board) .rp-summary { display:none; }
+.rp-summary .rt-derived { margin-bottom:10px; }
+.rp-ledger .rt-subhead { margin-bottom:6px; }
+.rp-list { margin:0 0 10px; padding:0; list-style:none; display:grid; gap:6px; font-size:13px; line-height:1.45; }
+.rp-list li { padding:8px 10px; border:1px solid #41393a; }
+.rp-doses { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+.rp-open { margin-top:4px; }
+.rp-deliver { display:grid; gap:10px; margin:12px 0; padding:12px; border:1px solid #6b5a3a; background:rgba(233,198,109,.06); }
+.rp-note { margin:0; font-size:12px; line-height:1.5; opacity:.8; }
+.rp-check { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; font-size:14px; line-height:1.4; }
+.rp-check input { flex:0 0 auto; width:18px; height:18px; margin:0; }
+.rp-check small { flex:1 1 100%; opacity:.75; font-size:12px; }
+.rp-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.rp-done { margin:6px 0; font-size:13px; color:#9fd0a0; }
+.rp-result { display:grid; gap:8px; margin:10px 0; padding:12px; border-left:3px solid #e9c66d; background:rgba(233,198,109,.07); font-size:14px; line-height:1.5; }
+.rp-result strong { font-size:15px; }
+.rp-prog { display:grid; gap:6px; margin:6px 0 2px; }
+.rp-prog-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; font-size:12px; }
+.rp-prog-row b { min-width:2ch; text-align:center; font-size:14px; }
+.rp-badge { padding:2px 7px; border:1px solid currentColor; font-size:11px; font-weight:700; letter-spacing:.03em; }
+.rp-badge.on { color:#8fd19a; }
+.rp-badge.off { color:#e99991; }
+.rp-round { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0; padding:10px 12px; border:1px solid #41393a; font-size:13px; }
+.rp-round b { font-size:16px; }
+.rp-round .rp-used { opacity:.6; text-decoration:line-through; }
+.rp-netbar { margin:12px 0 8px; }
+.rp-dv { display:inline-flex; align-items:center; gap:8px; margin-left:auto; font-size:13px; }
+.rp-dv input { width:76px; min-height:36px; padding:4px 8px; font:inherit; }
+.rp-prog-row .rt-button { min-height:32px; padding:4px 10px; }
+.rp-prog-row .rt-button[disabled] { opacity:.4; }
+
+html.ui-native .rp-list li, html.ui-native .rp-round { border-color:var(--line); border-radius:10px; background:var(--panel-2); }
+html.ui-native .rp-deliver { border-color:var(--line); border-radius:12px; background:var(--panel-2); }
+html.ui-native .rp-result { border-radius:0 10px 10px 0; background:var(--panel-2); }
+html.ui-native .rp-done { color:var(--green, #3d9a57); }
+html.ui-native.ui-light .rp-badge.on { color:#1f7a39; }
+html.ui-native.ui-light .rp-badge.off { color:#b3261e; }
+/* «Досье»: the Role block must not hide under the sticky bars when it is brought into view. */
+#sheet-role { scroll-margin-top:72px; }
+@media (max-width:520px){ .rp-actions .btn { flex:1 1 100%; } }
+@media print { .rp-open, .rp-deliver, .rp-actions { display:none; } }
+
+/* The role card already ends with its own «open the role tools» button: the plain jump above it would be a second one. */
+.role-setup:not(.role-setup-todo):has(+ .rp-summary) > button[data-hud-jump="sheet-role"] { display: none; }

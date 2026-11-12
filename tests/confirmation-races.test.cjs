@@ -25,12 +25,13 @@ test('delete confirmation cannot delete a different selected character or hydrat
  const h=harness();h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.go('sheet','other');return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);assert.match(h.notices.at(-1),/changed/i);
  h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.click('delete');assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters.length,2);
 });
+// Putting armor on a bare location asks nothing (nothing is replaced), so these two races run against a head that already has SP.
 test('equipping armor aborts when the character is rehydrated during confirmation',async()=>{
- const h=harness(),s=h.w.qa.snapshot();s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.equip();
- assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].head,0);assert.match(h.notices.at(-1),/changed/i);
+ const h=harness(),s=h.w.qa.snapshot();s.characters[0].head=5;s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.replace(h.w.qa.snapshot());return true});await h.equip();
+ assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].head,5);assert.match(h.notices.at(-1),/changed/i);
 });
 test('equipping armor aborts if the same character changes while confirmation is open',async()=>{
- const h=harness(),s=h.w.qa.snapshot();s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.snapshot().characters[0].head=3;return true});await h.equip();
+ const h=harness(),s=h.w.qa.snapshot();s.characters[0].head=5;s.characters[0].extra.items.push({id:'armor-record',catalogId:'armor-kevlar',name:'Kevlar',category:'armor',quantity:1});h.w.qa.replace(s);h.w.qa.go('sheet','person');h.setConfirm(()=>{h.w.qa.snapshot().characters[0].head=3;return true});await h.equip();
  assert.equal(h.saved.length,0);assert.equal(h.w.qa.snapshot().characters[0].head,3);assert.match(h.notices.at(-1),/changed/i);
 });
 test('IP advancement aborts when the current character changes during confirmation',async()=>{

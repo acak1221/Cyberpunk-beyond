@@ -9,7 +9,7 @@ function harness(){
 function character(){return {id:'x',name:'Rook',role:'solo',rank:4,stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{},hp:45,humanity:53,extra:{equipment:{maxHumanity:54}}}}
 test('sheet shows confirmed maximum, its separate base, and localized explanation without mutation',()=>{
  const h=harness(),c=character(),before=JSON.stringify(c);
- for(const lang of ['en','ru']){h.window.qa.lang(lang);const out=h.window.qa.sheet(c);assert.match(out,/data-calc="max-humanity">54</);assert.match(out,/data-calc="base-humanity">60</);assert.ok(lang==='ru'?out.includes('ещё не подтверждён'):out.includes('has not been confirmed'));assert.ok(lang==='ru'?out.includes('Макс. человечность'):out.includes('Maximum Humanity'));assert.ok(!/Starting Humanity|Начальная Humanity/.test(out))}
+ for(const lang of ['en','ru']){h.window.qa.lang(lang);const out=h.window.qa.sheet(c);assert.match(out,/data-calc="max-humanity">54</);assert.match(out,/data-calc="base-humanity">60</);assert.ok(lang==='ru'?out.includes('Максимум уменьшается на 2'):out.includes('The maximum drops by 2'));assert.ok(lang==='ru'?out.includes('Макс. человечность'):out.includes('Maximum Humanity'));assert.ok(!/Starting Humanity|Начальная Humanity/.test(out))}
  assert.equal(JSON.stringify(c),before);
 });
 test('unconfirmed or malformed maxima show a dash while confirmed zero remains valid',()=>{

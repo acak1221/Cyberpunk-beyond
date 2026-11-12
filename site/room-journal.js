@@ -136,5 +136,8 @@ if(doc?.addEventListener){
  doc.addEventListener('toggle',e=>{if(e.target?.dataset?.rjMore!==undefined)moreOpen=e.target.open===true},true);
 }
 global.RoomJournal={MAX_SHARED,MAX_BYTES,TTL,entries,sharedIds,setShared,payload,clean,publish,receive,card,panel,markdown,onChange,
+ // The Game Master role came (back) to this device: whoever held it in between sent a journal of their own, so the next
+ // publish goes out even when this device's journal has not changed since it last sent it.
+ forget(){lastSent=null;sentAt=0},
  _test:{shown:()=>shown,reset:()=>{roomKey='\u0000';sync(null)},state:()=>({lastSent,sentAt,shownAt})}};
 })(typeof window!=='undefined'?window:globalThis);

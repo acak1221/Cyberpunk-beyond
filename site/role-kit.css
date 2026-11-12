@@ -1,0 +1,29 @@
+/* Role kit blocks inside the role tools panel (site/role-kit.js). Colours follow the text colour of the look in use. */
+.rk-box { margin: 10px 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 4px; background: color-mix(in srgb, currentColor 4%, transparent); }
+.rk-box .rt-subhead { margin-bottom: 8px; }
+.rk-stats { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 2px 0 8px; font-size: 13px; line-height: 1.4; }
+.rk-stats span { padding: 4px 9px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 3px; }
+.rk-stats b { font-weight: 800; letter-spacing: .04em; margin-right: 4px; }
+.rk-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
+.rk-row .rt-button { margin: 0; }
+.rk-amount { flex: 0 1 150px; }
+.rk-skill { flex: 1 1 220px; }
+.rk-wallet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 2px 0 8px; font-size: 13px; }
+.rk-wallet strong { font-size: 15px; }
+.rk-last { opacity: .8; font-size: 12px; }
+.rk-pay { margin: 8px 0; padding: 8px 10px; border-left: 3px solid #c9973a; background: color-mix(in srgb, #c9973a 12%, transparent); display: flex; flex-direction: column; gap: 2px; }
+.rk-pay .rt-help { margin: 0; }
+.rk-result { margin: 8px 0 2px; padding: 8px 10px; border-left: 3px solid #b3261e; background: color-mix(in srgb, currentColor 7%, transparent); font-size: 13px; line-height: 1.5; font-weight: 600; }
+.rk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.rk-chips .rt-help { margin: 0; }
+.rk-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 9px; border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 999px; font-size: 12px; }
+.rk-x { min-width: 28px; min-height: 28px; padding: 0 8px; border: 0; border-radius: 999px; background: color-mix(in srgb, currentColor 12%, transparent); color: inherit; font-size: 13px; line-height: 1; cursor: pointer; }
+.rk-x:hover, .rk-x:focus-visible { background: color-mix(in srgb, #b3261e 35%, transparent); }
+.rk-bad { color: #c0392b; border-color: currentColor !important; font-weight: 700; }
+.rk-good { font-weight: 700; }
+.rk-deal { margin-top: 10px; }
+.rk-deal .rt-help { margin: 0; }
+@media (max-width: 520px) {
+  .rk-row .rt-button { flex: 1 1 auto; min-height: 44px; }
+  .rk-amount { flex: 1 1 100%; }
+}
