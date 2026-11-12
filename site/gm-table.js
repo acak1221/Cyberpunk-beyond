@@ -28,7 +28,7 @@ const T={
   mortalPenalty:(a,b)=>` Штраф Death Save ${a} → ${b}.`,nowMortal:' Смертельно ранен.',
   undo:'Отменить',undone:'Урон отменён.',undoStale:'Данные уже изменились — отмена невозможна.',
   party:'НАГРАДА ГРУППЕ',partyHelp:'Деньги и Improvement Points всем выбранным персонажам одним действием. IP можно указать каждому отдельно (стр. 410–411).',
-  partyNone:'Добавьте персонажей в кампанию, чтобы выдавать награду.',
+  partyNone:'Добавьте персонажей в кампанию, чтобы выдавать награду.',inRoom:'в комнате',
   cash:'Деньги, eb',mode:'Как выдать',each:'Каждому',split:'Поровну',ip:'IP каждому',reason:'За что',reasonPh:'Например, работа в Уотсоне',
   ipFor:name=>`IP · ${name}`,give:'Начислить',
   previewNone:'Укажите сумму или IP и отметьте участников.',
@@ -61,7 +61,7 @@ const T={
   mortalPenalty:(a,b)=>` Death Save penalty ${a} → ${b}.`,nowMortal:' Mortally Wounded.',
   undo:'Undo',undone:'Damage undone.',undoStale:'The data has already changed — it cannot be undone.',
   party:'PARTY REWARD',partyHelp:'Money and Improvement Points for every chosen character in one action. IP can be set per character (pp. 410–411).',
-  partyNone:'Add characters to the campaign to hand out rewards.',
+  partyNone:'Add characters to the campaign to hand out rewards.',inRoom:'in the room',
   cash:'Money, eb',mode:'How to pay',each:'This sum to each',split:'Split evenly',ip:'IP each',reason:'Reason',reasonPh:'For example, the Watson job',
   ipFor:name=>`IP · ${name}`,give:'Award',
   previewNone:'Enter a sum or IP and tick the characters.',
@@ -255,14 +255,14 @@ function rowExtras(r,pc,c,characters,lang){
  if(!list.length&&!results.has(r.id))return '';
  return `<div class="gt-box" data-gt><strong class="gt-title">${esc(t.attacks)}</strong>${list.length?`<ul class="gt-attacks">${list.map((a,i)=>`<li><span class="gt-weapon">${esc(a.name)}${a.skill&&a.base!==null?` <small>${esc(skillName(a.skill,lang))} ${a.base}</small>`:a.base!==null?` <small>${a.base}</small>`:''}</span>${a.base!==null?`<button type="button" class="btn ghost" data-gt-action="attack" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.attack)} +${a.base}</button>`:''}<button type="button" class="btn ghost" data-gt-action="dmg-roll" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.damage)} ${esc(a.damage)}</button></li>`).join('')}</ul>`:''}${resultHTML(r,c,characters,lang)}</div>`;
 }
-const members=(c,characters)=>(c?.roster||[]).filter(r=>r&&r.kind==='pc').map(r=>characters.find(p=>p.id===r.characterId)).filter(Boolean);
+const members=(c,characters)=>(c?.roster||[]).flatMap(r=>{if(r?.kind==='pc'){const p=characters.find(p=>p.id===r.characterId);return p?[p]:[]}return r?.kind==='npc'&&typeof r.own==='string'&&r.own&&onlineMember(r)?[{id:r.id,name:r.name||'?',kind:'npc',own:r.own,room:true}]:[]});
 const draftOf=id=>{if(!drafts.has(id))keep(drafts,id,{cash:'',mode:'each',ip:'',reason:'',off:{},ipBy:{}});return drafts.get(id)};
 function previewText(list,d,lang){const t=T[L(lang)],p=awardPlan(list,d);if(!p.ok)return p.reason==='invalid'?t.awardBad:t.previewNone;return p.rows.map(r=>t.previewRow(r.name,r.cash,r.ip)).join(' · ')+(p.rest?' · '+t.rest(p.rest):'')}
 function partyHTML(c,characters,lang){
  const t=T[L(lang)],list=members(c,characters),d=draftOf(c.id),undo=lastAward.get(c.id);
  if(!list.length)return `<section class="card gt-party" id="gt-party" data-gt><div class="card-heading"><span>${esc(t.party)}</span><span>EB · IP</span></div><p class="muted">${esc(t.partyNone)}</p></section>`;
  const ok=awardPlan(list,d).ok;
- return `<section class="card gt-party" id="gt-party" data-gt><div class="card-heading"><span>${esc(t.party)}</span><span>EB · IP</span></div><p class="muted">${esc(t.partyHelp)}</p><div class="gt-party-grid"><label class="field">${esc(t.cash)}<input type="number" inputmode="numeric" min="0" max="999999999" step="1" data-gt-award="cash" value="${esc(d.cash)}"></label><label class="field">${esc(t.mode)}<select data-gt-award="mode"><option value="each"${d.mode!=='split'?' selected':''}>${esc(t.each)}</option><option value="split"${d.mode==='split'?' selected':''}>${esc(t.split)}</option></select></label><label class="field">${esc(t.ip)}<input type="number" inputmode="numeric" min="0" max="9999" step="1" data-gt-award="ip" value="${esc(d.ip)}"></label><label class="field gt-reason">${esc(t.reason)}<input type="text" maxlength="120" data-gt-award="reason" placeholder="${esc(t.reasonPh)}" value="${esc(d.reason)}"></label></div><ul class="gt-members">${list.map(p=>`<li><label class="gt-check"><input type="checkbox" data-gt-award-pc="${esc(p.id)}"${d.off[p.id]?'':' checked'}> <span>${esc(p.name||'Edgerunner')}</span> <small>${esc(window.Wallet?.format?window.Wallet.format(window.Wallet.cash(p)):Number(p.extra?.cash)||0)} eb</small></label><input type="number" inputmode="numeric" min="0" max="9999" step="1" data-gt-award-ip="${esc(p.id)}" value="${esc(d.ipBy[p.id]??'')}" placeholder="${esc(d.ip||'0')}" aria-label="${esc(t.ipFor(p.name||'Edgerunner'))}"><span class="gt-unit">IP</span></li>`).join('')}</ul><p class="gt-preview" data-gt-preview role="status">${esc(previewText(list,d,lang))}</p><div class="campaign-controls"><button type="button" class="btn primary" data-gt-action="award"${ok?'':' disabled'}>＋ ${esc(t.give)}</button>${undo?`<button type="button" class="btn ghost" data-gt-action="award-undo">↶ ${esc(t.awardUndo)}</button>`:''}</div></section>`;
+ return `<section class="card gt-party" id="gt-party" data-gt><div class="card-heading"><span>${esc(t.party)}</span><span>EB · IP</span></div><p class="muted">${esc(t.partyHelp)}</p><div class="gt-party-grid"><label class="field">${esc(t.cash)}<input type="number" inputmode="numeric" min="0" max="999999999" step="1" data-gt-award="cash" value="${esc(d.cash)}"></label><label class="field">${esc(t.mode)}<select data-gt-award="mode"><option value="each"${d.mode!=='split'?' selected':''}>${esc(t.each)}</option><option value="split"${d.mode==='split'?' selected':''}>${esc(t.split)}</option></select></label><label class="field">${esc(t.ip)}<input type="number" inputmode="numeric" min="0" max="9999" step="1" data-gt-award="ip" value="${esc(d.ip)}"></label><label class="field gt-reason">${esc(t.reason)}<input type="text" maxlength="120" data-gt-award="reason" placeholder="${esc(t.reasonPh)}" value="${esc(d.reason)}"></label></div><ul class="gt-members">${list.map(p=>`<li><label class="gt-check"><input type="checkbox" data-gt-award-pc="${esc(p.id)}"${d.off[p.id]?'':' checked'}> <span>${esc(p.name||'Edgerunner')}</span> <small>${p.room||onlineMember(p)?esc(t.inRoom):esc(window.Wallet?.format?window.Wallet.format(window.Wallet.cash(p)):Number(p.extra?.cash)||0)+' eb'}</small></label><input type="number" inputmode="numeric" min="0" max="9999" step="1" data-gt-award-ip="${esc(p.id)}" value="${esc(d.ipBy[p.id]??'')}" placeholder="${esc(d.ip||'0')}" aria-label="${esc(t.ipFor(p.name||'Edgerunner'))}"><span class="gt-unit">IP</span></li>`).join('')}</ul><p class="gt-preview" data-gt-preview role="status">${esc(previewText(list,d,lang))}</p><div class="campaign-controls"><button type="button" class="btn primary" data-gt-action="award"${ok?'':' disabled'}>＋ ${esc(t.give)}</button>${undo?`<button type="button" class="btn ghost" data-gt-action="award-undo">↶ ${esc(t.awardUndo)}</button>`:''}</div></section>`;
 }
 // The sheet's back link when the sheet was opened from a campaign row.
 function backLink(character,lang){if(!fromCampaign||!character||fromCampaign!==character.id)return '';return `<button class="back-link" data-action="navigate" data-view="campaigns">← ${esc(T[L(lang)].backToCampaign)}</button>`}
@@ -349,12 +349,14 @@ function handle(e,c,ctx){
     if(r.ip>0)ok=window.RoomGrants.sendTo(away.get(r.id),{kind:'ip',n:r.ip,note},lang).ok&&ok;
     if(ok&&(r.cash>0||r.ip>0))sentRows.push(t.previewRow(r.name,Math.min(r.cash,1000000),r.ip));
    }
-   plan.rows=plan.rows.filter(r=>!away.has(r.id));
+   plan.rows=plan.rows.filter(r=>!away.has(r.id)&&!list.find(x=>x.id===r.id)?.room);
    if(!plan.rows.some(r=>r.cash>0||r.ip>0)){
     keep(drafts,c.id,{cash:'',mode:d.mode,ip:'',reason:'',off:d.off,ipBy:{}});
     return {rerender:true,notify:sentRows.length?t.sentAward(sentRows.join('; ')):t.awardFail};
    }
   }
+  plan.rows=plan.rows.filter(r=>!list.find(x=>x.id===r.id)?.room);
+  if(!plan.rows.some(r=>r.cash>0||r.ip>0))return {rerender:true,notify:sentRows.length?t.sentAward(sentRows.join('; ')):t.awardFail};
   const staged=awardStage(list,plan,d.reason,{note:t.awardNote});
   if(!staged.ok)return {notify:staged.reason==='max'?t.awardMax(staged.name):t.awardFail};
   const undo=[];for(const ch of staged.changes){const p=list.find(x=>x.id===ch.id);const before=snap(p,AWARD_KEYS);p.extra=ch.extra;undo.push({id:p.id,before,after:snap(p,AWARD_KEYS)})}

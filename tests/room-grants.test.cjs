@@ -6,7 +6,7 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 function load({state=null,link=null}={}){
  const store=new Map(),notices=[],listeners={};
  const document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[]};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,navigator:{},confirm:()=>true,addEventListener(){}};
+ const sess=new Map(),window={document,sessionStorage:{getItem:k=>sess.has(k)?sess.get(k):null,setItem:(k,v)=>sess.set(k,String(v)),removeItem:k=>sess.delete(k)},localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,navigator:{},confirm:()=>true,addEventListener(){}};
  window.window=window;
  const ctx={window,document,globalThis:window,crypto:globalThis.crypto,console,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,Uint8Array,setTimeout,clearTimeout};
  vm.createContext(ctx);
@@ -14,7 +14,7 @@ function load({state=null,link=null}={}){
  let saves=0;
  if(state)window.App={getState:()=>state,lang:()=>state.lang||'ru',save(){saves++},render(){},notify:m=>notices.push(m)};
  if(link)window.Room={grantLink:link,changed(){}};
- return {G:window.RoomGrants,window,store,notices,saves:()=>saves};
+ return {G:window.RoomGrants,window,store,sess,notices,saves:()=>saves};
 }
 const V=()=>({id:'v1',name:'Ви',role:'solo',stats:{BODY:8,WILL:6},hp:45,head:11,bodyArmor:11,extra:{cash:700}});
 const GID='0123456789abcdef',grant=(x={})=>({gid:GID,kind:'damage',n:14,cid:'v1',loc:'body',via:'armor',note:'',...x});
@@ -177,4 +177,19 @@ test('only the Game Master\'s device sends a grant; a player\'s device sends onl
  await give(gm,await msg('ann','grant-ack',{to:keys.gm.id,gid:GID,state:'applied',text:'ok'}));assert.equal(gm.acks.length,1);assert.equal(gm.acks[0].meta.from,keys.ann.id);
  await give(gm,await msg('ann','grant-ack',{to:keys.bob.id,gid:GID,state:'applied',text:'ok'}));assert.equal(gm.acks.length,1);
  await give(ann,await msg('bob','grant-ack',{to:keys.ann.id,gid:GID,state:'applied',text:'ok'}));assert.equal(ann.acks.length,0);
+});
+
+test('the GM keeps the player answer after a page reload',()=>{
+ const link={who:()=>({role:'gm',code:'K7RQM2XAPZ9E'})};
+ const a=load({state:{lang:'ru',characters:[]},link});a.G.refresh();
+ a.G._test.sentTo.set(GID,{to:'p1',name:'Аня',character:'Ви'});
+ // a new page shares the tab storage
+ const saved=a.sess.get('nightcity-red-room-sent');assert.ok(saved);
+ const c=load({state:{lang:'ru',characters:[]},link});c.sess.set('nightcity-red-room-sent',saved);c.G.refresh();
+ assert.equal(c.G.acked({gid:GID,state:'applied',text:'HP 45 → 42'},{from:'p2'}),false);
+ assert.equal(c.G.acked({gid:GID,state:'applied',text:'HP 45 → 42'},{from:'p1'}),true);
+ assert.equal(c.sess.get('nightcity-red-room-sent'),undefined);
+ // another room: nothing restored
+ const d=load({state:{lang:'ru',characters:[]},link:{who:()=>({role:'gm',code:'ZZZZZZZZZZZZ'})}});d.sess.set('nightcity-red-room-sent',saved);d.G.refresh();
+ assert.equal(d.G.acked({gid:GID,state:'applied',text:'x'},{from:'p1'}),false);
 });

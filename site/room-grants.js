@@ -178,11 +178,20 @@
   const notify = m => { try { global.App?.notify?.(m); } catch {} };
   const hex = n => { const a = new Uint8Array(n); global.crypto.getRandomValues(a); return Array.from(a, x => x.toString(16).padStart(2, '0')).join(''); };
   let pending = [], done = [], roomCode = '';
-  const sentTo = new Map();
+  // Offers the Game Master sent, kept for this tab so a reload does not lose the player's answer.
+  const SENT = 'nightcity-red-room-sent';
+  const saveSent = () => { try { if (roomCode && sentTo.size) global.sessionStorage.setItem(SENT, JSON.stringify({ code: roomCode, sent: [...sentTo].slice(-200) })); else global.sessionStorage.removeItem(SENT); } catch {} };
+  class SentMap extends Map { set(k, v) { super.set(k, v); saveSent(); return this; } delete(k) { const r = super.delete(k); saveSent(); return r; } }
+  const sentTo = new SentMap();
 
   function load(code) {
     pending = []; done = []; roomCode = code || '';
+    Map.prototype.clear.call(sentTo);
     if (!roomCode) return;
+    try {
+      const r = JSON.parse(global.sessionStorage.getItem(SENT) || 'null');
+      if (obj(r) && r.code === roomCode && Array.isArray(r.sent)) for (const e of r.sent.slice(-200)) if (Array.isArray(e) && typeof e[0] === 'string' && GID.test(e[0]) && obj(e[1]) && typeof e[1].to === 'string') Map.prototype.set.call(sentTo, e[0], { to: e[1].to.slice(0, 80), name: String(e[1].name || '').slice(0, 80), character: String(e[1].character || '').slice(0, 80) });
+    } catch {}
     try {
       const s = JSON.parse(global.localStorage.getItem(STORE) || 'null');
       if (!obj(s) || s.code !== roomCode) return;
