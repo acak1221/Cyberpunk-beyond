@@ -2,7 +2,7 @@ window.CATALOG = [{"id":"weapon-light-melee-weapon","category":"weapon","name":{
 // Items that match a search and a category, in catalog order.
 window.catalogMatches = function(query, category) {
   const q = String(query || '').trim().toLocaleLowerCase();
-  return window.CATALOG.filter(item => (!category || category === 'all' || item.category === category) && (!q || [item.name.ru,item.name.en,item.details.ru,item.details.en,item.priceNote?.ru,item.priceNote?.en,item.priceUnit?.ru,item.priceUnit?.en,String(item.price),String(item.page)].some(v => String(v || '').toLocaleLowerCase().includes(q))));
+  return window.CATALOG.filter(item => (!category || category === 'all' || item.category === category) && (!q || [item.name.ru,item.name.en,item.details.ru,item.details.en,item.priceNote?.ru,item.priceNote?.en,item.priceUnit?.ru,item.priceUnit?.en,String(item.price),String(item.page)].some(v => String(v || '').toLocaleLowerCase().includes(q)) || !!window.CatalogSearch?.matches?.(q, item)));
 };
 // Each card has «В корзину» (paid, through the cart) where the item can be bought, and a free «Добавить бесплатно».
 // `limit` cards are drawn; the rest wait behind «Показать ещё», so a short query does not build hundreds of cards at once.
