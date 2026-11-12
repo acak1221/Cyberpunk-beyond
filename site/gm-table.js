@@ -223,7 +223,7 @@ function giveItem(character,item,lang,options){
 
 // ---------- 2. HTML for the campaign page ----------
 const rowOpen=new Map(),results=new Map(),drafts=new Map(),lastAward=new Map();
-let fromCampaign=null;
+let fromCampaign=null,backY=null;
 const keep=(map,key,value)=>{map.delete(key);map.set(key,value);while(map.size>200)map.delete(map.keys().next().value)};
 // Closed by default; the opponent whose turn it is opens on its own, because its attacks are needed right now.
 const isOpen=(id,current)=>rowOpen.has(id)?rowOpen.get(id):current===true;
@@ -413,11 +413,14 @@ if(typeof document!=='undefined'&&document.addEventListener)document.addEventLis
  if(b){openDialog({item:b.dataset.gtGive||'',cash:whole(b.dataset.gtGiveCash,1,999999999)||0,note:b.dataset.gtNote});return}
  // Remember that a sheet was opened from a campaign row, so its back link returns to the fight.
  const sheet=e.target?.closest?.('.camp-open[data-action="open"]');
- if(sheet)fromCampaign=sheet.dataset.id||null;
- else if(e.target?.closest?.('[data-action="navigate"],[data-action="open"]'))fromCampaign=null;
+ if(sheet){fromCampaign=sheet.dataset.id||null;backY=window.scrollY||0}
+ else if(e.target?.closest?.('.sheet-top .back-link[data-view="campaigns"]')&&fromCampaign&&backY!==null){
+  // Back to the campaign: put the page where the tracker was (the page renders first, so try a few times).
+  const y=backY;backY=null;for(const ms of [0,60,200,500])setTimeout(()=>window.scrollTo({top:y,left:0,behavior:'instant'}),ms)}
+ else if(e.target?.closest?.('[data-action="navigate"],[data-action="open"]')){fromCampaign=null;backY=null}
 },true);
 
 window.GMTable={text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
  isOpen,open,rowClass,toggleHTML,headHTML,helpHTML,rowExtras,partyHTML,backLink,giveButton,owns,handle,
- reset(){rowOpen.clear();results.clear();drafts.clear();lastAward.clear();fromCampaign=null;lastRecipient=''}};
+ reset(){rowOpen.clear();results.clear();drafts.clear();lastAward.clear();fromCampaign=null;backY=null;lastRecipient=''}};
 })();

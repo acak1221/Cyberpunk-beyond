@@ -1,0 +1,2 @@
+/* Role and rank line under the name on a sheet (role-line.js). */
+.sheet-roleline { margin: 2px 0 6px; color: var(--text); font-weight: 700; font-size: 15px; letter-spacing: .02em; }
