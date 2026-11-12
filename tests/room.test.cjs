@@ -11,6 +11,11 @@ function loadRoom(){
  return window;
 }
 
+test('outside a room the sheet HUD gets only an empty hidden turn marker',()=>{
+ const R=loadRoom().Room;
+ assert.equal(R.turnChip(),'<span data-room-turn hidden></span>');
+});
+
 test('room codes are 12 unambiguous characters and survive formatting',()=>{
  const R=loadRoom().Room._test;
  for(let i=0;i<50;i++){const c=R.newCode();assert.match(c,/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{12}$/);assert.equal(R.normalizeCode(R.formatCode(c)),c);assert.equal(R.normalizeCode(R.formatCode(c).toLowerCase()),c)}
