@@ -60,3 +60,6 @@
 .wizard-autosave-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 
 @media print { .gf-actions, .gf-panel, .gf-armor-strip .btn, .wizard-drafts, .role-setup .btn { display: none !important; } .cx-item-edit > summary::before { display: none; } }
+
+/* Readable red on the dark button in the cyber look. */
+html:not(.ui-native) .gf-actions .gf-remove { color: #ff6b63; }
