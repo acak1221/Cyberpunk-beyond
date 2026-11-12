@@ -187,3 +187,9 @@ test('stale sheets and foreign events are refused; the page loads the module bef
   assert.match(source('index.html'), /href="role-kit\.css"/);
   assert.ok(!/\b(confirm|alert|prompt)\(/.test(source('role-kit.js')));
 });
+
+test('merged build: the wound penalty is taken once when both PlayCombat and RoleKit are loaded', () => {
+  const src = source('role-tools.js');
+  assert.equal(src.split('check(base,mod+km.total-(window.RoleKit?.takeMods?woundMod(c):0),').length - 1, 2, 'Fixer haggle and Nomad vehicle check');
+  assert.equal(src.includes('check(base,mod+km.total,'), false);
+});

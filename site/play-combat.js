@@ -178,7 +178,10 @@ function hitApply(c,s){
   if(q.location==='head')c.head=copy.head;else c.bodyArmor=copy.bodyArmor;
   if(copy.extra?.equipment!==undefined&&c.extra)c.extra.equipment=copy.extra.equipment;
  }
- const after={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,deathPenalty:copyOf(c.extra?.deathPenalty)};
+ const armorChanged=q.spAfter!==q.sp&&q.type!=='direct';
+ // Only what this hit wrote is taken back later, and only while it is still as the hit left it.
+ before.touched={equipment:armorChanged&&copy.extra?.equipment!==undefined,medical:q.resetStabilization===true,deathPenalty:q.mortalAttack===true};
+ const after={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,deathPenalty:copyOf(c.extra?.deathPenalty),medical:JSON.stringify(c.extra?.medical),equipment:JSON.stringify(c.extra?.equipment)};
  return {ok:true,q,undo:{id:c.id,before,after},injury:q.bonus>0||q.forcedCritical?(q.location==='head'?'head':'body'):''};
 }
 // Takes a hit back, but only while nothing it touched has changed since.
@@ -186,9 +189,13 @@ function hitUndo(c,undo){
  if(!c||!undo||c.id!==undo.id)return false;
  const a=undo.after,b=undo.before;
  if(c.hp!==a.hp||c.head!==a.head||c.bodyArmor!==a.bodyArmor||JSON.stringify(c.extra?.deathPenalty)!==JSON.stringify(a.deathPenalty))return false;
+ const t=b.touched||{equipment:true,medical:true,deathPenalty:true};
+ if(t.equipment&&a.equipment!==undefined&&JSON.stringify(c.extra?.equipment)!==a.equipment)return false;
+ if(t.medical&&a.medical!==undefined&&JSON.stringify(c.extra?.medical)!==a.medical)return false;
  c.hp=b.hp;c.head=b.head;c.bodyArmor=b.bodyArmor;
- if(!b.hadExtra){delete c.extra;return true}
- for(const k of ['deathPenalty','medical','equipment']){if(b[k]===undefined)delete c.extra[k];else c.extra[k]=b[k]}
+ if(!c.extra)return true;
+ for(const k of ['deathPenalty','medical','equipment']){if(!t[k])continue;if(b[k]===undefined)delete c.extra[k];else c.extra[k]=b[k]}
+ if(!b.hadExtra&&!Object.keys(c.extra).length)delete c.extra;
  return true;
 }
 function hitForm(c,l){

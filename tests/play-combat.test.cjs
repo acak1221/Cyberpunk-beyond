@@ -279,3 +279,15 @@ test('Role Ability checks take the wound penalty of the character', () => {
   assert.ok(source.includes('mod=clamp(v.modifier??0,-100,100)+woundMod(c);')); assert.ok(source.includes('check(base+level,modifier+km.total,dv)'), 'the Media check takes wound and effects through RoleKit.takeMods');
 });
 // ---------- next section ----------
+
+test('undo of a hit never puts old equipment or medical data over newer changes', () => {
+  const P = withDamage().PlayCombat;
+  // The hit does not touch armor (direct damage): equipment changed afterwards must survive the undo.
+  const c = target({ extra: { equipment: { version: 1, installs: [] } } });
+  const r = P.hitApply(c, blow({ location: 'direct', raw: '5' }));
+  assert.equal(r.ok, true); assert.equal(c.hp, 35);
+  c.extra.equipment = { version: 1, installs: [{ id: 'eye' }], maxHumanity: 58 };
+  assert.equal(P.hitUndo(c, r.undo), true); assert.equal(c.hp, 40);
+  assert.equal(c.extra.equipment.installs.length, 1, 'the implant installed after the hit is still installed');
+  assert.equal(c.extra.equipment.maxHumanity, 58);
+});
