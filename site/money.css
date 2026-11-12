@@ -90,3 +90,10 @@ button.shop-chip.shop-add-money { border-style: dashed; color: var(--text); font
   .money-form { grid-template-columns: 1fr; }
 }
 @media print { .money-overlay, .money-next, .money-row { display: none !important; } }
+
+/* Phone tap targets: money chip, shop budget chips, gear buttons (at least 40 px). */
+@media (max-width: 820px) {
+  .hud-chip.hud-money { min-height: 40px; align-items: center; }
+  button.shop-chip, .cx-button, .et-root button, .et-root summary, .money-panel .btn.small, .gf-armor-strip .btn.small { min-height: 40px; }
+  .et-root summary { display: flex; align-items: center; }
+}
