@@ -663,9 +663,15 @@ function refresh(){
   if(focusId){const el=root.querySelector('#'+focusId)||root.querySelector(`[data-room-field="${focusId}"]`);el?.focus?.()}
  }
  const pill=doc.querySelector('[data-room-pill]');if(pill)pill.outerHTML=renderPill();
+ for(const chip of doc.querySelectorAll?.('[data-room-turn]')||[])chip.outerHTML=turnChip();
  try{global.RoomGrants?.refresh?.()}catch{}
  // A player who left or went quiet: the open tracker gives the HP field back to the Game Master.
  if(session?.role==='gm')try{paintLive()}catch{}
+}
+// A marker for the sheet HUD: stays until the turn passes. Outside a room (or off turn) it is an empty hidden node that refresh() fills in.
+function turnChip(){
+ if(!session||!myTurn(combat))return '<span data-room-turn hidden></span>';
+ return `<a class="hud-chip hud-turn" data-room-turn href="#/room" role="status" title="${esc(t('yourTurnHint'))}"><span aria-hidden="true">▶</span><b>${esc(t('yourTurn'))}</b></a>`;
 }
 function renderPill(){
  if(!session)return '<span data-room-pill hidden></span>';
@@ -749,7 +755,7 @@ doc.addEventListener?.('visibilitychange',()=>{if(doc.visibilityState==='visible
 
 global.Room={
  attach(api){app=api;session=loadSession();if(pendingCode&&session&&pendingCode===session.code){adoptPin(pendingPin);pendingCode=null;pendingPin=''}refresh();if(session)connect()},
- render,pill:renderPill,label:()=>t('nav'),
+ render,pill:renderPill,turnChip,label:()=>t('nav'),
  changed(){if(!session)return;clearTimeout(changeTimer);changeTimer=setTimeout(()=>{publishMember();publishCombat();publishClocks()},400)},
  roll({label,detail,total,character,initiative,characterId}){
   if(!session)return;
