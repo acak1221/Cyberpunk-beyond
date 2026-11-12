@@ -154,7 +154,25 @@ test('the tracker renders compact rows, a row attack box and the party reward; o
 test('online: tracker hits and rewards for a player in the room are sent as grants, not written to the stale copy', () => {
   const fs = require('node:fs'), src = fs.readFileSync(__dirname + '/../site/gm-table.js', 'utf8'), camp = fs.readFileSync(__dirname + '/../site/campaigns.js', 'utf8'), rg = fs.readFileSync(__dirname + '/../site/room-grants.js', 'utf8');
   assert.match(src, /const pc=pcOf\(target\),to=onlineMember\(pc\)\|\|onlineMember\(target\);\s*if\(to\)\{\s*const sent=window\.RoomGrants\.sendTo\(to,\{kind:'damage'/);
-  assert.match(src, /plan\.rows=plan\.rows\.filter\(r=>!away\.has\(r\.id\)\)/);
+  assert.match(src, /plan\.rows=plan\.rows\.filter\(r=>!away\.has\(r\.id\)&&!list\.find\(x=>x\.id===r\.id\)\?\.room\)/);
   assert.match(camp, /if\(to\)\{[\s\S]{0,400}RoomGrants\.sendTo\(to,\{kind:'damage'/);
   assert.match(rg, /function sendTo\(memberId, v, l\)/); assert.match(rg, /trackerButton, sendTo,/);
+});
+
+test('a player added from the room is offered the party reward and shows no stale balance', () => {
+  const w = load(['wallet.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'campaigns.js', 'gm-table.js']);
+  const chars = [pc('v', { cash: 700 })], c = { id: 'c', name: 'Job', round: 1, turnIndex: 0, roster: [{ id: 'r1', kind: 'pc', characterId: 'v', initiative: 9, order: 1 }, { id: 'o1', kind: 'npc', name: 'Джонни', own: 'a'.repeat(16), hp: 30, initiative: 5, order: 2 }] };
+  w.Campaigns.setScope('s');
+  const sent = [];
+  // offline: the room row is not in the party list
+  let html = w.Campaigns.render([c], chars, 'ru', null);
+  assert.doesNotMatch(html, /data-gt-award-pc="o1"/);
+  w.Room = { grantLink: { memberFor: x => (x.own ? 'm1' : 'm2') }, liveRow: () => null };
+  w.RoomGrants = { sendTo: (to, g) => { sent.push([to, g.kind, g.n]); return { ok: true }; } };
+  const open = { id: 'c', name: 'Job', round: 1, turnIndex: 0, roster: c.roster };
+  w.Campaigns.handle({ type: 'click', target: { closest: s => s === '[data-campaign-action]' ? { dataset: { campaignAction: 'open', id: 'c' } } : null } }, { lang: 'ru', campaigns: [open], characters: chars, scope: 's', isCurrent: () => true, save() {}, render() {}, notify() {} });
+  html = w.Campaigns.render([open], chars, 'ru', null);
+  assert.match(html, /data-gt-award-pc="o1"/);
+  assert.doesNotMatch(html, /700 eb/, 'an online player shows no old balance');
+  assert.match(html, /в комнате/);
 });
