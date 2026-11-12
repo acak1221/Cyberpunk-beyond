@@ -36,7 +36,7 @@
       chipNote: 'Конкретный навык для чипа укажите на листе вручную.',
       ammoNote: (label, n) => `${label} · ${n} шт.`,
       roomsNote: n => `Комнат: ${n}`,
-      added: name => `В корзину: ${name}`, needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
+      added: name => `В корзину: ${name}`, addedSet: name => `В корзину: ${name} ×2 (тело и голова)`, oneLocation: 'Одна часть брони закрывает одну часть тела: голову или тело. Для обеих нужны две.', needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
       full: 'В корзине уже максимум позиций. Купите или уберите что-нибудь.',
       maxQty: 'Не больше 50 штук одной позиции.',
       empty: 'Корзина пуста.', noBuyer: 'Сначала выберите, кто покупает.',
@@ -69,7 +69,7 @@
       chipNote: 'Note the specific skill for the chip on the sheet manually.',
       ammoNote: (label, n) => `${label} · ${n} units`,
       roomsNote: n => `Rooms: ${n}`,
-      added: name => `Added to cart: ${name}`, needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
+      added: name => `Added to cart: ${name}`, addedSet: name => `Added to cart: ${name} ×2 (body and head)`, oneLocation: 'One armor piece covers one location: head or body. Wearing both takes two.', needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
       full: 'The cart already holds the maximum number of lines. Buy or remove something.',
       maxQty: 'No more than 50 of one item.',
       empty: 'The cart is empty.', noBuyer: 'First choose who is buying.',
@@ -318,6 +318,8 @@
   }
   const toggleText = (lang, p) => (p.lines.length ? t(lang, 'cartBar', p.count, p.total) : t(lang, 'cartEmpty'));
 
+  // A single armor piece (not the full-body suit): it covers the head or the body, not both.
+  const isPiece = item => item?.category === 'armor' && item.id !== 'armor-bodyweight-suit' && Number.isSafeInteger(item.stats?.sp);
   function lineHTML(lang, l) {
     const name = esc(l.name), key = esc(l.key), item = l.item;
     const ammo = ammoOptions(item, lang), chip = chipOptions(item, lang), opts = ammo.length ? ammo : chip, chosen = l.ammoType || l.skillChipType;
@@ -326,7 +328,7 @@
     const rooms = item?.priceUnit?.en === 'per room', unit = item?.priceUnit?.[L(lang)];
     const price = l.unitPrice == null ? '' : `<span class="shop-line-price">${fmt(l.unitPrice)} eb${unit ? ' / ' + esc(unit) : ''} × ${l.quantity}${l.total != null ? ` = <b>${fmt(l.total)} eb</b>` : ''}</span>`;
     const qtyLabel = t(lang, rooms ? 'rooms' : 'qty');
-    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${select}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
+    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${isPiece(item) ? `<p class="shop-line-note" data-armor-note>${esc(t(lang, 'oneLocation'))}</p>` : ''}${select}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
   }
   function modeHTML(lang, c, p) {
     const b = budgets(c);
@@ -509,12 +511,12 @@
       click(action, button) {
         const lang = host.lang(), key = button?.dataset?.key, catalog = host.catalog();
         if (sync()) paint({ keep: true });
-        if (action === 'cart-add') {
-          const item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang);
+        if (action === 'cart-add' || action === 'cart-add-set') {
+          const pair = action === 'cart-add-set', item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang, pair ? { quantity: 2 } : {});
           if (!r.ok) { host.notify(r.message); return true; }
           review = null; receipt = null; persist();
           if (r.needsOption) { open = true; paint(); host.notify(t(lang, 'needOption')); focus(`[data-cart-option="${attr(r.key)}"]`); }
-          else { paint(); host.notify(t(lang, 'added', itemName(item, lang))); }
+          else { paint(); host.notify(t(lang, pair ? 'addedSet' : 'added', itemName(item, lang))); }
         } else if (action === 'cart-toggle') { const panel = $('#shop-cart'); setOpen(!(open && panel?.hidden !== true)); }
         else if (action === 'cart-mode') { const mode = button?.dataset?.mode; api.setMode(mode); if (!button?.closest?.('#shop-cart')) focus(`[data-action="cart-mode"][data-mode="${attr(mode)}"]`); }
         else if (action === 'cart-close') setOpen(false);
@@ -573,5 +575,5 @@
     return api;
   }
 
-  window.ShopCart = { KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
+  window.ShopCart = { isPiece, KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
 })();
