@@ -132,7 +132,7 @@ html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .cx-root > #sheet-
   /* The STAT boxes lead, as on the wide board; the next-roll bar and the quick rolls follow. */
   html.ui-native.ui-board .sheet-extras { display: flex; flex-direction: column; }
   html.ui-native.ui-board .sheet-extras .sheet-stat-strip { order: -1; }
-  html.ui-native.ui-board .sheet-layout [id^="sheet-"] { scroll-margin-top: 130px; }
+  html.ui-native.ui-board .sheet-hud > :not(.hud-avatar, .hud-hp, [data-hud-jump="sheet-vitals"], .hud-lock, .hud-awake) { order: 1; }
 }
 html.ui-native.ui-board .sheet-stat-strip div { padding: 8px 2px 9px; border: 1px solid transparent; border-image: var(--board-frame-accent) 16 fill / 12px; }
 html.ui-native.ui-board .sheet-stat-strip small { color: var(--muted); font: 700 11px/1.2 var(--board-label); letter-spacing: .08em; }
@@ -148,7 +148,7 @@ html.ui-native.ui-board .skill-row { grid-template-columns: minmax(0, 1fr) 46px 
 /* When skills can be raised with IP, every row keeps a place for the «+», so the roll buttons stay in one line. */
 html.ui-native.ui-board #sheet-skills:has(.ipq-btn) .skill-row { grid-template-columns: minmax(0, 1fr) 46px 50px 34px; }
 html.ui-native.ui-board .skill-row strong { font: 600 14px/1.25 var(--body); }
-html.ui-native.ui-board .skill-row small { overflow: hidden; font: 700 10px/1.3 var(--board-label); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; }
+html.ui-native.ui-board .skill-row small { font: 700 10px/1.3 var(--board-label); letter-spacing: .06em; text-transform: uppercase; white-space: normal; overflow-wrap: anywhere; }
 html.ui-native.ui-board .skill-row input:not([type="checkbox"]):not([type="radio"]) { min-height: 34px; padding: 4px; }
 html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--border); }
 
