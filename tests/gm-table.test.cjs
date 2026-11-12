@@ -150,3 +150,11 @@ test('the tracker renders compact rows, a row attack box and the party reward; o
   assert.ok(index.includes('href="gm-table.css"'));
   assert.doesNotMatch(src('gm-table.js'), /\b(confirm|alert|prompt)\(/);
 });
+
+test('online: tracker hits and rewards for a player in the room are sent as grants, not written to the stale copy', () => {
+  const fs = require('node:fs'), src = fs.readFileSync(__dirname + '/../site/gm-table.js', 'utf8'), camp = fs.readFileSync(__dirname + '/../site/campaigns.js', 'utf8'), rg = fs.readFileSync(__dirname + '/../site/room-grants.js', 'utf8');
+  assert.match(src, /const pc=pcOf\(target\),to=onlineMember\(pc\)\|\|onlineMember\(target\);\s*if\(to\)\{\s*const sent=window\.RoomGrants\.sendTo\(to,\{kind:'damage'/);
+  assert.match(src, /plan\.rows=plan\.rows\.filter\(r=>!away\.has\(r\.id\)\)/);
+  assert.match(camp, /if\(to\)\{[\s\S]{0,400}RoomGrants\.sendTo\(to,\{kind:'damage'/);
+  assert.match(rg, /function sendTo\(memberId, v, l\)/); assert.match(rg, /trackerButton, sendTo,/);
+});

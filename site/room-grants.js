@@ -243,6 +243,18 @@
   function memberButton(id) { return targets().some(x => x.id === id) ? giveButton(id) : ''; }
   function teamButton() { return targets().length > 1 ? `<button type="button" class="btn ghost rg-give" data-rg-open="all">${esc(tx(lang()).giveAll)}</button>` : ''; }
   // In the campaign tracker, next to a character whose player is in the room.
+  // For the GM's tracker and party reward: send one grant to the player who owns this sheet, without the dialog.
+  // -> { ok:true, text, character } | { ok:false, error? }. The player's device applies it; the GM's copy is not touched.
+  function sendTo(memberId, v, l) {
+    try {
+      const L = link(), m = L?.targets?.().find(x => x.id === memberId); if (!m) return { ok: false };
+      const lg = l === 'en' ? 'en' : l === 'ru' ? 'ru' : lang(), r = fromForm(v, m.cid, hex(8), lg); if (r.error) return { ok: false, error: r.error };
+      sentTo.set(r.grant.gid, { to: m.id, name: m.name, character: m.character });
+      if (sentTo.size > 200) for (const k of [...sentTo.keys()].slice(0, 100)) sentTo.delete(k);
+      Promise.resolve(L.send(m.id, r.grant)).then(sent => { if (!sent) { sentTo.delete(r.grant.gid); notify(tx(lg).notSent); } }, () => { sentTo.delete(r.grant.gid); });
+      return { ok: true, text: describe(r.grant, lg), character: m.character };
+    } catch { return { ok: false }; }
+  }
   function trackerButton(character) { try { const id = link()?.memberFor?.(character); return id ? giveButton(id, 'btn ghost camp-open rg-give') : ''; } catch { return ''; } }
 
   function dialogHTML(list, l) {
@@ -308,7 +320,7 @@
 
   global.RoomGrants = {
     KINDS, LIMIT, clean, describe, preview, apply, fromForm, hpMax,
-    receive, acked, memberButton, teamButton, trackerButton,
+    receive, acked, memberButton, teamButton, trackerButton, sendTo,
     // room.js calls this on every repaint: the tray follows the room (and the language) without its own timers.
     refresh() { const was = roomCode; sync(); if (was !== roomCode || pending.length || doc?.querySelector?.('.rg-tray')) paint(); },
     _test: { pending: () => pending, done: () => done, answer, sentTo, load, trayHTML, dialogHTML },

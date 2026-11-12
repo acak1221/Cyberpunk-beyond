@@ -489,6 +489,7 @@
     let current = false;
     try { current = hit.isConnected !== false && (typeof options?.isCurrent !== 'function' || options.isCurrent(c) === true); } catch { current = false; }
     if (!current) return only(lng(lang) === 'ru' ? 'Данные изменились. Повторите действие.' : 'Data changed. Try again.');
+    if (e.type === 'click' && Number(e.detail) > 1 && ['pay', 'deal-apply'].includes(hit.dataset.rkAction)) return { handled: true }; // a double click must not charge twice
     if (e.type === 'click') flash = null;
     return e.type === 'click' ? click(hit, c, lang) : change(hit, c, lang);
   }

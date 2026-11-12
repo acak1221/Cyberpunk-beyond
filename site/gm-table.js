@@ -20,6 +20,7 @@ const T={
   target:'Цель',chooseTarget:'Выберите цель',where:'Куда',body:'Тело',head:'Голова',type:'Тип',ranged:'Обычная атака',melee:'Оружие ближнего боя (SP вдвое меньше)',direct:'Напрямую в HP',
   critBox:'Крит. ранение (+5)',applyTo:n=>`Применить урон ${n}`,apply:'Применить урон',rawDamage:'Урон до брони',
   pcTitle:'Урон по персонажу',pcHelp:'Считается по броне с листа: урон минус SP, пробитая броня теряет 1 SP, в голову прошедший урон удваивается.',
+  sentHit:(who,what)=>`${who}: отправлено игроку — ${what}. HP на своём листе меняет игрок.`,sentAward:n=>`Отправлено игрокам в комнате: ${n}.`,
   needTarget:'Выберите цель.',badDamage:'Введите урон: целое число от 1 до 999.',failed:'Не удалось применить урон: проверьте HP и броню на листе. Ничего не изменено.',
   stopped:(name,raw,sp)=>`${name}: броня остановила урон (${raw} против SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, по HP ${dealt}`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
@@ -52,6 +53,7 @@ const T={
   target:'Target',chooseTarget:'Choose a target',where:'Location',body:'Body',head:'Head',type:'Type',ranged:'Standard attack',melee:'Melee weapon (half SP)',direct:'Directly to HP',
   critBox:'Critical Injury (+5)',applyTo:n=>`Apply ${n} damage`,apply:'Apply damage',rawDamage:'Damage before armor',
   pcTitle:'Damage to the character',pcHelp:'Uses the armor on the sheet: damage minus SP, penetrated armor loses 1 SP, damage that gets through to the head is doubled.',
+  sentHit:(who,what)=>`${who}: sent to the player — ${what}. The player changes HP on their own sheet.`,sentAward:n=>`Sent to players in the room: ${n}.`,
   needTarget:'Choose a target.',badDamage:'Enter damage: a whole number from 1 to 999.',failed:'The damage could not be applied: check HP and armor on the sheet. Nothing was changed.',
   stopped:(name,raw,sp)=>`${name}: armor stopped the damage (${raw} against SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, ${dealt} to HP`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
@@ -162,6 +164,9 @@ function hitText(lang,name,r){
 
 /* A reward for the party. `draft` is the form: {cash, mode:'each'|'split', ip, off:{id:true}, ipBy:{id:text}}.
    -> {ok, rows:[{id,name,cash,ip}], each, rest} | {ok:false, reason:'invalid'|'empty'} */
+// A player who is in the online room keeps their own sheet: a hit or a reward goes to them as an offer
+// (RoomGrants.sendTo) and the Game Master's copy, which the next sheet update would overwrite anyway, stays as it is.
+function onlineMember(x){try{return (x&&window.RoomGrants?.sendTo&&window.Room?.grantLink?.memberFor?.(x))||''}catch{return ''}}
 function awardPlan(members,draft){
  const d=draft||{},text=v=>String(v??'').trim();
  const cash=text(d.cash)===''?0:whole(d.cash,0,999999999),ip=text(d.ip)===''?0:whole(d.ip,0,9999);
@@ -306,7 +311,15 @@ function handle(e,c,ctx){
   if(!Number.isSafeInteger(raw)||raw<1)return {notify:t.badDamage};
   const target=own?row:c.roster.find(x=>x.id===read('target')?.value);if(!target||target===row&&!own)return {notify:t.needTarget};
   const args={raw,location:read('location')?.value==='head'?'head':'body',type:read('type')?.value,critical:read('critical')?.checked===true};
-  const pc=pcOf(target);if(target.kind==='pc'&&!pc)return {notify:t.needTarget};
+  const pc=pcOf(target),to=onlineMember(pc)||onlineMember(target);
+  if(to){
+   const sent=window.RoomGrants.sendTo(to,{kind:'damage',n:raw,loc:args.location,via:args.type==='melee'?'melee':args.type==='direct'?'direct':'armor',note:own?'':nameOf(row)},lang);
+   if(!sent.ok)return {notify:sent.error||t.failed};
+   const line=t.sentHit(nameOf(target),sent.text);
+   keep(results,row.id,{lines:[...(res?.lines||[]).slice(-2),line],target:target.id});
+   return {rerender:true,notify:line};
+  }
+  if(target.kind==='pc'&&!pc)return {notify:t.needTarget};
   const keys=pc?PC_KEYS:NPC_KEYS,before=snap(pc||target,keys);
   const hit=pc?hitPc(pc,args):hitNpc(target,args);
   if(!hit.ok)return {notify:t.failed};
@@ -326,6 +339,22 @@ function handle(e,c,ctx){
  if(a==='award'){
   const list=members(c,characters),d=draftOf(c.id),plan=awardPlan(list,d);
   if(!plan.ok)return {notify:plan.reason==='invalid'?t.awardBad:t.previewNone};
+  // Players in the room get the reward on their own device; everyone else is credited here.
+  const away=new Map(plan.rows.map(r=>[r.id,onlineMember(list.find(x=>x.id===r.id))]).filter(([,m])=>m)),sentRows=[];
+  if(away.size){
+   const note=String(d.reason||'').trim().slice(0,120)||t.awardNote;
+   for(const r of plan.rows.filter(r=>away.has(r.id))){
+    let ok=true;
+    if(r.cash>0)ok=window.RoomGrants.sendTo(away.get(r.id),{kind:'cash',n:Math.min(r.cash,1000000),note},lang).ok&&ok;
+    if(r.ip>0)ok=window.RoomGrants.sendTo(away.get(r.id),{kind:'ip',n:r.ip,note},lang).ok&&ok;
+    if(ok&&(r.cash>0||r.ip>0))sentRows.push(t.previewRow(r.name,Math.min(r.cash,1000000),r.ip));
+   }
+   plan.rows=plan.rows.filter(r=>!away.has(r.id));
+   if(!plan.rows.some(r=>r.cash>0||r.ip>0)){
+    keep(drafts,c.id,{cash:'',mode:d.mode,ip:'',reason:'',off:d.off,ipBy:{}});
+    return {rerender:true,notify:sentRows.length?t.sentAward(sentRows.join('; ')):t.awardFail};
+   }
+  }
   const staged=awardStage(list,plan,d.reason,{note:t.awardNote});
   if(!staged.ok)return {notify:staged.reason==='max'?t.awardMax(staged.name):t.awardFail};
   const undo=[];for(const ch of staged.changes){const p=list.find(x=>x.id===ch.id);const before=snap(p,AWARD_KEYS);p.extra=ch.extra;undo.push({id:p.id,before,after:snap(p,AWARD_KEYS)})}
@@ -333,7 +362,7 @@ function handle(e,c,ctx){
   try{window.Campaigns?.journalAdd?.(c,t.awardJournal(rows,String(d.reason||'').trim()),true,Date.now(),entry)}catch{}
   keep(lastAward,c.id,{undo,entry});
   keep(drafts,c.id,{cash:'',mode:d.mode,ip:'',reason:'',off:d.off,ipBy:{}});
-  return {dirty:true,rerender:true,notify:t.awardDone(rows)};
+  return {dirty:true,rerender:true,notify:t.awardDone(rows)+(sentRows.length?' '+t.sentAward(sentRows.join('; ')):'')};
  }
  if(a==='award-undo'){
   const last=lastAward.get(c.id);if(!last)return {rerender:true};

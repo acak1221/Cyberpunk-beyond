@@ -180,6 +180,15 @@ function handle(e,ctx){const el=e.target,button=el.closest('[data-campaign-actio
  else if(a==='out'){if(target.out===true)delete target.out;else{target.out=true;delete target.held}}
  else if(a==='hide'){if(target.kind!=='npc')return true;if(target.hidden===true)delete target.hidden;else target.hidden=true}
  else if(a==='damage'){
+  // A row that belongs to a player in the room: their device keeps the HP, so the hit goes to them as an offer.
+  let to='';try{to=(window.RoomGrants?.sendTo&&window.Room?.grantLink?.memberFor?.(target))||''}catch{to=''}
+  if(to){
+   const n=String(row?.querySelector?.('[data-camp-dmg]')?.value??'').trim();
+   if(!/^\d{1,3}$/.test(n)||Number(n)<1){ctx.notify?.(t.dmgInvalid);return true}
+   const sent=window.RoomGrants.sendTo(to,{kind:'damage',n:Number(n),loc:row?.querySelector?.('[data-camp-dmg-loc]')?.value==='head'?'head':'body',via:'armor',note:''},ctx.lang);
+   ctx.notify?.(sent.ok?`${target.name||sent.character||''}: ${ctx.lang==='en'?'sent to the player':'отправлено игроку'} — ${sent.text}`:(sent.error||t.dmgInvalid));
+   return true;
+  }
   if(target.kind!=='npc')return true;
   const rawText=String(row?.querySelector?.('[data-camp-dmg]')?.value??'').trim(),raw=/^\d{1,3}$/.test(rawText)?Number(rawText):0,loc=row?.querySelector?.('[data-camp-dmg-loc]')?.value==='head'?'head':'body',crit=row?.querySelector?.('[data-camp-dmg-crit]')?.checked===true?5:0;
   if(raw<1){ctx.notify?.(t.dmgInvalid);return true}

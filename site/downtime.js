@@ -116,6 +116,7 @@
     }
 
     if (kind === 'pay' || kind === 'pay-undo') {
+      if (kind === 'pay' && Number(event?.detail) > 1) return { handled: true }; // second click of a double click: the button under the pointer was just redrawn
       const key = String(b.dataset.key || ''), record = kind === 'pay' ? offers.get(key) : paid.get(key), Wl = wallet();
       const list = Array.isArray(ctx?.characters) ? ctx.characters.filter(x => x && x.id === record?.id) : [];
       const c = list.length === 1 ? list[0] : null;
