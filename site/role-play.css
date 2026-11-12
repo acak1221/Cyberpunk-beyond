@@ -44,3 +44,6 @@ html.ui-native.ui-light .rp-badge.off { color:#b3261e; }
 #sheet-role { scroll-margin-top:72px; }
 @media (max-width:520px){ .rp-actions .btn { flex:1 1 100%; } }
 @media print { .rp-open, .rp-deliver, .rp-actions { display:none; } }
+
+/* The role card already ends with its own «open the role tools» button: the plain jump above it would be a second one. */
+.role-setup:not(.role-setup-todo):has(+ .rp-summary) > button[data-hud-jump="sheet-role"] { display: none; }

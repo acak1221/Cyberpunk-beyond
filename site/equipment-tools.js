@@ -207,15 +207,18 @@ function setSP(c,loc,sp){
 function storedMax(c){const value=eqdata(c)?.maxHumanity;return integer(value)?value:null}
 // Without a confirmed maximum the sheet's own records give it (p. 111): EMP × 10, minus 2 (Borgware 4) for every implant with
 // Humanity Loss. `sure` is false when the sheet may hold implants this cannot count (free text, an entry outside the catalog).
+// Starter implants saved before their names matched the catalog (or bound to a gear item of the same name).
+const LEGACY_IMPLANTS={'Sandevistan Speedware':'cyberware-sandevistan','Audio Recorder':'cyberware-audio-recorder-implant','Аудиорекордер':'cyberware-audio-recorder-implant','Tech Hair':'cyberware-techhair'};
+function implantOf(r){const item=findItem(r.catalogId);if(item?.category==='cyberware')return item;const id=LEGACY_IMPLANTS[String(r.name||'')];return id?findItem(id)||item:item}
 function deriveMax(c){const base=baseHumanity(c);if(base===null)return null;let cut=0,sure=true,count=0;
  for(const r of (Array.isArray(existing(c)?.items)?existing(c).items:[])){if(!r||typeof r!=='object')continue;
-  if(r.humanityLossIncluded===true){const p=hlProfile(findItem(r.catalogId)),q=Number(r.quantity);if(!p||!Number.isSafeInteger(q)||q<0||q>100){sure=false;continue}cut+=p.maxReduction*q;if(p.maxReduction)count+=q}
+  if(r.humanityLossIncluded===true){const p=hlProfile(implantOf(r)),q=Number(r.quantity);if(!p||!Number.isSafeInteger(q)||q<0||q>100){sure=false;continue}cut+=p.maxReduction*q;if(p.maxReduction)count+=q}
   else if(r.category==='cyberware'&&!findItem(r.catalogId))sure=false}
  for(const i of activeInstalls(c)){if(!integer(i.maxLoss)||i.maxLoss<0||i.maxLoss>4){sure=false;continue}cut+=i.maxLoss;if(i.maxLoss)count++}
  if(typeof c?.cyberware==='string'&&c.cyberware.trim())sure=false;
  return {value:Math.max(0,base-cut),base,cut,count,sure}}
 function maxHumanity(c){const stored=storedMax(c);if(stored!==null)return stored;const d=deriveMax(c);return d?d.value:null}
-function maxInfo(c){const stored=storedMax(c),d=deriveMax(c);return stored!==null?{value:stored,stored:true,sure:true,base:d?.base??null,cut:d?.cut??0,count:d?.count??0}:d?{...d,stored:false}:null}
+function maxInfo(c){const stored=storedMax(c),d=deriveMax(c);return stored!==null&&(!d||stored!==d.value)?{value:stored,stored:true,sure:true,base:d?.base??null,cut:d?.cut??0,count:d?.count??0}:d?{...d,stored:false}:null}
 function baseHumanity(c){const raw=c?.stats?.EMP;if(raw===undefined||raw===null||raw===''||typeof raw==='boolean')return null;const emp=Number(raw);return integer(emp)&&emp>=0&&emp<=20?emp*10:null}
 function setMax(c,max,lang,confirmed){if(!integer(max)||max<0||max>200)return {ok:false,reason:'invalidMax',message:tx(lang,'invalidMax')};const base=baseHumanity(c);if(base===null||max>base)return {ok:false,reason:'baseLimit',message:tx(lang,'baseLimit')};if(!confirmed)return {ok:false,reason:'confirmNeeded',message:tx(lang,'confirmNeeded')};ensure(c).maxHumanity=max;return {ok:true,dirty:true}}
 // A custom implant (the user's own entry, id «custom-…») carries the Humanity loss its author typed: 0, 1d6/2 or 1d6…9d6.

@@ -153,14 +153,14 @@ fixer:[I('Агент','Agent'),I('Детектор жучков','Bug Detector')
 nomad:[I('Агент','Agent'),I('Противосмоговая дыхательная маска','Anti-Smog Breathing Mask'),I('Скотч','Duct Tape'),I('Фонарик','Flashlight'),I('Гарпунное устройство','Grapple Gun'),I('Надувная кровать и спальник','Inflatable Bed & Sleep-Bag'),I('Сумка медтеха','Medtech Bag'),I('Радиосвязь','Radio Communicator',2),I('Верёвка','Rope'),I('Techtool','Techtool'),I('Палатка и снаряжение для кемпинга','Tent and Camping Equipment'),F('Bohemian','Украшение','Jewelry'),F('Nomad Leathers','Верх','Top',4),F('Nomad Leathers','Низ','Bottoms',2),F('Nomad Leathers','Обувь','Footwear',2),F('Nomad Leathers','Куртка','Jacket'),F('Nomad Leathers','Головной убор','Hat')]
 };
 const cyber={
-rockerboy:{loss:9,items:[I('Аудиорекордер','Audio Recorder'),I('Chemskin','Chemskin'),I('Кибераудиосистема','Cyberaudio Suite'),I('Tech Hair','Tech Hair')]},
-solo:{loss:14,items:[I('Биомонитор','Biomonitor'),I('Neural Link','Neural Link'),C(I('Sandevistan Speedware','Sandevistan Speedware'),I('Wolvers','Wolvers'))]},
+rockerboy:{loss:9,items:[I('Аудиорекордер','Audio Recorder Implant'),I('Chemskin','Chemskin'),I('Кибераудиосистема','Cyberaudio Suite'),I('Techhair','Techhair')]},
+solo:{loss:14,items:[I('Биомонитор','Biomonitor'),I('Neural Link','Neural Link'),C(I('Sandevistan','Sandevistan'),I('Wolvers','Wolvers'))]},
 netrunner:{loss:14,items:[I('Interface Plugs','Interface Plugs'),I('Neural Link','Neural Link'),I('Shift Tacts','Shift Tacts')]},
 tech:{loss:12,items:[I('Киберглаз','Cybereye'),I('MicroOptics','MicroOptics'),I('Skinwatch','Skinwatch'),I('Tool Hand','Tool Hand')]},
 medtech:{loss:12,items:[I('Биомонитор','Biomonitor'),I('Киберглаз','Cybereye'),C(I('Носовые фильтры','Nasal Filters'),I('Toxin Binders','Toxin Binders')),I('TeleOptics','TeleOptics')]},
 media:{loss:10,items:[C(I('Усиленный слух','Amplified Hearing'),I('Voice Stress Analyzer','Voice Stress Analyzer')),I('Кибераудиосистема','Cyberaudio Suite'),I('Светящаяся татуировка','Light Tattoo')]},
 lawman:{loss:10,items:[I('Скрытая кобура','Hidden Holster'),I('Подкожный карман','Subdermal Pocket')]},
-exec:{loss:12,items:[C(I('Биомонитор','Biomonitor'),I('Tech Hair','Tech Hair')),I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),C(I('Toxin Binders','Toxin Binders'),I('Носовые фильтры','Nasal Filters'))]},
+exec:{loss:12,items:[C(I('Биомонитор','Biomonitor'),I('Techhair','Techhair')),I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),C(I('Toxin Binders','Toxin Binders'),I('Носовые фильтры','Nasal Filters'))]},
 fixer:{loss:16,items:[I('Кибераудиосистема','Cyberaudio Suite'),I('Внутренний агент','Internal Agent'),I('Подкожный карман','Subdermal Pocket'),C(I('Voice Stress Analyzer','Voice Stress Analyzer'),I('Усиленный слух','Amplified Hearing'))]},
 nomad:{loss:14,items:[C(I('Interface Plugs','Interface Plugs'),I('Wolvers','Wolvers')),I('Neural Link','Neural Link')]}
 };

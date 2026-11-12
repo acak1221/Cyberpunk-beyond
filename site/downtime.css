@@ -34,3 +34,11 @@
 .living-summary .living-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .living-summary .btn { min-height: 44px; }
 .living-hint { margin: 6px 0 0; font-size: 12px; opacity: .75; }
+
+/* Light themes: the «short by» line needs a darker red to stay readable on the pale card. */
+html.ui-native.ui-light .dt-pay-short, html.ui-native.ui-light .living-short { color: #8f1a10; }
+/* Phone, «Досье»: the pinned header must stay short, so «Начало сессии» is an icon there (its name stays for screen readers). */
+@media (max-width: 600px) {
+  html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) { min-width: 44px; justify-content: center; }
+}
