@@ -1,0 +1,6 @@
+/* Money and wound on a character card (card-info.js). */
+.char-meta { flex-wrap: wrap; row-gap: 6px; }
+.char-meta .char-wound { font-weight: 700; color: #d9a441; }
+.char-meta .char-wound[data-wound="serious"], .char-meta .char-wound[data-wound="mortal"] { color: #ff6b5e; }
+html.ui-light .char-meta .char-wound, html.ui-native.ui-light .char-meta .char-wound { color: #8a5a00; }
+html.ui-light .char-meta .char-wound[data-wound="serious"], html.ui-light .char-meta .char-wound[data-wound="mortal"], html.ui-native.ui-light .char-meta .char-wound[data-wound="serious"], html.ui-native.ui-light .char-meta .char-wound[data-wound="mortal"] { color: #b3261e; }
