@@ -53,7 +53,7 @@ html.ui-native .empty { border: 1px dashed rgba(255, 255, 255, .12); }
 /* Long help text: two lines, then "More" */
 html.ui-native .nx-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-bottom: 2px; }
 html.ui-native .nx-clamp.nx-open { display: block; -webkit-line-clamp: unset; overflow: visible; }
-html.ui-native .nx-more { display: inline-block; margin: 0 0 8px; padding: 2px 0; color: var(--red); background: none; border: 0; font: 600 13px var(--body); cursor: pointer; }
+html.ui-native .nx-more { display: inline-block; margin: 0 12px 8px 0; padding: 2px 0; color: var(--red); background: none; border: 0; font: 600 13px var(--body); cursor: pointer; }
 html:not(.ui-native) .nx-more { display: none; }
 
 /* ---------- Controls ---------- */
@@ -255,6 +255,9 @@ html.ui-native .rule-top span:last-child { text-transform: lowercase; }
   .lang-switch button, html.ui-native .lang-switch button { min-width: 44px; min-height: 40px; }
   .ui-style-switch button, .ui-theme-switch button { min-height: 40px; }
   .nx-more, .rule-source, .text-link { min-height: 36px; padding-top: 8px; padding-bottom: 8px; }
+  .back-link { min-height: 36px; padding: 8px 0; }
+  .combat-name .camp-open { min-height: 36px; }
+  .night-market .rule-source { min-height: 36px; }
   summary { min-height: 40px; padding-top: 8px; padding-bottom: 8px; box-sizing: border-box; }
   input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; flex: none; }
 }
