@@ -34,6 +34,12 @@ test('the compact HUD hides chips that do not fit whole and the Top button leave
   assert.ok(/to-top:not\(\[hidden\]\)\) \.footer \{ padding-bottom/.test(css));
 });
 
+test('layout fixes: the DV ladder turns on its side on a phone, the wide skills caption is shorter', () => {
+  const ref = fs.readFileSync(__dirname + '/../site/reference-tools.css', 'utf8'), board = fs.readFileSync(__dirname + '/../site/board.css', 'utf8');
+  assert.ok(ref.includes('grid-auto-flow:column') && ref.includes('.sr-dv thead,.skill-reference .sr-dv tbody'));
+  assert.ok(board.includes('#sheet-skills .skill-row small { text-transform: none;'));
+});
+
 test('files are registered before app.js', () => {
   const h = fs.readFileSync(__dirname + '/../site/index.html', 'utf8');
   assert.ok(h.indexOf('sheet-sticky.js') > 0 && h.indexOf('sheet-sticky.js') < h.indexOf('<script src="app.js">'));

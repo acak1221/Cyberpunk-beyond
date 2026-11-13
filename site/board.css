@@ -150,6 +150,8 @@ html.ui-native.ui-board #sheet-skills:has(.ipq-btn) .skill-row { grid-template-c
 html.ui-native.ui-board .skill-row strong { font: 600 14px/1.25 var(--body); }
 html.ui-native.ui-board .skill-row small { font: 700 10px/1.3 var(--board-label); letter-spacing: .06em; text-transform: uppercase; white-space: normal; overflow-wrap: anywhere; }
 html.ui-native.ui-board .skill-row input:not([type="checkbox"]):not([type="radio"]) { min-height: 34px; padding: 4px; }
+/* The skills column is narrow on a wide screen: a caption like «WILL · обязательный минимум 2» went onto three lines, so it is set in sentence case and tighter. */
+@media screen and (min-width: 821px) { html.ui-native.ui-board #sheet-skills .skill-row small { text-transform: none; letter-spacing: .01em; font-weight: 600; } }
 html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--border); }
 
 /* Phones: the stat boxes take two rows so the numbers stay large. */
