@@ -165,7 +165,7 @@ test('controller: the source does not stick to a closed budget and does not carr
   // another buyer gets their own source
   fresh.extra = { ...fresh.extra, cash: 0, gearBudget: 2550 }; delete fresh.extra.startingBudgetCompletion;
   r.ctl.changed(); r.click('cart-mode', { mode: 'gearBudget' }); assert.equal(paying(r.bar()), 'gearBudget');
-  r.world.buyerId = 'p2'; r.ctl.changed();
+  r.world.buyerId = 'p2'; r.ctl.changed(); assert.equal(r.ctl.cart.lines.length, 0, 'each buyer has their own cart'); r.click('cart-add', { id: PISTOL });
   assert.equal(paying(r.bar()), 'cash'); assert.match(r.bar(), /Останется <b>450 eb/); assert.doesNotMatch(r.bar(), /не указано/);
   // the wallet changed somebody's money: the bar follows
   rook.extra = { ...rook.extra, cash: 20 }; r.listeners['nc-money']();
