@@ -53,3 +53,12 @@ test('partsText names the parts, drops zeros, reports a mismatch as other, falls
  assert.equal(S.partsText([],0,'en'),'');
  assert.equal(S.partsText('x',-3,'ru'),' \u2212 3');assert.equal(S.partsText(undefined,0,'ru'),'');
 });
+
+test('patchRow refreshes a rendered row, and asks for a new render when the parent skill changed',()=>{
+ const mk=()=>{const q={strong:{textContent:'',title:''},small:{textContent:''},lv:{textContent:'',a:'',setAttribute(k,v){this.a=v}}};
+  return {dataset:{specParent:'Language (Other)'},querySelector:s=>s==='strong'?q.strong:s==='small'?q.small:q.lv,q}};
+ const row=mk(),r={name:'Language (Japanese)',stat:'INT',level:7,mult:1,parent:'Language (Other)'};
+ assert.equal(S.patchRow(row,r,'ru'),true);
+ assert.equal(row.dataset.skillLevel,'7'); assert.equal(row.q.lv.textContent,'7'); assert.match(row.q.small.textContent,/INT · ×1/);
+ assert.equal(S.patchRow(row,{...r,name:'Science (Biology)',parent:'Science'},'ru'),false);
+});

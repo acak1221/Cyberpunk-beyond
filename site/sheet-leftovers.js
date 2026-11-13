@@ -46,7 +46,17 @@ function rowHTML(r,lang,totalFn){
  const ru=lang!=='en',label=specLabel(r.name,r.parent),total=totalText(r,totalFn);
  const pl=r.parent&&global.SKILL_LABELS&&global.SKILL_LABELS[r.parent];
  const search=[r.name,pl?pl.en:'',pl?pl.ru:'',r.stat||'','специализация specialization'].join(' ');
- return `<div class="skill-row skill-spec-row" data-skill-search="${esc(search)}" data-skill-level="${r.level}" data-spec-id="${esc(r.id)}"><div><strong title="${esc(r.name)}">↳ ${esc(label)}</strong><small>${esc(r.stat||'?')} · ×${r.mult} · ${ru?'специализация':'specialization'}</small></div><span class="skill-spec-level" aria-label="${ru?'Уровень':'Level'} ${r.level}">${r.level}</span><button type="button" class="skill-roll" data-cx-action="roll-skill" data-cx-index="${r.index}" title="${esc('1d10 + '+(r.stat||'?')+' + '+r.name)}" aria-label="${esc((ru?'Бросок':'Roll')+': '+r.name+', '+total)}"><span aria-hidden="true">⬡</span><b data-spec-total="${r.index}">${esc(total)}</b></button></div>`;
+ return `<div class="skill-row skill-spec-row" data-skill-search="${esc(search)}" data-skill-level="${r.level}" data-spec-id="${esc(r.id)}" data-spec-parent="${esc(r.parent||'')}"><div><strong title="${esc(r.name)}">↳ ${esc(label)}</strong><small>${esc(r.stat||'?')} · ×${r.mult} · ${ru?'специализация':'specialization'}</small></div><span class="skill-spec-level" aria-label="${ru?'Уровень':'Level'} ${r.level}">${r.level}</span><button type="button" class="skill-roll" data-cx-action="roll-skill" data-cx-index="${r.index}" title="${esc('1d10 + '+(r.stat||'?')+' + '+r.name)}" aria-label="${esc((ru?'Бросок':'Roll')+': '+r.name+', '+total)}"><span aria-hidden="true">⬡</span><b data-spec-total="${r.index}">${esc(total)}</b></button></div>`;
+}
+// Brings a rendered row up to date with the sheet (name, level, stat, multiplier). false: the parent skill changed, so the row has to move — render again.
+function patchRow(row,r,lang){
+ if(!row||!r||(row.dataset.specParent||'')!==(r.parent||''))return false;
+ const ru=lang!=='en',strong=row.querySelector('strong'),small=row.querySelector('small'),lv=row.querySelector('.skill-spec-level');
+ row.dataset.skillLevel=String(r.level);
+ if(strong){strong.textContent='↳ '+specLabel(r.name,r.parent);strong.title=r.name}
+ if(small)small.textContent=`${r.stat||'?'} · ×${r.mult} · ${ru?'специализация':'specialization'}`;
+ if(lv){lv.textContent=String(r.level);lv.setAttribute('aria-label',(ru?'Уровень':'Level')+' '+r.level)}
+ return true;
 }
 function specRowsHTML(c,parentKey,lang,totalFn){
  return specRows(c).filter(r=>r.parent===parentKey).map(r=>rowHTML(r,lang,totalFn)).join('');
@@ -74,5 +84,5 @@ function partsText(parts,mod,lang){
  if(mod-sum!==0)list.push({k:'other',v:mod-sum});
  return list.map(p=>` ${p.v<0?'−':'+'} ${Math.abs(p.v)} (${PART[p.k][ru?0:1]})`).join('');
 }
-global.SheetLeftovers={specParent,specLabel,specRows,specRowsHTML,otherSpecRowsHTML,ipBalanceOf,ipChipHTML,partsText};
+global.SheetLeftovers={patchRow,specParent,specLabel,specRows,specRowsHTML,otherSpecRowsHTML,ipBalanceOf,ipChipHTML,partsText};
 })(window);
