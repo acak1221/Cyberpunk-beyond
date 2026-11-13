@@ -168,7 +168,7 @@ function fight(over = {}) {
   w.App = { active: () => c, lang: () => 'ru', save: () => calls.push(['save']), render: () => calls.push(['render']), notify: m => calls.push(['notify', m]), report: (...a) => { calls.push(['report', ...a]); return true; },
     // the sheet's layer: STAT + level + wounds + the pending modifier and LUCK
     checkBonus: (ch, stat, level) => ch.stats[stat] + level + ch.extra.modifier + Math.min(ch.extra.luck, ch.extra.luckUse),
-    check: (base, label, o) => { calls.push(['check', base, label, plain(o)]); return { total: over.total ?? 20, dv: o.dv, beat: o.dv ? (over.total ?? 20) > o.dv : null }; } };
+    check: (base, label, o) => { Object.defineProperty(calls, 'parts', { value: o.parts, configurable: true, writable: true }); calls.push(['check', base, label, plain((({ parts, ...r }) => r)(o))]); return { total: over.total ?? 20, dv: o.dv, beat: o.dv ? (over.total ?? 20) > o.dv : null }; } };
   // a tap on a button of the card; `range` is what the card's range select holds
   const press = (data, range, box) => { const card = { querySelector: sel => sel === '[data-cx-range]' && range !== undefined ? { value: range } : null }, b = { dataset: data, disabled: false, closest: sel => sel === '.cx-weapon' ? card : sel === '.pc-unarmed' ? box || null : null }, e = { target: { closest: sel => sel === 'button[data-pc-mode]' ? b : null } }; for (const fn of listeners.click) fn(e); };
   return { w, P: w.PlayCombat, c, calls, press };
@@ -196,6 +196,7 @@ test('a burst is a roll of the character: sheet numbers, weapon modifier, LUCK a
   const out = P.sheetCheck(c, { stat: 'REF', level: 4, kind: 'ranged', skillKey: 'Autofire', label: 'Очередь: AR', dv: 17, extra: ar.modifier, solo: { precision: 1, fumble: true } });
   assert.equal(out.total, 20);
   assert.deepEqual(calls[0], ['check', 8, 'Очередь: AR · Precision Attack +1 · LUCK +1', { wounds: false, dv: 17, skill: 4, mod: 2, ignoreFumble: true }], 'REF 8 + Autofire 4, then −1 modifier +1 LUCK +1 weapon +1 Precision');
+  assert.deepEqual(plain(calls.parts), [{ k: 'wound', v: 0 }, { k: 'effects', v: 0 }, { k: 'sheet', v: -1 }, { k: 'luck', v: 1 }, { k: 'weapon', v: 1 }, { k: 'precision', v: 1 }], 'the parts add up to the same number, named one by one');
   assert.deepEqual([c.extra.luck, c.extra.luckUse, c.extra.modifier], [3, 0, 0], 'LUCK and the modifier are used up like on any sheet roll');
   c.extra.modifierHold = true; c.extra.modifier = -2; P.sheetCheck(c, { stat: 'REF', level: 4, label: 'x' }); assert.equal(c.extra.modifier, -2, 'a kept modifier stays');
 });
@@ -244,7 +245,7 @@ test('the weapon card: aimed shot is −8 once and names the damage rule; burst 
   assert.match(modes, /data-pc-mode="suppress"/);
   ar.ammo = 9; assert.match(P.weaponModes(c, ar, 'en'), /data-pc-mode="burst"[^>]* disabled>⬡ Burst −10/);
   const ce = read('character-extra.js');
-  for (const piece of ["${window.PlayCombat?.aimSelect?.(c,w,l)||''}${action('attack',", "aim=window.PlayCombat?.takeAim?.(c,w,language(lang))||null", "+luck+(aim?aim.mod:0),luckSpent:luck", "${window.PlayCombat?.weaponModes?.(c,w,l)||''}", "${window.PlayCombat?.unarmed?.(c,l)||''}", "${window.PlayCombat?.rangeNote?.(w,b.band,l)||''}", "${window.PlayCombat?.loadedLine?.(w,l)||''}"]) assert.ok(ce.includes(piece), piece);
+  for (const piece of ["${window.PlayCombat?.aimSelect?.(c,w,l)||''}${action('attack',", "aim=window.PlayCombat?.takeAim?.(c,w,language(lang))||null", "+luck+(aim?aim.mod:0),parts:", "${window.PlayCombat?.weaponModes?.(c,w,l)||''}", "${window.PlayCombat?.unarmed?.(c,l)||''}", "${window.PlayCombat?.rangeNote?.(w,b.band,l)||''}", "${window.PlayCombat?.loadedLine?.(w,l)||''}"]) assert.ok(ce.includes(piece), piece);
 });
 
 test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade only when one is in the inventory', () => {
@@ -261,7 +262,7 @@ test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade onl
 
 test('App.check and App.report took what the sheet rolls need', () => {
   const app = read('app.js');
-  assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false}={})"));
+  assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false,parts}={})"));
   assert.ok(app.includes("report(label,detail,total,faces,show){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
 });
 

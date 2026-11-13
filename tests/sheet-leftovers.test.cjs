@@ -46,3 +46,10 @@ test('restore-luck button sits once, next to the LUCK field',()=>{
  assert.equal((html.match(/data-cx-action="restore-luck"/g)||[]).length,1);
  assert.match(html,/<div class="cx-luck-pair">[\s\S]*data-cx-field="luck"[\s\S]*restore-luck[\s\S]*?<\/div>/);
 });
+test('partsText names the parts, drops zeros, reports a mismatch as other, falls back to the lumped form',()=>{
+ assert.equal(S.partsText([{k:'wound',v:-2},{k:'luck',v:2},{k:'sheet',v:0}],0,'ru'),' \u2212 2 (ранение) + 2 (LUCK)');
+ assert.equal(S.partsText([{k:'luck',v:2}],3,'en'),' + 2 (LUCK) + 1 (other)');
+ assert.equal(S.partsText([{k:'luck',v:2.5}],2,'en'),' + 2 (other)');
+ assert.equal(S.partsText([],0,'en'),'');
+ assert.equal(S.partsText('x',-3,'ru'),' \u2212 3');assert.equal(S.partsText(undefined,0,'ru'),'');
+});

@@ -328,10 +328,10 @@ function sheetCheck(c,o){
  const A=global.App;if(!A?.check||!A?.checkBonus)return null;
  let x=null;try{x=global.CharacterExtra?.init?.(c)||null}catch{}if(!x)return null;
  const level=int(o.level,0,10),bonus=num(A.checkBonus(c,o.stat,level,o.kind||'',o.skillKey||'')),base=statNow(c,o.stat);
- const luck=Math.min(int(x.luck,0,20),int(x.luckUse,0,20));x.luck=int(x.luck,0,20)-luck;x.luckUse=0;if(x.modifierHold!==true)x.modifier=0;
+ const sheetMod=int(x.modifier,-100,100),rm=A.rollMods?.(c,o.kind||'',o.skillKey||'',o.stat)||{wound:0,effect:0},luck=Math.min(int(x.luck,0,20),int(x.luckUse,0,20));x.luck=int(x.luck,0,20)-luck;x.luckUse=0;if(x.modifierHold!==true)x.modifier=0;
  const precision=o.solo?.precision||0,extra=int(o.extra,-100,100)+precision;
  const label=o.label+(precision?` · Precision Attack +${precision}`:'')+(luck?` · LUCK +${luck}`:'');
- return A.check(base,label,{wounds:false,dv:o.dv||0,skill:level,mod:bonus-base-level+extra,ignoreFumble:o.solo?.fumble===true});
+ return A.check(base,label,{wounds:false,dv:o.dv||0,skill:level,mod:bonus-base-level+extra,ignoreFumble:o.solo?.fumble===true,parts:[{k:'wound',v:rm.wound},{k:'effects',v:rm.effect},{k:'sheet',v:sheetMod},{k:'luck',v:luck},{k:'weapon',v:int(o.extra,-100,100)},{k:'precision',v:precision}]});
 }
 function weaponModes(c,w,l){
  if(!w?.id||!c)return '';
