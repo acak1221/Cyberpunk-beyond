@@ -78,11 +78,28 @@
   const text = (v, n) => (typeof v === 'string' ? v : '').replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, ' ').trim().slice(0, n);
   const whole = (v, lo, hi) => (Number.isSafeInteger(v) && v >= lo && v <= hi ? v : null);
   const dieValue = (first, extra) => first + (first === 10 ? extra : first === 1 ? -extra : 0);
+  // The skill reference has one «Language» and one «Local Expert»; a sheet keeps two of each. Checks use the sheet's keys.
+  const VARIANTS = {
+    'Language': [['Language (Streetslang)', 'Язык (уличный сленг)'], ['Language (Other)', 'Язык (другой)']],
+    'Local Expert': [['Local Expert (Home)', 'Знание района (дом)'], ['Local Expert (Other)', 'Знание района (другой)']],
+  };
+  function skillList() {
+    const list = global.SkillReference?.SKILLS, out = [];
+    for (const r of Array.isArray(list) ? list : []) {
+      if (!Array.isArray(r) || typeof r[0] !== 'string') continue;
+      if (VARIANTS[r[0]]) for (const [id, ru] of VARIANTS[r[0]]) out.push([id, r[1], r[2], r[3], r[4], ru]);
+      else out.push(r);
+    }
+    return out;
+  }
+  // Also takes the reference ids «Language» and «Local Expert» (from a page before this split).
   function skillRow(id) {
     if (typeof id !== 'string' || !id) return null;
     const list = global.SkillReference?.SKILLS;
-    return Array.isArray(list) ? list.find(r => Array.isArray(r) && r[0] === id) || null : null;
+    return skillList().find(r => r[0] === id) || (VARIANTS[id] && Array.isArray(list) ? list.find(r => Array.isArray(r) && r[0] === id) || null : null);
   }
+  // The level on the sheet; for a reference id with two sheet keys, the higher of the two.
+  const skillLevel = (c, id) => (VARIANTS[id] ? Math.max(...VARIANTS[id].map(([k]) => Number(c.skills?.[k]) || 0)) : Number(c.skills?.[id]) || 0);
   const skillName = (row, l) => (row ? (l === 'en' ? row[0] : row[5] || row[0]) : '—');
   const dvLadder = () => { const d = global.SkillReference?.DV; return Array.isArray(d) && d.length ? d : DV_NAMES; };
 
@@ -115,7 +132,7 @@
   function rollFor(c, skillId, luckWanted, rng) {
     if (!obj(c)) return { ok: false, why: 'nochar' };
     const row = skillRow(skillId); if (!row) return { ok: false, why: 'noskill' };
-    const stat = row[2], level = Number(c.skills?.[row[0]]) || 0;
+    const stat = row[2], level = skillLevel(c, row[0]);
     let base;
     try { base = global.App?.checkBase?.(c, stat, level, '', row[0]); } catch { base = undefined; }
     if (base === null) return { ok: false, why: 'armor' };
@@ -424,7 +441,7 @@
     const l = lang(), t = tx(l), me = who(), gm = me?.role === 'gm', p = peers().find(x => x.fp === fp), name = p?.name || state?.threads?.[fp]?.name || '?';
     const title = gm ? `${t.title}: ${p?.character ? p.character + ' (' + name + ')' : name}` : `${t.title}: ${t.gm} (${name})`;
     const c = characterOf(me), pool = luckPool(c);
-    const skills = (global.SkillReference?.SKILLS || []).filter(r => Array.isArray(r) && typeof r[0] === 'string').slice().sort((a, b) => skillName(a, l).localeCompare(skillName(b, l), l));
+    const skills = skillList().sort((a, b) => skillName(a, l).localeCompare(skillName(b, l), l));
     const askBlock = gm ? `<details class="rw-ask"><summary>${esc(t.askTitle)}</summary><form class="rw-ask-form" data-rw-form="ask">
 <label class="field">${esc(t.skill)}<select name="skill">${skills.map(r => `<option value="${esc(r[0])}"${r[0] === 'Perception' ? ' selected' : ''}>${esc(skillName(r, l))} (${esc(r[2])})</option>`).join('')}</select></label>
 <label class="field">${esc(t.dv)}<select name="dv"><option value="">${esc(t.dvNone)}</option>${dvLadder().map(d => `<option value="${d[0]}">${d[0]} — ${esc(l === 'en' ? d[2] : d[1])}</option>`).join('')}</select></label>
@@ -499,6 +516,6 @@ ${askBlock}
     receive, flush, forget, memberButton, unread, open,
     // room.js calls this on every repaint: the history follows the room and the open dialog follows the language.
     refresh() { sync(); if (openFp) { paint(); markRead(openFp); } },
-    _test: { text, cleanInner, cleanItem, rollFor, verdict, describeResult, load, serialize, state: () => state, openFp: v => { if (v !== undefined) openFp = v; return openFp; }, say, ask, roll, retry, dialogHTML, threadHTML, sync, tried, MAX_ITEMS, MAX_THREADS, PENDING_TTL, RETRY },
+    _test: { text, skillList, cleanInner, cleanItem, rollFor, verdict, describeResult, load, serialize, state: () => state, openFp: v => { if (v !== undefined) openFp = v; return openFp; }, say, ask, roll, retry, dialogHTML, threadHTML, sync, tried, MAX_ITEMS, MAX_THREADS, PENDING_TTL, RETRY },
   };
 })(window);
