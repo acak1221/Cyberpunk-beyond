@@ -35,3 +35,6 @@ html.ui-native .pc-status { border-radius: 8px; }
 .hud-hp-panel { overflow-y: auto; overscroll-behavior: contain; }
 /* On a wide screen the HP chip itself carries the wound label. */
 @media (min-width: 821px) { .pc-status[data-pc-state="serious"] { display: none; } }
+
+/* Quick-roll note, e.g. Evasion with REF under 8 */
+.sheet-quick-rolls .qr-warn { display: block; font-size: 11px; font-weight: 400; opacity: .8; }
