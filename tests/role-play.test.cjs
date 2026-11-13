@@ -359,7 +359,7 @@ test('NET calculator: a template ICE sets class and target, a hit rolls damage, 
 
 // ---------- Medtech pharmacy ----------
 function pharmacy() {
-  const w = load(['wallet.js', 'role-play.js', 'pharmacy-tools.js']), m = w.PharmacyTools; m.setScope('a');
+  const w = load(['wallet.js', 'catalog.js', 'catalog-extra.js', 'character-extra.js', 'role-play.js', 'dose-stock.js', 'pharmacy-tools.js']), m = w.PharmacyTools; m.setScope('a');
   const doc = { id: 'doc', name: 'Doc', role: 'medtech', rank: 4, stats: { TECH: 6 }, extra: { cash: 300, roleTools: { medtech: { values: { pharma: 2, 'drug-speedheal': true }, team: [] } } } };
   const solo = { id: 'solo', name: 'Solo', role: 'solo', rank: 4, hp: 12, stats: { BODY: 8, WILL: 6 } };
   const chars = [solo, doc], ctx = { lang: 'ru', characters: chars, isCurrent: (c, s) => chars.includes(c) && s === 'a' };
@@ -378,7 +378,7 @@ test('pharmacy starts on the Medtech with a learned drug, and synthesis pays 200
   const r = x.act('synth');
   assert.equal(r.dirty, true);
   assert.equal(x.doc.extra.cash, 100); assert.equal(x.doc.extra.walletLog[0].delta, -200);
-  assert.equal(x.doc.extra.pharmacy.doses.speedheal, 5);
+  assert.equal(x.w.DoseStock.count(x.doc, 'speedheal'), 5);
   assert.match(r.notify, /Синтез Speedheal: 17 > 13 — успех, получено доз: 5\. Списано 200 eb, осталось 100 eb\./);
   assert.equal(x.m.state(plain(x.doc)).kind, 'ok');
   // Not enough money: nothing is rolled, nothing is spent.
@@ -388,7 +388,7 @@ test('pharmacy starts on the Medtech with a learned drug, and synthesis pays 200
   assert.match(x.m.render(x.ctx), /data-pharmacy-pay disabled>/);
   // Without the payment tick the old behaviour stays: the money is not touched.
   x.values.pay = false;
-  assert.equal(x.act('synth').dirty, true); assert.equal(x.doc.extra.cash, 100); assert.equal(x.doc.extra.pharmacy.doses.speedheal, 10);
+  assert.equal(x.act('synth').dirty, true); assert.equal(x.doc.extra.cash, 100); assert.equal(x.w.DoseStock.count(x.doc, 'speedheal'), 10);
 });
 test('pharmacy keeps the chosen drug, the confirmation and the patient across a redraw, and names what is missing', () => {
   const x = pharmacy(); x.m.render(x.ctx);
@@ -406,11 +406,17 @@ test('pharmacy keeps the chosen drug, the confirmation and the patient across a 
   assert.match(x.act('speedheal-sheet').notify, /Укажите игровую дату/);
   x.values.day = '2045-04-06'; x.values.drug = 'antibiotic';
   assert.equal(x.act('speedheal-sheet').dirty, true, 'the Speedheal button does not look at the synthesis select');
-  assert.equal(x.solo.hp, 26); assert.equal(x.doc.extra.pharmacy.doses.speedheal, 4);
+  assert.equal(x.solo.hp, 26); assert.equal(x.w.DoseStock.count(x.doc, 'speedheal'), 4);
   assert.match(x.m.render(x.ctx), /data-pharmacy-day[^>]*value="2045-04-06"/);
   x.values.drug = 'rapidetox'; x.values.time = '10:00';
   assert.match(x.act('timed-sheet').notify, /Stim или Surge/);
   // Another doctor starts with a clean form.
   x.m.select('solo');
   assert.doesNotMatch(x.m.render(x.ctx), /data-pharmacy-ack checked/);
+});
+
+test('RolePlay.doses counts inventory rows and legacy stock together', () => {
+  const w = load(['role-play.js', 'dose-stock.js']), R = w.RolePlay;
+  const c = { extra: { pharmacy: { version: 1, doses: { speedheal: 1 }, history: [] }, items: [{ id: 'a', name: 'Speedheal', quantity: 2, catalogId: 'extra-pharmaceutical-speedheal' }, { id: 'b', name: 'Stim', quantity: 1, catalogId: 'other' }] } };
+  assert.deepEqual(plain(R.doses(c)), [['speedheal', 'Speedheal', 3]]);
 });
