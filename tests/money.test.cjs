@@ -125,7 +125,7 @@ test('shop bar: sources are buttons, an empty purse offers the wallet, a short c
   html = SC.moneyHTML({ lang: 'en', buyer: person(), plan: SC.plan(person(), cart, CATALOG, 'en') }); assert.doesNotMatch(html, /shop-add-money/);
   const p = SC.plan(fresh, cart, CATALOG, 'ru');
   html = SC.panelHTML({ lang: 'ru', buyer: fresh, plan: p, alt: 'gearBudget' });
-  assert.match(html, /shop-switch" data-action="cart-mode" data-mode="gearBudget">Оплатить из «Стартовое снаряжение» \(2550 eb\)/);
+  assert.match(html, /shop-switch" data-action="cart-mode" data-mode="gearBudget">Оплатить из «Стартовое снаряжение» \(2\s?550 eb\)/);
   // a closed budget is not offered in the select
   const done = person({ cash: 2450 });
   html = SC.panelHTML({ lang: 'ru', buyer: done, plan: SC.plan(done, cart, CATALOG, 'ru') }); assert.doesNotMatch(html, /option value="gearBudget"|option value="fashionBudget"/);

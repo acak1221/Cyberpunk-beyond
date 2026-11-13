@@ -71,6 +71,8 @@
 .gt-members input[type="number"] { width: 100%; min-height: 40px; }
 .gt-preview { margin: 12px 0 0; padding: 8px 10px; border-left: 3px solid var(--border); font-size: 13px; overflow-wrap: anywhere; }
 .gt-party .campaign-controls { margin: 12px 0 0; }
+@media (max-width: 560px) { .gt-apply { display: grid; grid-template-columns: 1fr 1fr; align-items: end; } .gt-apply input[type="number"], .gt-apply select { width: 100%; max-width: none; } .gt-apply .gt-check, .gt-apply > .btn { grid-column: 1 / -1; } }
+html:not(.ui-native) :is(.gt-box,.gt-attacks,.gt-dialog-actions,.combatant) .btn.ghost { border-color: #514843; }
 @media (max-width: 560px) { .gt-party-grid { grid-template-columns: 1fr 1fr; } .gt-party-grid label:first-child { grid-column: 1 / -1; } }
 
 /* ---------- give to a character ---------- */

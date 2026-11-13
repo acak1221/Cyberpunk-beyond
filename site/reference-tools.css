@@ -23,3 +23,5 @@
 .streetslang .slang-item{border:1px solid #3a3731;padding:10px 12px}
 .streetslang dd{margin:6px 0 0;line-height:1.5}
 @media (max-width:560px){.night-market .nm-items li{grid-template-columns:1fr auto}.night-market .nm-items li .rule-source{grid-column:1}}
+
+@media (max-width:600px){.skill-reference .sr-table-wrap{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}}

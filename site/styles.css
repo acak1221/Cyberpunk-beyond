@@ -297,7 +297,7 @@ kbd { color: #77716b; font: inherit; }
 .history-row b { color: var(--yellow); font: 700 23px/1 var(--display); }
 
 .sheet-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; }
-.back-link { padding: 0; color: #c6b9ac; background: none; border: 0; font-size: 11px; }
+.back-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px 0 0; color: #c6b9ac; background: none; border: 0; font-size: 11px; }
 .back-link:hover { color: #fff; }
 .sheet-header { margin-top: 27px; }
 .sheet-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(250px, .85fr); gap: 16px; align-items: start; }

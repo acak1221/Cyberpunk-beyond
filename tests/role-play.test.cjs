@@ -40,7 +40,7 @@ test('a Role roll reports itself for the toast and is drawn under its button; ol
   assert.equal(r.rerender, true);
   assert.equal(r.roll.total, 7 + 4 + 2 + 6);
   assert.deepEqual(plain(r.roll.faces), [{ v: 6, s: 10 }]);
-  assert.match(r.roll.text, /Basic Tech \+ field 2 · 1d10 6 → 19 > 9 · успех/);
+  assert.match(r.roll.text, /Основы техники \+ Полевой ремонт 2 · 1d10 6 → 19 > 9 · успех/);
   assert.equal(c.extra.roleTools.tech.lastAction, 'tech-roll');
   const html = T.render(c, 'ru'), at = html.indexOf('data-rt-action="tech-roll"'), line = html.indexOf('rt-last-inline');
   assert.ok(at > 0 && line > at && line - at < 200, 'the line stands next to the button');

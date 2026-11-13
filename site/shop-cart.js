@@ -16,73 +16,74 @@
   const MAX_LINES = 50, MAX_QTY = 50;
   const MODES = ['cash', 'gearBudget', 'fashionBudget'];
   const RICH = Number.MAX_SAFE_INTEGER;
+  const fmt = n => (window.Wallet && window.Wallet.format ? window.Wallet.format(n) : String(n));
 
   const S = {
     ru: {
       cash: 'Деньги', gearBudget: 'Стартовое снаряжение', fashionBudget: 'Стартовая одежда',
       buyer: 'Покупает', chooseBuyer: 'Выберите персонажа', noBuyerHint: 'Выберите, кто покупает, — здесь появятся его деньги.',
-      cart: 'Корзина', cartEmpty: 'Корзина пуста', cartBar: (n, sum) => `Корзина: ${n} · ${sum} eb`,
+      cart: 'Корзина', cartEmpty: 'Корзина пуста', cartBar: (n, sum) => `Корзина: ${n} · ${fmt(sum)} eb`,
       remains: 'Останется', short: 'Не хватает', payFrom: 'Платить из', notSet: 'не указано', paying: 'оплата отсюда',
       close: 'Закрыть', closeCart: 'Закрыть корзину',
       emptyHelp: 'Корзина пуста. Нажмите «В корзину» на карточке предмета — деньги спишутся только после кнопки «Купить всё».',
       each: 'за шт.', qty: 'Количество', rooms: 'Комнат', less: 'Меньше', more: 'Больше', remove: 'Убрать',
       ammoType: 'Тип боеприпаса', chipType: 'Тип Skill Chip', chooseType: 'Выберите тип', units: 'шт.',
       total: 'Итого', was: 'Сейчас', clear: 'Очистить корзину', buyAll: 'Купить всё',
-      review: 'Проверьте покупку', reviewFor: 'Покупатель', back: 'Назад к корзине', pay: sum => `Оплатить ${sum} eb`,
-      paySummary: (sum, name, was, left) => `Будет списано ${sum} eb из бюджета «${name}». Сейчас там ${was} eb, останется ${left} eb.`,
+      review: 'Проверьте покупку', reviewFor: 'Покупатель', back: 'Назад к корзине', pay: sum => `Оплатить ${fmt(sum)} eb`,
+      paySummary: (sum, name, was, left) => `Будет списано ${fmt(sum)} eb из бюджета «${name}». Сейчас там ${fmt(was)} eb, останется ${fmt(left)} eb.`,
       reviewNote: 'Предметы появятся в листе персонажа. Покупка не меняет Humanity и ничего не устанавливает.',
       cyberNote: (loss, install) => `Киберимплант. Потеря Humanity при установке: ${loss}${install ? ` · установка: ${install}` : ''}. Покупка Humanity не меняет — установка делается на листе.`,
       chipNote: 'Конкретный навык для чипа укажите на листе вручную.',
       ammoNote: (label, n) => `${label} · ${n} шт.`,
       roomsNote: n => `Комнат: ${n}`,
-      added: name => `В корзину: ${name}`, needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
+      added: name => `В корзину: ${name}`, addedSet: name => `В корзину: ${name} ×2 (тело и голова)`, oneLocation: 'Одна часть брони закрывает одну часть тела: голову или тело. Для обеих нужны две.', needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
       full: 'В корзине уже максимум позиций. Купите или уберите что-нибудь.',
       maxQty: 'Не больше 50 штук одной позиции.',
       empty: 'Корзина пуста.', noBuyer: 'Сначала выберите, кто покупает.',
       badFunds: 'В этом бюджете на листе персонажа нет суммы. Укажите её на листе или выберите другой бюджет.',
       gone: 'Этой позиции больше нет в каталоге. Уберите её из корзины.',
-      shortBy: n => `Не хватает ${n} eb в выбранном бюджете.`, lineShort: 'На эту позицию денег в выбранном бюджете уже не хватает.',
+      shortBy: n => `Не хватает ${fmt(n)} eb в выбранном бюджете.`, lineShort: 'На эту позицию денег в выбранном бюджете уже не хватает.',
       stale: 'Цены, корзина или деньги изменились. Проверьте покупку ещё раз.',
       confirmNeeded: 'Сначала подтвердите покупку.', failed: 'Покупка не выполнена, ничего не списано.',
       blocked: 'Покупку нельзя оформить',
-      done: (n, sum, name, left) => `Куплено: ${n} поз. на ${sum} eb. В бюджете «${name}» осталось ${left} eb.`,
+      done: (n, sum, name, left) => `Куплено: ${n} поз. на ${fmt(sum)} eb. В бюджете «${name}» осталось ${fmt(left)} eb.`,
       receipt: 'Покупка оформлена', bought: 'Куплено', openSheet: name => `Открыть лист: ${name}`, keepShopping: 'Продолжить покупки',
       cleared: 'Корзина очищена.', removed: name => `Убрано из корзины: ${name}`,
       payHere: 'Платить отсюда', setMoney: 'Указать деньги', addMoney: '＋ Добавить деньги',
-      switchTo: (name, n) => `Оплатить из «${name}» (${n} eb)`, logNote: names => `Каталог: ${names}`
+      switchTo: (name, n) => `Оплатить из «${name}» (${fmt(n)} eb)`, logNote: names => `Каталог: ${names}`
     },
     en: {
       cash: 'Cash', gearBudget: 'Starting gear', fashionBudget: 'Starting fashion',
       buyer: 'Buyer', chooseBuyer: 'Choose a character', noBuyerHint: 'Choose who is buying to see their money here.',
-      cart: 'Cart', cartEmpty: 'Cart is empty', cartBar: (n, sum) => `Cart: ${n} · ${sum} eb`,
+      cart: 'Cart', cartEmpty: 'Cart is empty', cartBar: (n, sum) => `Cart: ${n} · ${fmt(sum)} eb`,
       remains: 'Left after', short: 'Short by', payFrom: 'Pay from', notSet: 'not set', paying: 'paying from here',
       close: 'Close', closeCart: 'Close cart',
       emptyHelp: 'The cart is empty. Press “Add to cart” on an item card — money is only spent after “Buy all”.',
       each: 'each', qty: 'Quantity', rooms: 'Rooms', less: 'Fewer', more: 'More', remove: 'Remove',
       ammoType: 'Ammunition type', chipType: 'Skill Chip type', chooseType: 'Choose a type', units: 'units',
       total: 'Total', was: 'Now', clear: 'Clear cart', buyAll: 'Buy all',
-      review: 'Review the purchase', reviewFor: 'Buyer', back: 'Back to cart', pay: sum => `Pay ${sum} eb`,
-      paySummary: (sum, name, was, left) => `${sum} eb will be paid from “${name}”. It holds ${was} eb now and ${left} eb will remain.`,
+      review: 'Review the purchase', reviewFor: 'Buyer', back: 'Back to cart', pay: sum => `Pay ${fmt(sum)} eb`,
+      paySummary: (sum, name, was, left) => `${fmt(sum)} eb will be paid from “${name}”. It holds ${fmt(was)} eb now and ${fmt(left)} eb will remain.`,
       reviewNote: 'The items will appear on the character sheet. Buying does not change Humanity or install anything.',
       cyberNote: (loss, install) => `Cyberware. Humanity loss on installation: ${loss}${install ? ` · installation: ${install}` : ''}. Buying does not change Humanity — installation is done on the sheet.`,
       chipNote: 'Note the specific skill for the chip on the sheet manually.',
       ammoNote: (label, n) => `${label} · ${n} units`,
       roomsNote: n => `Rooms: ${n}`,
-      added: name => `Added to cart: ${name}`, needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
+      added: name => `Added to cart: ${name}`, addedSet: name => `Added to cart: ${name} ×2 (body and head)`, oneLocation: 'One armor piece covers one location: head or body. Wearing both takes two.', needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
       full: 'The cart already holds the maximum number of lines. Buy or remove something.',
       maxQty: 'No more than 50 of one item.',
       empty: 'The cart is empty.', noBuyer: 'First choose who is buying.',
       badFunds: 'This budget has no amount on the character sheet. Set it on the sheet or choose another budget.',
       gone: 'This item is no longer in the catalog. Remove it from the cart.',
-      shortBy: n => `Short by ${n} eb in the chosen budget.`, lineShort: 'The chosen budget does not stretch to this line.',
+      shortBy: n => `Short by ${fmt(n)} eb in the chosen budget.`, lineShort: 'The chosen budget does not stretch to this line.',
       stale: 'Prices, the cart or the money changed. Review the purchase again.',
       confirmNeeded: 'Confirm the purchase first.', failed: 'The purchase was not made and nothing was spent.',
       blocked: 'The purchase cannot be completed',
-      done: (n, sum, name, left) => `Bought: ${n} line(s) for ${sum} eb. “${name}” has ${left} eb left.`,
+      done: (n, sum, name, left) => `Bought: ${n} line(s) for ${fmt(sum)} eb. “${name}” has ${fmt(left)} eb left.`,
       receipt: 'Purchase complete', bought: 'Bought', openSheet: name => `Open sheet: ${name}`, keepShopping: 'Keep shopping',
       cleared: 'Cart cleared.', removed: name => `Removed from cart: ${name}`,
       payHere: 'Pay from here', setMoney: 'Set money', addMoney: '＋ Add money',
-      switchTo: (name, n) => `Pay from “${name}” (${n} eb)`, logNote: names => `Catalog: ${names}`
+      switchTo: (name, n) => `Pay from “${name}” (${fmt(n)} eb)`, logNote: names => `Catalog: ${names}`
     }
   };
   const L = lang => (lang === 'en' ? 'en' : 'ru');
@@ -305,35 +306,37 @@
     const b = budgets(c);
     // Starting budgets are noise once they are spent or closed; cash and the budget being paid from always show.
     // Each one is a button: pressing it makes that source the one the cart is paid from.
-    const chips = MODES.filter(m => m === 'cash' || m === p.mode || (b[m] ?? 0) > 0).map(m => `<button type="button" data-action="cart-mode" data-mode="${m}" aria-pressed="${m === p.mode}" title="${esc(t(lang, m === p.mode ? 'paying' : 'payHere'))}" class="shop-chip${m === p.mode ? ' is-paying' : ''}"><span class="shop-chip-name">${esc(t(lang, m))}</span> <b>${b[m] == null ? esc(t(lang, 'notSet')) : b[m] + ' eb'}</b>${m === p.mode ? `<span class="sr-only"> — ${esc(t(lang, 'paying'))}</span>` : ''}</button>`).join('');
+    const chips = MODES.filter(m => m === 'cash' || m === p.mode || (b[m] ?? 0) > 0).map(m => `<button type="button" data-action="cart-mode" data-mode="${m}" aria-pressed="${m === p.mode}" title="${esc(t(lang, m === p.mode ? 'paying' : 'payHere'))}" class="shop-chip${m === p.mode ? ' is-paying' : ''}"><span class="shop-chip-name">${esc(t(lang, m))}</span> <b>${b[m] == null ? esc(t(lang, 'notSet')) : fmt(b[m]) + ' eb'}</b>${m === p.mode ? `<span class="sr-only"> — ${esc(t(lang, 'paying'))}</span>` : ''}</button>`).join('');
     // No money at all, or not enough for the cart: the wallet opens right here (money.js), no trip to the sheet.
     const broke = MODES.every(m => !(b[m] > 0)), lacking = p.lines.length > 0 && p.remaining != null && p.remaining < 0;
     const wallet = window.Money && (broke || lacking) ? `<button type="button" class="shop-chip shop-add-money" data-money-open="${esc(c.id)}" aria-haspopup="dialog">${esc(t(lang, broke ? 'setMoney' : 'addMoney'))}</button>` : '';
     let after = '';
     if (p.lines.length && p.remaining != null) after = p.remaining < 0
-      ? `<span class="shop-after is-short">${esc(t(lang, 'short'))} <b>${-p.remaining} eb</b></span>`
-      : `<span class="shop-after">${esc(t(lang, 'remains'))} <b>${p.remaining} eb</b></span>`;
+      ? `<span class="shop-after is-short">${esc(t(lang, 'short'))} <b>${fmt(-p.remaining)} eb</b></span>`
+      : `<span class="shop-after">${esc(t(lang, 'remains'))} <b>${fmt(p.remaining)} eb</b></span>`;
     return chips + after + wallet;
   }
   const toggleText = (lang, p) => (p.lines.length ? t(lang, 'cartBar', p.count, p.total) : t(lang, 'cartEmpty'));
 
+  // A single armor piece (not the full-body suit): it covers the head or the body, not both.
+  const isPiece = item => item?.category === 'armor' && item.id !== 'armor-bodyweight-suit' && Number.isSafeInteger(item.stats?.sp);
   function lineHTML(lang, l) {
     const name = esc(l.name), key = esc(l.key), item = l.item;
     const ammo = ammoOptions(item, lang), chip = chipOptions(item, lang), opts = ammo.length ? ammo : chip, chosen = l.ammoType || l.skillChipType;
     const optionLabel = t(lang, ammo.length ? 'ammoType' : 'chipType');
-    const select = opts.length ? `<label class="shop-line-option"><span>${esc(optionLabel)}</span><select data-cart-option="${key}" aria-label="${esc(optionLabel)}: ${name}"${chosen ? '' : ' aria-invalid="true"'}><option value="">${esc(t(lang, 'chooseType'))}</option>${opts.map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}${o.price ? ' · ' + o.price + ' eb' : ''}</option>`).join('')}</select></label>` : '';
+    const select = opts.length ? `<label class="shop-line-option"><span>${esc(optionLabel)}</span><select data-cart-option="${key}" aria-label="${esc(optionLabel)}: ${name}"${chosen ? '' : ' aria-invalid="true"'}><option value="">${esc(t(lang, 'chooseType'))}</option>${opts.map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}${o.price ? ' · ' + fmt(o.price) + ' eb' : ''}</option>`).join('')}</select></label>` : '';
     const rooms = item?.priceUnit?.en === 'per room', unit = item?.priceUnit?.[L(lang)];
-    const price = l.unitPrice == null ? '' : `<span class="shop-line-price">${l.unitPrice} eb${unit ? ' / ' + esc(unit) : ''} × ${l.quantity}${l.total != null ? ` = <b>${l.total} eb</b>` : ''}</span>`;
+    const price = l.unitPrice == null ? '' : `<span class="shop-line-price">${fmt(l.unitPrice)} eb${unit ? ' / ' + esc(unit) : ''} × ${l.quantity}${l.total != null ? ` = <b>${fmt(l.total)} eb</b>` : ''}</span>`;
     const qtyLabel = t(lang, rooms ? 'rooms' : 'qty');
-    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${select}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
+    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${isPiece(item) ? `<p class="shop-line-note" data-armor-note>${esc(t(lang, 'oneLocation'))}</p>` : ''}${select}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
   }
   function modeHTML(lang, c, p) {
     const b = budgets(c);
-    return `<label class="field shop-mode">${esc(t(lang, 'payFrom'))}<select id="catalog-mode">${MODES.filter(m => !c || m === 'cash' || m === p.mode || (b[m] ?? 0) > 0).map(m => `<option value="${m}"${m === p.mode ? ' selected' : ''}>${esc(t(lang, m))}${c ? ' — ' + (b[m] == null ? esc(t(lang, 'notSet')) : b[m] + ' eb') : ''}</option>`).join('')}</select></label>`;
+    return `<label class="field shop-mode">${esc(t(lang, 'payFrom'))}<select id="catalog-mode">${MODES.filter(m => !c || m === 'cash' || m === p.mode || (b[m] ?? 0) > 0).map(m => `<option value="${m}"${m === p.mode ? ' selected' : ''}>${esc(t(lang, m))}${c ? ' — ' + (b[m] == null ? esc(t(lang, 'notSet')) : fmt(b[m]) + ' eb') : ''}</option>`).join('')}</select></label>`;
   }
   function totalsHTML(lang, p) {
-    const left = p.remaining == null ? '' : `<span>${esc(t(lang, 'was'))}: <b>${p.available} eb</b></span><span class="${p.remaining < 0 ? 'is-short' : ''}">${esc(t(lang, p.remaining < 0 ? 'short' : 'remains'))}: <b>${Math.abs(p.remaining)} eb</b></span>`;
-    return `<p class="shop-total"><span>${esc(t(lang, 'total'))}: <b>${p.total} eb</b></span>${left}</p>`;
+    const left = p.remaining == null ? '' : `<span>${esc(t(lang, 'was'))}: <b>${fmt(p.available)} eb</b></span><span class="${p.remaining < 0 ? 'is-short' : ''}">${esc(t(lang, p.remaining < 0 ? 'short' : 'remains'))}: <b>${fmt(Math.abs(p.remaining))} eb</b></span>`;
+    return `<p class="shop-total"><span>${esc(t(lang, 'total'))}: <b>${fmt(p.total)} eb</b></span>${left}</p>`;
   }
 
   // Inner HTML of the cart panel: the receipt of the last purchase, the review step, or the editable cart.
@@ -342,11 +345,11 @@
     const head = title => `<div class="shop-cart-head"><h2 id="shop-cart-title" tabindex="-1">${esc(title)}</h2><button type="button" class="btn ghost shop-close" data-action="cart-close" aria-label="${esc(t(lang, 'closeCart'))}">${esc(t(lang, 'close'))}</button></div>`;
     if (view.receipt) {
       const r = view.receipt;
-      return head(t(lang, 'receipt')) + `<p class="shop-done">${esc(t(lang, 'done', r.bought.length, r.total, t(lang, r.mode), r.remaining))}</p><ul class="shop-review-list">${r.bought.map(x => `<li><span>${esc(x.name)}${x.variant ? ' · ' + esc(x.variant) : ''} × ${x.quantity}</span><b>${x.total} eb</b></li>`).join('')}</ul>${window.GearFlow?.receiptHTML?.(r.armor) || ''}<div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-close">${esc(t(lang, 'keepShopping'))}</button><button type="button" class="btn primary" data-action="cart-open-sheet" data-id="${esc(r.buyerId)}">${esc(t(lang, 'openSheet', r.buyerName))}</button></div>`;
+      return head(t(lang, 'receipt')) + `<p class="shop-done">${esc(t(lang, 'done', r.bought.length, r.total, t(lang, r.mode), r.remaining))}</p><ul class="shop-review-list">${r.bought.map(x => `<li><span>${esc(x.name)}${x.variant ? ' · ' + esc(x.variant) : ''} × ${x.quantity}</span><b>${fmt(x.total)} eb</b></li>`).join('')}</ul>${window.GearFlow?.receiptHTML?.(r.armor) || ''}<div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-close">${esc(t(lang, 'keepShopping'))}</button><button type="button" class="btn primary" data-action="cart-open-sheet" data-id="${esc(r.buyerId)}">${esc(t(lang, 'openSheet', r.buyerName))}</button></div>`;
     }
     if (!p.lines.length) return head(t(lang, 'cart')) + `<p class="shop-empty">${esc(t(lang, 'emptyHelp'))}</p>` + modeHTML(lang, c, p);
     if (view.review && p.ok) {
-      return head(t(lang, 'review')) + `<p class="shop-review-buyer">${esc(t(lang, 'reviewFor'))}: <b>${esc(buyerName)}</b></p><ol class="shop-review-list">${p.lines.map(l => `<li><span>${esc(l.name)}${l.variant ? ' · ' + esc(l.variant) : ''} × ${l.quantity}${l.notes.map(n => `<small>${esc(n)}</small>`).join('')}</span><b>${l.total} eb</b></li>`).join('')}</ol><p class="shop-pay">${esc(t(lang, 'paySummary', p.total, t(lang, p.mode), p.available, p.remaining))}</p><p class="shop-line-note">${esc(t(lang, 'reviewNote'))}</p><div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-back">${esc(t(lang, 'back'))}</button><button type="button" class="btn primary" data-action="cart-pay">${esc(t(lang, 'pay', p.total))}</button></div>`;
+      return head(t(lang, 'review')) + `<p class="shop-review-buyer">${esc(t(lang, 'reviewFor'))}: <b>${esc(buyerName)}</b></p><ol class="shop-review-list">${p.lines.map(l => `<li><span>${esc(l.name)}${l.variant ? ' · ' + esc(l.variant) : ''} × ${l.quantity}${l.notes.map(n => `<small>${esc(n)}</small>`).join('')}</span><b>${fmt(l.total)} eb</b></li>`).join('')}</ol><p class="shop-pay">${esc(t(lang, 'paySummary', p.total, t(lang, p.mode), p.available, p.remaining))}</p><p class="shop-line-note">${esc(t(lang, 'reviewNote'))}</p><div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-back">${esc(t(lang, 'back'))}</button><button type="button" class="btn primary" data-action="cart-pay">${esc(t(lang, 'pay', p.total))}</button></div>`;
     }
     const offer = view.alt && c ? `<button type="button" class="btn primary shop-switch" data-action="cart-mode" data-mode="${esc(view.alt)}">${esc(t(lang, 'switchTo', t(lang, view.alt), budgets(c)[view.alt]))}</button>` : '';
     const blocker = p.blockers[0] ? `<p class="shop-blocker" id="shop-blocker">${esc(t(lang, 'blocked'))}: ${esc(p.blockers[0].message)}</p>${offer}` : '';
@@ -508,12 +511,12 @@
       click(action, button) {
         const lang = host.lang(), key = button?.dataset?.key, catalog = host.catalog();
         if (sync()) paint({ keep: true });
-        if (action === 'cart-add') {
-          const item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang);
+        if (action === 'cart-add' || action === 'cart-add-set') {
+          const pair = action === 'cart-add-set', item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang, pair ? { quantity: 2 } : {});
           if (!r.ok) { host.notify(r.message); return true; }
           review = null; receipt = null; persist();
           if (r.needsOption) { open = true; paint(); host.notify(t(lang, 'needOption')); focus(`[data-cart-option="${attr(r.key)}"]`); }
-          else { paint(); host.notify(t(lang, 'added', itemName(item, lang))); }
+          else { paint(); host.notify(t(lang, pair ? 'addedSet' : 'added', itemName(item, lang))); }
         } else if (action === 'cart-toggle') { const panel = $('#shop-cart'); setOpen(!(open && panel?.hidden !== true)); }
         else if (action === 'cart-mode') { const mode = button?.dataset?.mode; api.setMode(mode); if (!button?.closest?.('#shop-cart')) focus(`[data-action="cart-mode"][data-mode="${attr(mode)}"]`); }
         else if (action === 'cart-close') setOpen(false);
@@ -572,5 +575,5 @@
     return api;
   }
 
-  window.ShopCart = { KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
+  window.ShopCart = { isPiece, KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
 })();

@@ -42,3 +42,6 @@ html.ui-native.ui-light .dt-pay-short, html.ui-native.ui-light .living-short { c
   html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   html.ui-native.ui-board .hud-chip.dt-session:not(.dt-session-undo) { min-width: 44px; justify-content: center; }
 }
+
+/* Housing select spans the whole row so its option text is not clipped. */
+.lifestyle-tools .form-grid > .field:has([data-living-home]) { grid-column: 1 / -1; }

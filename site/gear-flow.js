@@ -84,7 +84,8 @@
   // How many of the record there are: a weapon is one thing, an item has a quantity.
   const amount = (kind, record) => (kind === 'weapons' ? 1 : Math.max(0, whole(record?.quantity ?? 1)));
   function displayName(record, lang) {
-    const item = catalogItem(record?.catalogId), name = String(record?.name || '').trim();
+    const item = catalogItem(record?.catalogId), name = String(record?.name || '').trim(), ln = record?.localizedName;
+    if (ln && typeof ln === 'object' && [ln.ru, ln.en].includes(name)) return ln[L(lang)] || name;
     if (item && [item.name?.ru, item.name?.en].includes(name)) return item.name[L(lang)] || name;
     return name || t(lang, 'unnamed');
   }

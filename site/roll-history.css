@@ -1,0 +1,3 @@
+.roll-again-link { display:block; margin-top:6px; padding:0; }
+.app-notice .roll-again { display:block; margin-top:10px; min-height:44px; pointer-events:none; }
+.app-notice.visible .roll-again { pointer-events:auto; }
