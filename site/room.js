@@ -799,7 +799,7 @@ global.Room={
  // For room-whispers.js. A player's page whispers only the Game Master; the receiver checks that again.
  whisperLink:{
   who:()=>session?{role:session.role,code:session.code,memberId:session.memberId,fp:myFp(),gmFp:FP.test(session.gmFp||'')?session.gmFp:'',characterId:session.characterId||''}:null,
-  peers:()=>session?[...members.entries()].filter(([,m])=>!m.me&&FP.test(m.fp||'')).map(([id,m])=>({id,fp:m.fp,name:m.name,role:m.role,online:isOnline(m),at:m.at||0,box:m.box||(m.role==='gm'?m.pub:null)||null,character:m.character?.name||''})):[],
+  peers:()=>session?[...members.entries()].filter(([,m])=>!m.me&&FP.test(m.fp||'')).map(([id,m])=>({id,fp:m.fp,name:m.name,role:m.role,online:isOnline(m),at:m.at||0,box:m.box||null,character:m.character?.name||''})):[],
   seal:(pub,obj)=>sealFor(pub,obj),
   open:box=>openFromPeer(box),
   send:(to,type,d)=>{const m=members.get(to);if(!session||!m||m.me||!['whisper','whisper-ack'].includes(type))return Promise.resolve(0);if(type==='whisper'&&session.role!=='gm'&&!(m.role==='gm'&&m.fp===session.gmFp))return Promise.resolve(0);return send('e',type,{...d,to})},

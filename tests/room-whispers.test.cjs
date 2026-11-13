@@ -303,6 +303,18 @@ test('an old app on the other side: the dialog says so and sending is off',async
  assert.match(html,/<p class="rw-old" role="alert">/);assert.match(html,/type="submit" class="btn primary" disabled/);
 });
 
+test('a Game Master page from before whispers (a sheet key, no box) is an old app too, and nothing is sent to it',async()=>{
+ const s=await table();
+ await s.status(s.ann);
+ const old=await s.gm.R.signedEnvelope(s.gm.key,s.gm.id,s.room.topic,s.room.key,'m/'+s.gm.id,'member',{name:'Мастер',role:'gm',dev:'',cid:'',character:null,pub:s.gm.R.gmPub()},Date.now(),'oldgm1');
+ await s.ann.R.receive({topic:s.room.topic+'/m/'+s.gm.id,retain:false,payload:old});await settle(20);
+ assert.ok(s.ann.R.members().get(s.gm.id).pub,'the old GM page still has its sheet key');
+ const html=s.ann.W.dialogHTML(s.gm.fp);
+ assert.match(html,/<p class="rw-old" role="alert">/);assert.match(html,/type="submit" class="btn primary" disabled/);
+ s.ann.W.say(s.gm.fp,'привет');await settle(40);
+ assert.equal((await s.types(s.ann,'whisper')).length,0,'nothing published to an old page');
+});
+
 test('room.js gives every page a box and the hooks stay in place',()=>{
  const src=read('room.js');
  assert.match(src,/\(\{topic:base,key\}=await deriveRoom\(session\.code\)\);await ensureGMKeys\(\);/);
