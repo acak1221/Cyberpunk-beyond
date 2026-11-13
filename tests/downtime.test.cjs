@@ -192,3 +192,19 @@ test('start of session also ends a Solo fight that is under way, and the undo br
   const click1 = D.handle(click('session'), { lang: 'en', view: 'sheet', active: c, isCurrent: x => x === c });
   assert.match(click1.notify, /new Solo fight/);
 });
+
+test('a Solo fight that was never saved still ends with the session; undo keeps an untouched saved fight', () => {
+  const D = load(['wallet.js', 'role-play.js', 'downtime.js']).Downtime;
+  const c = { id: 'a', role: 'solo', stats: { LUCK: 6 }, extra: { luck: 6, soloSpotUsage: { version: 1, uses: [{ id: 'u', battle: 'Бой 1', round: 1 }] } } };
+  const r = D.startSession(c, 'ru');
+  assert.equal(r.newFight, true);
+  assert.deepEqual(plain(r.extra.soloRound), { version: 1, battle: 'Бой 2', round: 1, n: 2 });
+  c.extra = r.extra;
+  assert.equal(Object.hasOwn(D.undoSession(c, r.before), 'soloRound'), false);
+  const keep = { version: 1, battle: 'Склад', round: 1, n: 4 };
+  const d = { id: 'b', role: 'solo', stats: { LUCK: 6 }, extra: { luck: 3, soloRound: keep } };
+  const r2 = D.startSession(d, 'ru');
+  assert.equal(r2.newFight, undefined);
+  d.extra = r2.extra;
+  assert.deepEqual(plain(D.undoSession(d, r2.before).soloRound), keep);
+});

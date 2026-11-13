@@ -333,3 +333,13 @@ test('a hit: the player can switch it off; a case that needs a GM ruling goes to
   const zero = P.hitApply(soloTarget(), blow({ raw: '4', location: 'direct', deflect: null }));
   assert.equal(zero.ok, true);
 });
+test('a hit with deflection saves the fight and round it used; a broken journal is not called a ruling', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget(), was = plain(c);
+  const r = P.hitApply(c, blow());
+  assert.deepEqual(plain(c.extra.soloRound), { version: 1, battle: 'Бой 1', round: 1, n: 1 });
+  assert.equal(P.hitUndo(c, r.undo), true); assert.deepEqual(plain(c), was);
+  for (const bad of [{ version: 1 }, { version: 1, entries: {} }, { version: 2, entries: [] }]) {
+    const b = soloTarget({ soloDeflection: bad });
+    assert.equal(P.hitQuote(b, blow()).reason, 'manual');
+  }
+});

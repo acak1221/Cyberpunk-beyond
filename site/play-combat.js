@@ -157,7 +157,7 @@ function hitArgs(c,s){
 function hitQuote(c,s){
  const args=hitArgs(c,s);if(!Number.isInteger(args.raw)||args.raw<1||args.raw>1000)return {ok:false,reason:'empty'};
  let q=null,copy=null;try{q=global.DamageApply?.quote?.(c,args)||null;copy=q?global.DamageApply.armorClone(c,q):null}catch{}
- if(!q&&args.deflection){let plain=null;try{const a2={...args};delete a2.deflection;plain=global.DamageApply?.quote?.(c,a2)||null}catch{}return {ok:false,reason:plain?'deflectRuling':'manual'}}
+ if(!q&&args.deflection){const j=c?.extra?.soloDeflection;if(j!==undefined&&!(j&&typeof j==='object'&&!Array.isArray(j)&&j.version===1&&Array.isArray(j.entries)))return {ok:false,reason:'manual'};let plain=null;try{const a2={...args};delete a2.deflection;plain=global.DamageApply?.quote?.(c,a2)||null}catch{}return {ok:false,reason:plain?'deflectRuling':'manual'}}
  return q&&copy?{ok:true,q,copy}:{ok:false,reason:'manual'};
 }
 function hitText(q,l){
@@ -178,7 +178,7 @@ const copyOf=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
 function hitApply(c,s){
  const r=hitQuote(c,s);if(!r.ok)return r;
  const q=r.q,copy=r.copy,hadExtra=c.extra!==undefined;
- const before={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,hadExtra,deathPenalty:copyOf(c.extra?.deathPenalty),medical:copyOf(c.extra?.medical),equipment:copyOf(c.extra?.equipment),soloDeflection:copyOf(c.extra?.soloDeflection)};
+ const before={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,hadExtra,deathPenalty:copyOf(c.extra?.deathPenalty),medical:copyOf(c.extra?.medical),equipment:copyOf(c.extra?.equipment),soloDeflection:copyOf(c.extra?.soloDeflection),soloRound:copyOf(c.extra?.soloRound)};
  c.hp=Math.max(0,q.hpAfter);
  if(q.mortalAttack){if(!c.extra)c.extra={};c.extra.deathPenalty=q.penaltyAfter}
  if(q.resetStabilization)c.extra.medical={...c.extra.medical,stabilized:false};
@@ -188,13 +188,14 @@ function hitApply(c,s){
  }
  const armorChanged=q.spAfter!==q.sp&&q.type!=='direct';
  // Only what this hit wrote is taken back later, and only while it is still as the hit left it.
- before.touched={equipment:armorChanged&&copy.extra?.equipment!==undefined,medical:q.resetStabilization===true,deathPenalty:q.mortalAttack===true,soloDeflection:q.deflection?.used===true};
+ before.touched={equipment:armorChanged&&copy.extra?.equipment!==undefined,medical:q.resetStabilization===true,deathPenalty:q.mortalAttack===true,soloDeflection:q.deflection?.used===true,soloRound:false};
  if(before.touched.soloDeflection){
+  try{const sr=global.RolePlay?.soloRound?.(c,lang());if(sr&&!sr.saved){c.extra.soloRound={version:1,battle:sr.battle,round:sr.round,n:sr.n};before.touched.soloRound=true}}catch{}
   const root=c.extra.soloDeflection,base=root&&typeof root==='object'&&!Array.isArray(root)?root:{version:1,entries:[]};
   const id=global.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
   c.extra.soloDeflection={...base,version:1,entries:[...base.entries,{id,encounter:q.deflection.encounter,round:q.deflection.round,amount:q.deflection.amount,prevented:q.deflection.prevented}]};
  }
- const after={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,deathPenalty:copyOf(c.extra?.deathPenalty),medical:JSON.stringify(c.extra?.medical),equipment:JSON.stringify(c.extra?.equipment),soloDeflection:JSON.stringify(c.extra?.soloDeflection)};
+ const after={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,deathPenalty:copyOf(c.extra?.deathPenalty),medical:JSON.stringify(c.extra?.medical),equipment:JSON.stringify(c.extra?.equipment),soloDeflection:JSON.stringify(c.extra?.soloDeflection),soloRound:JSON.stringify(c.extra?.soloRound)};
  return {ok:true,q,undo:{id:c.id,before,after},injury:q.bonus>0||q.forcedCritical?(q.location==='head'?'head':'body'):''};
 }
 // Takes a hit back, but only while nothing it touched has changed since.
@@ -206,9 +207,10 @@ function hitUndo(c,undo){
  if(t.equipment&&a.equipment!==undefined&&JSON.stringify(c.extra?.equipment)!==a.equipment)return false;
  if(t.medical&&a.medical!==undefined&&JSON.stringify(c.extra?.medical)!==a.medical)return false;
  if(t.soloDeflection&&JSON.stringify(c.extra?.soloDeflection)!==a.soloDeflection)return false;
+ if(t.soloRound&&JSON.stringify(c.extra?.soloRound)!==a.soloRound)return false;
  c.hp=b.hp;c.head=b.head;c.bodyArmor=b.bodyArmor;
  if(!c.extra)return true;
- for(const k of ['deathPenalty','medical','equipment','soloDeflection']){if(!t[k])continue;if(b[k]===undefined)delete c.extra[k];else c.extra[k]=b[k]}
+ for(const k of ['deathPenalty','medical','equipment','soloDeflection','soloRound']){if(!t[k])continue;if(b[k]===undefined)delete c.extra[k];else c.extra[k]=b[k]}
  if(!b.hadExtra&&!Object.keys(c.extra).length)delete c.extra;
  return true;
 }

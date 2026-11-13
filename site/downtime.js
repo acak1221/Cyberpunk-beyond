@@ -47,10 +47,10 @@
     let newFight = false;
     try {
       const RP = window.RolePlay, s = RP?.soloRound?.(c, lang);
-      if (s?.saved) {
+      if (s) {
         const logged = RP.soloLogged?.(c, lang) || {}, mark = x.soloRound;
         if (s.round > 1 || mark?.spotDone === true || mark?.deflectDone === true || logged.spot === true || logged.deflect === true) {
-          extra.soloRound = RP.soloAdvance(c, 'new', lang); before.soloRound = x.soloRound; newFight = true;
+          extra.soloRound = RP.soloAdvance(c, 'new', lang); before.soloRound = x.soloRound; before.soloRoundTouched = true; newFight = true;
         }
       }
     } catch { /* without RolePlay nothing changes */ }
@@ -59,7 +59,7 @@
   // Puts back what startSession() changed. Pure as well.
   function undoSession(c, before) {
     const extra = { ...(c?.extra || {}) };
-    for (const key of ['luck', 'luckUse', 'modifier', 'soloRound']) { if (before?.[key] === undefined) delete extra[key]; else extra[key] = before[key]; }
+    for (const key of ['luck', 'luckUse', 'modifier', 'soloRound']) { if (key === 'soloRound' && !before?.soloRoundTouched) continue; if (before?.[key] === undefined) delete extra[key]; else extra[key] = before[key]; }
     return extra;
   }
 
