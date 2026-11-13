@@ -398,9 +398,9 @@
   const timeOf = ms => { try { return new Date(ms).toLocaleTimeString(lang() === 'ru' ? 'ru-RU' : 'en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
   function threadHTML(fp) {
     const l = lang(), t = tx(l), me = who(), th = state?.threads?.[fp], gm = me?.role === 'gm';
-    if (!th || !th.items.length) return `<ol class="rw-thread"><li class="rw-empty">${esc(t.empty)}</li></ol>`;
+    if (!th || !th.items.length) return `<ol class="rw-thread" tabindex="0" aria-label="${esc(t.title)}"><li class="rw-empty">${esc(t.empty)}</li></ol>`;
     const hasChar = !!characterOf(me);
-    return `<ol class="rw-thread">${th.items.map(it => {
+    return `<ol class="rw-thread" tabindex="0" aria-label="${esc(t.title)}" aria-live="polite">${th.items.map(it => {
       const row = skillRow(it.skill), skill = esc(skillName(row, l)), stat = esc(row?.[2] || '');
       let body = '';
       if (it.kind === 'text') body = `<p>${esc(it.text)}</p>`;

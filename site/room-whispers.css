@@ -22,7 +22,7 @@ dialog.rw-dialog { width: min(520px, calc(100vw - 32px)); max-width: calc(100vw 
 .rw-roll .btn { min-height: 40px; }
 .rw-roll small { color: var(--muted, #aaa); }
 .rw-luck { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
-.rw-luck input { width: 72px; min-height: 36px; }
+dialog.rw-dialog .rw-luck input { flex: 0 0 76px; width: 76px; min-height: 36px; }
 .rw-send { display: flex; gap: 8px; min-width: 0; }
 .rw-send input { flex: 1 1 auto; min-width: 0; min-height: 40px; }
 .rw-send .btn { flex: 0 0 auto; }
@@ -35,3 +35,6 @@ dialog.rw-dialog { width: min(520px, calc(100vw - 32px)); max-width: calc(100vw 
 .room-member > button.rw-open { display: block; margin: 8px 0; }
 .rw-badge, .room-pill-unread { display: inline-block; min-width: 18px; padding: 1px 6px; color: #111; background: var(--yellow, #e9c66d); border-radius: 999px; font-weight: 800; font-size: 11px; line-height: 1.4; text-align: center; }
 @media print { dialog.rw-dialog { display: none; } }
+/* Light looks: the yellow turns brown and green needs more depth to stay readable on a pale panel. */
+.ui-light .rw-badge, .ui-light .room-pill-unread { color: #fff; }
+.ui-light .rw-state.sent, .ui-light .rw-item .rw-result.ok b { color: #2b6a3f; }
