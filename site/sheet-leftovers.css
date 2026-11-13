@@ -1,0 +1,7 @@
+.skill-spec-row strong{padding-left:12px}
+.skill-spec-level{text-align:center;font-variant-numeric:tabular-nums;min-height:33px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border,#353234);border-radius:4px}
+html.ui-native.ui-board .skill-spec-row strong{font-weight:500}
+.hud-ip b{font-variant-numeric:tabular-nums}
+.cx-luck-pair{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.cx-luck-pair .field{flex:1;min-width:0}
+.cx-luck-pair .cx-button{white-space:nowrap}
