@@ -4,10 +4,10 @@ const window={};
 for(const f of ['catalog.js','catalog-search.js'])vm.runInNewContext(fs.readFileSync(__dirname+'/../site/'+f,'utf8'),{window});
 const find=(q,c='all')=>window.catalogMatches(q,c).map(x=>x.id);
 test('ammunition words',()=>{
- for(const q of ['патрон','патроны','Патронов','ammo','боеприпасы'])assert.ok(find(q).includes('ammo-basic-ammunition'),q);
+ for(const q of ['патрон','патроны','Патронов','ammo','боеприпасы','пули','обойма'])assert.ok(find(q).includes('ammo-basic-ammunition'),q);
 });
 test('armor words',()=>{
- for(const q of ['броня','бронежилет','armor'])assert.ok(find(q).includes('armor-kevlar'),q);
+ for(const q of ['броня','бронежилет','бронекуртка','бронекостюм','armor'])assert.ok(find(q).includes('armor-kevlar'),q);
  assert.ok(find('куртка').includes('armor-leathers'));
 });
 test('knife, grenade, guns, medkit, implants',()=>{
