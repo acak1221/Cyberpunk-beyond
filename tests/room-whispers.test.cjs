@@ -293,3 +293,25 @@ test('room.js gives every page a box and the hooks stay in place',()=>{
  const html=read('index.html');assert.ok(html.indexOf('room-grants.js')<html.indexOf('room-whispers.js')&&html.indexOf('room-whispers.js')<html.indexOf('"app.js"'));
  assert.match(read('app.js'),/checkBase:\(c,stat,level,kind,skill\)=>checkBase\(c,stat,level,kind,skill\)/);
 });
+
+test('a failed whisper can be sent again; no character or a failed save keeps the ask open',async()=>{
+ const s=await table();
+ await s.status(s.gm,s.ann);
+ const it=s.gm.W.say(s.bob.fp,'потом');it.at-=s.gm.W.PENDING_TTL+1000;
+ await s.gm.RW.flush();assert.equal(it.state,'failed');
+ assert.match(s.gm.W.threadHTML(s.bob.fp),/не доставлено[\s\S]*data-rw-retry/);
+ const was=it.w;s.gm.W.retry(s.bob.fp,was);assert.equal(it.state,'pending');assert.notEqual(it.w,was,'a new id');
+ // An ask reaches Аня; without a character the roll button is off and says why.
+ s.gm.W.ask(s.ann.fp,'Perception','','');await s.pump();
+ const ask=s.ann.W.state().threads[s.gm.fp].items.at(-1);
+ s.ann.R.session().characterId='';
+ assert.match(s.ann.W.threadHTML(s.gm.fp),/data-rw-roll="[0-9a-f]{16}" disabled>[\s\S]*Выберите персонажа/);
+ assert.equal(await s.ann.W.roll(s.gm.fp,ask.w,0,dice(5)),null);assert.equal(ask.answered,false);
+ // A save that fails gives the LUCK back and sends nothing.
+ s.ann.R.session().characterId='c-ann';s.ann.window.App.save=()=>Promise.resolve({ok:false});
+ assert.equal(await s.ann.W.roll(s.gm.fp,ask.w,2,dice(5)),null);
+ assert.equal(s.ann.state.characters[0].extra.luck,3);assert.equal(ask.answered,false);
+ assert.match(s.ann.notices.at(-1),/Не удалось сохранить LUCK/);
+ // Without LUCK nothing needs saving and the roll goes out.
+ assert.ok(await s.ann.W.roll(s.gm.fp,ask.w,0,dice(5)));assert.equal(ask.answered,true);
+});

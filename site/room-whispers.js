@@ -443,6 +443,12 @@ ${askBlock}
   // Repaints only the thread and the state around it; the inputs are never redrawn, so typed text stays.
   function paint() {
     const dlg = doc?.querySelector?.('.rw-dialog'); if (!dlg || !openFp || !state) return;
+    // The language changed: the fixed parts are drawn again, keeping what was typed.
+    if (dlg.dataset.lang !== lang()) {
+      const typed = dlg.querySelector('#rw-text')?.value || '';
+      dlg.innerHTML = dialogHTML(openFp); dlg.dataset.lang = lang(); lastThread = dlg.querySelector('.rw-thread')?.outerHTML || '';
+      const input = dlg.querySelector('#rw-text'); if (input) input.value = typed;
+    }
     const list = dlg.querySelector('.rw-thread'), html = threadHTML(openFp);
     if (list && html !== lastThread) {
       const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
@@ -461,7 +467,7 @@ ${askBlock}
     if (!doc?.createElement) return;
     for (const d of doc.querySelectorAll('.rw-dialog')) d.remove();
     openFp = fp; lastThread = '';
-    const dlg = doc.createElement('dialog'); dlg.className = 'share-import rw-dialog'; dlg.innerHTML = dialogHTML(fp);
+    const dlg = doc.createElement('dialog'); dlg.className = 'share-import rw-dialog'; dlg.innerHTML = dialogHTML(fp); dlg.dataset.lang = lang();
     doc.body.appendChild(dlg);
     lastThread = dlg.querySelector('.rw-thread')?.outerHTML || '';
     dlg.addEventListener('close', () => { dlg.remove(); if (openFp === fp) { openFp = ''; lastThread = ''; } });
