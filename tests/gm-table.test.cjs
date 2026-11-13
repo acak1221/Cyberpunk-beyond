@@ -195,3 +195,18 @@ test('a critical hit on an NPC rolls the injury table and writes the result into
   n = npc(); r = G.hitNpc(n, { raw: 5, rng: seq([0.5]) });
   assert.equal(n.combatNote, undefined, 'no critical, no roll');
 });
+
+test('a critical injury that does not fit a full note is not cut and is reported as not saved', () => {
+  const G = load().GMTable, old = 'x'.repeat(300);
+  const n = { kind: 'npc', name: 'N', hp: 30, sp: { head: 0, body: 0 }, combatNote: { version: 1, text: old } };
+  const r = G.hitNpc(n, { raw: 10, location: 'body', critical: true, rng: () => 0.5 });
+  assert.equal(r.injury.saved, false);
+  assert.equal(n.combatNote.text, old);
+  for (const l of ['ru', 'en']) assert.doesNotMatch(G.hitText(l, 'N', r), /записано в заметку|added to the note/);
+  assert.match(G.hitText('ru', 'N', r), /не записано/);
+  assert.match(G.hitText('en', 'N', r), /not saved/);
+  const m = { kind: 'npc', name: 'M', hp: 30, sp: { head: 0, body: 0 } };
+  const r2 = G.hitNpc(m, { raw: 10, location: 'body', critical: true, rng: () => 0.5 });
+  assert.equal(r2.injury.saved, undefined);
+  assert.match(G.hitText('en', 'M', r2), /added to the note/);
+});

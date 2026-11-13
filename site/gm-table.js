@@ -25,7 +25,7 @@ const T={
   stopped:(name,raw,sp)=>`${name}: броня остановила урон (${raw} против SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, по HP ${dealt}`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
   directHit:(name,dealt,from,to)=>`${name}: ${dealt} напрямую. HP ${from} → ${to}.`,
-  mortalPenalty:(a,b)=>` Штраф Death Save ${a} → ${b}.`,nowMortal:' Смертельно ранен.',critInjury:(n,name)=>` Крит. ранение (2d6 = ${n}): ${name}; записано в заметку.`,critNote:(n,name,eff)=>`Крит. ранение (${n}): ${name}${eff?' — '+eff:''}`,
+  mortalPenalty:(a,b)=>` Штраф Death Save ${a} → ${b}.`,nowMortal:' Смертельно ранен.',critInjury:(n,name,saved)=>` Крит. ранение (2d6 = ${n}): ${name}; ${saved===false?'заметка заполнена, ранение не записано':'записано в заметку'}.`,critNote:(n,name,eff)=>`Крит. ранение (${n}): ${name}${eff?' — '+eff:''}`,
   undo:'Отменить',undone:'Урон отменён.',undoStale:'Данные уже изменились — отмена невозможна.',
   party:'НАГРАДА ГРУППЕ',partyHelp:'Деньги и Improvement Points всем выбранным персонажам одним действием. IP можно указать каждому отдельно (стр. 410–411).',
   partyNone:'Добавьте персонажей в кампанию, чтобы выдавать награду.',inRoom:'в комнате',
@@ -58,7 +58,7 @@ const T={
   stopped:(name,raw,sp)=>`${name}: armor stopped the damage (${raw} against SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, ${dealt} to HP`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
   directHit:(name,dealt,from,to)=>`${name}: ${dealt} directly. HP ${from} → ${to}.`,
-  mortalPenalty:(a,b)=>` Death Save penalty ${a} → ${b}.`,nowMortal:' Mortally Wounded.',critInjury:(n,name)=>` Critical Injury (2d6 = ${n}): ${name}; added to the note.`,critNote:(n,name,eff)=>`Critical Injury (${n}): ${name}${eff?' — '+eff:''}`,
+  mortalPenalty:(a,b)=>` Death Save penalty ${a} → ${b}.`,nowMortal:' Mortally Wounded.',critInjury:(n,name,saved)=>` Critical Injury (2d6 = ${n}): ${name}; ${saved===false?'note is full, injury not saved':'added to the note'}.`,critNote:(n,name,eff)=>`Critical Injury (${n}): ${name}${eff?' — '+eff:''}`,
   undo:'Undo',undone:'Damage undone.',undoStale:'The data has already changed — it cannot be undone.',
   party:'PARTY REWARD',partyHelp:'Money and Improvement Points for every chosen character in one action. IP can be set per character (pp. 410–411).',
   partyNone:'Add characters to the campaign to hand out rewards.',inRoom:'in the room',
@@ -141,7 +141,9 @@ function critInjury(target,loc,args){
  const l=args?.lang==='en'?'en':'ru',tt=T[l],name=row[l]||row.en||'?',eff=row.effect?.[l]||'',cn=target.combatNote;
  if(!(cn===undefined||(cn&&typeof cn==='object'&&!Array.isArray(cn)&&cn.version===1&&typeof cn.text==='string')))return null;
  const old=cn?cn.text:'',line=tt.critNote(total,name,eff),joined=old?old+'\n'+line:line;
- const text=joined.length<=300?joined:((old?old+'\n':'')+tt.critNote(total,name,'')).slice(0,300);
+ const shortJ=(old?old+'\n':'')+tt.critNote(total,name,'');
+ if(joined.length>300&&shortJ.length>300)return {total,name,saved:false};
+ const text=joined.length<=300?joined:shortJ;
  target.combatNote={...(cn||{}),version:1,text};
  return {total,name};
 }
@@ -172,7 +174,7 @@ function hitPc(pc,args){
 function hitText(lang,name,r){
  const t=T[L(lang)];
  if(r.stopped)return t.stopped(name,r.raw,r.sp);
- return (r.direct?t.directHit(name,r.dealt,r.from,r.hp):t.hit(name,r.raw,r.sp,r.through,r.dealt,r.from,r.hp,r.spFrom,r.spTo))+(r.penalty?t.mortalPenalty(r.penalty[0],r.penalty[1]):'')+(r.nowMortal?t.nowMortal:'')+(r.injury?t.critInjury(r.injury.total,r.injury.name):'');
+ return (r.direct?t.directHit(name,r.dealt,r.from,r.hp):t.hit(name,r.raw,r.sp,r.through,r.dealt,r.from,r.hp,r.spFrom,r.spTo))+(r.penalty?t.mortalPenalty(r.penalty[0],r.penalty[1]):'')+(r.nowMortal?t.nowMortal:'')+(r.injury?t.critInjury(r.injury.total,r.injury.name,r.injury.saved):'');
 }
 
 /* A reward for the party. `draft` is the form: {cash, mode:'each'|'split', ip, off:{id:true}, ipBy:{id:text}}.
