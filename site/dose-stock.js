@@ -42,5 +42,10 @@ function add(c,key,n,lang){
  try{const e=window.CharacterExtra.addCatalog(c,item(key),lang);if(!e?.record||e.kind!=='item')return {ok:false,reason:'unavailable'};e.record.quantity=n;return {ok:true,rowId:e.record.id}}
  catch{return {ok:false,reason:'unavailable'}}
 }
-window.DoseStock={IDS,NAMES,drugKeys:Object.keys(IDS),catalogId,keyOf,rows,legacy,count,take,canAdd,add};
+function migrate(c,lang){
+ let moved=0;
+ for(const key of PHARMA){const n=legacy(c,key);if(n<1)continue;const r=add(c,key,n,lang);if(r.ok){c.extra.pharmacy.doses[key]=0;moved+=n}}
+ return moved;
+}
+window.DoseStock={IDS,NAMES,drugKeys:Object.keys(IDS),catalogId,keyOf,rows,legacy,count,take,canAdd,add,migrate};
 })();

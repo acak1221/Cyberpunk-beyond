@@ -7,5 +7,6 @@
 .drug-now-title{font-size:.8em;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .drug-due{border-left:3px solid var(--warn,var(--accent,currentColor));padding-left:8px}
 .drug-take{display:inline-flex}
+.cx-item-edit > .drug-take{display:flex;margin:12px 12px 0}
 .drug-chip small{opacity:.8;margin-right:4px}
 .drug-stock{margin:6px 0}

@@ -37,3 +37,14 @@ test('add tops up, creates, refuses full and invalid; leaves the rest untouched'
   const snap = JSON.stringify(big); assert.equal(D.add(big, 'boost', 1).reason, 'full'); assert.equal(JSON.stringify(big), snap);
   assert.equal(D.canAdd(c, 'nope', 1).reason, 'invalid');
 });
+test('migrate moves legacy pharmacy doses into inventory rows once', () => {
+  const D = load().DoseStock;
+  const c = { extra: { items: [], pharmacy: { version: 1, doses: { speedheal: 2, stim: 1 }, history: [] } } };
+  assert.equal(D.migrate(c, 'en'), 3);
+  assert.equal(c.extra.pharmacy.doses.speedheal, 0);
+  assert.equal(D.legacy(c, 'speedheal'), 0);
+  assert.equal(D.count(c, 'speedheal'), 2);
+  assert.equal(D.count(c, 'stim'), 1);
+  assert.equal(D.migrate(c, 'en'), 0);
+  assert.equal(D.count(c, 'speedheal'), 2);
+});

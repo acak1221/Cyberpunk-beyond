@@ -28,3 +28,8 @@ test('switching account, detaching form or changing the character during confirm
 test('both languages describe manual effects and the book source',()=>{
  const c=person();D.setScope(null);D.setScope('scope-a');for(const l of ['ru','en']){const html=D.render(c,l);assert.match(html,/data-page="227"/);assert.match(html,/Black Lace/);assert.match(html,/Humanity/)}
 });
+test('black lace: take button hidden while a check is due', () => {
+  const src = require('node:fs').readFileSync(__dirname + '/../site/drug-tools.js', 'utf8');
+  require('node:assert').ok(src.includes("record?.status!=='awaiting'?`<button"));
+  require('node:assert').ok(src.includes("records[key]?.status==='awaiting')return ''"));
+});
