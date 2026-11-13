@@ -387,9 +387,10 @@
     const put = (key, text) => { try { if (text == null) storage?.removeItem?.(key); else storage?.setItem?.(key, text); } catch { /* storage blocked */ } };
     let owner = get(OWNER_KEY) || null;
     const parked = () => { try { const o = JSON.parse(get(PARK_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch { return {}; } };
+    // The buyer another tab saved as the owner of the live cart, when that is one of the known characters.
+    const storedOwner = () => { const v = get(OWNER_KEY); return v && (host.characters() || []).some(x => x.id === v) ? v : null; };
     function follow() {
-      sync();
-      { const stored = get(OWNER_KEY); if (stored) owner = stored; }
+      { const stored = storedOwner(); if (stored && stored !== owner) { if (raw() !== seen) sync(); owner = stored; } }
       const id = host.buyerId(), c = (host.characters() || []).find(x => x.id === id);
       if (!c || c.id === owner) return;
       if (!owner) { owner = c.id; put(OWNER_KEY, owner); return; }
@@ -421,7 +422,7 @@
     // Another tab changed the stored cart (bought it, cleared it, edited it): take its version, so that
     // a cart that was already paid for cannot be paid again here or written back. True when it changed.
     function sync() {
-      { const stored = get(OWNER_KEY); if (stored) owner = stored; }
+      { const stored = storedOwner(); if (stored) owner = stored; }
       const now = raw();
       if (now === seen) return false;
       seen = now;
