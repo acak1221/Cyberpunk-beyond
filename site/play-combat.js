@@ -156,7 +156,7 @@ function hitQuote(c,s){
 function hitText(q,l){
  const parts=[];
  if(q.damage<=0&&q.type!=='direct')parts.push(tr(l,'hitBlocked'));else parts.push(`${tr(l,'hitToHp')}: ${q.damage}`);
- parts.push(`HP ${q.hp} → ${q.hpAfter}`);
+ parts.push(`HP ${q.hp} → ${Math.max(0,q.hpAfter)}`);
  if(q.type!=='direct')parts.push(`SP ${q.sp} → ${q.spAfter}`);
  if(q.headMultiplier>1&&q.penetrating>0)parts.push(tr(l,'hitHeadX',{n:q.headMultiplier}));
  if(q.bonus>0)parts.push(tr(l,'hitInjury',{n:q.bonus}));
@@ -171,7 +171,7 @@ function hitApply(c,s){
  const r=hitQuote(c,s);if(!r.ok)return r;
  const q=r.q,copy=r.copy,hadExtra=c.extra!==undefined;
  const before={hp:c.hp,head:c.head,bodyArmor:c.bodyArmor,hadExtra,deathPenalty:copyOf(c.extra?.deathPenalty),medical:copyOf(c.extra?.medical),equipment:copyOf(c.extra?.equipment)};
- c.hp=q.hpAfter;
+ c.hp=Math.max(0,q.hpAfter);
  if(q.mortalAttack){if(!c.extra)c.extra={};c.extra.deathPenalty=q.penaltyAfter}
  if(q.resetStabilization)c.extra.medical={...c.extra.medical,stabilized:false};
  if(q.spAfter!==q.sp&&q.type!=='direct'){
