@@ -61,3 +61,14 @@ test('mortally stabilized player remains unconscious through later injury until 
 test('recorded death and unknown death records block stabilization and healing',()=>{for(const record of [{version:1,dead:true},{version:2,dead:false,extra:'keep'},{version:1,dead:false,lastRoll:{die:8,penalty:0,body:8,success:true}}]){const h=setup(),c=patient();c.hp=0;c.extra.deathRecord=record;c.extra.medical={version:1,stabilized:true,stabilizedHp:0};h.m.render({lang:'en',characters:[c]});const before=JSON.stringify(c);for(const op of ['stabilize-roll','stabilize-apply','heal','wake'])assert.notEqual(click(h.m,op,c).dirty,true);assert.equal(JSON.stringify(c),before)}});
 test('death during stabilization confirmation invalidates the pending result',()=>{const h=setup(),c=patient();c.hp=0;h.m.render({lang:'en',characters:[c]});h.rolls.push(0.9,0.4);click(h.m,'stabilize-roll',c);h.w.confirm=()=>{c.extra.deathRecord={version:1,dead:true,lastRoll:{die:10,penalty:0,body:8,success:false}};return true};assert.notEqual(click(h.m,'stabilize-apply',c).dirty,true);assert.equal(c.hp,0);assert.equal(c.extra.medical,undefined)});
 test('unknown unconscious version is preserved instead of being overwritten',()=>{const h=setup(),c=patient();c.extra.medical={version:1,stabilized:true,stabilizedHp:20,unconscious:'later',other:'keep'};h.m.render({lang:'en',characters:[c]});const before=JSON.stringify(c);assert.notEqual(click(h.m,'wake',c).dirty,true);assert.equal(JSON.stringify(c),before)});
+
+test('rest consumes the days from the game calendar, prefill fills the form and the patient change reads the calendar',()=>{
+ const gc={window:{confirm:()=>true},Math,Date,JSON,Object,Array,Number,String};vm.createContext(gc);
+ for(const f of ['medical-tools.js','game-calendar.js'])vm.runInContext(fs.readFileSync(__dirname+'/../site/'+f,'utf8'),gc);
+ const m=gc.window.MedicalTools,c=patient();c.hp=9;c.extra.medical={version:1,stabilized:true,stabilizedHp:9};c.extra.calendar={version:1,date:'2045-03-12',marks:{heal:'2045-03-09'}};
+ assert.equal(m.prefill({patient:'p',days:3}),false,'no scope yet');m.setScope('user:1');
+ assert.equal(m.prefill({patient:'p',days:3,restDate:'2045-03-09'}),true);
+ const ctx={lang:'en',characters:[c]};m.render(ctx);const html=m.render(ctx);assert.match(html,/value="3"/);
+ assert.equal(m.handle(event('heal'),ctx).dirty,true);assert.equal(c.hp,33);assert.equal(c.extra.calendar.marks.heal,'2045-03-12');
+ c.extra.calendar.marks.heal='2045-03-10';c.extra.antibioticTreatment={version:1,courses:[],restDates:[]};field(m,'selected','',c);assert.equal(field(m,'selected','p',c).handled,true);assert.match(m.render(ctx),/restDate" min="0001-01-01" max="9999-12-31" value="2045-03-10"/);
+});

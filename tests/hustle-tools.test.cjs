@@ -29,3 +29,11 @@ test('a detached sheet or failing callback blocks role changes and confirmation'
  assert.notEqual(H.handle(roleChange,old,'en',options).dirty,true);assert.notEqual(H.handle(ev('roll'),old,'en',options).dirty,true);
  assert.notEqual(H.handle(ev('roll'),old,'en',{isCurrent:()=>{throw Error('unavailable')}}).dirty,true);assert.equal(calls,0);assert.equal(JSON.stringify(old),before);ctx.window.confirm=()=>true;
 });
+
+test('a confirmed roll consumes one free week of the game calendar; without one nothing is added',()=>{
+ const gc={window:{confirm:()=>true},crypto:{randomUUID:()=>`g-${++counter}`},Math,Date,JSON,Object,Array,Number,String};vm.createContext(gc);
+ for(const f of ['hustle-tools.js','game-calendar.js'])vm.runInContext(fs.readFileSync(__dirname+'/../site/'+f,'utf8'),gc);
+ const x={id:'c',role:'solo',rank:4,extra:{cash:100,calendar:{version:1,date:'2045-03-26',marks:{hustle:'2045-03-12'}}}};
+ assert.equal(gc.window.HustleTools.handle(ev('roll'),x,'en').dirty,true);assert.equal(x.extra.calendar.marks.hustle,'2045-03-19');
+ const y=c();assert.equal(H.handle(ev('roll'),y,'en').dirty,true);assert.equal(y.extra.calendar,undefined);
+});

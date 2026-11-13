@@ -163,7 +163,7 @@ test('hustle income is credited through Wallet', () => {
 
 test('jump links point at sections that exist and that the tabs know', () => {
   const D = load(['wallet.js', 'downtime.js']).Downtime, tabs = site('sheet-tabs.js');
-  const markup = ['app.js', 'character-extra.js', 'agent-notes.js', 'hustle-tools.js', 'lifestyle-tools.js', 'drug-tools.js'].map(site).join('\n');
+  const markup = ['app.js', 'character-extra.js', 'agent-notes.js', 'hustle-tools.js', 'lifestyle-tools.js', 'drug-tools.js', 'game-calendar.js'].map(site).join('\n');
   for (const [id] of D.JUMPS) { assert.match(markup, new RegExp(`id="${id}"`), id); assert.match(tabs, new RegExp(`'${id}':'`), id + ' has no owner tab'); }
   const nav = D.jumpNav({ id: 'a', extra: { cash: 2900 } }, 'ru');
   assert.match(nav, /data-hud-jump="sheet-living">Жильё и образ жизни/); assert.match(nav, /Деньги <b>2 900 eb<\/b>/);
@@ -207,4 +207,17 @@ test('a Solo fight that was never saved still ends with the session; undo keeps 
   assert.equal(r2.newFight, undefined);
   d.extra = r2.extra;
   assert.deepEqual(plain(D.undoSession(d, r2.before).soloRound), keep);
+});
+
+test('with the game calendar loaded the session toast carries the game date and a way to it', () => {
+  const w = load(['wallet.js', 'downtime.js', 'game-calendar.js']), D = w.Downtime;
+  const c = { id: 'a', stats: { LUCK: 6 }, extra: { luck: 4, calendar: { version: 1, date: '2045-03-12' } } };
+  const r = D.handle(click('session'), { lang: 'ru', view: 'sheet', active: c, isCurrent: x => x === c });
+  assert.match(r.notify, /Дата игры 12\.03\.2045/); assert.equal(r.calendar, true);
+  const off = { id: 'b', stats: { LUCK: 6 }, extra: { luck: 4 } };
+  assert.match(D.handle(click('session'), { lang: 'ru', view: 'sheet', active: off, isCurrent: x => x === off }).notify, /Дата игры не задана\./);
+  assert.match(D.jumpNav(c, 'ru'), /data-hud-jump="sheet-calendar">Дата игры <b>12\.03\.2045<\/b>/);
+  assert.match(D.jumpNav(off, 'ru'), /data-hud-jump="sheet-calendar">Дата игры<\/button>/);
+  const bare = load(['wallet.js', 'downtime.js']).Downtime.handle(click('session'), { lang: 'ru', view: 'sheet', active: { id: 'z', stats: { LUCK: 6 }, extra: { luck: 4 } }, isCurrent: () => true });
+  assert.doesNotMatch(bare.notify, /Дата игры/); assert.equal(bare.calendar, false);
 });

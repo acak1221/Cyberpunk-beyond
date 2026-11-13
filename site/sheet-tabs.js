@@ -25,9 +25,9 @@ const BOARD_TABS=[
  ['life','Персонаж','Character','⌁'],
  ['netrun','NETRUN','NETRUN','⌬'],
 ];
-const BOARD_OWNER={'sheet-hustle':'life','sheet-identity':'life','sheet-stats':'life','sheet-resources':'life','sheet-reputation':'life','sheet-role':'combat','sheet-role-ability':'role','sheet-features':'role'};
+const BOARD_OWNER={'sheet-calendar':'life','sheet-hustle':'life','sheet-identity':'life','sheet-stats':'life','sheet-resources':'life','sheet-reputation':'life','sheet-role':'combat','sheet-role-ability':'role','sheet-features':'role'};
 // Which tab owns each jump-nav target, so links into the sheet still land somewhere visible.
-const OWNER={'sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-reputation':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun','sheet-hustle':'role','sheet-living':'life','sheet-drugs':'life'};
+const OWNER={'sheet-calendar':'life','sheet-identity':'main','sheet-stats':'main','sheet-resources':'main','sheet-reputation':'main','sheet-vitals':'main','sheet-skills':'skills','sheet-specializations':'skills','sheet-weapons':'combat','sheet-damage':'combat','reload-tools-mount':'combat','sheet-equipment':'gear','sheet-items':'gear','sheet-role':'role','sheet-role-ability':'role','sheet-ip':'life','sheet-lifepath':'life','sheet-notes':'life','sheet-agent':'life','sheet-netrun':'netrun','sheet-hustle':'role','sheet-living':'life','sheet-drugs':'life'};
 let current='main',lastCharacter=null,hpOpen=false,hpReason='damage',dv=0,locked=false;
 const LOCK_KEY='nc-sheet-lock',DVS=[[9,'Простая','Simple'],[13,'Обычная','Everyday'],[15,'Сложная','Difficult'],[17,'Профессиональная','Professional'],[21,'Героическая','Heroic'],[24,'Невероятная','Incredible'],[29,'Легендарная','Legendary']];
 try{locked=global.localStorage?.getItem(LOCK_KEY)==='1'}catch{}

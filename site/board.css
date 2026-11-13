@@ -119,7 +119,7 @@ html.ui-native.ui-board .sheet-stat-strip { gap: 6px; margin-bottom: 10px; borde
 html.ui-native.ui-board .sheet-layout[data-active-tab="combat"] .sheet-primary > #sheet-role { display: block; }
 html.ui-native.ui-board .sheet-layout[data-active-tab="role"] .sheet-primary > :is(#sheet-role, .hustle-tools) { display: none; }
 html.ui-native.ui-board .sheet-layout[data-active-tab="role"] .sheet-primary > #sheet-features { display: block; }
-html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .sheet-primary > :is(#sheet-identity, #sheet-stats, .hustle-tools) { display: block; }
+html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .sheet-primary > :is(#sheet-identity, #sheet-stats, #sheet-calendar, .hustle-tools) { display: block; }
 /* The id in the list is there for weight only: the rule it overrides hides by a list of ids. */
 html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .sheet-primary > :is(.delete-button, #sheet-none) { display: inline-block; }
 html.ui-native.ui-board .sheet-layout[data-active-tab="life"] .cx-root > #sheet-resources { display: block; }

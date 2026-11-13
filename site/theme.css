@@ -111,7 +111,7 @@
 .sheet-layout[data-active-tab="role"] .sheet-primary > :not(.cx-root, #sheet-role, .hustle-tools) { display: none; }
 .sheet-layout[data-active-tab="role"] .cx-root > :not(#sheet-role-ability) { display: none; }
 
-.sheet-layout[data-active-tab="life"] .sheet-primary > :not(.cx-root, .lifestyle-tools, .drug-tools, #sheet-agent, #sheet-notes) { display: none; }
+.sheet-layout[data-active-tab="life"] .sheet-primary > :not(.cx-root, .lifestyle-tools, .drug-tools, .game-calendar, #sheet-agent, #sheet-notes) { display: none; }
 .sheet-layout[data-active-tab="netrun"] .sheet-primary > :not(#sheet-netrun, #sheet-role) { display: none; }
 .sheet-layout[data-active-tab="life"] .cx-root > :not(#sheet-ip, #sheet-lifepath) { display: none; }
 

@@ -1,0 +1,19 @@
+/* Game calendar: the «Дата игры» card of the sheet and the «Дата кампании» card of a campaign. Tokens only. */
+.game-calendar .cal-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 4px 0 10px; }
+.game-calendar .cal-head .field, .game-calendar .cal-start .field { margin: 0; min-width: 0; }
+.game-calendar input[type="date"] { min-height: 44px; max-width: 100%; box-sizing: border-box; }
+.game-calendar .cal-steps, .game-calendar .cal-actions, .game-calendar .cal-start { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.game-calendar .cal-start { margin-top: 8px; }
+.game-calendar .btn { min-height: 44px; }
+.game-calendar .cal-undo { border-color: var(--yellow, #e8c547); }
+.game-calendar .cal-sub { margin: 12px 0 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; opacity: .8; }
+.game-calendar .cal-due { display: grid; gap: 6px; }
+.game-calendar .cal-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0; padding: 8px 10px; border: 1px solid var(--border, #514643); border-radius: 6px; }
+.game-calendar .cal-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.game-calendar .cal-row.cal-warning { border-color: var(--danger, #e0554c); color: var(--danger, #e0554c); }
+.game-calendar p.cal-warning { color: var(--danger, #e0554c); font-weight: 700; }
+.game-calendar .cal-camp, .game-calendar .cal-chars, .game-calendar .cal-ask { margin: 8px 0; overflow-wrap: anywhere; }
+.game-calendar .cal-empty { margin: 4px 0 0; opacity: .8; }
+.game-calendar[data-cal-campaign] .field { display: block; margin: 0 0 8px; }
+html.ui-native.ui-light .game-calendar .cal-row.cal-warning, html.ui-native.ui-light .game-calendar p.cal-warning { color: #8f1a10; border-color: #8f1a10; }
+@media print { .game-calendar button, .game-calendar input { display: none; } }
