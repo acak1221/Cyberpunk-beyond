@@ -21,7 +21,7 @@ const T={
   sampleFail:{paused:'Сейчас данные нельзя менять. Проверьте сообщение о хранилище вверху страницы.',storage:'Не хватило места в хранилище браузера: персонаж не добавлен.',invalid:'Не удалось добавить готового персонажа.'},
   sampleName:'Вега',sampleNative:'Английский',
   sampleNotes:'Готовый персонаж для знакомства с приложением: соло со стартовыми характеристиками и навыками роли (стр. 74 и 86). Меняйте что угодно или удалите его, когда создадите своего.',
-  weaponNote:'Оружие готового персонажа; заряжено.',pistol:'Очень тяжёлый пистолет',rifle:'Штурмовая винтовка',
+  weaponNote:'Оружие готового персонажа; заряжено.',ammoNote:'Запасные патроны готового персонажа (стартовый набор Соло, стр. 98).',pistol:'Очень тяжёлый пистолет',rifle:'Штурмовая винтовка',
   trialName:'Пробный бой',trialNotes:'Учебный бой: ваш персонаж против двух противников. Следуйте подсказкам в блоке «Инициатива и бой». Когда закончите, кампанию можно удалить.',
   enemy:'Противник',fallbackWeapon:'Тяжёлый пистолет (условный)',
   trialCount:n=>`Пробный бой · шаг ${n} из 4`,trialDone:'Пробный бой · готово',hide:'Скрыть подсказки',show:'Показать, где это',
@@ -55,7 +55,7 @@ const T={
   sampleFail:{paused:'Data cannot be changed right now. Check the storage message at the top of the page.',storage:'Browser storage is full: the character was not added.',invalid:'Could not add the ready-made character.'},
   sampleName:'Vega',sampleNative:'English',
   sampleNotes:'A ready-made character for getting to know the app: a Solo with starting STATs and Role skills (pp. 74 and 86). Change anything, or delete it once you have your own.',
-  weaponNote:'Ready-made character weapon; loaded.',pistol:'Very Heavy Pistol',rifle:'Assault Rifle',
+  weaponNote:'Ready-made character weapon; loaded.',ammoNote:'The ready-made character\'s spare rounds (Solo starter package, p. 98).',pistol:'Very Heavy Pistol',rifle:'Assault Rifle',
   trialName:'Trial fight',trialNotes:'A practice fight: your character against two enemies. Follow the hints in the Initiative & Combat block. Delete the campaign when you are done.',
   enemy:'Enemy',fallbackWeapon:'Heavy Pistol (stand-in)',
   trialCount:n=>`Trial fight · step ${n} of 4`,trialDone:'Trial fight · done',hide:'Hide hints',show:'Show me where',
@@ -96,9 +96,12 @@ const SAMPLE_STATS={INT:5,REF:8,DEX:7,TECH:4,COOL:7,WILL:7,LUCK:6,MOVE:7,BODY:8,
 const SAMPLE_SKILLS={Athletics:2,Brawling:2,Concentration:2,Conversation:2,Education:2,Evasion:6,'First Aid':6,'Human Perception':2,'Language (Streetslang)':2,'Local Expert (Home)':2,Perception:6,Persuasion:2,Stealth:2,Autofire:6,Handgun:6,Interrogation:6,'Melee Weapon':6,'Resist Torture/Drugs':6,'Shoulder Arms':6,Tactics:6};
 function sampleCharacter(lang){
  const t=T[L(lang)],hp=10+5*Math.ceil((SAMPLE_STATS.BODY+SAMPLE_STATS.WILL)/2);
- const weapon=(id,catalogId,name,skill,damage,rof,capacity)=>({id,catalogId,name,skill,stat:'REF',modifier:0,damage,rof,capacity,ammo:capacity,ammoCost:1,usesAmmo:true,notes:t.weaponNote});
+ // Spare rounds are the rest of the Solo starter ammunition (p. 98): the loaded magazines come out of it, like in the Streetrat wizard.
+ const A=window.Archetypes,items=[],ammoFor={};
+ if(A?.getStarterAmmo&&A?.getTemplate){try{const gear=A.getTemplate('solo').gear;for(const [i,capacity,id,key] of [[3,8,'sample-vh-ammo','sample-vh-pistol'],[4,25,'sample-rifle-ammo','sample-assault-rifle']]){const s=A.getStarterAmmo('solo',i,{}),n=gear[i].name;if(!s||s.initialQuantity<capacity)throw 0;items.push({id,name:n[L(lang)],localizedName:{...n},startingPackItem:true,category:'equipment',quantity:s.initialQuantity-capacity,catalogId:s.catalogId,ammoType:s.ammoType,starterAmmo:{...s.starterAmmo},notes:t.ammoNote});ammoFor[key]={version:1,ammoCatalogId:s.catalogId,ammoType:s.ammoType,ammoRecordId:id,units:capacity}}}catch{items.length=0}}
+ const weapon=(id,catalogId,name,skill,damage,rof,capacity)=>({id,catalogId,name,skill,stat:'REF',modifier:0,damage,rof,capacity,ammo:capacity,ammoCost:1,usesAmmo:true,notes:t.weaponNote,...(items.length?{lastReload:{...ammoFor[id]}}:{})});
  return {name:t.sampleName,role:'solo',rank:4,stats:{...SAMPLE_STATS},skills:{...SAMPLE_SKILLS},hp,humanity:SAMPLE_STATS.EMP*10,head:11,bodyArmor:11,native:t.sampleNative,gear:'',cyberware:'',notes:t.sampleNotes,
-  extra:{sample:true,cash:500,gearBudget:0,fashionBudget:0,nativeLevel:4,weapons:[weapon('sample-vh-pistol','weapon-very-heavy-pistol',t.pistol,'Handgun','4d6',1,8),weapon('sample-assault-rifle','weapon-assault-rifle',t.rifle,'Shoulder Arms','5d6',1,25)]}};
+  extra:{sample:true,cash:500,gearBudget:0,fashionBudget:0,nativeLevel:4,...(items.length?{startingPack:{method:'streetrat',role:'solo',confirmed:true,sourcePages:[74,86,98],choices:{gear:{},outfit:{},cyberware:{}}},items}:{}),weapons:[weapon('sample-vh-pistol','weapon-very-heavy-pistol',t.pistol,'Handgun','4d6',1,8),weapon('sample-assault-rifle','weapon-assault-rifle',t.rifle,'Shoulder Arms','5d6',1,25)]}};
 }
 const isSample=c=>!!c&&typeof c==='object'&&c.extra?.sample===true;
 const findSample=characters=>list(characters).find(isSample)||null;

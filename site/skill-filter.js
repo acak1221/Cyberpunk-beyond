@@ -7,13 +7,13 @@ const normalized=x=>String(x??'').normalize('NFKC').trim().toLocaleLowerCase();
 function render(c,lang,scope,generation){
  if(c!==character||scope!==owner||generation!==epoch){character=c;owner=scope;epoch=generation;query='';trained=false}
  const ru=lang!=='en';
- return `<div class="sheet-skill-filter"><label class="field">${ru?'Поиск базовых навыков':'Search base skills'}<input type="search" data-skill-filter="query" value="${esc(query)}" placeholder="${ru?'Название или STAT':'Name or STAT'}" autocomplete="off"></label><label><input type="checkbox" data-skill-filter="trained" ${trained?'checked':''}> ${ru?'Только изученные':'Trained only'}</label><p>${ru?'Отдельные специализации находятся ниже по листу.':'Separate specializations are further down the sheet.'}</p><p data-skill-filter-count role="status" aria-live="polite"></p></div>`;
+ return `<div class="sheet-skill-filter"><label class="field">${ru?'Поиск навыков':'Search skills'}<input type="search" data-skill-filter="query" value="${esc(query)}" placeholder="${ru?'Название или STAT':'Name or STAT'}" autocomplete="off"></label><label><input type="checkbox" data-skill-filter="trained" ${trained?'checked':''}> ${ru?'Только изученные':'Trained only'}</label><p>${ru?'Специализации показаны под своим навыком; уровень меняется в разделе «Специализации».':'Specializations are listed under their skill; change their level in «Specializations».'}</p><p data-skill-filter-count role="status" aria-live="polite"></p></div>`;
 }
 function apply(root,lang){
  if(!root)return;
  const words=normalized(query).split(/\s+/).filter(Boolean);let shown=0,total=0;
  for(const row of root.querySelectorAll('.skill-row[data-skill-search]')){
-  total++;const text=normalized(row.dataset.skillSearch),value=row.querySelector('input[data-skill]')?.value;
+  total++;const text=normalized(row.dataset.skillSearch),value=row.querySelector('input[data-skill]')?.value??row.dataset.skillLevel;
   const yes=words.every(w=>text.includes(w))&&(!trained||(typeof value==='string'&&/^\d+$/.test(value.trim())&&Number(value)>0));
   row.hidden=!yes;if(yes)shown++;
  }

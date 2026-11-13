@@ -54,7 +54,7 @@ test('a check judged against a DV succeeds only above it',()=>{
  const app=source('app.js');
  assert.match(app,/beat=dv\?total>dv:null/);
  assert.match(app,/\$\{dv\?` = \$\{total\} \$\{beat\?'>':'≤'\} DV \$\{dv\} — /);
- assert.match(app,/\{dv:window\.SheetTabs\?\.takeDV\?\.\(\)\|\|0\}/,'a skill check takes the DV set for the next roll');
+ assert.match(app,/\{dv:window\.SheetTabs\?\.takeDV\?\.\(\)\|\|0[,}]/,'a skill check takes the DV set for the next roll');
  assert.match(app,/dv:q\.dv\|\|window\.SheetTabs\?\.takeDV\?\.\(\)\|\|0/,'a weapon attack uses its range DV first');
 });
 

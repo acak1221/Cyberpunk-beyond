@@ -168,7 +168,7 @@ function fight(over = {}) {
   w.App = { active: () => c, lang: () => 'ru', save: () => calls.push(['save']), render: () => calls.push(['render']), notify: m => calls.push(['notify', m]), report: (...a) => { calls.push(['report', ...a]); return true; },
     // the sheet's layer: STAT + level + wounds + the pending modifier and LUCK
     checkBonus: (ch, stat, level) => ch.stats[stat] + level + ch.extra.modifier + Math.min(ch.extra.luck, ch.extra.luckUse),
-    check: (base, label, o) => { calls.push(['check', base, label, plain(o)]); return { total: over.total ?? 20, dv: o.dv, beat: o.dv ? (over.total ?? 20) > o.dv : null }; } };
+    check: (base, label, o) => { Object.defineProperty(calls, 'parts', { value: o.parts, configurable: true, writable: true }); calls.push(['check', base, label, plain((({ parts, ...r }) => r)(o))]); return { total: over.total ?? 20, dv: o.dv, beat: o.dv ? (over.total ?? 20) > o.dv : null }; } };
   // a tap on a button of the card; `range` is what the card's range select holds
   const press = (data, range, box) => { const card = { querySelector: sel => sel === '[data-cx-range]' && range !== undefined ? { value: range } : null }, b = { dataset: data, disabled: false, closest: sel => sel === '.cx-weapon' ? card : sel === '.pc-unarmed' ? box || null : null }, e = { target: { closest: sel => sel === 'button[data-pc-mode]' ? b : null } }; for (const fn of listeners.click) fn(e); };
   return { w, P: w.PlayCombat, c, calls, press };
@@ -196,6 +196,7 @@ test('a burst is a roll of the character: sheet numbers, weapon modifier, LUCK a
   const out = P.sheetCheck(c, { stat: 'REF', level: 4, kind: 'ranged', skillKey: 'Autofire', label: 'Очередь: AR', dv: 17, extra: ar.modifier, solo: { precision: 1, fumble: true } });
   assert.equal(out.total, 20);
   assert.deepEqual(calls[0], ['check', 8, 'Очередь: AR · Precision Attack +1 · LUCK +1', { wounds: false, dv: 17, skill: 4, mod: 2, ignoreFumble: true }], 'REF 8 + Autofire 4, then −1 modifier +1 LUCK +1 weapon +1 Precision');
+  assert.deepEqual(plain(calls.parts), [{ k: 'wound', v: 0 }, { k: 'effects', v: 0 }, { k: 'sheet', v: -1 }, { k: 'luck', v: 1 }, { k: 'weapon', v: 1 }, { k: 'precision', v: 1 }], 'the parts add up to the same number, named one by one');
   assert.deepEqual([c.extra.luck, c.extra.luckUse, c.extra.modifier], [3, 0, 0], 'LUCK and the modifier are used up like on any sheet roll');
   c.extra.modifierHold = true; c.extra.modifier = -2; P.sheetCheck(c, { stat: 'REF', level: 4, label: 'x' }); assert.equal(c.extra.modifier, -2, 'a kept modifier stays');
 });
@@ -244,7 +245,7 @@ test('the weapon card: aimed shot is −8 once and names the damage rule; burst 
   assert.match(modes, /data-pc-mode="suppress"/);
   ar.ammo = 9; assert.match(P.weaponModes(c, ar, 'en'), /data-pc-mode="burst"[^>]* disabled>⬡ Burst −10/);
   const ce = read('character-extra.js');
-  for (const piece of ["${window.PlayCombat?.aimSelect?.(c,w,l)||''}${action('attack',", "aim=window.PlayCombat?.takeAim?.(c,w,language(lang))||null", "+luck+(aim?aim.mod:0),luckSpent:luck", "${window.PlayCombat?.weaponModes?.(c,w,l)||''}", "${window.PlayCombat?.unarmed?.(c,l)||''}", "${window.PlayCombat?.rangeNote?.(w,b.band,l)||''}", "${window.PlayCombat?.loadedLine?.(w,l)||''}"]) assert.ok(ce.includes(piece), piece);
+  for (const piece of ["${window.PlayCombat?.aimSelect?.(c,w,l)||''}${action('attack',", "aim=window.PlayCombat?.takeAim?.(c,w,language(lang))||null", "+luck+(aim?aim.mod:0),parts:", "${window.PlayCombat?.weaponModes?.(c,w,l)||''}", "${window.PlayCombat?.unarmed?.(c,l)||''}", "${window.PlayCombat?.rangeNote?.(w,b.band,l)||''}", "${window.PlayCombat?.loadedLine?.(w,l)||''}"]) assert.ok(ce.includes(piece), piece);
 });
 
 test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade only when one is in the inventory', () => {
@@ -261,7 +262,7 @@ test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade onl
 
 test('App.check and App.report took what the sheet rolls need', () => {
   const app = read('app.js');
-  assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false}={})"));
+  assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false,parts}={})"));
   assert.ok(app.includes("report(label,detail,total,faces,show){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
 });
 
@@ -290,4 +291,55 @@ test('undo of a hit never puts old equipment or medical data over newer changes'
   assert.equal(P.hitUndo(c, r.undo), true); assert.equal(c.hp, 40);
   assert.equal(c.extra.equipment.installs.length, 1, 'the implant installed after the hit is still installed');
   assert.equal(c.extra.equipment.maxHumanity, 58);
+});
+
+// ---------- Damage Deflection in the HUD hit form ----------
+const withSolo = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['combat-tools.js', 'equipment-tools.js', 'effects.js', 'role-tools.js', 'role-play.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); w.App = { lang: () => 'en' }; return w; };
+const soloTarget = (over = {}) => ({ id: 'v', role: 'solo', rank: 4, stats: { BODY: 8, WILL: 6 }, hp: 40, head: 10, bodyArmor: 4, extra: { soloRollAutomation: { version: 1, enabled: true }, roleTools: { solo: { values: { deflect: 2 } } }, ...over } });
+
+test('a hit: Damage Deflection is on by default when ready, shows as a chip, and goes into the arguments', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget();
+  const a = P.hitArgs(c, blow());
+  assert.deepEqual(plain(a.deflection), { encounter: 'Бой 1', round: 1, order: '', ablation: '' });
+  assert.equal(P.hitArgs(c, blow({ deflect: false })).deflection, undefined);
+  assert.equal(P.hitArgs(target(), blow()).deflection, undefined, 'a character without Solo automation is unchanged');
+  assert.match(P.hitForm(c, 'ru'), /role="checkbox" data-pc-hit="deflect" aria-checked="true">Damage Deflection −2</);
+  assert.doesNotMatch(P.hitForm(target(), 'ru'), /data-pc-hit="deflect"/);
+});
+test('a hit: Damage Deflection is written to the journal that deflectionPlan reads, and undo takes it back', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget(), was = plain(c);
+  const r = P.hitApply(c, blow());
+  assert.equal(r.ok, true); assert.equal(r.q.deflection.used, true);
+  assert.equal(c.hp, 40 - (20 - 4 - 2));
+  const [e] = c.extra.soloDeflection.entries;
+  assert.deepEqual([e.encounter, e.round, e.amount, e.prevented], ['Бой 1', 1, 2, 2]); assert.equal(typeof e.id, 'string');
+  assert.match(P.hitText(r.q, 'ru'), /Damage Deflection −2/);
+  // The next call in the same round no longer offers it, and the full form refuses the same round.
+  assert.equal(P.hitArgs(c, blow()).deflection, undefined);
+  assert.equal(w.DamageApply.quote(c, { ...P.hitArgs(c, blow()), deflection: { encounter: 'Бой 1', round: 1, order: '', ablation: '' } }), null);
+  assert.match(P.hitForm(c, 'ru'), /data-pc-hit="deflect" aria-checked="false" disabled>Damage Deflection −2 — уже в этом раунде/);
+  assert.equal(P.hitUndo(c, r.undo), true); assert.deepEqual(plain(c), was);
+  const again = P.hitApply(c, blow()); c.extra.soloDeflection.entries.push({ id: 'x', encounter: 'Other', round: 9, amount: 2, prevented: 1 });
+  assert.equal(P.hitUndo(c, again.undo), false, 'the journal changed after the hit');
+});
+test('a hit: the player can switch it off; a case that needs a GM ruling goes to the full form', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget();
+  const off = P.hitApply(c, blow({ deflect: false })); assert.equal(off.ok, true); assert.equal(c.extra.soloDeflection, undefined);
+  const c2 = soloTarget({ roleTools: { solo: { values: { deflect: 2 } } } });
+  const ruling = P.hitQuote(c2, blow({ raw: '5' }));
+  assert.equal(ruling.ok, false); assert.equal(ruling.reason, 'deflectRuling');
+  assert.equal(c2.extra.soloDeflection, undefined); assert.equal(c2.hp, 40);
+  assert.equal(P.hitQuote(c2, blow({ raw: '5', deflect: false })).ok, true);
+  const zero = P.hitApply(soloTarget(), blow({ raw: '4', location: 'direct', deflect: null }));
+  assert.equal(zero.ok, true);
+});
+test('a hit with deflection saves the fight and round it used; a broken journal is not called a ruling', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget(), was = plain(c);
+  const r = P.hitApply(c, blow());
+  assert.deepEqual(plain(c.extra.soloRound), { version: 1, battle: 'Бой 1', round: 1, n: 1 });
+  assert.equal(P.hitUndo(c, r.undo), true); assert.deepEqual(plain(c), was);
+  for (const bad of [{ version: 1 }, { version: 1, entries: {} }, { version: 2, entries: [] }]) {
+    const b = soloTarget({ soloDeflection: bad });
+    assert.equal(P.hitQuote(b, blow()).reason, 'manual');
+  }
 });

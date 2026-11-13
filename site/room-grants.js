@@ -254,11 +254,11 @@
   // In the campaign tracker, next to a character whose player is in the room.
   // For the GM's tracker and party reward: send one grant to the player who owns this sheet, without the dialog.
   // -> { ok:true, text, character } | { ok:false, error? }. The player's device applies it; the GM's copy is not touched.
-  function sendTo(memberId, v, l) {
+  function sendTo(memberId, v, l, hooks) {
     try {
       const L = link(), m = L?.targets?.().find(x => x.id === memberId); if (!m) return { ok: false };
       const lg = l === 'en' ? 'en' : l === 'ru' ? 'ru' : lang(), r = fromForm(v, m.cid, hex(8), lg); if (r.error) return { ok: false, error: r.error };
-      sentTo.set(r.grant.gid, { to: m.id, name: m.name, character: m.character });
+      sentTo.set(r.grant.gid, { to: m.id, name: m.name, character: m.character, declined: typeof hooks?.declined === 'function' ? hooks.declined : null });
       if (sentTo.size > 200) for (const k of [...sentTo.keys()].slice(0, 100)) sentTo.delete(k);
       Promise.resolve(L.send(m.id, r.grant)).then(sent => { if (!sent) { sentTo.delete(r.grant.gid); notify(tx(lg).notSent); } }, () => { sentTo.delete(r.grant.gid); });
       return { ok: true, text: describe(r.grant, lg), character: m.character };
@@ -313,6 +313,7 @@
     const gid = typeof d?.gid === 'string' ? d.gid : '', s = sentTo.get(gid);
     if (!s || s.to !== meta?.from || !['applied', 'declined'].includes(d.state)) return false;
     sentTo.delete(gid);
+    if (d.state === 'declined' && s.declined) { try { s.declined(); } catch { /* the notice below still goes out */ } }
     const t = tx(lang());
     notify(`${s.character || s.name} ${d.state === 'applied' ? t.accepted : t.declined}: ${text(d.text, 200)}`);
     return true;

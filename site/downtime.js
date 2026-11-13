@@ -9,18 +9,18 @@
 
   const W = {
     ru: {
-      session: 'Начало сессии', sessionHint: 'Начало сессии: восстановить LUCK и сбросить модификатор следующего броска',
+      session: 'Начало сессии', sessionHint: 'Начало сессии: восстановить LUCK, сбросить модификатор следующего броска и начать новый бой Solo',sessionFight: 'новый бой для Solo',
       sessionDone: 'Начало сессии: LUCK', sessionMod: 'модификатор броска сброшен', sessionNothing: 'LUCK уже полная, сбрасывать нечего',
       undo: 'Отменить', sessionUndone: 'Начало сессии отменено: LUCK', stale: 'Данные изменились. Повторите действие.',
-      nav: 'Быстрый переход по вкладке', money: 'Деньги', ip: 'Опыт (IP)', drugs: 'Вещества', hustle: 'Заработок', living: 'Жильё и образ жизни', story: 'История', notes: 'Заметки',
+      nav: 'Быстрый переход по вкладке', calendar: 'Дата игры', money: 'Деньги', ip: 'Опыт (IP)', drugs: 'Вещества', hustle: 'Заработок', living: 'Жильё и образ жизни', story: 'История', notes: 'Заметки',
       cash: 'На счету', pay: 'Оплатить', payAgain: 'Оплатить ещё раз', short: 'Не хватает', paid: 'Списано', left: 'осталось', refund: 'Возврат', refunded: 'Платёж отменён, деньги возвращены',
       noCash: 'На листе не указаны деньги.', doctor: 'Материалы врача', failed: 'Платёж не выполнен, ничего не списано.',
     },
     en: {
-      session: 'Start of session', sessionHint: 'Start of session: refill LUCK and clear the next-roll modifier',
+      session: 'Start of session', sessionHint: 'Start of session: refill LUCK, clear the next-roll modifier and start a new Solo fight',sessionFight: 'new Solo fight',
       sessionDone: 'Start of session: LUCK', sessionMod: 'roll modifier cleared', sessionNothing: 'LUCK is already full, nothing to clear',
       undo: 'Undo', sessionUndone: 'Start of session undone: LUCK', stale: 'Data changed. Please retry.',
-      nav: 'Jump within the tab', money: 'Cash', ip: 'Experience (IP)', drugs: 'Substances', hustle: 'Hustle', living: 'Lifestyle & housing', story: 'History', notes: 'Notes',
+      nav: 'Jump within the tab', calendar: 'Game date', money: 'Cash', ip: 'Experience (IP)', drugs: 'Substances', hustle: 'Hustle', living: 'Lifestyle & housing', story: 'History', notes: 'Notes',
       cash: 'Cash,', pay: 'Pay', payAgain: 'Pay again', short: 'Short by', paid: 'Paid', left: 'left', refund: 'Refund', refunded: 'Payment reversed, the money is back',
       noCash: 'The sheet has no cash value.', doctor: "Doctor's materials", failed: 'The payment was not made and nothing was spent.',
     },
@@ -35,7 +35,7 @@
   // ---- Start of session -------------------------------------------------------------------------------------------
   // LUCK comes back to the STAT; LUCK set aside for the next roll and a modifier that is not pinned are cleared.
   // Pure: -> { ok, extra, from, to, modifier, changed, before } and the character is not touched.
-  function startSession(c) {
+  function startSession(c, lang) {
     if (!c || typeof c !== 'object') return { ok: false };
     const x = c.extra && typeof c.extra === 'object' && !Array.isArray(c.extra) ? c.extra : {};
     const to = int(c.stats?.LUCK, 0, 20), from = x.luck === undefined || x.luck === '' ? to : int(x.luck, 0, 20);
@@ -43,12 +43,23 @@
     const before = { luck: x.luck, luckUse: x.luckUse, modifier: x.modifier };
     const extra = { ...x, luck: to, luckUse: 0 };
     if (clearMod) extra.modifier = 0;
-    return { ok: true, extra, from, to, modifier: clearMod ? mod : 0, changed: from !== to || use !== 0 || clearMod, before };
+    // A saved Solo fight that is under way ends with the session: the next one starts as a new fight.
+    let newFight = false;
+    try {
+      const RP = window.RolePlay, s = RP?.soloRound?.(c, lang);
+      if (s) {
+        const logged = RP.soloLogged?.(c, lang) || {}, mark = x.soloRound;
+        if (s.round > 1 || mark?.spotDone === true || mark?.deflectDone === true || logged.spot === true || logged.deflect === true) {
+          extra.soloRound = RP.soloAdvance(c, 'new', lang); before.soloRound = x.soloRound; before.soloRoundTouched = true; newFight = true;
+        }
+      }
+    } catch { /* without RolePlay nothing changes */ }
+    return { ok: true, extra, from, to, modifier: clearMod ? mod : 0, changed: from !== to || use !== 0 || clearMod || newFight, before, ...(newFight ? { newFight: true } : {}) };
   }
   // Puts back what startSession() changed. Pure as well.
   function undoSession(c, before) {
     const extra = { ...(c?.extra || {}) };
-    for (const key of ['luck', 'luckUse', 'modifier']) { if (before?.[key] === undefined) delete extra[key]; else extra[key] = before[key]; }
+    for (const key of ['luck', 'luckUse', 'modifier', 'soloRound']) { if (key === 'soloRound' && !before?.soloRoundTouched) continue; if (before?.[key] === undefined) delete extra[key]; else extra[key] = before[key]; }
     return extra;
   }
 
@@ -65,11 +76,11 @@
 
   // ---- Jump links -------------------------------------------------------------------------------------------------
   // The targets are section ids; sheet-tabs.js already knows which tab owns each one ([data-hud-jump]).
-  const JUMPS = [['sheet-resources', 'money'], ['sheet-ip', 'ip'], ['sheet-hustle', 'hustle'], ['sheet-living', 'living'], ['sheet-drugs', 'drugs'], ['sheet-lifepath', 'story'], ['sheet-notes', 'notes']];
+  const JUMPS = [['sheet-calendar', 'calendar'], ['sheet-resources', 'money'], ['sheet-ip', 'ip'], ['sheet-hustle', 'hustle'], ['sheet-living', 'living'], ['sheet-drugs', 'drugs'], ['sheet-lifepath', 'story'], ['sheet-notes', 'notes']];
   function jumpNav(c, lang) {
     if (!c) return '';
     const t = words(lang);
-    return `<nav class="dt-jump" aria-label="${esc(t.nav)}">${JUMPS.map(([id, key]) => `<button type="button" data-hud-jump="${id}">${esc(t[key])}${key === 'money' ? ` <b>${money(cashOf(c))} eb</b>` : ''}</button>`).join('')}</nav>`;
+    return `<nav class="dt-jump" aria-label="${esc(t.nav)}">${JUMPS.map(([id, key]) => `<button type="button" data-hud-jump="${id}">${esc(t[key])}${key === 'money' ? ` <b>${money(cashOf(c))} eb</b>` : ''}${key === 'calendar' && window.GameCalendar?.short?.(c, lang) ? ` <b>${esc(window.GameCalendar.short(c, lang))}</b>` : ''}</button>`).join('')}</nav>`;
   }
 
   // ---- Paying from a sheet ----------------------------------------------------------------------------------------
@@ -107,12 +118,13 @@
         const now = c.extra.luck === undefined || c.extra.luck === '' ? int(c.stats?.LUCK, 0, 20) : int(c.extra.luck, 0, 20);
         return { handled: true, dirty: true, rerender: true, notify: `${t.sessionUndone} ${was} → ${now}.` };
       }
-      const r = startSession(c);
+      const r = startSession(c, ctx?.lang);
       if (!r.ok) return { handled: true, notify: t.stale };
-      if (!r.changed) return { handled: true, notify: `${t.sessionNothing} (${r.to} / ${r.to}).` };
+      const cal = window.GameCalendar?.sessionLine ? ' ' + window.GameCalendar.sessionLine(c, ctx?.lang) : '', calendar = !!window.GameCalendar;
+      if (!r.changed) return { handled: true, calendar, notify: `${t.sessionNothing} (${r.to} / ${r.to}).${cal}` };
       c.extra = r.extra;
       lastSession = { id: c.id, before: r.before, luck: r.to, until: Date.now() + UNDO_MS }; refreshLater();
-      return { handled: true, dirty: true, rerender: true, notify: `${t.sessionDone} ${r.from} → ${r.to}${r.modifier ? ', ' + t.sessionMod : ''}.` };
+      return { handled: true, dirty: true, rerender: true, calendar, notify: `${t.sessionDone} ${r.from} → ${r.to}${r.modifier ? ', ' + t.sessionMod : ''}${r.newFight ? ', ' + t.sessionFight : ''}.${cal}` };
     }
 
     if (kind === 'pay' || kind === 'pay-undo') {

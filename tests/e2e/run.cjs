@@ -222,6 +222,40 @@ async function main() {
     await gm.ctx.close(); await player.ctx.close();
   });
 
+  if (!brokerUrl) skip('whispers in a room', 'aedes and ws are not installed');
+  else await check('whispers: the GM and one player talk privately, a secret check stays out of the feed, a third member sees nothing', async fail => {
+    const gm = await device(), player = await device({ width: 390 }), other = await device({ width: 390 });
+    const G = gm.page, P = player.page, B = other.page;
+    await G.goto(BASE + '#/room'); await wait(400);
+    await G.fill('#room-gm-name', 'Мастер'); await G.click('[data-room-action="create"]');
+    const link = await until(() => G.evaluate(() => { const s = window.Room._test.session(); return s?.code && s.gmFp ? window.Room._test.roomLink(s.code) : null; }));
+    if (!link) { fail('the room was not created'); return; }
+    for (const [page, name] of [[P, 'Аня'], [B, 'Боб']]) {
+      await page.goto(link); await wait(600);
+      await page.fill('#room-player-name', name); await page.selectOption('#room-character', 'v1'); await page.click('[data-room-action="join"]');
+    }
+    const annFp = await until(() => G.evaluate(() => [...window.Room._test.members().values()].find(m => m.name === 'Аня' && m.box)?.fp));
+    if (!annFp || !(await until(() => G.evaluate(() => [...window.Room._test.members().values()].some(m => m.name === 'Боб'))))) { fail('the Game Master does not see both players'); return; }
+    if (!(await until(() => P.evaluate(() => !!document.querySelector('[data-rw-open]'))))) { fail('the player has no «Шёпот ведущему» button'); return; }
+    await G.click(`[data-rw-open="${annFp}"]`);
+    await G.fill('#rw-text', 'тихо'); await G.press('#rw-text', 'Enter');
+    if (!(await until(() => P.evaluate(() => !!document.querySelector('.room-pill-unread'))))) fail('the player pill shows no unread whisper');
+    await P.click('[data-rw-open]');
+    if (!(await until(() => P.evaluate(() => /тихо/.test(document.querySelector('.rw-dialog .rw-thread')?.textContent || ''))))) fail('the player does not see the whisper');
+    await P.fill('#rw-text', 'понял'); await P.press('#rw-text', 'Enter');
+    if (!(await until(() => G.evaluate(() => /понял/.test(document.querySelector('.rw-dialog .rw-thread')?.textContent || ''))))) fail('the Game Master does not see the answer');
+    if (!(await until(() => G.evaluate(() => /доставлено/.test(document.querySelector('.rw-dialog .rw-thread')?.textContent || ''))))) fail('the whisper is not marked delivered');
+    await G.click('.rw-ask summary'); await G.selectOption('.rw-ask select[name="skill"]', 'Perception'); await G.selectOption('.rw-ask select[name="dv"]', '13');
+    await G.click('.rw-ask button[type="submit"]');
+    if (!(await until(() => P.evaluate(() => !!document.querySelector('.rw-dialog [data-rw-roll]:not([disabled])'))))) { fail('the player has no «Бросить тайно» button'); }
+    else await P.click('.rw-dialog [data-rw-roll]');
+    if (!(await until(() => G.evaluate(() => /DV 13 — (успех|провал)/.test(document.querySelector('.rw-dialog .rw-item.in.k-result')?.textContent || ''))))) fail('the secret check result did not reach the Game Master');
+    for (const [who, page] of [['GM', G], ['player', P], ['third', B]]) if (await page.evaluate(() => window.Room._test.state().feed.some(r => /Восприятие|Perception/.test(r.label)))) fail(`the secret check is in the ${who} feed`);
+    if (await B.evaluate(() => document.querySelectorAll('.rw-item').length || Object.keys(window.RoomWhispers._test.state()?.threads || {}).length)) fail('the third member has whispers');
+    for (const e of [...G.errs, ...P.errs, ...B.errs]) fail(e);
+    await gm.ctx.close(); await player.ctx.close(); await other.ctx.close();
+  });
+
   const axePath = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();
   if (!axePath) skip('accessibility rules (axe)', 'axe-core is not installed');
   else await check('accessibility rules (axe): names, roles and contrast on every screen in every look', async fail => {

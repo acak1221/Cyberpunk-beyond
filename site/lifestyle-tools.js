@@ -42,6 +42,7 @@ function nextPeriod(p){if(!periodOK(p))return '';let y=Number(p.slice(0,4)),m=Nu
 function view(c){const s=state(c),log=s.kind==='ok'?s.value.log.filter(p=>!p.void):[],cur=obj(s.value?.current)?s.value.current:{},last=type=>{for(let i=log.length-1;i>=0;i--)if(log[i].type===type)return log[i].choice;return null},paid=(period,type)=>log.some(p=>p.period===period&&p.type===type);
  const life=Object.hasOwn(LIFE,cur.life)?cur.life:last('life')||'kibble',home=Object.hasOwn(HOME,cur.home)?cur.home:last('home')||'street';
  let period=periodOK(cur.period)?cur.period:log.reduce((a,p)=>p.period>a?p.period:a,'');
+ if(!period){const gc=window.GameCalendar,cal=gc?.read?.(c);if(cal?.kind==='ok')period=nextPeriod(cal.value.marks?.living||gc.month(cal.value.date))}
  for(let i=0;i<1200&&period&&paid(period,'life')&&paid(period,'home');i++){const next=nextPeriod(period);if(next===period)break;period=next}
  const due=period?['life','home'].filter(type=>!paid(period,type)):[],total=due.reduce((a,type)=>a+(type==='life'?LIFE[life]:HOME[home]).price,0),cash=safe(c?.extra?.cash)?c.extra.cash:0;
  return {period,life,home,paidLife:!!period&&paid(period,'life'),paidHome:!!period&&paid(period,'home'),due,total,cash,short:Math.max(0,total-cash)}}

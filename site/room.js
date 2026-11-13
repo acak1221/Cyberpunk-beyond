@@ -64,6 +64,7 @@ const keyLabel=fp=>FP.test(fp||'')?fp.slice(0,12).toUpperCase().replace(/(.{4})(
 // Flood guards: a cap on everything handled per second, before any decryption, and an allowance per sender once the signature is checked.
 function underCap(){const now=Date.now();if(now-flood.at>=1000){flood.at=now;flood.n=0}return ++flood.n<=120}
 function allowed(fp){const now=Date.now();let b=buckets.get(fp);if(!b){if(buckets.size>300)buckets.clear();b={tokens:30,at:now};buckets.set(fp,b)}b.tokens=Math.min(30,b.tokens+(now-b.at)/1000*3);b.at=now;if(b.tokens<1)return false;b.tokens--;return true}
+// Every page has this ECDH key (its «box»): whispers (room-whispers.js) are sealed to it. The Game Master also announces it as `pub` for sheets.
 async function ensureGMKeys(){if(gmKeys)return;const subtle=global.crypto.subtle;gmKeys=await subtle.generateKey(ECDH,false,['deriveKey']);const j=await subtle.exportKey('jwk',gmKeys.publicKey);gmPub={x:j.x,y:j.y}}
 const importPub=p=>global.crypto.subtle.importKey('jwk',{kty:'EC',crv:'P-256',x:p.x,y:p.y,ext:true},ECDH,false,[]);
 const sharedKey=(priv,pub)=>global.crypto.subtle.deriveKey({name:'ECDH',public:pub},priv,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
@@ -203,7 +204,7 @@ function cleanSummary(x){
 }
 function memberPayload(){
  const st=app?.getState?.();const c=session.characterId?st?.characters?.find(x=>x.id===session.characterId):null;
- const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(thumb?{portrait:thumb}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{}),...(session.role==='gm'&&heldSince()?{since:heldSince()}:{})};
+ const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(thumb?{portrait:thumb}:{}),...(gmPub?{box:gmPub}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{}),...(session.role==='gm'&&heldSince()?{since:heldSince()}:{})};
 }
 // «device:character» for a sheet that came to the GM through the room: it lets that player's page know which row is theirs.
 const OWN=/^[0-9a-f]{16}:.{1,60}$/;
@@ -504,7 +505,9 @@ async function receive(p){
   if(!prev&&members.size>=MAX_MEMBERS&&!evictOne())return;
   if(outbox.length&&!p.retain)flushOutbox(); // someone (re)connected: give them the rolls made while offline
   if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive()},0);
-  members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',at:when});
+  members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',box:isCoord(d.box?.x)&&isCoord(d.box?.y)?{x:d.box.x,y:d.box.y}:null,at:when});
+  // A member who (re)appears may carry a new box: whispers waiting for them go out now.
+  if(!p.retain)setTimeout(()=>global.RoomWhispers?.flush?.(m.from.slice(0,24)),0);
   repaint();
  }else if((m.t==='combat'||m.t==='cleared')&&sub==='c'){
   if(!(fromGM||fromDeputy)||Date.now()-at>STATE_TTL||!inOrder(combatSeen.get(fp),fp===combatBy,rawAt,at,combatAt,combatGot,p.retain))return;
@@ -548,6 +551,11 @@ async function receive(p){
   feed.unshift(item);feed=feed.slice(0,MAX_FEED);keepFeed();repaint();
   if(session.toasts!==false)toast(item);
   const known=members.get(m.from);if(known){known.at=Date.now()}
+ }else if((m.t==='whisper'||m.t==='whisper-ack')&&sub==='e'){
+  // Whispers (room-whispers.js): fresh, live, addressed to this member. A player hears only the Game Master this page trusts.
+  if(!fresh||p.retain||m.d.to!==session.memberId)return;
+  if(session.role!=='gm'&&!fromGM)return;
+  if(await global.RoomWhispers?.receive?.(m.t,m.d,{from:m.from,fp,name:members.get(m.from)?.name||''}))repaint();
  }else if(m.t==='grant'&&sub==='e'){
   // Damage, healing, money, IP or an item for this player's sheet: only from the Game Master this page trusts, only fresh, only
   // addressed here. It is shown to the player and changes nothing until they press «Применить» (room-grants.js).
@@ -564,7 +572,7 @@ async function connect(){
  if(!session)return;
  disconnect(false);
  try{
-  ({topic:base,key}=await deriveRoom(session.code));if(session.role==='gm')await ensureGMKeys();
+  ({topic:base,key}=await deriveRoom(session.code));await ensureGMKeys();
   const me=await ensureIdentity();
   // A session saved by an earlier version, or by another browser profile, gets an id that belongs to this device's key.
   if(!session.memberId.startsWith(me.fp+'.'))session.memberId=me.fp+'.'+hex(rand(4));
@@ -575,9 +583,9 @@ async function connect(){
   saveSession();await prepareWill();
  }catch{app?.notify?.(t('unsupported'));session=null;saveSession();refresh();return}
  members=new Map();combat=null;clocks=[];feed=loadFeed();if(session.role==='gm'&&!incoming.length)incoming=loadIncoming();outbox=[];clearTimeout(sheetTimer);sheetState=null;lastMember='';lastCombat='';lastClocks='';combatAt=0;clocksAt=0;connectedAt=Date.now();setTimeout(refresh,NO_GM_HINT+500);
- transport=global.RoomTransport.create({topic:base,brokers:brokers(),will:()=>willBytes&&session?{subtopic:'m/'+session.memberId,payload:willBytes}:null,onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){publishMember(true);publishCombat(true);publishClocks(true);flushOutbox()}refresh()}});
+ transport=global.RoomTransport.create({topic:base,brokers:brokers(),will:()=>willBytes&&session?{subtopic:'m/'+session.memberId,payload:willBytes}:null,onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){publishMember(true);publishCombat(true);publishClocks(true);flushOutbox();global.RoomWhispers?.flush?.()}refresh()}});
  publishMember(true);publishCombat(true);publishClocks(true);
- heartbeat=setInterval(()=>{publishMember(true);if(drives()){publishCombat(true);publishClocks(true)}sendHandover();prune();flushOutbox();prepareWill();refresh()},HEARTBEAT);
+ heartbeat=setInterval(()=>{publishMember(true);if(drives()){publishCombat(true);publishClocks(true)}sendHandover();prune();flushOutbox();global.RoomWhispers?.flush?.();prepareWill();refresh()},HEARTBEAT);
  refresh();
 }
 function disconnect(clear=true){
@@ -615,7 +623,7 @@ function woundOf(c){return c.hp<1?'mortal':c.hp<Math.ceil(c.max/2)?'serious':c.h
 function presence(m){if(m.me)return `<span class="room-dot on"></span>${esc(t('you'))}`;const age=Date.now()-m.at;return isOnline(m)?`<span class="room-dot on"></span>${esc(t('online'))}`:`<span class="room-dot"></span>${esc(t('offline'))} · ${Math.max(1,Math.round(age/60000))} ${esc(t('ago'))}`}
 function memberCard(id,m){
  const c=m.character;
- const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}${m.role!=='gm'&&m.fp&&m.fp===deputyFp()?AUTH()?.coBadge(lang())||'':''}${m.impostor?`<span class="room-badge warn">${esc(t('impostor'))}</span>`:''}<small>${presence(m)}</small>${!m.me&&m.role!=='gm'&&FP.test(m.fp||'')?`<button type="button" class="room-mute" data-room-action="mute" data-fp="${esc(m.fp)}" title="${esc(t('muteTitle'))}">${esc(t('mute'))}</button>`:''}</div>${AUTH()?.memberTools(m,{lang:lang(),gm:session?.role==='gm',deputy:deputyFp(),pending:!!session?.handoverTo})||''}${session?.role==='gm'&&!m.me?global.RoomGrants?.memberButton?.(id)||'':''}`;
+ const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}${m.role!=='gm'&&m.fp&&m.fp===deputyFp()?AUTH()?.coBadge(lang())||'':''}${m.impostor?`<span class="room-badge warn">${esc(t('impostor'))}</span>`:''}<small>${presence(m)}</small>${!m.me&&m.role!=='gm'&&FP.test(m.fp||'')?`<button type="button" class="room-mute" data-room-action="mute" data-fp="${esc(m.fp)}" title="${esc(t('muteTitle'))}">${esc(t('mute'))}</button>`:''}</div>${AUTH()?.memberTools(m,{lang:lang(),gm:session?.role==='gm',deputy:deputyFp(),pending:!!session?.handoverTo})||''}${session?.role==='gm'&&!m.me?global.RoomGrants?.memberButton?.(id)||'':''}${!m.me?global.RoomWhispers?.memberButton?.(id)||'':''}`;
  if(!c)return `<article class="room-member ${m.me?'me':''}">${head}<p class="room-muted">${esc(t('noChar'))}</p></article>`;
  const pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100))),w=woundOf(c);
  return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}${w==='serious'||w==='mortal'?` · <em class="room-wound ${w}">${esc(t(w==='mortal'?'woundMortal':'woundSerious'))}</em>`:''}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div>${c.rep?`<div><dt>REP</dt><dd>${c.rep}</dd></div>`:''}</dl></article>`;
@@ -666,6 +674,7 @@ function refresh(){
  const pill=doc.querySelector('[data-room-pill]');if(pill)pill.outerHTML=renderPill();
  for(const chip of doc.querySelectorAll?.('[data-room-turn]')||[])chip.outerHTML=turnChip();
  try{global.RoomGrants?.refresh?.()}catch{}
+ try{global.RoomWhispers?.refresh?.()}catch{}
  // A player who left or went quiet: the open tracker gives the HP field back to the Game Master.
  if(session?.role==='gm')try{paintLive()}catch{}
 }
@@ -678,8 +687,8 @@ function renderPill(){
  if(!session)return '<span data-room-pill hidden></span>';
  const others=[...members.values()].filter(m=>!m.me&&isOnline(m)).length;
  // While the turn is this player's, the pill says so on every page: the toast is gone in a few seconds.
- const mine=myTurn(combat);
- return `<button type="button" class="room-pill ${netStatus.online?'ok':''}${mine?' turn':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${mine?'▶ '+esc(t('yourTurn')):esc(t('nav'))}</span> · ${others+1}</button>`;
+ const mine=myTurn(combat),w=global.RoomWhispers?.unread?.()||0;
+ return `<button type="button" class="room-pill ${netStatus.online?'ok':''}${mine?' turn':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${mine?'▶ '+esc(t('yourTurn')):esc(t('nav'))}</span> · ${others+1}${w?` <span class="room-pill-unread" aria-label="${esc(lang()==='ru'?'Непрочитанный шёпот':'Unread whisper')}">✉ ${w}</span>`:''}</button>`;
 }
 
 async function startSession(next){
@@ -715,7 +724,7 @@ doc.addEventListener('click',async e=>{
  else if(a==='handover-cancel')cancelHandover();
  else if(a==='gm-file'){b.disabled=true;await saveGMFile();refresh()}
  else if(a==='gm-file-open'){const name=value('#room-file-name'),text=await AUTH()?.pickFile();if(!text)return;if(await openGMFile(text,name))global.scrollTo?.(0,0)}
- else if(a==='leave'){if(!global.confirm(t('leaveConfirm')))return;disconnect(true);session=null;members=new Map();combat=null;feed=[];incoming=[];keepFeed();keepIncoming();clearTimeout(sheetTimer);sheetState=null;saveSession();refresh()}
+ else if(a==='leave'){if(!global.confirm(t('leaveConfirm')))return;global.RoomWhispers?.forget?.();disconnect(true);session=null;members=new Map();combat=null;feed=[];incoming=[];keepFeed();keepIncoming();clearTimeout(sheetTimer);sheetState=null;saveSession();refresh()}
  else if(a==='copy'){const link=roomLink(session.code);try{await global.navigator.clipboard.writeText(link);app?.notify?.(t('copied'))}catch{global.prompt?.(t('copy'),link)}}
  else if(a==='share'){try{await global.navigator.share({title:'Night City // RED',text:(lang()==='ru'?'Комната для игры: ':'Game room: ')+formatCode(session.code),url:roomLink(session.code)})}catch{}}
 });
@@ -786,6 +795,15 @@ global.Room={
   memberFor:x=>{if(session?.role!=='gm')return '';const hit=memberOwning(rowOwn(x)||ownerOf(x));return hit&&hit[1].role!=='gm'?hit[0]:''},
   send:(to,d)=>session?.role==='gm'&&members.has(to)?send('e','grant',{to,...d}):Promise.resolve(0),
   reply:(to,d)=>session&&session.role!=='gm'?send('e','grant-ack',{to,...d}):Promise.resolve(0),
+ },
+ // For room-whispers.js. A player's page whispers only the Game Master; the receiver checks that again.
+ whisperLink:{
+  who:()=>session?{role:session.role,code:session.code,memberId:session.memberId,fp:myFp(),gmFp:FP.test(session.gmFp||'')?session.gmFp:'',characterId:session.characterId||''}:null,
+  peers:()=>session?[...members.entries()].filter(([,m])=>!m.me&&FP.test(m.fp||'')).map(([id,m])=>({id,fp:m.fp,name:m.name,role:m.role,online:isOnline(m),at:m.at||0,box:m.box||null,character:m.character?.name||''})):[],
+  seal:(pub,obj)=>sealFor(pub,obj),
+  open:box=>openFromPeer(box),
+  send:(to,type,d)=>{const m=members.get(to);if(!session||!m||m.me||!['whisper','whisper-ack'].includes(type))return Promise.resolve(0);if(type==='whisper'&&session.role!=='gm'&&!(m.role==='gm'&&m.fp===session.gmFp))return Promise.resolve(0);return send('e',type,{...d,to})},
+  repaint:()=>repaint(),
  },
  // For the tracker: the live HP of the player this GM-side sheet belongs to, as text, or '' when they are not in the room.
  // Takes a GM-side sheet, or a tracker row added from the room.

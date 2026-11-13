@@ -1,0 +1,40 @@
+/* Whispers (room-whispers.js): the private thread between the Game Master and one player, in a dialog over the page. */
+dialog.rw-dialog { width: min(520px, calc(100vw - 32px)); max-width: calc(100vw - 32px); box-sizing: border-box; }
+.rw-box { display: grid; gap: 10px; min-width: 0; }
+.rw-box h2 { margin: 0; overflow-wrap: anywhere; }
+.rw-box [hidden] { display: none !important; }
+.rw-privacy { margin: 0; color: var(--muted, #aaa); font-size: 12px; line-height: 1.4; }
+.rw-old { margin: 0; padding: 8px 10px; color: var(--yellow, #e9c66d); border: 1px solid currentColor; border-radius: 8px; font-weight: 700; font-size: 13px; }
+.rw-thread { display: grid; gap: 8px; max-height: 50vh; min-height: 60px; margin: 0; padding: 4px 2px; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
+.rw-empty { color: var(--muted, #aaa); font-size: 13px; text-align: center; padding: 14px 0; }
+.rw-item { display: grid; gap: 4px; max-width: 88%; min-width: 0; padding: 8px 10px; background: rgba(127, 127, 127, .1); border: 1px solid var(--border, #444); border-radius: 10px; }
+.rw-item.in { justify-self: start; border-left: 3px solid var(--yellow, #e9c66d); }
+.rw-item.out { justify-self: end; border-right: 3px solid var(--cyan, #5cc8d6); }
+.rw-item p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+.rw-item .rw-note { color: var(--muted, #aaa); font-style: italic; }
+.rw-item .rw-result { font-variant-numeric: tabular-nums; }
+.rw-item .rw-result.ok b { color: #4f9d69; }
+.rw-item .rw-result.bad b { color: var(--red, #d0453a); }
+.rw-meta { color: var(--muted, #aaa); font-size: 11px; }
+.rw-state.failed { color: var(--red, #d0453a); font-weight: 700; }
+.rw-state.sent { color: #4f9d69; }
+.rw-roll { display: grid; gap: 4px; margin-top: 4px; }
+.rw-roll .btn { min-height: 40px; }
+.rw-roll small { color: var(--muted, #aaa); }
+.rw-luck { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
+dialog.rw-dialog .rw-luck input { flex: 0 0 76px; width: 76px; min-height: 36px; }
+.rw-send { display: flex; gap: 8px; min-width: 0; }
+.rw-send input { flex: 1 1 auto; min-width: 0; min-height: 40px; }
+.rw-send .btn { flex: 0 0 auto; }
+.rw-ask { border: 1px solid var(--border, #444); border-radius: 8px; padding: 6px 10px; }
+.rw-ask summary { cursor: pointer; font-weight: 700; min-height: 32px; display: flex; align-items: center; }
+.rw-ask-form { display: grid; gap: 8px; padding: 6px 0 4px; }
+.rw-ask-form .field { display: grid; gap: 4px; }
+.rw-ask-form select, .rw-ask-form input { width: 100%; min-height: 40px; box-sizing: border-box; }
+.rw-box .dialog-actions { display: flex; justify-content: flex-end; }
+.room-member > button.rw-open { display: block; margin: 8px 0; }
+.rw-badge, .room-pill-unread { display: inline-block; min-width: 18px; padding: 1px 6px; color: #111; background: var(--yellow, #e9c66d); border-radius: 999px; font-weight: 800; font-size: 11px; line-height: 1.4; text-align: center; }
+@media print { dialog.rw-dialog { display: none; } }
+/* Light looks: the yellow turns brown and green needs more depth to stay readable on a pale panel. */
+.ui-light .rw-badge, .ui-light .room-pill-unread { color: #fff; }
+.ui-light .rw-state.sent, .ui-light .rw-item .rw-result.ok b { color: #2b6a3f; }

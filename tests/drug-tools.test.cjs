@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-global.window={confirm:()=>true};require('../site/drug-tools.js');const D=window.DrugTools;
-const person=()=>({id:'p',hp:30,humanity:55,stats:{WILL:6},skills:{'Resist Torture/Drugs':6},extra:{notes:'keep',cash:100,other:{future:true}}});
+global.window={confirm:()=>true};require('../site/dose-stock.js');require('../site/drug-tools.js');const D=window.DrugTools;
+const person=()=>({id:'p',hp:30,humanity:55,stats:{WILL:6},skills:{'Resist Torture/Drugs':6},extra:{notes:'keep',cash:100,other:{future:true},items:[{id:'l',catalogId:'extra-drug-black-lace',name:'Black Lace',category:'equipment',quantity:10,notes:''},{id:'s',catalogId:'extra-drug-smash',name:'Smash',category:'equipment',quantity:10,notes:''},{id:'b',catalogId:'extra-drug-boost',name:'Boost',category:'equipment',quantity:10,notes:''}]}});
 function setup(c){D.setScope(null);D.setScope('scope-a');D.render(c,'en');const root={isConnected:true},current={yes:true};return {root,current,field(key,value){const target={dataset:{drugField:key},value,closest:s=>s==='[data-drug-root]'?root:null};return D.handle({type:'change',target},c,'en',{isCurrent:()=>current.yes})},act(op){const b={isConnected:true,dataset:{drugAction:op},closest:s=>s==='[data-drug-root]'?root:null},target={closest:s=>s==='[data-drug-root]'?root:s==='[data-drug-action]'?b:null};return D.handle({type:'click',target},c,'en',{isCurrent:()=>current.yes})}}}
 test('doses extend game duration and never change unrelated character resources',()=>{
  const c=person(),h=setup(c),before={hp:c.hp,humanity:c.humanity,cash:c.extra.cash,stats:JSON.stringify(c.stats)};assert.equal(h.act('dose').dirty,true);assert.equal(h.act('dose').dirty,true);let r=c.extra.streetDrugs.records['black-lace'];assert.equal(r.remainingHours,48);assert.equal(r.status,'active');assert.equal(c.hp,before.hp);assert.equal(c.humanity,before.humanity);assert.equal(c.extra.cash,before.cash);assert.equal(JSON.stringify(c.stats),before.stats);assert.deepEqual(c.extra.other,{future:true});
@@ -27,4 +27,9 @@ test('switching account, detaching form or changing the character during confirm
 });
 test('both languages describe manual effects and the book source',()=>{
  const c=person();D.setScope(null);D.setScope('scope-a');for(const l of ['ru','en']){const html=D.render(c,l);assert.match(html,/data-page="227"/);assert.match(html,/Black Lace/);assert.match(html,/Humanity/)}
+});
+test('black lace: take button hidden while a check is due', () => {
+  const src = require('node:fs').readFileSync(__dirname + '/../site/drug-tools.js', 'utf8');
+  require('node:assert').ok(src.includes("record?.status!=='awaiting'?`<button"));
+  require('node:assert').ok(src.includes("records[key]?.status==='awaiting')return ''"));
 });
