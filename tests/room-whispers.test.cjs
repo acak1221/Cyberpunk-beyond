@@ -137,6 +137,23 @@ test('a sealed box re-signed by another member is dropped',async()=>{
  assert.deepEqual(Object.keys(s.gm.W.state()?.threads||{}),[]);
 });
 
+test('another member cannot use up a player\'s whisper id: replays are remembered per sender',async()=>{
+ const s=await table();
+ await s.status(s.gm,s.ann,s.bob);
+ s.ann.W.say(s.gm.fp,'правда');await settle(60);
+ const raw=[];for(const p of s.ann.log)if((await s.decode(s.ann,p)).t==='whisper')raw.push(p);
+ const packet=await s.decode(s.ann,raw[0]);s.ann.sent.length=0;
+ // Боб copies the id from the room layer into a whisper of his own and gets there first.
+ const gmBox=s.bob.R.members().get(s.gm.id).box;
+ await s.deliver(s.gm,await s.forge(s.bob,gmBox,{v:1,w:packet.d.w,from:s.bob.fp,to:s.gm.fp,at:Date.now(),kind:'text',text:'мусор'},s.gm.id));
+ assert.equal(s.gm.W.state().threads[s.bob.fp].items[0].text,'мусор');
+ // Her real packet arrives after his.
+ await s.deliver(s.gm,raw[0].bytes);await s.pump();
+ assert.equal(s.gm.W.state().threads[s.ann.fp].items[0].text,'правда','her whisper is still stored');
+ assert.equal(s.ann.W.state().threads[s.gm.fp].items[0].state,'sent');
+ assert.ok(s.gm.W.state().seen.includes(s.ann.fp+':'+packet.d.w)&&s.gm.W.state().seen.includes(s.bob.fp+':'+packet.d.w));
+});
+
 test('a replay is stored once and acked again, also after a reload; old and retained packets are dropped',async()=>{
  const annStore=new Map(),s=await table({annStore});
  await s.status(s.gm,s.ann,s.bob);
@@ -200,10 +217,10 @@ test('a player cannot ask for a check, and the GM drops an ask from a player',as
 test('the stored history: round trip, caps, expiry, another room, forget',()=>{
  const {W,RW,store,R}=loadTab(),now=Date.now();
  const item=(i,x)=>({w:i.toString(16).padStart(16,'0'),dir:'in',kind:'text',at:now-1000+i,got:now-1000+i,text:'m'+i,...x});
- const st={v:1,code:CODE,threads:{[FA]:{name:'Аня',read:0,items:Array.from({length:51},(_,i)=>item(i))}},seen:['0'.repeat(16),'bad']};
+ const st={v:1,code:CODE,threads:{[FA]:{name:'Аня',read:0,items:Array.from({length:51},(_,i)=>item(i))}},seen:[FA+':'+'0'.repeat(16),'0'.repeat(16),'bad']};
  const back=W.load(JSON.stringify(st),CODE);
  assert.equal(back.threads[FA].items.length,50);assert.equal(back.threads[FA].items[0].text,'m1','the oldest goes');
- assert.deepEqual(plain(back.seen),['0'.repeat(16)]);
+ assert.deepEqual(plain(back.seen),[FA+':'+'0'.repeat(16)],'only ids keyed by their sender are kept');
  assert.deepEqual(plain(W.load(W.serialize(back),CODE)),plain(back));
  assert.deepEqual(plain(W.load(JSON.stringify(st),'OTHERCODE111')),{v:1,code:'OTHERCODE111',threads:{},seen:[]});
  assert.deepEqual(plain(W.load('{broken',CODE).threads),{});

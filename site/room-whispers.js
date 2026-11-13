@@ -24,7 +24,7 @@
   'use strict';
 
   const STORE = 'nightcity-red-room-whispers';
-  const W = /^[0-9a-f]{16}$/, FP = /^[0-9a-f]{24}$/;
+  const W = /^[0-9a-f]{16}$/, FP = /^[0-9a-f]{24}$/, SEEN = /^[0-9a-f]{24}:[0-9a-f]{16}$/;
   const MAX_TEXT = 500, MAX_NOTE = 120, MAX_ITEMS = 50, MAX_THREADS = 12, MAX_SEEN = 300;
   const PENDING_TTL = 24 * 3600 * 1000, RETRY = 15000, MAX_BOX = 6000, PER_FLUSH = 5;
   const DVS = [9, 13, 15, 17, 21, 24, 29], KINDS = ['text', 'ask', 'result'];
@@ -172,7 +172,7 @@
     }
     threads.sort((a, b) => lastActivity(b[1]) - lastActivity(a[1]));
     for (const [fp, th] of threads.slice(0, MAX_THREADS)) out.threads[fp] = th;
-    out.seen = (Array.isArray(s.seen) ? s.seen : []).filter(w => typeof w === 'string' && W.test(w)).slice(-MAX_SEEN);
+    out.seen = (Array.isArray(s.seen) ? s.seen : []).filter(w => typeof w === 'string' && SEEN.test(w)).slice(-MAX_SEEN);
     return out;
   }
   const serialize = s => JSON.stringify({ v: 1, code: s.code, threads: s.threads, seen: s.seen });
@@ -343,12 +343,14 @@
     if (typeof d.w !== 'string' || !W.test(d.w) || !obj(d.epk) || typeof d.iv !== 'string' || d.iv.length > 64 || typeof d.ct !== 'string' || d.ct.length > MAX_BOX) return false;
     if (!canTalk(meta.fp)) return false;
     const ack = () => { try { link()?.send?.(meta.from, 'whisper-ack', { w: d.w }); } catch {} };
-    if (state.seen.includes(d.w)) { ack(); return false; }
+    // Replays are remembered per sender: the id travels in clear, so another member must not be able to use it up.
+    const seenKey = meta.fp + ':' + d.w;
+    if (state.seen.includes(seenKey)) { ack(); return false; }
     let plain;
     try { plain = await link().open({ epk: d.epk, iv: d.iv, ct: d.ct }); } catch { return false; }
     if (!state) return false;
     const inner = cleanInner(plain, { from: meta.fp, to: me.fp });
-    if (!inner || inner.w !== d.w || state.seen.includes(d.w)) return false;
+    if (!inner || inner.w !== d.w || state.seen.includes(seenKey)) return false;
     if (me.role === 'gm' ? !['text', 'result'].includes(inner.kind) : !['text', 'ask'].includes(inner.kind)) return false;
     const item = { ...inner, dir: 'in', got: Date.now() };
     let th = state.threads[meta.fp];
@@ -362,7 +364,7 @@
     th = ensureThread(meta.fp, meta.name);
     if (!th) return false;
     push(th, item);
-    state.seen.push(d.w); if (state.seen.length > MAX_SEEN) state.seen.splice(0, state.seen.length - MAX_SEEN);
+    state.seen.push(seenKey); if (state.seen.length > MAX_SEEN) state.seen.splice(0, state.seen.length - MAX_SEEN);
     const looking = openFp === meta.fp && !!doc?.querySelector?.('.rw-dialog');
     if (looking) th.read = Date.now();
     store(); ack(); paint();
