@@ -266,6 +266,9 @@
     return { tier, rounds: int(b.rounds, 0, 99), hp: b.hp.slice(0, 12).map(v => int(v, -999, 1000, tier.hp)) };
   }
   const backupTier = c => backupState(c)?.tier.min ?? null;
+  // Setters for the GM tracker: it keeps an allied row's HP and SP on the sheet.
+  function memberSet(c, m, hp, sp) { const st = memberState(c, m); if (!st || typeof m.id !== 'string') return false; if (hp !== undefined) m.hp = int(hp, -999, 1000, st.hp); if (sp !== undefined) bag(bag(ensure(c), 'team'), m.id).sp = int(sp, 0, 30, st.sp); return true; }
+  function backupSetHp(c, index, hp) { const st = backupState(c), i = int(index, -1, 99, -1); if (!st || i < 0 || i >= st.hp.length) return false; const list = st.hp.slice(); list[i] = int(hp, -99, st.tier.hp, st.tier.hp); ensure(c).backup.hp = list; return true; }
 
   // ---- Rendering hooks ----------------------------------------------------------------------
   let flash = null; // { key, text, at }: the result of the last action, shown where it was made after the redraw.
@@ -499,7 +502,7 @@
     cash, charge, pay, undoLast, moneyFail, suggestPay, pays, dealMoney, debts,
     VEHICLES, vehicleState, vehicleDamage, vehicleRepair, vehicleAddUpgrade, vehicleRemoveUpgrade, motoChoices,
     memberProfile, memberSkills, memberState, memberDamage, memberHeal, teamLimit, teamFull,
-    backupArrive, backupState, backupTier,
+    backupArrive, backupState, backupTier, memberSet, backupSetHp,
     walletLine, teamBlock, memberBlock, dealActions, fixerBlock, maneuverSelect, motoCount, vehicleBlock, backupBlock, handle
   };
 })(typeof window !== 'undefined' ? window : globalThis);

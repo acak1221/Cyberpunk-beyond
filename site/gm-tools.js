@@ -256,5 +256,5 @@ function handle(event,ctx){const lang=ctx.lang==='ru'?'ru':'en',t=TX[lang],w=ctx
  }
  return {handled:false};
 }
-window.GMTools={encounterTemplate,ENCOUNTERS,NPC_TEMPLATES,initial,validWorkspace,matches,render,handle,faceDown,recognition,npcSkillBase,npcSkillRoll,npcWeaponRoll};
+window.GMTools={WEAPONS_RU,ARMOR_RU,encounterTemplate,ENCOUNTERS,NPC_TEMPLATES,initial,validWorkspace,matches,render,handle,faceDown,recognition,npcSkillBase,npcSkillRoll,npcWeaponRoll};
 })();

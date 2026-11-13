@@ -113,6 +113,11 @@ function attacksOf(row,templates,library){
    if(!a||typeof a.name!=='string'||!a.name.trim()||typeof a.damage!=='string'||!DICE.test(a.damage.trim())||!Number.isSafeInteger(a.base)||a.base<0||a.base>40)continue;
    const skill=weaponSkill(a.name);out.push({name:a.name.trim().slice(0,60),skill:'',base:a.base,damage:a.damage.trim().toLowerCase(),melee:isMelee(skill)});
   }
+ }else if(isObj(row.ally)&&Array.isArray(row.ally.attacks)){
+  for(const a of row.ally.attacks){
+   if(!a||typeof a.name!=='string'||!a.name.trim()||typeof a.damage!=='string'||!DICE.test(a.damage.trim())||!Number.isSafeInteger(a.base)||a.base<0||a.base>40)continue;
+   const skill=weaponSkill(a.name);out.push({name:a.name.trim().slice(0,60),skill:'',base:a.base,damage:a.damage.trim().toLowerCase(),melee:isMelee(skill)});
+  }
  }
  return out.slice(0,8);
 }
@@ -264,11 +269,12 @@ const hitFields=(t,type,critical)=>`<label>${esc(t.where)}<select data-gt-field=
 // What the module adds inside a row's «Действия».
 function rowExtras(r,pc,c,characters,lang){
  const t=T[L(lang)];
- if(pc)return `<div class="gt-box" data-gt><strong class="gt-title">${esc(t.pcTitle)}</strong><div class="gt-apply"><label>${esc(t.rawDamage)}<input type="number" inputmode="numeric" min="1" max="999" data-gt-field="raw"></label>${hitFields(t,'standard',false)}<button type="button" class="btn primary" data-gt-action="pc-damage" data-id="${esc(r.id)}">${esc(t.apply)}</button></div><p class="muted">${esc(t.pcHelp)}</p>${resultHTML(r,c,characters,lang)}</div>`;
+ if(pc)return `<div class="gt-box" data-gt>${window.TrackerAllies?.deathHTML?.(r,pc,lang)||''}<strong class="gt-title">${esc(t.pcTitle)}</strong><div class="gt-apply"><label>${esc(t.rawDamage)}<input type="number" inputmode="numeric" min="1" max="999" data-gt-field="raw"></label>${hitFields(t,'standard',false)}<button type="button" class="btn primary" data-gt-action="pc-damage" data-id="${esc(r.id)}">${esc(t.apply)}</button></div><p class="muted">${esc(t.pcHelp)}</p>${resultHTML(r,c,characters,lang)}${window.TrackerAllies?.teamHTML?.(r,pc,c,lang)||''}</div>`;
  if(r.kind!=='npc')return '';
  const list=attacksOf(r,window.GMTools?.NPC_TEMPLATES,library());
- if(!list.length&&!results.has(r.id))return '';
- return `<div class="gt-box" data-gt><strong class="gt-title">${esc(t.attacks)}</strong>${list.length?`<ul class="gt-attacks">${list.map((a,i)=>`<li><span class="gt-weapon">${esc(a.name)}${a.skill&&a.base!==null?` <small>${esc(skillName(a.skill,lang))} ${a.base}</small>`:a.base!==null?` <small>${a.base}</small>`:''}</span>${a.base!==null?`<button type="button" class="btn ghost" data-gt-action="attack" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.attack)} +${a.base}</button>`:''}<button type="button" class="btn ghost" data-gt-action="dmg-roll" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.damage)} ${esc(a.damage)}</button></li>`).join('')}</ul>`:''}${resultHTML(r,c,characters,lang)}</div>`;
+ const loot=window.TrackerAllies?.lootHTML?.(r,c,characters,lang)||'';
+ if(!list.length&&!results.has(r.id)&&!loot)return '';
+ return `<div class="gt-box" data-gt>${list.length||results.has(r.id)?`<strong class="gt-title">${esc(t.attacks)}</strong>`:''}${list.length?`<ul class="gt-attacks">${list.map((a,i)=>`<li><span class="gt-weapon">${esc(a.name)}${a.skill&&a.base!==null?` <small>${esc(skillName(a.skill,lang))} ${a.base}</small>`:a.base!==null?` <small>${a.base}</small>`:''}</span>${a.base!==null?`<button type="button" class="btn ghost" data-gt-action="attack" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.attack)} +${a.base}</button>`:''}<button type="button" class="btn ghost" data-gt-action="dmg-roll" data-id="${esc(r.id)}" data-i="${i}">⬡ ${esc(t.damage)} ${esc(a.damage)}</button></li>`).join('')}</ul>`:''}${resultHTML(r,c,characters,lang)}${loot}</div>`;
 }
 const members=(c,characters)=>(c?.roster||[]).flatMap(r=>{if(r?.kind==='pc'){const p=characters.find(p=>p.id===r.characterId);return p?[p]:[]}return r?.kind==='npc'&&typeof r.own==='string'&&r.own&&onlineMember(r)?[{id:r.id,name:r.name||'?',kind:'npc',own:r.own,room:true}]:[]});
 const draftOf=id=>{if(!drafts.has(id))keep(drafts,id,{cash:'',mode:'each',ip:'',reason:'',off:{},ipBy:{}});return drafts.get(id)};
@@ -285,6 +291,7 @@ function backLink(character,lang){if(!fromCampaign||!character||fromCampaign!==c
 // ---------- 3. events on the campaign page ----------
 const owns=e=>!!e?.target?.closest?.('[data-gt]');
 function handle(e,c,ctx){
+ if(e.type==='click'){const ta=window.TrackerAllies?.handle?.(e,c,ctx);if(ta)return ta}
  const el=e.target,lang=L(ctx.lang),t=T[lang],characters=Array.isArray(ctx.characters)?ctx.characters:[];
  const pcOf=x=>x?.kind==='pc'?characters.find(p=>p.id===x.characterId):null,nameOf=x=>{const pc=pcOf(x);return pc?(pc.name||'Edgerunner'):x?.name||'?'};
  if(e.type==='input'||e.type==='change'){
@@ -435,7 +442,7 @@ if(typeof document!=='undefined'&&document.addEventListener)document.addEventLis
  else if(e.target?.closest?.('[data-action="navigate"],[data-action="open"]')){fromCampaign=null;backY=null}
 },true);
 
-window.GMTable={critInjury,text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
+window.GMTable={onlineMember,critInjury,text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
  isOpen,open,rowClass,toggleHTML,headHTML,helpHTML,rowExtras,partyHTML,backLink,giveButton,owns,handle,
  reset(){rowOpen.clear();results.clear();drafts.clear();lastAward.clear();fromCampaign=null;backY=null;lastRecipient=''}};
 })();
