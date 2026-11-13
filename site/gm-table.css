@@ -89,3 +89,9 @@ html:not(.ui-native) :is(.gt-box,.gt-attacks,.gt-dialog-actions,.combatant) .btn
 .gt-dialog-error { margin: 12px 0 0; color: var(--red, #d33); font-weight: 700; }
 .gt-dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .gt-dialog-actions .btn { min-height: 44px; }
+/* A phone: the damage form of a tracker row sits in two even columns instead of a ragged wrap. */
+@media (max-width: 560px) {
+  .camp-more-row.camp-damage { display: grid; grid-template-columns: 1fr 1fr; align-items: end; }
+  .camp-more-row.camp-damage input, .camp-more-row.camp-damage select { width: 100%; max-width: none; }
+  .camp-more-row.camp-damage label.camp-crit, .camp-more-row.camp-damage > .btn { grid-column: 1 / -1; }
+}
