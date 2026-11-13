@@ -254,25 +254,35 @@ function soloAdvance(c,kind,lang){
 }
 const same=(a,b)=>norm(a)===norm(b);
 // What was already used in the current round, by the journals of the two abilities.
-function soloUsed(c,lang){
+function soloLogged(c,lang){
  const s=soloRound(c,lang),x=c?.extra||{};
  const spot=Array.isArray(x.soloSpotUsage?.uses)&&x.soloSpotUsage.uses.some(u=>obj(u)&&u.round===s.round&&same(u.battle,s.battle));
  const deflect=Array.isArray(x.soloDeflection?.entries)&&x.soloDeflection.entries.some(u=>obj(u)&&u.round===s.round&&same(u.encounter,s.battle));
  return {spot,deflect};
+}
+// The journal or the player's own mark («the first hit of this round already happened»).
+function soloUsed(c,lang){
+ const j=soloLogged(c,lang),s=soloRound(c,lang),x=s.saved?c.extra.soloRound:null;
+ return {spot:j.spot||x?.spotDone===true,deflect:j.deflect||x?.deflectDone===true};
 }
 function soloBar(c,lang){
  if(!obj(c)||!hasSolo(c))return '';
  const l=lng(lang),ru=l==='ru',v=c.extra?.roleTools?.solo?.values||{},weak=Number(v.weakness)||0,defl=Number(v.deflect)||0;
  if(!(c.extra?.soloRollAutomation?.enabled===true)||(!weak&&!defl))return '';
  const s=soloRound(c,l),u=soloUsed(c,l);
- const mark=(on,name,used)=>on?`<span class="${used?'rp-used':''}">${esc(name)}${used?(ru?' — уже в этом раунде':' — used this round'):(ru?' — доступно':' — ready')}</span>`:'';
- return `<div class="rp-round" data-rp-solo-bar><span>${esc(s.battle)} · ${ru?'раунд':'round'} <b>${s.round}</b></span>${mark(weak>0,`Spot Weakness +${weak}`,u.spot)}${mark(defl>0,`Damage Deflection −${defl}`,u.deflect)}<button type="button" class="rt-button" data-rp-solo="next">${ru?'Новый раунд':'Next round'}</button><button type="button" class="rt-button" data-rp-solo="new">${ru?'Новый бой':'New fight'}</button></div>`;
+ const tip=ru?'Отметить: первое попадание в этом раунде уже было':'Mark: the first hit this round already happened';
+ const mark=(on,name,used,kind)=>on?`<button type="button" data-rp-solo-mark="${kind}" aria-pressed="${used?'true':'false'}" title="${esc(tip)}" class="${used?'rp-used':''}">${esc(name)}${used?(ru?' — уже в этом раунде':' — used this round'):(ru?' — доступно':' — ready')}</button>`:'';
+ return `<div class="rp-round" data-rp-solo-bar><span>${esc(s.battle)} · ${ru?'раунд':'round'} <b>${s.round}</b></span>${mark(weak>0,`Spot Weakness +${weak}`,u.spot,'spot')}${mark(defl>0,`Damage Deflection −${defl}`,u.deflect,'deflect')}<button type="button" class="rt-button" data-rp-solo="next">${ru?'Новый раунд':'Next round'}</button><button type="button" class="rt-button" data-rp-solo="new">${ru?'Новый бой':'New fight'}</button></div>`;
 }
 // The Damage Deflection form follows the round of the sheet until the player types something else in it.
+function deflectReady(c,lang){
+ try{const b=global.RoleTools?.soloRollBonuses?.(c);return !!(b?.ok&&b.enabled&&b.deflect>0&&!soloUsed(c,lang).deflect)}catch{return false}
+}
 function soloFill(c,draft,lang){
  if(!obj(draft)||!obj(c)||!hasSolo(c))return;
  const s=soloRound(c,lang),stamp=s.battle+'#'+s.round;
- if(draft.soloStamp!==stamp){draft.deflectEncounter=s.battle;draft.deflectRound=String(s.round);draft.soloStamp=stamp;draft.pending=null}
+ if(draft.soloStamp!==stamp){draft.deflectEncounter=s.battle;draft.deflectRound=String(s.round);draft.soloStamp=stamp;draft.pending=null;draft.deflect=deflectReady(c,lang)}
+ if(draft.deflect===true&&draft.deflectEncounter===s.battle&&draft.deflectRound===String(s.round)&&soloUsed(c,lang).deflect)draft.deflect=false;
 }
 
 // ---------- NET combat: damage after a hit ----------
@@ -430,6 +440,16 @@ if(doc?.addEventListener){
    c.extra=withUsed(c.extra,0);try{A.save?.();A.render?.()}catch{}
    return;
   }
+  const markBtn=t.closest('[data-rp-solo-mark]');if(markBtn){
+   const A=global.App,c=A?.active?.();if(!c||!hasSolo(c))return;
+   const l=A.lang?.(),kind=markBtn.dataset.rpSoloMark==='deflect'?'deflect':'spot',field=kind+'Done',ru=lng(l)==='ru';
+   if(soloLogged(c,l)[kind]){try{A.notify?.(ru?'Уже записано в журнале этого раунда.':'Already recorded in this round\'s log.')}catch{}return}
+   const s=soloRound(c,l),base=s.saved?c.extra.soloRound:{version:1,battle:s.battle,round:s.round,n:s.n},next={...base};
+   if(base[field]===true)delete next[field];else next[field]=true;
+   c.extra={...(obj(c.extra)?c.extra:{}),soloRound:next};
+   try{A.save?.();A.render?.()}catch{}
+   return;
+  }
   const solo=t.closest('[data-rp-solo]');if(solo){
    const A=global.App,c=A?.active?.();if(!c||!hasSolo(c))return;
    const l=A.lang?.(),next=soloAdvance(c,solo.dataset.rpSolo==='new'?'new':'next',l);
@@ -446,6 +466,6 @@ if(doc?.addEventListener){
 
 global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools,
  netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp,
- soloRound,soloAdvance,soloUsed,soloBar,soloFill,
+ soloRound,soloAdvance,soloUsed,soloLogged,soloBar,soloFill,
  progState,netLeft,netBonus,deckEntryHtml,deckFootHtml,ownedFree,ownedMark,deckAct,netrunBar,netrunPlan,netrunRoll};
 })(window);

@@ -50,9 +50,9 @@ test('initiative shows REF after armor and the Solo bonus, and ignores the check
 test('rolls use the modifier once unless it is pinned',()=>{
  const sheet=source('character-extra.js'),shell=source('app.js');
  assert.match(sheet,/function useModifier\(x\)\{const m=num\(x\.modifier,-100,100\);if\(x\.modifierHold!==true\)x\.modifier=0;return m\}/);
- assert.equal((sheet.match(/modifier:useModifier\(x\)\+/g)||[]).length,3,'native language, specialization and weapon attack');
+ assert.equal((sheet.match(/m=useModifier\(x\)/g)||[]).length,3,'native language, specialization and weapon attack');
  assert.doesNotMatch(sheet,/modifier:num\(x\.modifier,-100,100\)\+/);
- assert.match(shell,/x\.luckUse=0;if\(x\.modifierHold!==true\)x\.modifier=0;let out=checkRoll\(/);
+ assert.match(shell,/x\.luckUse=0;if\(x\.modifierHold!==true\)x\.modifier=0;const stimOn=[^;]*;let out=checkRoll\(/);
  assert.match(shell,/' · LUCK \+'\+spent/);assert.match(shell,/' · LUCK \+'\+q\.luckSpent/);
 });
 

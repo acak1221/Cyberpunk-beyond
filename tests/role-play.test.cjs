@@ -279,6 +279,49 @@ test('Solo round fills the Damage Deflection form until the player types another
   assert.match(da, /window\.RolePlay\?\.soloFill\?\.\(c,d,language\)/);
 });
 
+// ---------- Solo: the player's own marks ----------
+function soloSheet(extra) {
+  const handlers = [], calls = [];
+  const w = { confirm: () => true, document: { addEventListener: (k, f) => { if (k === 'click') handlers.push(f); }, documentElement: { classList: { contains: () => false } }, querySelector: () => null } };
+  const math = Object.create(Math); math.random = () => 0.5;
+  const ctx = { window: w, Math: math, Date, JSON, Object, Array, Number, String, setTimeout, globalThis: {} };
+  vm.createContext(ctx); vm.runInContext(read('role-play.js'), ctx);
+  const c = { role: 'solo', rank: 4, extra: { soloRollAutomation: { version: 1, enabled: true }, roleTools: { solo: { values: { deflect: 1, weakness: 2 } } }, ...extra } };
+  w.App = { active: () => c, lang: () => 'ru', save: () => calls.push('save'), render: () => calls.push('render'), notify: m => calls.push(m) };
+  const press = kind => { const b = { dataset: { rpSoloMark: kind } }; for (const h of handlers) h({ target: { closest: s => s === '[data-rp-solo-mark]' ? b : null } }); };
+  return { w, R: w.RolePlay, c, calls, press };
+}
+test('Solo marks: soloUsed reflects the mark, soloLogged ignores it, a new round drops it', () => {
+  const { R, c } = soloSheet({ soloRound: { version: 1, battle: 'Склад', round: 2, n: 1, spotDone: true } });
+  assert.deepEqual(plain(R.soloUsed(c, 'ru')), { spot: true, deflect: false });
+  assert.deepEqual(plain(R.soloLogged(c, 'ru')), { spot: false, deflect: false });
+  assert.deepEqual(plain(R.soloAdvance(c, 'next', 'ru')), { version: 1, battle: 'Склад', round: 3, n: 1 });
+  assert.deepEqual(plain(R.soloAdvance(c, 'new', 'ru')), { version: 1, battle: 'Бой 2', round: 1, n: 2 });
+  assert.deepEqual(plain(R.soloRound(c, 'ru')), { battle: 'Склад', round: 2, n: 1, saved: true });
+  assert.match(R.soloBar(c, 'ru'), /data-rp-solo-mark="spot" aria-pressed="true"[^>]*class="rp-used">Spot Weakness \+2 — уже в этом раунде/);
+  assert.match(R.soloBar(c, 'ru'), /data-rp-solo-mark="deflect" aria-pressed="false"/);
+});
+test('Solo marks: the bar button toggles the mark, creating the round on an old save; a journal entry blocks it', () => {
+  const { c, calls, press } = soloSheet({});
+  press('spot');
+  assert.deepEqual(plain(c.extra.soloRound), { version: 1, battle: 'Бой 1', round: 1, n: 1, spotDone: true });
+  assert.deepEqual(calls, ['save', 'render']);
+  press('spot');
+  assert.deepEqual(plain(c.extra.soloRound), { version: 1, battle: 'Бой 1', round: 1, n: 1 });
+  press('deflect'); assert.equal(c.extra.soloRound.deflectDone, true); assert.equal(c.extra.soloRound.spotDone, undefined);
+  calls.length = 0; c.extra.soloSpotUsage = { version: 1, uses: [{ battle: 'Бой 1', round: 1 }] };
+  press('spot');
+  assert.equal(calls.length, 1); assert.match(calls[0], /Уже записано/); assert.equal(c.extra.soloRound.spotDone, undefined);
+});
+test('Solo marks: the deflection form turns on for a new round when ready and off when already used', () => {
+  const { w, R, c } = soloSheet({});
+  w.RoleTools = { soloRollBonuses: () => ({ ok: true, enabled: true, deflect: 1, weakness: 2 }) };
+  const d = {}; R.soloFill(c, d, 'ru'); assert.equal(d.deflect, true);
+  c.extra.soloRound = { version: 1, battle: 'Бой 1', round: 1, n: 1, deflectDone: true };
+  R.soloFill(c, d, 'ru'); assert.equal(d.deflect, false);
+  const e = {}; R.soloFill(c, e, 'ru'); assert.equal(e.deflect, false);
+});
+
 // ---------- NET combat ----------
 test('NET damage: dice by attacker and target, Armor, REZ down to Derezzed', () => {
   const R = load(['role-play.js'], () => 0.5).RolePlay;
