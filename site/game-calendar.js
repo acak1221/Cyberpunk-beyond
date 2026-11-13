@@ -388,7 +388,7 @@
       else if (x.kind === 'living') parts.push(t.livingW);
       else if (x.kind === 'therapy') parts.push(t.therapyW);
       else if (x.kind === 'hustle') parts.push(t.hustleW);
-      else if (x.kind === 'drugs') parts.push(t.drugsW);
+      else if (x.kind === 'drugs') { if (!parts.includes(t.drugsW)) parts.push(t.drugsW); }
       else if (x.kind === 'drug-year') parts.push(t.drugYearW);
       else if (x.kind === 'maker') parts.push(t.makerW);
     }
