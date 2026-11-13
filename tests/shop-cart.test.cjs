@@ -432,3 +432,18 @@ test('paying never resets the current LUCK of a character whose sheet was not op
   const cart2 = cartOf(PISTOL), p2 = SC.plan(kept, cart2, CATALOG, 'en');
   assert.equal(SC.checkout(kept, cart2, CATALOG, 'en', { confirmed: true, signature: p2.signature }).ok, true); assert.equal(kept.extra.luck, 2);
 });
+
+test('two tabs, two buyers: one buyer\'s lines never land in the other buyer\'s cart', () => {
+  const box = new Map(), a = rig2({ box }), b = rig2({ box });
+  const two = [person(), { ...person(), id: 'p2', name: 'Doc' }];
+  a.world.people = two; b.world.people = two;
+  a.click('cart-add', { id: PISTOL });
+  b.world.buyerId = 'p2'; b.ctl.changed();
+  assert.equal(b.ctl.cart.lines.length, 0, 'Doc starts with an empty cart');
+  a.click('cart-add', { id: HEAVY });
+  b.click('cart-toggle');
+  assert.equal(b.ctl.cart.lines.length, 0, 'Doc cart stays empty');
+  a.world.buyerId = 'p2'; a.ctl.changed(); a.world.buyerId = 'p1'; a.ctl.changed();
+  assert.equal(a.ctl.cart.lines.map(l => l.itemId).sort().join(), [HEAVY, PISTOL].sort().join(), 'both lines are kept for the first buyer');
+  assert.equal(box.get('nightcity-red-carts-v1'), undefined, 'nothing is left parked under a wrong buyer');
+});
