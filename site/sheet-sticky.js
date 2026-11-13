@@ -41,7 +41,9 @@
     if (!flat || !tabs) { if (pin) pin.hidden = true; return; }
     const r = tabs.getBoundingClientRect(), box = pinBox();
     if (r.bottom > 0) { box.hidden = true; return; }
-    if (box.dataset.src !== tabs.innerHTML) { box.innerHTML = '<div class="sheet-tabs" role="tablist">' + tabs.innerHTML + '</div>'; box.dataset.src = tabs.innerHTML; }
+    // The «Your turn» marker of the HUD scrolls away with it, so the pinned copy carries it too.
+    const turn = dock.querySelector('[data-room-turn]:not([hidden])'), src = tabs.innerHTML + (turn ? turn.outerHTML : '');
+    if (box.dataset.src !== src) { box.innerHTML = '<div class="sheet-tabs" role="tablist">' + tabs.innerHTML + '</div>' + (turn ? turn.outerHTML : ''); box.dataset.src = src; }
     box.style.left = r.left + 'px'; box.style.width = r.width + 'px';
     box.hidden = false;
   }

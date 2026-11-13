@@ -19,3 +19,6 @@
 /* Wide «Досье»: a copy of the tab strip at the top of the window. */
 .sheet-pin { position: fixed; top: 0; z-index: 35; padding: 6px 0 0; background: var(--bg); }
 .sheet-pin .sheet-tabs { margin: 0; flex-wrap: wrap; overflow: visible; }
+
+/* Wide «Досье»: the pinned strip also carries the turn marker while it is the player's turn, hanging below its right end. */
+.sheet-pin .hud-turn { position: absolute; top: 100%; right: 0; margin-top: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
