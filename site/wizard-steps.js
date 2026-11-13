@@ -38,5 +38,7 @@ function listHTML(title,entries){
  if(!Array.isArray(entries)||!entries.length)return '';
  return `<div class="wz-review"><h3>${esc(title)}</h3><ul class="wz-chips">${entries.map(x=>`<li>${esc(x.label)}${x.value!==''&&x.value!=null?` <b>${esc(x.value)}</b>`:''}</li>`).join('')}</ul></div>`;
 }
-window.WizardSteps={progress,resolve,stepErrors,firstField,sel,focus,mark,listHTML};
+function syncAttrs(a,b){for(const x of [...a.attributes])if(!b.hasAttribute(x.name))a.removeAttribute(x.name);for(const x of [...b.attributes])if(a.getAttribute(x.name)!==x.value)a.setAttribute(x.name,x.value)}
+function swap(strip,html){if(typeof document==='undefined'||!strip.children){strip.outerHTML=html;return}const t=document.createElement('template');t.innerHTML=html;const n=t.content.firstElementChild;if(!n)return;const A=[...strip.children],B=[...n.children];if(A.length===B.length&&A.every((e,i)=>e.tagName===B[i].tagName)){syncAttrs(strip,n);A.forEach((e,i)=>{syncAttrs(e,B[i]);if(e.innerHTML!==B[i].innerHTML)e.innerHTML=B[i].innerHTML});return}strip.replaceWith(n)}
+window.WizardSteps={swap,progress,resolve,stepErrors,firstField,sel,focus,mark,listHTML};
 })();
