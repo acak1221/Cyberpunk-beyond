@@ -292,3 +292,44 @@ test('undo of a hit never puts old equipment or medical data over newer changes'
   assert.equal(c.extra.equipment.installs.length, 1, 'the implant installed after the hit is still installed');
   assert.equal(c.extra.equipment.maxHumanity, 58);
 });
+
+// ---------- Damage Deflection in the HUD hit form ----------
+const withSolo = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['combat-tools.js', 'equipment-tools.js', 'effects.js', 'role-tools.js', 'role-play.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); w.App = { lang: () => 'en' }; return w; };
+const soloTarget = (over = {}) => ({ id: 'v', role: 'solo', rank: 4, stats: { BODY: 8, WILL: 6 }, hp: 40, head: 10, bodyArmor: 4, extra: { soloRollAutomation: { version: 1, enabled: true }, roleTools: { solo: { values: { deflect: 2 } } }, ...over } });
+
+test('a hit: Damage Deflection is on by default when ready, shows as a chip, and goes into the arguments', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget();
+  const a = P.hitArgs(c, blow());
+  assert.deepEqual(plain(a.deflection), { encounter: 'Бой 1', round: 1, order: '', ablation: '' });
+  assert.equal(P.hitArgs(c, blow({ deflect: false })).deflection, undefined);
+  assert.equal(P.hitArgs(target(), blow()).deflection, undefined, 'a character without Solo automation is unchanged');
+  assert.match(P.hitForm(c, 'ru'), /role="checkbox" data-pc-hit="deflect" aria-checked="true">Damage Deflection −2</);
+  assert.doesNotMatch(P.hitForm(target(), 'ru'), /data-pc-hit="deflect"/);
+});
+test('a hit: Damage Deflection is written to the journal that deflectionPlan reads, and undo takes it back', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget(), was = plain(c);
+  const r = P.hitApply(c, blow());
+  assert.equal(r.ok, true); assert.equal(r.q.deflection.used, true);
+  assert.equal(c.hp, 40 - (20 - 4 - 2));
+  const [e] = c.extra.soloDeflection.entries;
+  assert.deepEqual([e.encounter, e.round, e.amount, e.prevented], ['Бой 1', 1, 2, 2]); assert.equal(typeof e.id, 'string');
+  assert.match(P.hitText(r.q, 'ru'), /Damage Deflection −2/);
+  // The next call in the same round no longer offers it, and the full form refuses the same round.
+  assert.equal(P.hitArgs(c, blow()).deflection, undefined);
+  assert.equal(w.DamageApply.quote(c, { ...P.hitArgs(c, blow()), deflection: { encounter: 'Бой 1', round: 1, order: '', ablation: '' } }), null);
+  assert.match(P.hitForm(c, 'ru'), /data-pc-hit="deflect" aria-checked="false" disabled>Damage Deflection −2 — уже в этом раунде/);
+  assert.equal(P.hitUndo(c, r.undo), true); assert.deepEqual(plain(c), was);
+  const again = P.hitApply(c, blow()); c.extra.soloDeflection.entries.push({ id: 'x', encounter: 'Other', round: 9, amount: 2, prevented: 1 });
+  assert.equal(P.hitUndo(c, again.undo), false, 'the journal changed after the hit');
+});
+test('a hit: the player can switch it off; a case that needs a GM ruling goes to the full form', () => {
+  const w = withSolo(), P = w.PlayCombat, c = soloTarget();
+  const off = P.hitApply(c, blow({ deflect: false })); assert.equal(off.ok, true); assert.equal(c.extra.soloDeflection, undefined);
+  const c2 = soloTarget({ roleTools: { solo: { values: { deflect: 2 } } } });
+  const ruling = P.hitQuote(c2, blow({ raw: '5' }));
+  assert.equal(ruling.ok, false); assert.equal(ruling.reason, 'deflectRuling');
+  assert.equal(c2.extra.soloDeflection, undefined); assert.equal(c2.hp, 40);
+  assert.equal(P.hitQuote(c2, blow({ raw: '5', deflect: false })).ok, true);
+  const zero = P.hitApply(soloTarget(), blow({ raw: '4', location: 'direct', deflect: null }));
+  assert.equal(zero.ok, true);
+});
