@@ -95,3 +95,17 @@ html:not(.ui-native) :is(.gt-box,.gt-attacks,.gt-dialog-actions,.combatant) .btn
   .camp-more-row.camp-damage input, .camp-more-row.camp-damage select { width: 100%; max-width: none; }
   .camp-more-row.camp-damage label.camp-crit, .camp-more-row.camp-damage > .btn { grid-column: 1 / -1; }
 }
+
+/* Allies, loot and the Death Save in the tracker (tracker-allies.js) */
+.ta-death { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ta-death small, .ta-items small { color: var(--muted); font-size: 11px; }
+.ta-team { display: grid; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.ta-team p, .ta-hint { margin: 0; overflow-wrap: anywhere; }
+.ta-list, .ta-items { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ta-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.ta-lootbox { display: grid; gap: 8px; }
+.ta-loot { display: grid; gap: 8px; padding: 8px 0 0; }
+.ta-loot .gt-check span { font-weight: 600; overflow-wrap: anywhere; }
+.ta-loot select { width: 100%; max-width: none; min-height: 40px; }
+.ta-group { display: grid; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+@media (max-width: 420px) { .ta-list li { grid-template-columns: 1fr; } .ta-loot .btn, .ta-team .btn, .ta-death .btn { width: 100%; } }
