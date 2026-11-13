@@ -485,9 +485,9 @@ html.ui-native.ui-light :is(.app-notice, .pwa-toast, .app-notice.roll-notice) { 
 html.ui-native.ui-light .data-menu-panel { background: #fff; box-shadow: 0 12px 34px rgba(0, 0, 0, .2), 0 0 0 1px var(--border); }
 html.ui-native.ui-light .card, html.ui-native.ui-light .rule-card, html.ui-native.ui-light .catalog-card { box-shadow: 0 1px 2px rgba(0, 0, 0, .05); }
 html.ui-native.ui-light .agent-contact { border-left-color: #8b8b94; }
-/* the hero keeps its dark accent card */
-html.ui-native.ui-light .hero { color: #fff8ed; }
-html.ui-native.ui-light .hero h1 { color: #fff8ed; }
+/* the hero card is pale in the light theme, so its title takes the ink colour */
+html.ui-native.ui-light .hero { color: #110b01; }
+html.ui-native.ui-light .hero h1 { color: #110b01; }
 html.ui-native.ui-light .char-art { background: linear-gradient(135deg, #f3d3d0, #e1e1e8); }
 html.ui-native.ui-light .saved-indicator span:last-child { color: var(--green); }
 

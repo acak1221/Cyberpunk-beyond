@@ -253,15 +253,16 @@ test('controller: add, change quantity, review, pay — the bar, the cart, stora
   r.click('cart-pay'); assert.equal(r.saved.length, 1, 'a second payment does nothing'); assert.equal(r.notices.at(-1), 'STALE');
 });
 
-test('controller: changing the buyer keeps the lines, re-prices them and marks what the new buyer cannot afford', () => {
+test('controller: each buyer has their own cart; it comes back when the buyer does', () => {
   const r = rig(); r.click('cart-add', { id: PISTOL }); r.click('cart-add', { id: HEAVY }); r.click('cart-toggle');
   r.world.buyerId = 'p2'; r.ctl.changed();
-  assert.equal(r.ctl.cart.lines.length, 2); assert.match(r.bar(), /Cash<\/span> <b>40 eb/); assert.match(r.bar(), /Short by <b>110 eb/);
-  assert.match(r.panel(), /shop-line is-bad/); assert.match(r.panel(), /The chosen budget does not stretch to this line/); assert.match(r.panel(), /cannot be completed: Short by 110 eb in the chosen budget/);
-  r.click('cart-review'); assert.match(r.notices.at(-1), /cannot be completed: Short by 110 eb/); assert.doesNotMatch(r.panel(), /cart-pay/); assert.equal(r.saved.length, 0);
-  r.world.buyerId = ''; r.ctl.changed(); assert.match(r.bar(), /Choose who is buying/); assert.equal(r.toggle(), 'Cart: 2 · 150 eb');
+  assert.equal(r.ctl.cart.lines.length, 0, 'the other character starts with an empty cart');
+  r.click('cart-add', { id: PISTOL }); assert.equal(r.ctl.cart.lines.length, 1); assert.match(r.bar(), /Cash<\/span> <b>40 eb/);
+  r.world.buyerId = ''; r.ctl.changed(); assert.match(r.bar(), /Choose who is buying/);
   r.click('cart-review'); assert.equal(r.notices.at(-1), 'NEED BUYER');
-  r.world.buyerId = 'p1'; r.ctl.changed(); r.click('cart-review'); assert.match(r.panel(), /cart-pay/);
+  r.world.buyerId = 'p1'; r.ctl.changed(); assert.equal(r.ctl.cart.lines.length, 2, 'the first cart was parked, not lost');
+  r.click('cart-review'); assert.match(r.panel(), /cart-pay/);
+  r.world.buyerId = 'p2'; r.ctl.changed(); assert.equal(r.ctl.cart.lines.length, 1);
 });
 
 test('controller: a stale buyer, scope or data between review and payment buys nothing', () => {
@@ -269,7 +270,7 @@ test('controller: a stale buyer, scope or data between review and payment buys n
   for (const [name, mutate] of Object.entries(cases)) {
     const r = rig(); r.click('cart-add', { id: PISTOL }); r.click('cart-review'); assert.match(r.panel(), /cart-pay/, name);
     mutate(r); r.click('cart-pay');
-    assert.equal(r.saved.length, 0, name); assert.ok(r.world.people.every(c => c.extra.weapons.length === 0), name); assert.ok(r.ctl.cart.lines.length >= 1, name + ': the cart is kept');
+    assert.equal(r.saved.length, 0, name); assert.ok(r.world.people.every(c => c.extra.weapons.length === 0), name); if (name !== 'buyer') assert.ok(r.ctl.cart.lines.length >= 1, name + ': the cart is kept');
     assert.match(String(r.notices.at(-1)), /STALE|changed/, name); assert.doesNotMatch(r.panel(), /cart-pay/, name);
   }
   const r = rig(); r.world.scope = null; r.click('cart-add', { id: PISTOL }); r.click('cart-review'); assert.equal(r.notices.at(-1), 'STALE'); assert.doesNotMatch(r.panel(), /cart-pay/);
@@ -430,4 +431,19 @@ test('paying never resets the current LUCK of a character whose sheet was not op
   const kept = person({ luck: 2 }); kept.stats = { EMP: 6, LUCK: 6 };
   const cart2 = cartOf(PISTOL), p2 = SC.plan(kept, cart2, CATALOG, 'en');
   assert.equal(SC.checkout(kept, cart2, CATALOG, 'en', { confirmed: true, signature: p2.signature }).ok, true); assert.equal(kept.extra.luck, 2);
+});
+
+test('two tabs, two buyers: one buyer\'s lines never land in the other buyer\'s cart', () => {
+  const box = new Map(), a = rig2({ box }), b = rig2({ box });
+  const two = [person(), { ...person(), id: 'p2', name: 'Doc' }];
+  a.world.people = two; b.world.people = two;
+  a.click('cart-add', { id: PISTOL });
+  b.world.buyerId = 'p2'; b.ctl.changed();
+  assert.equal(b.ctl.cart.lines.length, 0, 'Doc starts with an empty cart');
+  a.click('cart-add', { id: HEAVY });
+  b.click('cart-toggle');
+  assert.equal(b.ctl.cart.lines.length, 0, 'Doc cart stays empty');
+  a.world.buyerId = 'p2'; a.ctl.changed(); a.world.buyerId = 'p1'; a.ctl.changed();
+  assert.equal(a.ctl.cart.lines.map(l => l.itemId).sort().join(), [HEAVY, PISTOL].sort().join(), 'both lines are kept for the first buyer');
+  assert.equal(box.get('nightcity-red-carts-v1'), undefined, 'nothing is left parked under a wrong buyer');
 });
