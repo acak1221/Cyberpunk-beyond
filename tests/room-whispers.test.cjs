@@ -191,10 +191,11 @@ test('a secret check: the DV stays with the GM, the player rolls, the GM sees th
  assert.equal(s.ann.state.characters[0].extra.luck,2,'LUCK spent');assert.equal(s.ann.saves.length,1);
  assert.equal(got.answered,true);
  assert.match(s.ann.W.threadHTML(s.gm.fp),/Ваш бросок: 21 \(1d10 7 \+ 13 · LUCK \+1\)\. DV знает ведущий\./);
+ assert.match(s.ann.W.threadHTML(s.gm.fp),/✓ вы ответили/);assert.doesNotMatch(s.ann.W.threadHTML(s.gm.fp),/ответ получен/);
  assert.equal(await s.ann.W.roll(s.gm.fp,got.w,0,dice(9)),null,'one result per ask');
  await s.pump();
  const items=s.gm.W.state().threads[s.ann.fp].items,result=items.at(-1);
- assert.equal(result.kind,'result');assert.equal(result.dv,13);assert.equal(items[0].answered,true);
+ assert.equal(result.kind,'result');assert.equal(result.dv,13);assert.equal(items[0].answered,true);assert.match(s.gm.W.threadHTML(s.ann.fp),/✓ ответ получен/);
  assert.match(s.gm.W.threadHTML(s.ann.fp),/Аня · Восприятие:<\/b> 21 \(1d10 7 \+ 13 · LUCK \+1\) &gt; DV 13 — успех/);
  assert.match(s.gm.actions.at(-1).m,/Аня: тайная проверка — 21/);
  assert.equal(s.gm.R.state().feed.length+s.ann.R.state().feed.length,0,'not in either feed');

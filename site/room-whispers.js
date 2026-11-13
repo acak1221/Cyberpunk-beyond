@@ -38,7 +38,7 @@
       send: 'Отправить', placeholder: 'Сообщение', close: 'Закрыть', empty: 'Сообщений пока нет.',
       askTitle: 'Тайная проверка', askSend: 'Попросить бросок', skill: 'Навык', dv: 'DV', dvNone: 'DV не задан', note: 'Пояснение (необязательно)',
       askedOut: 'Вы попросили тайную проверку: {skill} ({stat})', asked: 'Ведущий просит тайную проверку: {skill} ({stat})',
-      answered: 'ответ получен', rollBtn: 'Бросить тайно', yourRoll: 'Ваш бросок: {r}.', dvHidden: 'DV знает ведущий.',
+      answered: 'ответ получен', youAnswered: 'вы ответили', rollBtn: 'Бросить тайно', yourRoll: 'Ваш бросок: {r}.', dvHidden: 'DV знает ведущий.',
       luckHint: 'LUCK к броску', pending: '⏳ ждёт доставки — уйдёт, когда собеседник будет в сети', sent: '✓ доставлено', failed: '⚠ не доставлено',
       retry: 'Повторить', oldApp: 'У собеседника старая версия приложения: попросите обновить страницу.',
       noChar: 'Выберите персонажа на странице «Игра онлайн».', gotText: 'Ведущий шепнул вам', gotAsk: 'Ведущий просит тайную проверку',
@@ -54,7 +54,7 @@
       send: 'Send', placeholder: 'Message', close: 'Close', empty: 'No messages yet.',
       askTitle: 'Secret check', askSend: 'Ask for a roll', skill: 'Skill', dv: 'DV', dvNone: 'No DV', note: 'Note (optional)',
       askedOut: 'You asked for a secret check: {skill} ({stat})', asked: 'The GM asks for a secret check: {skill} ({stat})',
-      answered: 'answered', rollBtn: 'Roll secretly', yourRoll: 'Your roll: {r}.', dvHidden: 'The GM knows the DV.',
+      answered: 'answered', youAnswered: 'answered', rollBtn: 'Roll secretly', yourRoll: 'Your roll: {r}.', dvHidden: 'The GM knows the DV.',
       luckHint: 'LUCK for the roll', pending: '⏳ waiting — goes out when they are online', sent: '✓ delivered', failed: '⚠ not delivered',
       retry: 'Retry', oldApp: 'They run an old version of the app: ask them to reload the page.',
       noChar: 'Choose a character on the “Online play” page.', gotText: 'The GM whispered to you', gotAsk: 'The GM asks for a secret check',
@@ -427,7 +427,7 @@
         const dv = dvLadder().find(x => x[0] === it.dv);
         body = `<p><b>${esc(t.askedOut.replace('{skill}', '\u0000').replace('{stat}', '\u0001')).replace('\u0000', skill).replace('\u0001', stat)}</b>${dv ? ` · DV ${dv[0]} (${esc(l === 'en' ? dv[2] : dv[1])})` : ''}</p>${it.note ? `<p class="rw-note">${esc(it.note)}</p>` : ''}${it.answered ? `<small class="rw-done">✓ ${esc(t.answered)}</small>` : ''}`;
       } else if (it.kind === 'ask') {
-        body = `<p><b>${esc(t.asked.replace('{skill}', '\u0000').replace('{stat}', '\u0001')).replace('\u0000', skill).replace('\u0001', stat)}</b></p>${it.note ? `<p class="rw-note">${esc(it.note)}</p>` : ''}${it.answered ? `<small class="rw-done">✓ ${esc(t.answered)}</small>` : `<div class="rw-roll"><button type="button" class="btn primary" data-rw-roll="${esc(it.w)}"${hasChar ? '' : ' disabled'}>🎲 ${esc(t.rollBtn)}</button>${hasChar ? '' : `<small>${esc(t.noChar)}</small>`}</div>`}`;
+        body = `<p><b>${esc(t.asked.replace('{skill}', '\u0000').replace('{stat}', '\u0001')).replace('\u0000', skill).replace('\u0001', stat)}</b></p>${it.note ? `<p class="rw-note">${esc(it.note)}</p>` : ''}${it.answered ? `<small class="rw-done">✓ ${esc(t.youAnswered)}</small>` : `<div class="rw-roll"><button type="button" class="btn primary" data-rw-roll="${esc(it.w)}"${hasChar ? '' : ' disabled'}>🎲 ${esc(t.rollBtn)}</button>${hasChar ? '' : `<small>${esc(t.noChar)}</small>`}</div>`}`;
       } else if (it.dir === 'out') body = `<p><b>${skill}</b>: ${esc(t.yourRoll.replace('{r}', describeResult(it, l)))} ${esc(t.dvHidden)}</p>`;
       else body = `<p class="rw-result${DVS.includes(it.dv) ? (verdict(it.total, it.dv) ? ' ok' : ' bad') : ''}"><b>${esc(th.name || '?')} · ${skill}:</b> ${esc(describeResult(it, l, { gm }))}</p>`;
       const st = it.dir === 'out' ? ` · <span class="rw-state ${it.state}">${esc(t[it.state] || '')}</span>${it.state === 'failed' ? ` <button type="button" class="room-mute" data-rw-retry="${esc(it.w)}">${esc(t.retry)}</button>` : ''}` : '';

@@ -249,7 +249,7 @@ async function main() {
     await G.click('.rw-ask button[type="submit"]');
     if (!(await until(() => P.evaluate(() => !!document.querySelector('.rw-dialog [data-rw-roll]:not([disabled])'))))) { fail('the player has no «Бросить тайно» button'); }
     else await P.click('.rw-dialog [data-rw-roll]');
-    if (!(await until(() => G.evaluate(() => /DV 13/.test(document.querySelector('.rw-dialog .rw-thread')?.textContent || ''))))) fail('the secret check result did not reach the Game Master');
+    if (!(await until(() => G.evaluate(() => /DV 13 — (успех|провал)/.test(document.querySelector('.rw-dialog .rw-item.in.k-result')?.textContent || ''))))) fail('the secret check result did not reach the Game Master');
     for (const [who, page] of [['GM', G], ['player', P], ['third', B]]) if (await page.evaluate(() => window.Room._test.state().feed.some(r => /Восприятие|Perception/.test(r.label)))) fail(`the secret check is in the ${who} feed`);
     if (await B.evaluate(() => document.querySelectorAll('.rw-item').length || Object.keys(window.RoomWhispers._test.state()?.threads || {}).length)) fail('the third member has whispers');
     for (const e of [...G.errs, ...P.errs, ...B.errs]) fail(e);
