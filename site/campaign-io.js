@@ -230,6 +230,7 @@ function apply(bundle,select,deps={}){
   const c=copy(bundle.campaigns[row.index]);c.id=freshId(taken);c.name=row.finalName;
   for(const r of c.roster){
    if(r.kind==='pc'){const to=sheetMap.get(r.characterId);if(to)r.characterId=to;else if(!localIds.has(r.characterId)&&bundle.sheets.some(s=>s.id===r.characterId))r.characterId=''}
+   if(isObj(r.ally)&&typeof r.ally.characterId==='string'){const to=sheetMap.get(r.ally.characterId);if(to)r.ally.characterId=to}
    if(r.sourceLibrary){const to=libMap.get(r.sourceLibrary);if(to)r.sourceLibrary=to;else delete r.sourceLibrary}
   }
   if(!validCampaign(c))continue;

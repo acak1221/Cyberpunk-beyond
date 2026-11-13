@@ -151,7 +151,7 @@ test('stash moves the rest of a dead NPC to the flat loot pile and ignores the l
   for (const e of c.lootPile) { assert.equal(e.from, 'Ганк 2'); assert.equal(e.fromId, 'n1'); assert.equal(typeof e.name, 'string'); assert.ok(e.qty >= 1); assert.ok(!Object.values(e).some(v => v && typeof v === 'object')); }
   c.lootPile = Array.from({ length: 119 }, (_, i) => ({ id: 'o' + i, from: 'x', fromId: 'x', name: 'x', qty: 1, kind: 'gear', catalogId: '', at: 1 }));
   h.TA.stash(c, [row('security-operative', { out: true })], 'en');
-  assert.equal(c.lootPile.length, 120); assert.equal(c.lootPile[0].id, c.lootPile.length ? c.lootPile[0].id : '');
+  assert.equal(c.lootPile.length, 120); assert.ok(!c.lootPile.some(e => e.id === 'o0')); assert.equal(c.lootPile.at(-1).fromId, 'n1');
   assert.equal(h.TA.lootable({ kind: 'npc', own: 'x', hp: 0 }, [1]), false); assert.equal(h.TA.lootable({ kind: 'npc', ally: {}, hp: 0 }, [1]), false);
 });
 
@@ -193,7 +193,7 @@ test('loot-give gives to a local sheet, to a player in the room, and marks only 
   const items = h.TA.lootItems(npc, T, [], h.w.CATALOG, 'ru');
   const box = (keys, to) => ({ querySelectorAll: () => items.map(i => ({ checked: keys.includes(i.key), dataset: { taItem: i.key } })), querySelector: () => ({ value: to }) });
   const give = (keys, to, chars) => click(h, c, { characters: chars || [pc] }, { taAction: 'loot-give', src: 'row:n1' }, { box: box(keys, to) });
-  const vhp = items.find(i => i.catalogId === 'weapon-very-heavy-pistol'), ammo = items.find(i => i.name === 'Rifle Ammo');
+  const vhp = items.find(i => i.catalogId === 'weapon-very-heavy-pistol'), ammo = items.find(i => i.name === 'Патроны для винтовки');
   assert.match(give([], 'c:p').notify, /Отметьте/);
   const r = give([vhp.key, ammo.key], 'c:p');
   assert.equal(r.dirty, true); assert.equal(pc.extra.weapons.length, 1); assert.equal(pc.extra.items.length, 1);
@@ -245,4 +245,28 @@ test('an exported and re-imported campaign keeps the ally, the taken keys and th
   assert.equal(r.ok, true);
   const text = JSON.stringify(plain(r));
   assert.ok(text.includes('"memberId":"m1"') && text.includes('Very Heavy Pistol') && text.includes('weapon:x:0') && text.includes('armor-kevlar'), 'kept: ' + text.slice(0, 600));
+});
+
+test('an en-route backup row follows the sheet round count and comes into the turn order on arrival', () => {
+  const h = load(), pc = exec([], { tier: 5, rounds: 2, hp: [35, 20] }), c = campaign(pcRow(pc));
+  h.TA.addAllies(c, pc, { backup: true }, 'ru');
+  const row = c.roster[2]; assert.match(row.combatNote.text, /2 раунд/);
+  pc.extra.roleKit.backup.rounds = 1;
+  assert.equal(h.TA.sync(c, [pc], () => false).changed, true); assert.match(row.combatNote.text, /1 раунд/); assert.equal(row.out, true);
+  pc.extra.roleKit.backup.rounds = 0;
+  assert.equal(h.TA.sync(c, [pc], () => false).changed, true); assert.equal(row.out, undefined); assert.equal(row.combatNote, undefined);
+});
+
+test('a declined loot offer returns the item to the loot pile; the caption is escaped where it is inserted', () => {
+  const h = load(), c = campaign(), hooks = [];
+  h.w.Room = { grantLink: { memberFor: () => 'm-9' } };
+  h.w.RoomGrants = { sendTo: (m, v, l, hk) => { hooks.push(hk); return { ok: true }; } };
+  const own = { id: 'o1', kind: 'npc', own: 'x', name: 'Гость', hp: 10 }; c.roster.push(own);
+  const it = { key: 'k1', name: 'Фонарь', qty: 1, catalogId: '', kind: 'gear' };
+  assert.equal(typeof h.TA.giveBack, 'function');
+  let saved = 0; h.TA.giveBack(c, { id: 'n1' }, 'Ганк', it, { lang: 'ru', save: () => saved++ });
+  assert.equal(c.lootPile.length, 1); assert.equal(c.lootPile[0].name, 'Фонарь'); assert.equal(c.lootPile[0].fromId, 'n1'); assert.equal(saved, 1);
+  const camp = fs.readFileSync(__dirname + '/../site/campaigns.js', 'utf8');
+  assert.ok(camp.includes('esc(window.TrackerAllies?.label?.(r,characters,lang)||t.npcs)'));
+  assert.ok(fs.readFileSync(__dirname + '/../site/campaign-io.js', 'utf8').includes('r.ally.characterId=to'));
 });

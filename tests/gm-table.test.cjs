@@ -156,7 +156,7 @@ test('online: tracker hits and rewards for a player in the room are sent as gran
   assert.match(src, /const pc=pcOf\(target\),to=onlineMember\(pc\)\|\|onlineMember\(target\);\s*if\(to\)\{\s*const sent=window\.RoomGrants\.sendTo\(to,\{kind:'damage'/);
   assert.match(src, /plan\.rows=plan\.rows\.filter\(r=>!away\.has\(r\.id\)&&!list\.find\(x=>x\.id===r\.id\)\?\.room\)/);
   assert.match(camp, /if\(to\)\{[\s\S]{0,400}RoomGrants\.sendTo\(to,\{kind:'damage'/);
-  assert.match(rg, /function sendTo\(memberId, v, l\)/); assert.match(rg, /trackerButton, sendTo,/);
+  assert.match(rg, /function sendTo\(memberId, v, l(, hooks)?\)/); assert.match(rg, /trackerButton, sendTo,/);
 });
 
 test('a player added from the room is offered the party reward and shows no stale balance', () => {

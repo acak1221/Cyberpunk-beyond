@@ -22,7 +22,7 @@ const T={
   loot:n=>`Забрать добычу (${n})`,lootClose:'Скрыть добычу',lootTitle:'ДОБЫЧА',lootCatalog:'из каталога',lootPlain:'как предмет',to:'Кому',inRoom:'в комнате',
   give:'Отдать выбранное',drop:'Убрать',dropSure:'Точно убрать?',noRecipient:'Добавьте персонажа в кампанию, чтобы отдать добычу.',
   pickItems:'Отметьте предметы.',pickWho:'Выберите, кому отдать.',giveFail:'Не удалось отдать: лист несовместим. Ничего не изменено.',
-  lootNote:'Добыча',lootLine:(from,to,list)=>`Добыча (${from}) → ${to}: ${list}`,lootSkipped:list=>` Не отправлено: ${list}.`,dropped:'Добыча убрана.',
+  lootNote:'Добыча',lootLine:(from,to,list)=>`Добыча (${from}) → ${to}: ${list}`,lootSkipped:list=>` Не отправлено: ${list}.`,lootBack:n=>`Игрок отказался: ${n}. Предмет возвращён в общую добычу.`,dropped:'Добыча убрана.',
   pileHelp:'Что осталось от убранных противников. Отдайте персонажу или уберите.'
  },
  en:{
@@ -40,7 +40,7 @@ const T={
   loot:n=>`Take the loot (${n})`,lootClose:'Hide the loot',lootTitle:'LOOT',lootCatalog:'from the catalog',lootPlain:'as an item',to:'To',inRoom:'in the room',
   give:'Give the chosen',drop:'Discard',dropSure:'Really discard?',noRecipient:'Add a character to the campaign to hand out loot.',
   pickItems:'Tick some items.',pickWho:'Choose who gets it.',giveFail:'Could not give it: the sheet is incompatible. Nothing was changed.',
-  lootNote:'Loot',lootLine:(from,to,list)=>`Loot (${from}) → ${to}: ${list}`,lootSkipped:list=>` Not sent: ${list}.`,dropped:'The loot was discarded.',
+  lootNote:'Loot',lootLine:(from,to,list)=>`Loot (${from}) → ${to}: ${list}`,lootSkipped:list=>` Not sent: ${list}.`,lootBack:n=>`The player declined: ${n}. The item is back in the loot pile.`,dropped:'The loot was discarded.',
   pileHelp:'What is left of removed opponents. Give it to a character or discard it.'
  }
 };
@@ -134,6 +134,11 @@ function sync(campaign,characters,isOnline){
    const st=rk.memberState(owner,m);if(!st)continue;sheet={hp:st.hp,sp:st.sp};
   }else{
    const st=rk.backupState(owner);if(!st||st.tier.min!==a.tier||!Number.isSafeInteger(a.index)||a.index<0||a.index>=st.hp.length)continue;sheet={hp:st.hp[a.index]};
+   if(r.out===true&&isObj(r.combatNote)&&/^(Прибудет через|Arrives in) /.test(String(r.combatNote.text))){
+    const en=/^Arrives/.test(r.combatNote.text);
+    if(st.rounds<=0){delete r.out;delete r.combatNote;changed=true}
+    else{const txt=T[en?'en':'ru'].arrive(st.rounds);if(r.combatNote.text!==txt){r.combatNote.text=txt;changed=true}}
+   }
   }
   const hp=Number(r.hp);if(!Number.isFinite(hp))continue;
   const exec=a.from==='exec',spRow=exec?Number(r.sp?.body):null;
@@ -167,7 +172,8 @@ function parseName(text){
  if(m){qty=Math.min(99,Math.max(1,Number(m[1])));name=name.slice(0,m.index).trim()}
  return {name,qty};
 }
-const displayName=(raw,lang)=>lang==='ru'?(window.GMTools?.WEAPONS_RU?.[raw]||window.GMTools?.ARMOR_RU?.[raw]||raw):raw;
+const AMMO_RU={'Rifle Ammo':'Патроны для винтовки','VH Pistol Ammo':'Патроны для сверхтяжёлого пистолета','Heavy Pistol Ammo':'Патроны для тяжёлого пистолета','Slug Ammo':'Патроны-жаканы','Arrow Ammo':'Стрелы','Flamethrower Ammo':'Топливо для огнемёта','Incendiary Grenade':'Зажигательная граната','Flashbang Grenade':'Светошумовая граната','Armor Piercing Grenade':'Бронебойная граната'};
+const displayName=(raw,lang)=>lang==='ru'?(window.GMTools?.WEAPONS_RU?.[raw]||window.GMTools?.ARMOR_RU?.[raw]||AMMO_RU[raw]||raw):raw;
 function sourceEntries(row,templates,library){
  const out=[];
  if(typeof row?.sourceTemplate==='string'&&row.sourceTemplate){
@@ -300,6 +306,16 @@ function pileHTML(c,characters,lang){
 
 // ---------- 3. clicks ----------
 const nameList=rows=>rows.map(r=>r.name).join(', ');
+/* The player refused a sent offer: the item goes back to the loot pile so it can be given to someone else. */
+function giveBack(c,row,from,it,ctx){
+ if(!isObj(c))return false;
+ const keep=Array.isArray(c.lootPile)?c.lootPile:[];
+ c.lootPile=[...keep,{id:newId(),from:String(from||'?').slice(0,100),fromId:String(row?.id||'returned'),name:it.name,qty:it.qty,catalogId:it.catalogId||'',kind:it.kind,at:Date.now()}].slice(-PILE_MAX);
+ try{window.Campaigns?.journalAdd?.(c,T[L(ctx?.lang)].lootBack(it.name),true)}catch{}
+ try{ctx?.save?.()}catch{}
+ try{ctx?.rerender?.()}catch{}
+ return true;
+}
 function handle(e,c,ctx){
  const b=e?.type==='click'?e.target?.closest?.('[data-ta-action]'):null;if(!b)return null;
  const lang=L(ctx?.lang),t=T[lang],characters=Array.isArray(ctx?.characters)?ctx.characters:[],a=b.dataset.taAction,roster=Array.isArray(c?.roster)?c.roster:[];
@@ -347,7 +363,7 @@ function handle(e,c,ctx){
   const online=onlineOf(target);let taken=[],failed=[];
   if(online){
    for(const it of chosen){
-    let r={ok:false};try{r=window.RoomGrants.sendTo(online,{kind:'item',n:it.qty,name:it.name,note:t.lootNote+': '+from},lang)}catch{}
+    let r={ok:false};try{r=window.RoomGrants.sendTo(online,{kind:'item',n:it.qty,name:it.name,note:t.lootNote+': '+from},lang,{declined:()=>giveBack(c,row,from,it,ctx)})}catch{}
     (r?.ok?taken:failed).push(it);
    }
   }else{
@@ -366,6 +382,6 @@ function handle(e,c,ctx){
  return {};
 }
 
-window.TrackerAllies={text:T,BACKUP_WEAPONS,ALIASES,allyRowsFor,addAllies,sync,lootItems,catalogMatch,lootable,giveLocal,stash,deathButtonState,pcHTML,deathHTML,teamHTML,lootHTML,pileHTML,label,handle,
+window.TrackerAllies={text:T,BACKUP_WEAPONS,ALIASES,allyRowsFor,addAllies,sync,lootItems,catalogMatch,lootable,giveLocal,stash,deathButtonState,pcHTML,deathHTML,teamHTML,lootHTML,pileHTML,label,handle,giveBack,
  reset(){lootOpen.clear();lastRecipient='';armed=''}};
 })();
