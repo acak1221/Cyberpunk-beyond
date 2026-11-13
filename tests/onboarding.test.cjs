@@ -214,7 +214,7 @@ function appHarness(archive){
  const w={ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],GMTools:{NPC_TEMPLATES:[booster],initial:()=>null,validWorkspace:()=>true},CombatTools:{handle:()=>false},Book:{handle:()=>false},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create:()=>adapter},confirm:()=>true,scrollTo(){}};
  const store=new Map(archive?[['nightcity-red-v1',JSON.stringify({campaigns:[],lang:'en',...archive})]]:[]);
  const ctx={window:w,document:{querySelector:s=>nodes[s]||null,documentElement:{},title:''},localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v))},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},setTimeout:()=>0,clearTimeout(){},confirm:()=>true,console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap};
- vm.createContext(ctx);for(const f of ['character-extra.js','equipment-tools.js','campaigns.js','onboarding.js'])vm.runInContext(source(f),ctx);
+ vm.createContext(ctx);for(const f of ['archetypes.js','character-extra.js','equipment-tools.js','campaigns.js','onboarding.js'])vm.runInContext(source(f),ctx);
  vm.runInContext(source('app.js')+'\nrender=()=>{};\nwindow.qa={state:()=>state,valid:validateSnapshot,snapshot:snapshotAppState,salvage:salvageArchive,overview};',ctx);
  const click=action=>w.Onboarding.handle({type:'click',target:{closest:s=>s==='[data-ob]'?{dataset:{ob:action},closest:()=>null}:null}});
  return {w,O:w.Onboarding,qa:w.qa,state:()=>w.qa.state(),saved,click,store};
@@ -253,4 +253,17 @@ test('the tracker draws the hints inside a trial fight and nowhere else',()=>{
  const draw=()=>h.window.Campaigns.render(h.state.campaigns,h.state.characters,'en',null);
  open(c.id);const html=draw();assert.match(html,/data-ob-trial data-ob-step="initiative"/);assert.ok(html.indexOf('data-ob-trial')<html.indexOf('class="campaign-turnbar"'),'right above the turn buttons');
  open('job');assert.doesNotMatch(draw(),/data-ob-trial/);
+});
+
+test('the sample character carries its spare rounds and can unload and reload them',()=>{
+ const w={};const ctx={window:w,console,Math,Date,globalThis:{crypto:{randomUUID:()=>'x'}}};vm.createContext(ctx);for(const f of ['rules.js','catalog.js','catalog-extra.js','archetypes.js','equipment-tools.js','reload-tools.js','onboarding.js'])vm.runInContext(source(f),ctx);
+ w.ReloadTools.setScope('s');
+ for(const lang of ['ru','en']){
+  const c=plain(w.Onboarding.sampleCharacter(lang));c.id='sample-1';assert.equal(c.extra.startingPack.method,'streetrat');assert.equal(c.extra.startingPack.confirmed,true);assert.equal(c.extra.startingPack.humanityLossApplied,undefined);
+  assert.equal(JSON.stringify(c.extra.items.map(x=>x.quantity)),'[22,45]');
+  for(const weapon of c.extra.weapons){assert.equal(weapon.ammo,weapon.capacity);assert.equal(weapon.lastReload.units,weapon.capacity);assert.ok(c.extra.items.some(i=>i.id===weapon.lastReload.ammoRecordId));assert.equal(w.ReloadTools.validReceipt(weapon.lastReload),true);
+   const q=w.ReloadTools.quoteUnload(c,weapon.id,lang);assert.equal(q.ok,true,weapon.id)}
+  const rifle=c.extra.weapons.find(x=>x.id==='sample-assault-rifle');rifle.ammo=10;
+  const plan=w.ReloadTools.quickPlan(c,rifle.id,lang);assert.equal(plan.ok,true);
+ }
 });

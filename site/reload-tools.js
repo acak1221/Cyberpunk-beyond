@@ -105,6 +105,19 @@ function commit(c,expected,lang,options={}){
  w.lastReload={...(w.lastReload||{}),version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:check.quote.capacity,...(w.lastReload?.unloadCompleted===true?{unloadCompleted:false}:{})};
  return {ok:true,dirty:true,loaded:check.quote.capacity};
 }
+// Creation only (p. 98): each empty starter gun gets one full magazine from matching starter rounds; stock goes down by the same amount.
+function loadStarterMagazines(c){
+ const out=[];if(!Array.isArray(c?.extra?.weapons)||!Array.isArray(c?.extra?.items))return out;
+ for(const w of c.extra.weapons){
+  const p=weaponProfile(w);if(!p||w.ammo!==0||w.lastReload!==undefined)continue;
+  const stock=c.extra.items.filter(a=>a&&a.starterAmmo!==undefined&&lookup(c,'items',a.id)===a&&ammunition(c,a)&&p.types.includes(a.ammoType)&&a.quantity>=w.capacity)
+   .sort((x,y)=>(y.catalogId==='ammo-basic-ammunition')-(x.catalogId==='ammo-basic-ammunition'));
+  const a=stock[0];if(!a)continue;
+  a.quantity-=w.capacity;w.ammo=w.capacity;
+  w.lastReload={version:1,ammoCatalogId:a.catalogId,ammoType:a.ammoType,ammoRecordId:a.id,units:w.capacity};
+  out.push({weaponId:w.id,ammoId:a.id,units:w.capacity});
+ }return out;
+}
 /* «Перезарядить» on the weapon card. After a fight the magazine is rarely empty and the stock is rarely a full magazine,
    so this one tops up, takes what is left, and when the rounds in stock are of another kind returns the rest first.
    Rounds never appear from nowhere: only what a receipt says came from stock can go back to it. */
@@ -197,5 +210,5 @@ function handle(e,c,lang,options={}){
  if(!window.confirm(prompt))return {handled:true};if(!connected()||draft(c)!==d||d.weapon!==q.weaponId||d.ammo!==q.ammoId)return {handled:true,notify:t.stale};const result=commit(c,before,lang,options);if(!result.ok)return {handled:true,notify:result.message};
  d.ammo='';return {handled:true,dirty:true,rerender:true,notify:t.ok};
 }
-window.ReloadTools={WEAPONS,weaponProfile,setScope,quote,commit,quoteUnload,commitUnload,quickPlan,quickCommit,quickMessage,loadedName,render,handle,validReceipt};
+window.ReloadTools={WEAPONS,weaponProfile,setScope,quote,commit,loadStarterMagazines,quoteUnload,commitUnload,quickPlan,quickCommit,quickMessage,loadedName,render,handle,validReceipt};
 })();
