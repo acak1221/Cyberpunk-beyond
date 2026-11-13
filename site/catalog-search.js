@@ -6,8 +6,8 @@
   const idLike = re => it => re.test(it.id);
   // stems: a query matches when it starts with a stem and adds at most 3 letters (endings).
   const RULES = [
-    { stems: ['патрон', 'боеприпас', 'ammo', 'bullet', 'cartridge'], test: cat('ammo') },
-    { stems: ['брон', 'бронежилет', 'жилет', 'armor', 'armour', 'kevlar', 'vest'], test: cat('armor') },
+    { stems: ['патрон', 'боеприпас', 'пул', 'обойм', 'ammo', 'bullet', 'cartridge'], test: cat('ammo') },
+    { stems: ['брон', 'бронежилет', 'бронекуртк', 'бронекостюм', 'жилет', 'armor', 'armour', 'kevlar', 'vest'], test: cat('armor') },
     { stems: ['куртк', 'jacket', 'leather'], test: ids('armor-leathers', 'armor-kevlar') },
     { stems: ['шлем', 'helmet'], test: ids('armor-light-armorjack', 'armor-medium-armorjack', 'armor-heavy-armorjack', 'armor-metalgear', 'armor-flak') },
     { stems: ['щит', 'shield'], test: idLike(/shield/) },

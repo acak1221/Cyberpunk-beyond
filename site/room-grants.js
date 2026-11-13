@@ -99,7 +99,7 @@
     if (!obj(c) || (c.extra !== undefined && !obj(c.extra))) return { ok: false, why: t.unsupported };
     if (g.kind === 'damage') {
       const r = damageQuote(c, g); if (!r) return { ok: false, why: t.manual };
-      const q = r.q, lines = [`HP ${q.hp} → ${q.hpAfter}`];
+      const q = r.q, lines = [`HP ${q.hp} → ${Math.max(0, q.hpAfter)}`];
       if (q.type !== 'direct' && q.spAfter !== q.sp) lines.push(`${g.loc === 'head' ? t.spHead : t.spBody} ${q.sp} → ${q.spAfter}`);
       if (q.type !== 'direct' && q.damage === 0) lines.push(t.blocked);
       if (q.mortalAttack) lines.push(`${t.deathPenalty} ${q.penaltyBefore} → ${q.penaltyAfter}`);
@@ -134,7 +134,7 @@
     if (g.kind === 'damage') {
       const r = damageQuote(c, g); if (!r) return { ok: false, why: t.manual };
       const q = r.q, copy = r.copy;
-      c.hp = q.hpAfter;
+      c.hp = Math.max(0, q.hpAfter);
       if (q.mortalAttack) { if (!c.extra) c.extra = {}; c.extra.deathPenalty = q.penaltyAfter; }
       if (q.resetStabilization && obj(c.extra?.medical)) c.extra.medical = { ...c.extra.medical, stabilized: false };
       if (q.spAfter !== q.sp && q.type !== 'direct') {

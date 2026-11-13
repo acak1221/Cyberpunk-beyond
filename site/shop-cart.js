@@ -13,6 +13,8 @@
   'use strict';
 
   const KEY = 'nightcity-red-cart-v1';
+  // Carts of the other characters (parked while someone else shops) and who the live cart belongs to.
+  const PARK_KEY = 'nightcity-red-carts-v1', OWNER_KEY = 'nightcity-red-cart-owner-v1';
   const MAX_LINES = 50, MAX_QTY = 50;
   const MODES = ['cash', 'gearBudget', 'fashionBudget'];
   const RICH = Number.MAX_SAFE_INTEGER;
@@ -36,7 +38,7 @@
       chipNote: 'Конкретный навык для чипа укажите на листе вручную.',
       ammoNote: (label, n) => `${label} · ${n} шт.`,
       roomsNote: n => `Комнат: ${n}`,
-      added: name => `В корзину: ${name}`, addedSet: name => `В корзину: ${name} ×2 (тело и голова)`, oneLocation: 'Одна часть брони закрывает одну часть тела: голову или тело. Для обеих нужны две.', needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
+      added: name => `В корзину: ${name}`, cartOf: name => `Корзина персонажа: ${name}`, addedSet: name => `В корзину: ${name} ×2 (тело и голова)`, oneLocation: 'Одна часть брони закрывает одну часть тела: голову или тело. Для обеих нужны две.', needOption: 'Выберите тип в корзине, иначе позицию нельзя купить.',
       full: 'В корзине уже максимум позиций. Купите или уберите что-нибудь.',
       maxQty: 'Не больше 50 штук одной позиции.',
       empty: 'Корзина пуста.', noBuyer: 'Сначала выберите, кто покупает.',
@@ -69,7 +71,7 @@
       chipNote: 'Note the specific skill for the chip on the sheet manually.',
       ammoNote: (label, n) => `${label} · ${n} units`,
       roomsNote: n => `Rooms: ${n}`,
-      added: name => `Added to cart: ${name}`, addedSet: name => `Added to cart: ${name} ×2 (body and head)`, oneLocation: 'One armor piece covers one location: head or body. Wearing both takes two.', needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
+      added: name => `Added to cart: ${name}`, cartOf: name => `Cart of: ${name}`, addedSet: name => `Added to cart: ${name} ×2 (body and head)`, oneLocation: 'One armor piece covers one location: head or body. Wearing both takes two.', needOption: 'Choose a type in the cart, otherwise the item cannot be bought.',
       full: 'The cart already holds the maximum number of lines. Buy or remove something.',
       maxQty: 'No more than 50 of one item.',
       empty: 'The cart is empty.', noBuyer: 'First choose who is buying.',
@@ -380,6 +382,29 @@
     // shown: the panel was open at the last paint. pressing: a pointer is down. pending: the panel is waiting to be rebuilt.
     let shown = false, pressing = false, pending = false;
     const $ = sel => doc?.querySelector?.(sel) || null;
+    // Each character keeps their own cart: the live cart belongs to `owner`, the others wait in PARK_KEY.
+    const get = key => { try { return storage?.getItem?.(key) ?? null; } catch { return null; } };
+    const put = (key, text) => { try { if (text == null) storage?.removeItem?.(key); else storage?.setItem?.(key, text); } catch { /* storage blocked */ } };
+    let owner = get(OWNER_KEY) || null;
+    const parked = () => { try { const o = JSON.parse(get(PARK_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch { return {}; } };
+    // The buyer another tab saved as the owner of the live cart, when that is one of the known characters.
+    const storedOwner = () => { const v = get(OWNER_KEY); return v && (host.characters() || []).some(x => x.id === v) ? v : null; };
+    function follow() {
+      { const stored = storedOwner(); if (stored && stored !== owner) { if (raw() !== seen) sync(); owner = stored; } }
+      const id = host.buyerId(), c = (host.characters() || []).find(x => x.id === id);
+      if (!c || c.id === owner) return;
+      if (!owner) { owner = c.id; put(OWNER_KEY, owner); return; }
+      const all = parked(), old = owner;
+      { if (cart.lines.length) all[old] = serialize(cart); else delete all[old]; }
+      const next = all[c.id] ? sanitize(all[c.id], host.catalog()) : emptyCart();
+      delete all[c.id];
+      const moved = !!(cart.lines.length || next.lines.length);
+      cart.mode = next.mode; cart.lines.splice(0, cart.lines.length, ...next.lines);
+      review = null; receipt = null; owner = c.id;
+      put(PARK_KEY, Object.keys(all).length ? JSON.stringify(all) : null); put(OWNER_KEY, owner);
+      persist();
+      if (moved && old) later(() => host.notify(t(host.lang(), 'cartOf', host.nameOf(c))));
+    }
     const buyer = () => { const id = host.buyerId(); return (host.characters() || []).find(c => c.id === id) || null; };
     // manual: the source this buyer picked by hand. It holds for that buyer only, and only while that source has money.
     let manual = null;
@@ -392,11 +417,12 @@
       cart.mode = next; review = null;
       return true;
     }
-    const view = () => { tune(); const c = buyer(), lang = host.lang(), catalog = host.catalog(); return { lang, buyer: c, buyerName: c ? host.nameOf(c) : '', characters: host.characters(), nameOf: host.nameOf, plan: plan(c, cart, catalog, lang), alt: alternative(c, cart, catalog), open, review: !!review, receipt }; };
+    const view = () => { follow(); tune(); const c = buyer(), lang = host.lang(), catalog = host.catalog(); return { lang, buyer: c, buyerName: c ? host.nameOf(c) : '', characters: host.characters(), nameOf: host.nameOf, plan: plan(c, cart, catalog, lang), alt: alternative(c, cart, catalog), open, review: !!review, receipt }; };
     const persist = () => { store(storage, cart); seen = raw(); };
     // Another tab changed the stored cart (bought it, cleared it, edited it): take its version, so that
     // a cart that was already paid for cannot be paid again here or written back. True when it changed.
     function sync() {
+      { const stored = storedOwner(); if (stored) owner = stored; }
       const now = raw();
       if (now === seen) return false;
       seen = now;

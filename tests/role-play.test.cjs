@@ -297,6 +297,7 @@ test('NET damage: dice by attacker and target, Armor, REZ down to Derezzed', () 
   assert.deepEqual(plain(R.netRezAfter({ rez: 20, state: 'waiting' }, 12)), { before: 20, after: 8, state: 'waiting' });
   assert.deepEqual(plain(R.netRezAfter({ rez: 8, state: 'pursuing' }, 12)), { before: 8, after: 0, state: 'derezzed' });
   assert.deepEqual(plain(R.netBrainAfter({ hp: 40 }, 7, false)), { before: 40, after: 33, taken: 7 });
+  assert.deepEqual(plain(R.netBrainAfter({ hp: 3 }, 10, false)), { before: 3, after: 0, taken: 10 });
   assert.deepEqual(plain(R.netBrainAfter({ hp: 40 }, 3, true)), { before: 40, after: 40, taken: 0 });
   assert.equal(R.armorUp({ extra: { cyberdecks: { decks: [{ entries: [{ catalogId: 'extra-program-armor', active: true }] }] } } }), true);
   assert.equal(R.armorUp({ extra: { cyberdecks: { decks: [{ entries: [{ catalogId: 'extra-program-armor', active: true, down: true }] }] } } }), false);

@@ -25,3 +25,12 @@
 @media (max-width:560px){.night-market .nm-items li{grid-template-columns:1fr auto}.night-market .nm-items li .rule-source{grid-column:1}}
 
 @media (max-width:600px){.skill-reference .sr-table-wrap{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}}
+/* A phone: the difficulty ladder turns on its side (one row per level) so no column is cut off and no word is hyphenated. */
+@media (max-width:600px){
+ .skill-reference .sr-table-wrap:has(.sr-dv){-webkit-mask-image:none;mask-image:none;overflow-x:visible}
+ .skill-reference .sr-dv{display:grid;grid-auto-flow:column;grid-template-rows:repeat(8,auto);grid-template-columns:minmax(0,1.4fr) auto minmax(min-content,1fr)}
+ .skill-reference .sr-dv thead,.skill-reference .sr-dv tbody,.skill-reference .sr-dv tr{display:contents}
+ .skill-reference .sr-dv th,.skill-reference .sr-dv td{hyphens:none;overflow-wrap:normal;word-break:normal}
+ .skill-reference .sr-dv th,.skill-reference .sr-dv td:first-child{text-align:left}
+ .skill-reference .sr-dv td:first-child small{display:block}
+}

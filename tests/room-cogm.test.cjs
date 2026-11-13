@@ -522,3 +522,11 @@ test('texts exist in Russian and English, and old saved sessions still load',asy
  old.R.session().deputyFp={evil:1};old.R.session().gmChain='x';old.R.session().handoverTo={fp:'zz'};
  assert.equal(old.R.auth.deputyFp(),'');assert.doesNotThrow(()=>old.R.roomView());assert.equal(await old.R.auth.sendHandover(),0);
 });
+
+test('a GM device with no campaigns is told how to bring one',()=>{
+ for(const [lang,re] of [['ru',/data-room-nocamp[^>]*>[^<]*Экспорт/],['en',/data-room-nocamp[^>]*>[^<]*Export/]]){
+  const gm=loadRoom({lang,state:{campaigns:[]}});
+  gm.R.setSession({role:'gm',name:'GM',code:CODE,campaignId:'',characterId:''},'x');
+  assert.match(gm.R.roomView(),re);
+ }
+});

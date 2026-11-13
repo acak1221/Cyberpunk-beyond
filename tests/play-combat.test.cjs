@@ -138,7 +138,7 @@ test('a hit: applying changes HP and armor without a browser dialog, and undo ta
 test('a hit on a mortally wounded character: the Death Save penalty grows and the injury roll is offered', () => {
   const P = withDamage().PlayCombat, c = target({ hp: 0, extra: { baseDeathPenalty: 0, deathPenalty: 1 } });
   const r = P.hitApply(c, blow({ raw: '12' }));
-  assert.equal(r.ok, true); assert.equal(r.injury, 'body'); assert.equal(c.extra.deathPenalty, 2); assert.equal(c.hp, -9);
+  assert.equal(r.ok, true); assert.equal(r.injury, 'body'); assert.equal(c.extra.deathPenalty, 2); assert.equal(c.hp, 0, 'HP stops at 0');
   assert.match(P.hitText(r.q, 'ru'), /штраф Death Save 1 → 2 · при смерти/);
   assert.equal(P.hitApply(target(), blow({ location: 'head', crit: true })).injury, 'head');
 });
@@ -150,7 +150,7 @@ test('a hit: the form is offered in the HP panel and the full form switches its 
   assert.equal(PC.hitForm(target(), 'ru'), null, 'without the damage rules the old row stays');
   const tabs = read('sheet-tabs.js');
   assert.ok(tabs.includes("const hit=global.PlayCombat?.hitForm?.(c,lang())||'';")); assert.ok(tabs.includes("${hit?'':`<div class=\"hud-hp-row\"><label>${ru?'Урон':'Damage'}"));
-  assert.ok(read('damage-apply.js').includes("d.pending=null;d.ammo='standard';d.critical=false;c.hp=q.hpAfter;"));
+  assert.ok(read('damage-apply.js').includes("d.pending=null;d.ammo='standard';d.critical=false;c.hp=Math.max(0,q.hpAfter);"));
   assert.doesNotMatch(read('play-combat.js'), /\b(confirm|alert|prompt)\(/);
 });
 

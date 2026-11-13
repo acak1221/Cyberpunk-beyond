@@ -93,12 +93,12 @@ function quickRolls(c){
  const death=global.PlayCombat?.deathTarget?.(c)??Math.max(0,num(st.BODY)-Math.max(0,num(c?.extra?.deathPenalty)));
  const rolls=[
   ['[data-action="initiative-roll"]',ru?'Инициатива':'Initiative',sign(typeof A?.initiativeBonus==='function'?A.initiativeBonus(c):num(st.REF)),'1d10 + REF'],
-  ['[data-action="skill-roll"][data-skill="Evasion"]',ru?'Уклонение':'Evasion',sign(bonus('DEX',sk.Evasion)),'1d10 + DEX + '+(ru?'Уклонение':'Evasion')],
+  ['[data-action="skill-roll"][data-skill="Evasion"]',ru?'Уклонение':'Evasion',sign(bonus('DEX',sk.Evasion)),'1d10 + DEX + '+(ru?'Уклонение':'Evasion')+(num(st.REF)<8?(ru?'. При REF ниже 8 от пуль уклониться нельзя':'. With REF under 8 you cannot dodge bullets'):''),num(st.REF)<8],
   ['[data-action="skill-roll"][data-skill="Brawling"]',ru?'Рукопашный бой':'Brawling',sign(bonus('DEX',sk.Brawling)),'1d10 + DEX + '+(ru?'Рукопашный бой':'Brawling')],
   ['[data-cx-action="facedown"]',ru?'Лицом к лицу':'Facedown',sign(num(st.COOL)+(c?.extra?.reputationCoward===true?-1:1)*Math.max(0,Math.min(10,Math.trunc(num(c?.extra?.reputation))))),'1d10 + COOL + '+(ru?'репутация':'Reputation')],
   ['[data-cx-action="death-save"]',ru?'Спасбросок от смерти':'Death Save','< '+death,ru?'1d10 + штраф должно быть ниже BODY; 10 — всегда провал':'1d10 + penalty must be under BODY; a 10 always fails'],
  ];
- return `<div class="sheet-quick-rolls">${rolls.map(([target,label,total,hint])=>`<button type="button" data-proxy-roll="${html(target)}" title="${html(hint)}"><span>${html(label)}</span><b>${html(total)}</b></button>`).join('')}</div>`;
+ return `<div class="sheet-quick-rolls">${rolls.map(([target,label,total,hint,warn])=>`<button type="button" data-proxy-roll="${html(target)}" title="${html(hint)}"><span>${html(label)}${warn?` <small class="qr-warn">${ru?'не от пуль':'not vs bullets'}</small>`:''}</span><b>${html(total)}</b></button>`).join('')}</div>`;
 }
 // Quick HP: steps and «take N damage» from the HUD. The sheet's own HP field does the work, so its rules stay in one place.
 function hpPanel(c){
