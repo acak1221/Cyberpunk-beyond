@@ -2,6 +2,8 @@
 .to-top { position: fixed; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 55; min-height: 40px; padding: 8px 14px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 999px; font: 700 13px/1 var(--body, inherit); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); cursor: pointer; }
 .to-top[hidden], .sheet-pin[hidden] { display: none; }
 @media (min-width: 821px) { .to-top { bottom: 24px; right: 24px; } }
+/* On a phone the button hangs over the end of the page: leave it room below the last line. */
+@media (max-width: 820px) { body:has(.to-top:not([hidden])) .footer { padding-bottom: 60px; } }
 
 /* A phone: the pinned header gets one compact row while the page is scrolled. */
 @media (max-width: 820px) {
@@ -11,6 +13,7 @@
   .sheet-dock.dock-compact .sheet-hud > * { flex: 0 0 auto; }
   .sheet-dock.dock-compact .hud-avatar { display: none; }
   .sheet-dock.dock-compact .hud-chip { min-height: 30px; padding: 3px 8px; }
+  .sheet-dock.dock-compact .sheet-hud > .hud-cut { display: none; }
   .sheet-dock.dock-compact .hud-chip b { font-size: 16px; }
   .sheet-dock.dock-compact .sheet-tabs button { min-height: 34px; }
   .sheet-dock.dock-compact .sheet-tabs { padding-bottom: 0; }

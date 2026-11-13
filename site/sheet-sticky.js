@@ -25,6 +25,23 @@
     doc.body.appendChild(pin);
     return pin;
   }
+  // The compact HUD is one row. A chip that does not fit whole is hidden (it is back when the page is at the top)
+  // instead of showing half of itself at the edge; the «Your turn» marker is the last one to go.
+  function fitHud(dock) {
+    const hud = dock.querySelector('.sheet-hud');
+    if (!hud) return;
+    const kids = [...hud.children];
+    for (const k of kids) k.classList.remove('hud-cut');
+    if (!dock.classList.contains('dock-compact')) return;
+    const edge = () => hud.getBoundingClientRect().right - 1, cut = k => k.getClientRects().length > 0 && k.getBoundingClientRect().right > edge();
+    for (const k of kids.filter(cut)) k.classList.add('hud-cut');
+    const turn = kids.find(k => k.hasAttribute('data-room-turn') && !k.hidden);
+    if (turn && turn.classList.contains('hud-cut')) {
+      turn.classList.remove('hud-cut');
+      const keep = k => k === turn || k.classList.contains('hud-hp');
+      for (const k of kids.filter(k => !keep(k) && k.getClientRects().length > 0).reverse()) { if (!cut(turn)) break; k.classList.add('hud-cut'); }
+    }
+  }
   function update() {
     queued = false;
     const dock = doc.querySelector('.sheet-dock'), y = global.scrollY || 0;
@@ -36,6 +53,7 @@
     const flat = global.getComputedStyle(dock).display === 'contents';
     // Phone and narrow screens: the dock itself is sticky, only the HUD gets smaller.
     dock.classList.toggle('dock-compact', !flat && compactState(y, dock.classList.contains('dock-compact')));
+    fitHud(dock);
     // Wide «Досье»: the tabs are a cell of the board grid and cannot stick, so a copy stands at the top while they are out of sight.
     const tabs = dock.querySelector('.sheet-tabs');
     if (!flat || !tabs) { if (pin) pin.hidden = true; return; }
@@ -52,5 +70,6 @@
   global.addEventListener('resize', queue);
   global.addEventListener('hashchange', queue);
   doc.addEventListener('click', () => setTimeout(queue, 60));
-  new global.MutationObserver(queue).observe(doc.body, { childList: true });
+  // The page and the HUD are drawn again when HP or money change.
+  new global.MutationObserver(queue).observe(doc.body, { childList: true, subtree: true });
 })(window);
