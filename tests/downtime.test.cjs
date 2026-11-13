@@ -170,3 +170,25 @@ test('jump links point at sections that exist and that the tabs know', () => {
   assert.match(D.jumpNav({ id: 'a' }, 'en'), /Hustle/);
   assert.match(tabs, /Downtime\?\.hudChip\?\.\(c,lang\(\)\)/); assert.match(tabs, /Downtime\?\.jumpNav\?\.\(c,lang\(\)\)/);
 });
+
+test('start of session also ends a Solo fight that is under way, and the undo brings it back', () => {
+  const w = load(['wallet.js', 'role-play.js', 'downtime.js']), D = w.Downtime;
+  const soloRound = { version: 1, battle: 'Склад', round: 3, n: 2, spotDone: true };
+  const c = { id: 'a', role: 'solo', stats: { LUCK: 6 }, extra: { luck: 6, luckUse: 0, modifier: 0, soloRound } };
+  const r = D.startSession(c, 'ru');
+  assert.equal(r.newFight, true); assert.equal(r.changed, true);
+  assert.deepEqual(plain(r.extra.soloRound), { version: 1, battle: 'Бой 3', round: 1, n: 3 });
+  assert.deepEqual(plain(r.before.soloRound), soloRound);
+  assert.deepEqual(plain(c.extra.soloRound), soloRound, 'the character is not touched');
+  c.extra = r.extra;
+  assert.deepEqual(plain(D.undoSession(c, r.before).soloRound), soloRound);
+  const fresh = { id: 'b', role: 'solo', stats: { LUCK: 6 }, extra: { luck: 6, soloRound: { version: 1, battle: 'Бой 1', round: 1, n: 1 } } };
+  assert.equal(D.startSession(fresh, 'ru').newFight, undefined, 'round 1 with no marks is not a fight under way');
+  const none = D.startSession({ id: 'c', stats: { LUCK: 6 }, extra: { luck: 4 } }, 'ru');
+  assert.equal(none.newFight, undefined); assert.equal(Object.hasOwn(none.before, 'soloRound'), false); assert.equal(Object.hasOwn(none.extra, 'soloRound'), false);
+  const noRP = load(['wallet.js', 'downtime.js']).Downtime.startSession({ id: 'd', stats: { LUCK: 6 }, extra: { luck: 6, soloRound } }, 'ru');
+  assert.equal(noRP.newFight, undefined); assert.equal(noRP.changed, false);
+  c.extra = { luck: 6, luckUse: 0, modifier: 0, soloRound };
+  const click1 = D.handle(click('session'), { lang: 'en', view: 'sheet', active: c, isCurrent: x => x === c });
+  assert.match(click1.notify, /new Solo fight/);
+});
