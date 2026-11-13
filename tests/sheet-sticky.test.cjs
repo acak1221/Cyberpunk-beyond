@@ -31,7 +31,7 @@ test('the compact HUD hides chips that do not fit whole and the Top button leave
   const js = fs.readFileSync(__dirname + '/../site/sheet-sticky.js', 'utf8'), css = fs.readFileSync(__dirname + '/../site/sheet-sticky.css', 'utf8');
   assert.ok(js.includes('function fitHud') && js.includes("'hud-cut'"));
   assert.ok(css.includes('.sheet-hud > .hud-cut { display: none; }'));
-  assert.ok(/to-top:not\(\[hidden\]\)\) \.footer \{ padding-bottom/.test(css));
+  assert.ok(/\.sheet-dock\) \.footer \{ padding-bottom/.test(css));
 });
 
 test('layout fixes: the DV ladder turns on its side on a phone, the wide skills caption is shorter', () => {
