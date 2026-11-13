@@ -15,3 +15,9 @@ test('the tapped medical field gets the focus back after a redraw', () => {
   assert.ok(fs.readFileSync(__dirname + '/../site/app.js', 'utf8').includes('window.MedicalFocus?.restore?.()'));
   assert.ok(fs.readFileSync(__dirname + '/../site/index.html', 'utf8').includes('medical-focus.js'));
 });
+
+test('choosing a healer from the sheets pre-fills the stabilization modifier with the healer wound penalty', () => {
+  const src = fs.readFileSync(__dirname + '/../site/medical-tools.js', 'utf8');
+  assert.ok(src.includes("if(key==='practitioner'){const h=all.find(x=>x?.id===ui.practitioner)"));
+  assert.ok(src.includes('PlayCombat?.condition?.(h)?.penalty'));
+});
