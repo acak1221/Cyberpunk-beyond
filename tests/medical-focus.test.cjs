@@ -10,9 +10,12 @@ test('the tapped medical field gets the focus back after a redraw', () => {
   handlers.pointerdown({ target: { closest: () => field } });
   assert.equal(win.MedicalFocus.restore(), true); assert.equal(focused, field);
   assert.equal(win.MedicalFocus.restore(), false, 'only once per tap');
+  handlers.pointerdown({ target: { closest: () => field } });
+  focused = null;
+  assert.equal(win.MedicalFocus.restore('skill'), false, 'the field just left keeps no focus'); assert.equal(focused, null);
   handlers.pointerdown({ target: { closest: () => null } });
   assert.equal(win.MedicalFocus.restore(), false);
-  assert.ok(fs.readFileSync(__dirname + '/../site/app.js', 'utf8').includes('window.MedicalFocus?.restore?.()'));
+  assert.ok(fs.readFileSync(__dirname + '/../site/app.js', 'utf8').includes("window.MedicalFocus?.restore?.(e?.target?.getAttribute?.('data-med-field'))"));
   assert.ok(fs.readFileSync(__dirname + '/../site/index.html', 'utf8').includes('medical-focus.js'));
 });
 

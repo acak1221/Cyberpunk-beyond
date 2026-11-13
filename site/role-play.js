@@ -297,7 +297,7 @@ function armorUp(c){
  return decks.some(d=>Array.isArray(d?.entries)&&d.entries.some(e=>obj(e)&&e.catalogId==='extra-program-armor'&&e.active===true&&e.down!==true));
 }
 function netRezAfter(entry,total){const before=Math.max(0,Math.trunc(Number(entry?.rez)||0)),after=Math.max(0,before-Math.max(0,Math.trunc(Number(total)||0)));return {before,after,state:after===0&&before>0?'derezzed':entry?.state}}
-function netBrainAfter(c,total,armor){const before=Math.trunc(Number(c?.hp)||0),taken=Math.max(0,Math.trunc(Number(total)||0)-(armor?4:0));return {before,after:before-taken,taken}}
+function netBrainAfter(c,total,armor){const before=Math.trunc(Number(c?.hp)||0),taken=Math.max(0,Math.trunc(Number(total)||0)-(armor?4:0));return {before,after:Math.max(0,before-taken),taken}}
 /* Called by the NET calculator right after an opposed roll. Names the two sides on the result and, on a hit, rolls the damage.
    info: {l, mode, target, program, ice, iceKey, iceRef, runner, runners, draft}. */
 function netAfterRoll(r,info){

@@ -14,10 +14,11 @@
     doc.addEventListener('touchstart', note, true);
   }
   // Called after the redraw: gives the focus to the field that was tapped just before it.
-  function restore() {
+  function restore(from) {
     try {
       const t = tapped; tapped = null;
       if (!t || Date.now() - t.at > 1000 || !doc) return false;
+      if (from && t.key === from) return false; // the field just left must not grab focus back
       const a = doc.activeElement;
       if (a && a !== doc.body && a.getAttribute && a.getAttribute('data-med-field') === t.key) return false;
       const el = doc.querySelector('[data-med-field="' + String(t.key).replace(/["\\]/g, '') + '"]');
