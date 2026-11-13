@@ -88,10 +88,10 @@ test('due: hustle weeks, drugs hours, drug year', () => {
   const c = hurt(); c.extra.calendar = cal('2045-03-26', { heal: '2045-03-26', hustle: '2045-03-12', drugs: '2045-03-25' });
   const hu = G.due(c).find(x => x.key === 'hustle'); assert.ok(hu); assert.equal(hu.weeks, 2);
   c.extra.streetDrugs = { version: 1, records: { 'black-lace': { status: 'active', remainingHours: 20, addicted: false, yearVulnerability: false, lastCheck: null } } };
-  const d = G.due(c).find(x => x.key === 'drugs'); assert.ok(d); assert.equal(d.hours, 20); assert.equal(d.elapsed, 24); assert.match(d.text, /осталось 20 ч; прошло 24 ч/);
+  const d = G.due(c).find(x => x.kind === 'drugs'); assert.ok(d); assert.equal(d.hours, 20); assert.equal(d.elapsed, 24); assert.match(d.text, /осталось 20 ч; прошло 24 ч/);
   c.extra.calendar = cal('2045-03-26', { heal: '2045-03-26', hustle: '2045-03-26', drugs: '2045-03-19' });
   c.extra.streetDrugs.records['black-lace'].remainingHours = 500;
-  assert.equal(G.due(c).find(x => x.key === 'drugs').hours, 168);
+  assert.equal(G.due(c).find(x => x.kind === 'drugs').hours, 168);
   const y = hurt(); y.extra.calendar = cal('2046-03-10', { heal: '2046-03-10', hustle: '2046-03-10', drugs: '2046-03-10', therapy: '2046-03-10', living: '2045-03' });
   y.extra.streetDrugs = { version: 1, records: { 'black-lace': { status: 'resolved', remainingHours: 0, addicted: false, yearVulnerability: true, therapyYear: { version: 1, start: '2045-03-05', end: '2046-03-05' }, lastCheck: null } } };
   const row = G.due(y).find(x => x.key === 'drug-year:black-lace'); assert.ok(row); assert.equal(row.skippable, false); assert.match(row.text, /05\.03\.2046/);
@@ -152,7 +152,7 @@ test('consume: clamps to the date, no-op without a calendar, leaves an invalid o
   const off = { id: 'o', extra: { cash: 1 } }; assert.equal(G.consume(off, 'heal', 1), false); assert.deepEqual(plain(off), { id: 'o', extra: { cash: 1 } });
   const bad = { id: 'b', extra: { calendar: { version: 9 } } }; assert.equal(G.consume(bad, 'heal', 1), false); assert.deepEqual(plain(bad.extra.calendar), { version: 9 });
   assert.equal(G.consume({ id: 'q', extra: [] }, 'heal', 1), false);
-  assert.equal(G.skip(c, 'living'), true); assert.equal(c.extra.calendar.marks.living, '2045-03');
+  assert.equal(G.skip(c, 'living'), true); assert.equal(c.extra.calendar.marks.livingSnooze, '2045-03'); assert.equal(c.extra.calendar.marks.living, undefined);
 });
 
 test('catchUp: starts without backlog, moves earlier dates forward, never backward', () => {
@@ -242,13 +242,12 @@ test('tools use the calendar: medical, therapy, hustle, drugs, lifestyle, maker'
   assert.equal(w.MedicalTools.prefill({ patient: 'v', days: 0 }), false);
   // hustle: a roll consumes a week
   c.extra.calendar = cal('2045-03-26', { heal: '2045-03-26', hustle: '2045-03-12' });
-  const r = w.HustleTools.start(c, 'solo'); assert.equal(r.ok, true);
-  GC.consume(c, 'hustle', 7); assert.equal(c.extra.calendar.marks.hustle, '2045-03-19');
+  const r = w.HustleTools.start(c, 'solo'); assert.equal(r.ok, true); // the roll hook itself is tested in hustle-tools.test.cjs
   // drugs: prefill needs a known drug; draft starts from the game date
   assert.equal(w.DrugTools.prefill(c, { drug: 'nope' }), false);
   assert.equal(w.DrugTools.prefill(c, { drug: 'black-lace', hours: '24' }), true);
-  // lifestyle falls back to the game month
-  assert.equal(w.LifestyleTools.view(c).period, '2045-03');
+  // lifestyle starts at the month after the calendar start
+  assert.equal(w.LifestyleTools.view(c).period, '2045-04');
   const plainChar = { id: 'p', extra: {} }; assert.equal(w.LifestyleTools.view(plainChar).period, '');
 });
 

@@ -70,5 +70,5 @@ test('rest consumes the days from the game calendar, prefill fills the form and 
  assert.equal(m.prefill({patient:'p',days:3,restDate:'2045-03-09'}),true);
  const ctx={lang:'en',characters:[c]};m.render(ctx);const html=m.render(ctx);assert.match(html,/value="3"/);
  assert.equal(m.handle(event('heal'),ctx).dirty,true);assert.equal(c.hp,33);assert.equal(c.extra.calendar.marks.heal,'2045-03-12');
- field(m,'selected','',c);assert.equal(field(m,'selected','p',c).handled,true);
+ c.extra.calendar.marks.heal='2045-03-10';c.extra.antibioticTreatment={version:1,courses:[],restDates:[]};field(m,'selected','',c);assert.equal(field(m,'selected','p',c).handled,true);assert.match(m.render(ctx),/restDate" min="0001-01-01" max="9999-12-31" value="2045-03-10"/);
 });

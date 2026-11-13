@@ -10,7 +10,9 @@
   'use strict';
 
   const DEFAULT_START = '2045-01-01';
-  const KEYS = ['heal', 'hustle', 'therapy', 'drugs', 'living'];
+  const KEYS = ['heal', 'hustle', 'therapy', 'drugs', 'living', 'livingSnooze'];
+  const isMonthKey = k => k === 'living' || k === 'livingSnooze';
+  const drugKey = k => typeof k === 'string' && /^drug:[a-z0-9-]+$/.test(k);
   const SKIPPABLE = ['living', 'heal', 'therapy', 'hustle', 'drugs'];
   const UNDO_MS = 20000;
 
@@ -105,16 +107,19 @@
     if (!isObj(cal) || cal.version !== 1 || !parse(cal.date)) return { kind: 'invalid' };
     if (cal.marks !== undefined) {
       if (!isObj(cal.marks)) return { kind: 'invalid' };
-      for (const k of KEYS) {
+      for (const k of Object.keys(cal.marks)) {
+        if (!KEYS.includes(k) && !drugKey(k)) continue;
         const v = cal.marks[k];
         if (v === undefined) continue;
-        if (k === 'living' ? !validMonth(v) || v > month(cal.date) : !parse(v) || v > cal.date) return { kind: 'invalid' };
+        if (isMonthKey(k) ? !validMonth(v) || v > month(cal.date) : !parse(v) || v > cal.date) return { kind: 'invalid' };
       }
     }
     return { kind: 'ok', value: cal };
   }
   const dateOf = c => { const r = read(c); return r.kind === 'ok' ? r.value.date : ''; };
   const markOf = (cal, key) => cal.marks?.[key] ?? (key === 'living' ? month(cal.date) : cal.date);
+  // Every active drug has its own mark (marks['drug:<key>']); a drug without one counts from marks.drugs.
+  const drugMark = (cal, key) => cal.marks?.['drug:' + key] ?? markOf(cal, 'drugs');
 
   function start(date) {
     if (!parse(date)) return null;
@@ -151,7 +156,9 @@
     const marks = { ...(cal.marks || {}) };
     if (!healInfo(c)) marks.heal = cal.date;
     if (!therapyInfo(c)) marks.therapy = cal.date;
-    if (!activeDrugs(c).length) marks.drugs = cal.date;
+    const live = activeDrugs(c).map(d => 'drug:' + d.key);
+    if (!live.length) marks.drugs = cal.date;
+    for (const k of Object.keys(marks)) if (drugKey(k) && !live.includes(k)) delete marks[k];
     if (!hustleRoles(c)) marks.hustle = cal.date;
     return { ...cal, marks };
   }
@@ -159,7 +166,11 @@
     if (!isObj(cal) || !parse(date) || !parse(cal.date)) return null;
     if (date >= cal.date) return follow({ ...cal, date, marks: { ...(cal.marks || {}) } }, c);
     const marks = { ...(cal.marks || {}) };
-    for (const k of KEYS) if (marks[k] !== undefined && marks[k] > (k === 'living' ? month(date) : date)) marks[k] = k === 'living' ? month(date) : date;
+    for (const k of Object.keys(marks)) {
+      if (!KEYS.includes(k) && !drugKey(k)) continue;
+      const lim = isMonthKey(k) ? month(date) : date;
+      if (marks[k] !== undefined && marks[k] > lim) marks[k] = lim;
+    }
     return { ...cal, date, marks };
   }
   function advance(cal, step, c) {
@@ -178,10 +189,11 @@
     // rent and lifestyle
     probe(() => {
       const L = window.LifestyleTools, v = L?.view?.(c), cur = month(date);
-      if (!v || !v.period || v.period > cur || v.period <= markOf(cal, 'living') || !Array.isArray(v.due) || !v.due.length) return;
+      if (!v || !v.period || v.period > cur || !Array.isArray(v.due) || !v.due.length) return;
       const behind = monthsBetween(v.period, cur) + 1;
       const span = behind > 1 ? `${v.period} … ${cur} (${behind} ${t.monthsShort})` : v.period;
-      out.push({ key: 'living', kind: 'living', period: v.period, months: behind, total: v.total, skippable: true, text: `${t.living}: ${span}, ${t.toPay} ${v.period}: ${fmtMoney(v.total)} eb` });
+      // "Not now" only snoozes the row for the current month; the unpaid months and the warning stay.
+      if (cal.marks?.livingSnooze !== cur) out.push({ key: 'living', kind: 'living', period: v.period, months: behind, total: v.total, skippable: true, text: `${t.living}: ${span}, ${t.toPay} ${v.period}: ${fmtMoney(v.total)} eb` });
       if (v.due.includes('life') && date >= v.period + '-08') out.push({ key: 'living-grace', kind: 'grace', warning: true, skippable: false, text: t.grace });
     });
 
@@ -212,10 +224,12 @@
 
     // drugs: 24 hours per day
     probe(() => {
-      const days = diffDays(markOf(cal, 'drugs'), date), list = activeDrugs(c);
-      if (!(days >= 1) || !list.length) return;
-      const hours = days * 24, first = list[0];
-      out.push({ key: 'drugs', kind: 'drugs', drug: first.key, hours: Math.min(first.remaining, hours), elapsed: hours, skippable: true, text: `${list.map(d => `${d.name}: ${t.drugLeft} ${d.remaining} ${t.hoursShort}`).join('; ')}; ${t.drugPassed} ${hours} ${t.hoursShort}` });
+      for (const d of activeDrugs(c)) {
+        const days = diffDays(drugMark(cal, d.key), date);
+        if (!(days >= 1)) continue;
+        const hours = days * 24;
+        out.push({ key: 'drugs:' + d.key, kind: 'drugs', drug: d.key, hours: Math.min(d.remaining, hours), elapsed: hours, skippable: true, text: `${d.name}: ${t.drugLeft} ${d.remaining} ${t.hoursShort}; ${t.drugPassed} ${hours} ${t.hoursShort}` });
+      }
     });
 
     // the year after addiction therapy
@@ -275,16 +289,24 @@
   }
   function consume(c, key, days) {
     const r = read(c);
-    if (r.kind !== 'ok' || !isObj(c.extra) || !['heal', 'hustle', 'therapy', 'drugs'].includes(key)) return false;
+    if (r.kind !== 'ok' || !isObj(c.extra) || !(['heal', 'hustle', 'therapy', 'drugs'].includes(key) || drugKey(key))) return false;
     const n = Math.trunc(Number(days));
     if (!Number.isFinite(n) || n < 1) return false;
-    const cal = r.value, moved = addDays(markOf(cal, key), n), next = !moved || moved > cal.date ? cal.date : moved;
+    const cal = r.value, moved = addDays(drugKey(key) ? drugMark(cal, key.slice(5)) : markOf(cal, key), n), next = !moved || moved > cal.date ? cal.date : moved;
     return write(c, { ...cal, marks: { ...(cal.marks || {}), [key]: next } });
   }
   function skip(c, key) {
     const r = read(c);
-    if (r.kind !== 'ok' || !isObj(c.extra) || !SKIPPABLE.includes(key)) return false;
-    return write(c, { ...r.value, marks: { ...(r.value.marks || {}), [key]: key === 'living' ? month(r.value.date) : r.value.date } });
+    const dk = typeof key === 'string' && key.startsWith('drugs:') ? 'drug:' + key.slice(6) : '';
+    if (r.kind !== 'ok' || !isObj(c.extra) || !(SKIPPABLE.includes(key) || drugKey(dk))) return false;
+    const mk = key === 'living' ? 'livingSnooze' : dk || key;
+    return write(c, { ...r.value, marks: { ...(r.value.marks || {}), [mk]: mk === 'livingSnooze' ? month(r.value.date) : r.value.date } });
+  }
+  // A drug that just became active counts from today, whatever other drugs are running.
+  function touchDrug(c, key) {
+    const r = read(c);
+    if (r.kind !== 'ok' || !isObj(c.extra) || !drugKey('drug:' + key)) return false;
+    return write(c, { ...r.value, marks: { ...(r.value.marks || {}), ['drug:' + key]: r.value.date } });
   }
   // A sheet that has no date gets this one (no backlog); an earlier date moves forward; a later date stays.
   function catchUp(c, date) {
@@ -552,7 +574,7 @@
   window.GameCalendar = {
     parse, addDays, addMonths, diffDays, month, monthsBetween, format,
     read, dateOf, start, follow, setDate, advance, due, readyOn, campaignOf,
-    consume, skip, catchUp,
+    consume, skip, catchUp, touchDrug,
     short, sessionLine, render, handle, jump, campaignHTML, ownsCampaign, handleCampaign,
   };
 })();
