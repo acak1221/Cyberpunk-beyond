@@ -26,3 +26,14 @@ test('the role hint is short for non-Solo roles', () => {
 test('#/repair preselects the Tech instead of the first character', () => {
   assert.ok(read('repair-tools.js').includes("firstWithRole?.(characters,'tech')||characters[0]"));
 });
+
+test('Medtech cannot tick more drugs than Pharmaceuticals points', () => {
+  const RT = tools();
+  const med = { id: 'm', role: 'medtech', rank: 4, hp: 35, stats: {}, skills: {}, extra: { roleTools: { medtech: { values: { pharma: 1 }, team: [] } } } };
+  const tick = key => RT.handle({ type: 'change', target: { checked: true, value: 'on', dataset: { rtField: key }, hasAttribute: a => a === 'data-rt-field', closest: () => null } }, med, 'en', { isCurrent: () => true });
+  assert.equal(tick('drug-antibiotic').notify, undefined);
+  const r = tick('drug-stim');
+  assert.match(r.notify, /already learned/);
+  assert.ok(!med.extra.roleTools.medtech.values['drug-stim']);
+  assert.equal(med.extra.roleTools.medtech.values['drug-antibiotic'], true);
+});
