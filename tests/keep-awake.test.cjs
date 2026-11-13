@@ -60,7 +60,7 @@ test('the sheet and the dice page offer it, and the script is loaded before the 
 
 test('a sheet leads to the catalog and to the Lifepath generator with the character set',()=>{
  const app=source('app.js'),tabs=source('sheet-tabs.js'),life=source('lifepath.js'),sheet=source('character-extra.js');
- assert.match(app,/shopFor\(id\)\{if\(!state\.characters\.some\(c=>c\.id===id\)\)return false;state\.catalogTarget=id;state\.view='catalog'/);
+ assert.match(app,/shopFor\(id,opts\)\{if\(!state\.characters\.some\(c=>c\.id===id\)\)return false;state\.catalogTarget=id;[^]{0,400}state\.view='catalog'/);
  assert.match(app,/lifepathFor\(id\)\{const c=state\.characters\.find\(x=>x\.id===id\);if\(!c\)return false;window\.Lifepath\?\.setTarget\?\.\(c\.id,c\.role\)/);
  assert.match(app,/state\.catalogTarget=state\.characters\.length===1\?state\.characters\[0\]\.id:/,'a single character is the buyer without asking');
  assert.match(tabs,/data-sheet-shop/);assert.match(tabs,/App\?\.shopFor\?\./);assert.match(tabs,/App\?\.lifepathFor\?\./);

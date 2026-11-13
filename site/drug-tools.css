@@ -2,3 +2,10 @@
 .drug-tools p { line-height: 1.5; }
 .drug-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 12px 0; }
 .drug-actions .field { min-width: 160px; }
+.drug-now{margin:12px 0;padding:10px 12px;border:1px solid var(--line,currentColor);border-radius:10px;display:grid;gap:6px}
+.drug-now p{margin:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.drug-now-title{font-size:.8em;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.drug-due{border-left:3px solid var(--warn,var(--accent,currentColor));padding-left:8px}
+.drug-take{display:inline-flex}
+.drug-chip small{opacity:.8;margin-right:4px}
+.drug-stock{margin:6px 0}
