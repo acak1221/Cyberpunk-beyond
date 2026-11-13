@@ -176,3 +176,22 @@ test('a player added from the room is offered the party reward and shows no stal
   assert.doesNotMatch(html, /700 eb/, 'an online player shows no old balance');
   assert.match(html, /в комнате/);
 });
+
+test('a critical hit on an NPC rolls the injury table and writes the result into the note', () => {
+  const G = load().GMTable, npc = extra => ({ kind: 'npc', name: 'B', hp: 40, sp: { head: 0, body: 0 }, ...extra });
+  let n = npc(), r = G.hitNpc(n, { raw: 5, critical: true, rng: seq([0.99, 0.0]), lang: 'en' });
+  assert.equal(r.injury.total, 7);
+  assert.equal(n.combatNote.version, 1);
+  assert.match(n.combatNote.text, /^Critical Injury \(7\): /);
+  assert.ok(n.combatNote.text.length <= 300);
+  assert.match(G.hitText('ru', 'B', r), /Крит\. ранение \(2d6 = 7\)/);
+  n = npc({ combatNote: { version: 1, text: 'старое' } });
+  G.hitNpc(n, { raw: 5, critical: true, rng: seq([0.5]), lang: 'ru' });
+  assert.match(n.combatNote.text, /^старое\nКрит\. ранение/);
+  n = npc({ combatNote: { weird: 1 } });
+  r = G.hitNpc(n, { raw: 5, critical: true, rng: seq([0.5]) });
+  assert.deepEqual(plain(n.combatNote), { weird: 1 }, 'an unsupported note is left alone');
+  assert.equal(r.injury, null);
+  n = npc(); r = G.hitNpc(n, { raw: 5, rng: seq([0.5]) });
+  assert.equal(n.combatNote, undefined, 'no critical, no roll');
+});

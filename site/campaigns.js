@@ -200,6 +200,7 @@ function handle(e,ctx){const el=e.target,button=el.closest('[data-campaign-actio
   target.hp=Math.max(0,from-dealt);
   let note=t.dmgDone(label(target),raw,sp,through,dealt,from,target.hp,spLeft,loc==='head')+(crit?' '+t.dmgCritNote:'');
   if(from<1){target.deathPenalty=Math.min(99,(Number(target.deathPenalty)||0)+1);note+='\n'+t.dmgMortal}
+  if(crit){const inj=window.GMTable?.critInjury?.(target,loc,{lang:ctx.lang});if(inj)note+='\n'+window.GMTable.text[ctx.lang==='en'?'en':'ru'].critInjury(inj.total,inj.name).trim()}
   ctx.notify?.(note);
  }else{
   if(target.kind!=='npc'||target.dead===true||(Number(target.hp)||0)>=1)return true;

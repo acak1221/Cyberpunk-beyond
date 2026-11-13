@@ -25,7 +25,7 @@ const T={
   stopped:(name,raw,sp)=>`${name}: броня остановила урон (${raw} против SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, по HP ${dealt}`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
   directHit:(name,dealt,from,to)=>`${name}: ${dealt} напрямую. HP ${from} → ${to}.`,
-  mortalPenalty:(a,b)=>` Штраф Death Save ${a} → ${b}.`,nowMortal:' Смертельно ранен.',
+  mortalPenalty:(a,b)=>` Штраф Death Save ${a} → ${b}.`,nowMortal:' Смертельно ранен.',critInjury:(n,name)=>` Крит. ранение (2d6 = ${n}): ${name}; записано в заметку.`,critNote:(n,name,eff)=>`Крит. ранение (${n}): ${name}${eff?' — '+eff:''}`,
   undo:'Отменить',undone:'Урон отменён.',undoStale:'Данные уже изменились — отмена невозможна.',
   party:'НАГРАДА ГРУППЕ',partyHelp:'Деньги и Improvement Points всем выбранным персонажам одним действием. IP можно указать каждому отдельно (стр. 410–411).',
   partyNone:'Добавьте персонажей в кампанию, чтобы выдавать награду.',inRoom:'в комнате',
@@ -58,7 +58,7 @@ const T={
   stopped:(name,raw,sp)=>`${name}: armor stopped the damage (${raw} against SP ${sp}).`,
   hit:(name,raw,sp,through,dealt,from,to,spFrom,spTo)=>`${name}: ${raw} − SP ${sp} = ${through}${dealt!==through?`, ${dealt} to HP`:''}. HP ${from} → ${to}${spTo!==spFrom&&spTo!==null?`, SP ${spFrom} → ${spTo}`:''}.`,
   directHit:(name,dealt,from,to)=>`${name}: ${dealt} directly. HP ${from} → ${to}.`,
-  mortalPenalty:(a,b)=>` Death Save penalty ${a} → ${b}.`,nowMortal:' Mortally Wounded.',
+  mortalPenalty:(a,b)=>` Death Save penalty ${a} → ${b}.`,nowMortal:' Mortally Wounded.',critInjury:(n,name)=>` Critical Injury (2d6 = ${n}): ${name}; added to the note.`,critNote:(n,name,eff)=>`Critical Injury (${n}): ${name}${eff?' — '+eff:''}`,
   undo:'Undo',undone:'Damage undone.',undoStale:'The data has already changed — it cannot be undone.',
   party:'PARTY REWARD',partyHelp:'Money and Improvement Points for every chosen character in one action. IP can be set per character (pp. 410–411).',
   partyNone:'Add characters to the campaign to hand out rewards.',inRoom:'in the room',
@@ -133,6 +133,18 @@ function rollDamage(spec,rng=Math.random){
 }
 const woundPenalty=state=>state==='mortal'?-4:state==='serious'?-2:0;
 const npcSp=(r,loc)=>{const n=Number(r?.sp?.[loc]);return Number.isSafeInteger(n)&&n>=0&&n<=30?n:0};
+// A critical hit on an NPC row: 2d6 on the injury table of the hit location, the result is added to the row's note (max 300 characters).
+function critInjury(target,loc,args){
+ if(!target||target.kind!=='npc')return null;
+ const rng=typeof args?.rng==='function'?args.rng:Math.random,a=die(6,rng),b=die(6,rng),total=a!==null&&b!==null?a+b:0,row=total?window.CombatTools?.injuryFor?.(loc==='head'?'head':'body',total):null;
+ if(!row)return null;
+ const l=args?.lang==='en'?'en':'ru',tt=T[l],name=row[l]||row.en||'?',eff=row.effect?.[l]||'',cn=target.combatNote;
+ if(!(cn===undefined||(cn&&typeof cn==='object'&&!Array.isArray(cn)&&cn.version===1&&typeof cn.text==='string')))return null;
+ const old=cn?cn.text:'',line=tt.critNote(total,name,eff),joined=old?old+'\n'+line:line;
+ const text=joined.length<=300?joined:((old?old+'\n':'')+tt.critNote(total,name,'')).slice(0,300);
+ target.combatNote={...(cn||{}),version:1,text};
+ return {total,name};
+}
 // Damage to an NPC row of the tracker (changes the row). HP stops at 0: below 1 HP is Mortally Wounded, negatives are not tracked.
 function hitNpc(target,args){
  const raw=args?.raw,loc=args?.location==='head'?'head':'body',type=['standard','melee','direct'].includes(args?.type)?args.type:'standard',critical=args?.critical===true;
@@ -144,8 +156,9 @@ function hitNpc(target,args){
  if(target.maxHp===undefined&&from>0)target.maxHp=from;
  let spTo=sp;if(through>0&&sp>0&&type!=='direct'){spTo=sp-1;target.sp={head:npcSp(target,'head'),body:npcSp(target,'body'),[loc]:spTo}}
  target.hp=Math.max(0,from-dealt);
+ const injury=critical?critInjury(target,loc,args):null;
  let penalty=null;if(from<1){penalty=[Number(target.deathPenalty)||0,Math.min(99,(Number(target.deathPenalty)||0)+1)];target.deathPenalty=penalty[1]}
- return {ok:true,stopped:false,direct:type==='direct',raw,sp:effective,through,dealt,from,hp:target.hp,spFrom:sp,spTo,penalty,nowMortal:from>=1&&target.hp<1};
+ return {ok:true,stopped:false,direct:type==='direct',raw,sp:effective,through,dealt,from,hp:target.hp,spFrom:sp,spTo,penalty,nowMortal:from>=1&&target.hp<1,injury};
 }
 // Damage to a player character through the armor on the sheet, by the sheet's own rules (changes the character).
 function hitPc(pc,args){
@@ -159,7 +172,7 @@ function hitPc(pc,args){
 function hitText(lang,name,r){
  const t=T[L(lang)];
  if(r.stopped)return t.stopped(name,r.raw,r.sp);
- return (r.direct?t.directHit(name,r.dealt,r.from,r.hp):t.hit(name,r.raw,r.sp,r.through,r.dealt,r.from,r.hp,r.spFrom,r.spTo))+(r.penalty?t.mortalPenalty(r.penalty[0],r.penalty[1]):'')+(r.nowMortal?t.nowMortal:'');
+ return (r.direct?t.directHit(name,r.dealt,r.from,r.hp):t.hit(name,r.raw,r.sp,r.through,r.dealt,r.from,r.hp,r.spFrom,r.spTo))+(r.penalty?t.mortalPenalty(r.penalty[0],r.penalty[1]):'')+(r.nowMortal?t.nowMortal:'')+(r.injury?t.critInjury(r.injury.total,r.injury.name):'');
 }
 
 /* A reward for the party. `draft` is the form: {cash, mode:'each'|'split', ip, off:{id:true}, ipBy:{id:text}}.
@@ -195,7 +208,7 @@ function awardStage(members,plan,reason,options){
 }
 /* Undo touches only the fields an action changed, so a save that stamps the sheet in between does not block it.
    snap() -> a JSON string of those fields; restore() puts them back. */
-const PC_KEYS=[['hp'],['head'],['bodyArmor'],['extra','deathPenalty'],['extra','medical'],['extra','equipment']],NPC_KEYS=[['hp'],['sp'],['maxHp'],['deathPenalty']],AWARD_KEYS=[['extra','cash'],['extra','walletLog'],['extra','ipLog']];
+const PC_KEYS=[['hp'],['head'],['bodyArmor'],['extra','deathPenalty'],['extra','medical'],['extra','equipment']],NPC_KEYS=[['hp'],['sp'],['maxHp'],['deathPenalty'],['combatNote']],AWARD_KEYS=[['extra','cash'],['extra','walletLog'],['extra','ipLog']];
 function snap(obj,keys){try{return JSON.stringify(keys.map(k=>{const v=k.length===1?obj?.[k[0]]:obj?.extra?.[k[1]];return v===undefined?null:{v}}))}catch{return ''}}
 function restore(obj,keys,json){
  const values=JSON.parse(json);
@@ -321,7 +334,7 @@ function handle(e,c,ctx){
   }
   if(target.kind==='pc'&&!pc)return {notify:t.needTarget};
   const keys=pc?PC_KEYS:NPC_KEYS,before=snap(pc||target,keys);
-  const hit=pc?hitPc(pc,args):hitNpc(target,args);
+  const hit=pc?hitPc(pc,args):hitNpc(target,{...args,lang});
   if(!hit.ok)return {notify:t.failed};
   const line=hitText(lang,nameOf(target),hit),changed=!hit.stopped;
   const after=snap(pc||target,keys);
@@ -420,7 +433,7 @@ if(typeof document!=='undefined'&&document.addEventListener)document.addEventLis
  else if(e.target?.closest?.('[data-action="navigate"],[data-action="open"]')){fromCampaign=null;backY=null}
 },true);
 
-window.GMTable={text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
+window.GMTable={critInjury,text:T,weaponSkill,attacksOf,rollAttack,rollDamage,woundPenalty,hitNpc,hitPc,hitText,awardPlan,awardStage,giveItem,snap,restore,
  isOpen,open,rowClass,toggleHTML,headHTML,helpHTML,rowExtras,partyHTML,backLink,giveButton,owns,handle,
  reset(){rowOpen.clear();results.clear();drafts.clear();lastAward.clear();fromCampaign=null;backY=null;lastRecipient=''}};
 })();
