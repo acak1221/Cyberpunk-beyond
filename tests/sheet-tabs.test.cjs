@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const site=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 
 test('every sheet section the tabs rely on exists in the sheet markup',()=>{
- const markup=['app.js','character-extra.js','agent-notes.js','hustle-tools.js','lifestyle-tools.js','drug-tools.js'].map(site).join('\n');
+ const markup=['app.js','character-extra.js','agent-notes.js','hustle-tools.js','lifestyle-tools.js','drug-tools.js','game-calendar.js'].map(site).join('\n');
  const css=site('theme.css'),tabs=site('sheet-tabs.js');
  const ids=new Set([...css.matchAll(/#(sheet-[a-z-]+|reload-tools-mount)/g)].map(m=>m[1]));
  for(const m of tabs.matchAll(/'((?:sheet-[a-z-]+)|reload-tools-mount)':'/g))ids.add(m[1]);

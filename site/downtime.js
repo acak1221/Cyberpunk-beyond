@@ -12,7 +12,7 @@
       session: 'Начало сессии', sessionHint: 'Начало сессии: восстановить LUCK и сбросить модификатор следующего броска',
       sessionDone: 'Начало сессии: LUCK', sessionMod: 'модификатор броска сброшен', sessionNothing: 'LUCK уже полная, сбрасывать нечего',
       undo: 'Отменить', sessionUndone: 'Начало сессии отменено: LUCK', stale: 'Данные изменились. Повторите действие.',
-      nav: 'Быстрый переход по вкладке', money: 'Деньги', ip: 'Опыт (IP)', drugs: 'Вещества', hustle: 'Заработок', living: 'Жильё и образ жизни', story: 'История', notes: 'Заметки',
+      nav: 'Быстрый переход по вкладке', calendar: 'Дата игры', money: 'Деньги', ip: 'Опыт (IP)', drugs: 'Вещества', hustle: 'Заработок', living: 'Жильё и образ жизни', story: 'История', notes: 'Заметки',
       cash: 'На счету', pay: 'Оплатить', payAgain: 'Оплатить ещё раз', short: 'Не хватает', paid: 'Списано', left: 'осталось', refund: 'Возврат', refunded: 'Платёж отменён, деньги возвращены',
       noCash: 'На листе не указаны деньги.', doctor: 'Материалы врача', failed: 'Платёж не выполнен, ничего не списано.',
     },
@@ -20,7 +20,7 @@
       session: 'Start of session', sessionHint: 'Start of session: refill LUCK and clear the next-roll modifier',
       sessionDone: 'Start of session: LUCK', sessionMod: 'roll modifier cleared', sessionNothing: 'LUCK is already full, nothing to clear',
       undo: 'Undo', sessionUndone: 'Start of session undone: LUCK', stale: 'Data changed. Please retry.',
-      nav: 'Jump within the tab', money: 'Cash', ip: 'Experience (IP)', drugs: 'Substances', hustle: 'Hustle', living: 'Lifestyle & housing', story: 'History', notes: 'Notes',
+      nav: 'Jump within the tab', calendar: 'Game date', money: 'Cash', ip: 'Experience (IP)', drugs: 'Substances', hustle: 'Hustle', living: 'Lifestyle & housing', story: 'History', notes: 'Notes',
       cash: 'Cash,', pay: 'Pay', payAgain: 'Pay again', short: 'Short by', paid: 'Paid', left: 'left', refund: 'Refund', refunded: 'Payment reversed, the money is back',
       noCash: 'The sheet has no cash value.', doctor: "Doctor's materials", failed: 'The payment was not made and nothing was spent.',
     },
@@ -65,11 +65,11 @@
 
   // ---- Jump links -------------------------------------------------------------------------------------------------
   // The targets are section ids; sheet-tabs.js already knows which tab owns each one ([data-hud-jump]).
-  const JUMPS = [['sheet-resources', 'money'], ['sheet-ip', 'ip'], ['sheet-hustle', 'hustle'], ['sheet-living', 'living'], ['sheet-drugs', 'drugs'], ['sheet-lifepath', 'story'], ['sheet-notes', 'notes']];
+  const JUMPS = [['sheet-calendar', 'calendar'], ['sheet-resources', 'money'], ['sheet-ip', 'ip'], ['sheet-hustle', 'hustle'], ['sheet-living', 'living'], ['sheet-drugs', 'drugs'], ['sheet-lifepath', 'story'], ['sheet-notes', 'notes']];
   function jumpNav(c, lang) {
     if (!c) return '';
     const t = words(lang);
-    return `<nav class="dt-jump" aria-label="${esc(t.nav)}">${JUMPS.map(([id, key]) => `<button type="button" data-hud-jump="${id}">${esc(t[key])}${key === 'money' ? ` <b>${money(cashOf(c))} eb</b>` : ''}</button>`).join('')}</nav>`;
+    return `<nav class="dt-jump" aria-label="${esc(t.nav)}">${JUMPS.map(([id, key]) => `<button type="button" data-hud-jump="${id}">${esc(t[key])}${key === 'money' ? ` <b>${money(cashOf(c))} eb</b>` : ''}${key === 'calendar' && window.GameCalendar?.short?.(c, lang) ? ` <b>${esc(window.GameCalendar.short(c, lang))}</b>` : ''}</button>`).join('')}</nav>`;
   }
 
   // ---- Paying from a sheet ----------------------------------------------------------------------------------------
@@ -109,10 +109,11 @@
       }
       const r = startSession(c);
       if (!r.ok) return { handled: true, notify: t.stale };
-      if (!r.changed) return { handled: true, notify: `${t.sessionNothing} (${r.to} / ${r.to}).` };
+      const cal = window.GameCalendar?.sessionLine ? ' ' + window.GameCalendar.sessionLine(c, ctx?.lang) : '', calendar = !!window.GameCalendar;
+      if (!r.changed) return { handled: true, calendar, notify: `${t.sessionNothing} (${r.to} / ${r.to}).${cal}` };
       c.extra = r.extra;
       lastSession = { id: c.id, before: r.before, luck: r.to, until: Date.now() + UNDO_MS }; refreshLater();
-      return { handled: true, dirty: true, rerender: true, notify: `${t.sessionDone} ${r.from} → ${r.to}${r.modifier ? ', ' + t.sessionMod : ''}.` };
+      return { handled: true, dirty: true, rerender: true, calendar, notify: `${t.sessionDone} ${r.from} → ${r.to}${r.modifier ? ', ' + t.sessionMod : ''}.${cal}` };
     }
 
     if (kind === 'pay' || kind === 'pay-undo') {
