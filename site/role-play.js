@@ -28,8 +28,8 @@ function placeLast(html,action,text){
 const PAGES={tech:['repair','Проекты и ремонт','Projects and repairs'],medtech:['medical','Препараты и лечение','Pharmaceuticals and treatment'],netrunner:['net','NET-архитектура и бой','NET architecture and combat']};
 const DRUG_NAMES={antibiotic:'Antibiotic',rapidetox:'Rapidetox',speedheal:'Speedheal',stim:'Stim',surge:'Surge'};
 function doses(c){
- const d=c?.extra?.pharmacy?.doses,out=[];if(!obj(d))return out;
- for(const k of Object.keys(DRUG_NAMES)){const n=Number(d[k]);if(Number.isSafeInteger(n)&&n>0)out.push([k,DRUG_NAMES[k],n])}
+ const d=c?.extra?.pharmacy?.doses,out=[],S=global.DoseStock;if(!S&&!obj(d))return out;
+ for(const k of Object.keys(DRUG_NAMES)){const n=S?S.count(c,k):Number(d[k]);if(Number.isSafeInteger(n)&&n>0)out.push([k,DRUG_NAMES[k],n])}
  return out;
 }
 function makerProjects(c){

@@ -162,7 +162,7 @@ test('cybersurgery by a linked Medtech counts their effects and says so; manual 
 
 // ---- Pharmacy ----------------------------------------------------------------------------------------------
 test('synthesis counts the Medtech’s effects while the fields hold the sheet values, and the record stays valid',()=>{
- const p=page(['pharmacy-tools.js']),m=p.window.PharmacyTools;m.setScope('a');
+ const p=page(['catalog.js','catalog-extra.js','character-extra.js','dose-stock.js','pharmacy-tools.js']),m=p.window.PharmacyTools;m.setScope('a');
  const c={id:'doctor',name:'Doc',role:'medtech',rank:6,stats:{TECH:6},extra:{criticalInjuries:injuries(CONCUSSION),roleTools:{medtech:{values:{surgery:1,pharma:3,cryo:2}}}}};
  const ctx={lang:'en',characters:[c],isCurrent:(x,s)=>x===c&&s==='a'},values={drug:'speedheal',tech:'6',skill:'5',modifier:'0',target:'Nova',ack:true};
  const html=m.render(ctx);assert.match(html,/data-tool-effects="-2"/);assert.match(html,/while TECH and the skill in the fields match the sheet/);
