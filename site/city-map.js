@@ -28,23 +28,23 @@ const T={
   foreign:'Карта города сохранена в неизвестном формате и здесь не показывается. Данные не изменены.',
   tools:'Инструменты карты',modeLabel:'Режим карты',modeSelect:'Выбор',modeAdd:'Поставить метку',modeRoute:'Маршрут',
   addCentre:'Метку в центр',newType:'Тип новой метки',zoomOut:'Уменьшить карту',zoomIn:'Увеличить карту',zoom:n=>`×${n}`,labels:'Подписи',
-  picUpload:'Загрузить картинку карты',picChange:'Сменить картинку',picRemove:'Убрать картинку',picConfirm:'Убрать картинку карты? Метки останутся на своих местах.',picRemoved:'Картинка карты убрана.',undo:'Вернуть',
+  picUpload:'Загрузить картинку карты',picChange:'Сменить картинку',picRemove:'Убрать картинку',picConfirm:'Убрать картинку карты? Метки останутся на своих местах.',picRemoved:'Картинка карты убрана.',picChanged:'Картинка карты заменена.',undo:'Вернуть',
   picBad:'Не удалось прочитать изображение. Выберите файл JPG, PNG или WebP.',picBig:'Файл слишком большой (больше 20 МБ).',picHeavy:'Картинка слишком тяжёлая даже после сжатия. Выберите изображение меньшего размера.',
   picSaved:'Картинка карты сохранена в этом браузере.',picSession:'Браузер не дал сохранить картинку: она пропадёт, когда вы закроете страницу.',
   picLocal:'Картинка карты остаётся только в этом браузере: игрокам, в файл кампании и в резервную копию она не попадает.',
   gridHint:'Картинки нет — показана условная сетка. Метки ставятся так же.',
   filter:'Фильтр по типу',all:'Все',stage:'Карта города: метки',
   hintSelect:'Нажмите метку, чтобы выбрать её. Метку можно перетащить или подвинуть стрелками на клавиатуре.',hintAdd:'Нажмите место на карте, чтобы поставить там метку.',hintRoute:'Нажимайте метки по порядку. Нажатие на последнюю остановку убирает её.',
-  routeNone:'Маршрут не проложен.',routeLine:(s,n)=>`Маршрут: ${s} (остановок: ${n})`,routeClear:'Очистить маршрут',routeCleared:'Маршрут очищен.',routeFull:`В маршруте не больше ${MAX_ROUTE} остановок.`,
+  routeNone:'Маршрут не проложен.',routeLine:(s,n)=>`Маршрут: ${s} (остановок: ${n})`,routeClear:'Очистить маршрут',routeCleared:'Маршрут очищен.',routeKept:'Маршрут уже проложен заново, поэтому прежний не возвращён.',routeFull:`В маршруте не больше ${MAX_ROUTE} остановок.`,
   editor:'МЕТКА',editorNone:'Выберите метку на карте или в списке, чтобы изменить её.',name:'Название',type:'Тип',note:'Заметка ведущего',noteHint:'Игроки её не видят.',show:'Показать игрокам',
-  crewHere:'Группа здесь',crewAway:'Группа ушла отсюда',remove:'Удалить метку',removed:n=>`Метка «${n}» удалена.`,
+  crewHere:'Группа здесь',remove:'Удалить метку',removed:n=>`Метка «${n}» удалена.`,
   list:'МЕТКИ',listEmpty:'Меток пока нет. Нажмите «Поставить метку» и укажите место на карте.',listFiltered:'Под этот фильтр не подходит ни одна метка.',
   bCrew:'группа здесь',bShown:'видна игрокам',bStop:n=>`остановка ${n}`,crewTag:'Группа',
   newPin:n=>`Метка ${n}`,full:`На карте не больше ${MAX_PINS} меток.`,sharedFull:`Игрокам можно показать не больше ${MAX_SHARED} меток. Снимите отметку с другой метки.`,
   sayAdded:n=>`Метка «${n}» поставлена.`,sayMoved:n=>`Метка «${n}» передвинута.`,sayStop:(n,i)=>`«${n}» — остановка ${i}.`,sayUnstop:n=>`«${n}» убрана из маршрута.`,sayCrew:n=>`Группа отмечена на метке «${n}».`,sayCrewOff:'Отметка группы снята.',
   share:'ИГРОКАМ В КОМНАТЕ',crewShow:'Показывать игрокам, где группа',
   stNoRoom:'Комната не открыта. Отмеченные метки появятся у игроков, когда вы создадите комнату и выберете в ней эту кампанию.',stPlayer:'Вы в комнате как игрок. Показывать карту может только ведущий комнаты.',stOther:'В комнате выбрана другая кампания. Чтобы игроки увидели эти метки, выберите эту кампанию на странице «Игра онлайн».',
-  stLive:n=>`Комната открыта: игроки видят меток: ${n}.`,stCrew:' Место группы показано.',cut:(a,b)=>` Из-за объёма игрокам уйдут только ${a} из ${b}.`,
+  stLive:n=>`Комната открыта. Игроки видят меток: ${n}.`,stCrew:' Место группы показано.',cut:(a,b)=>` Из-за объёма игрокам уйдут только ${a} из ${b}.`,
   roomFrom:'Метки показывает ведущий. Картинка карты остаётся у него, здесь — условная сетка.',roomStage:n=>`Схема города, меток: ${n}`,roomStageCrew:', отмечено место группы',roomCrewAt:n=>`Группа здесь: ${n}`,roomCrew:'Группа отмечена на карте.',updated:'Ведущий обновил карту города.',
   gmSees:n=>`Игроки видят меток: ${n}.`,gmNone:'Игроки пока не видят карту. Откройте кампанию → «Карта города» и отметьте метки.',gmNoCampaign:'Чтобы показывать игрокам карту города, выберите выше кампанию для комнаты.',
   types:{bar:'Бар',clinic:'Клиника',fixer:'Фиксер',gang:'Банда',safehouse:'Убежище',job:'Заказ',shop:'Магазин',corp:'Корпорация',danger:'Опасность',other:'Другое'}},
@@ -53,24 +53,24 @@ const T={
   foreign:'The city map is saved in an unknown format and is not shown here. The data is left untouched.',
   tools:'Map tools',modeLabel:'Map mode',modeSelect:'Select',modeAdd:'Place a pin',modeRoute:'Route',
   addCentre:'Pin in the centre',newType:'Type of a new pin',zoomOut:'Zoom the map out',zoomIn:'Zoom the map in',zoom:n=>`×${n}`,labels:'Labels',
-  picUpload:'Load a map picture',picChange:'Change the picture',picRemove:'Remove the picture',picConfirm:'Remove the map picture? The pins stay where they are.',picRemoved:'The map picture is removed.',undo:'Undo',
+  picUpload:'Load a map picture',picChange:'Change the picture',picRemove:'Remove the picture',picConfirm:'Remove the map picture? The pins stay where they are.',picRemoved:'The map picture is removed.',picChanged:'The map picture is replaced.',undo:'Undo',
   picBad:'Could not read the image. Choose a JPG, PNG or WebP file.',picBig:'The file is too large (over 20 MB).',picHeavy:'The picture is too heavy even after compression. Choose a smaller image.',
   picSaved:'The map picture is saved in this browser.',picSession:'The browser did not let the picture be saved: it will be gone when you close the page.',
   picLocal:'The map picture stays in this browser only: it does not go to players, into the campaign file or into the backup.',
   gridHint:'There is no picture, so a placeholder grid is shown. Pins work the same way.',
   filter:'Filter by type',all:'All',stage:'City map: pins',
   hintSelect:'Tap a pin to select it. A pin can be dragged, or moved with the arrow keys.',hintAdd:'Tap a place on the map to put a pin there.',hintRoute:'Tap the pins in order. Tapping the last stop removes it.',
-  routeNone:'No route yet.',routeLine:(s,n)=>`Route: ${s} (stops: ${n})`,routeClear:'Clear the route',routeCleared:'The route is cleared.',routeFull:`A route has no more than ${MAX_ROUTE} stops.`,
+  routeNone:'No route yet.',routeLine:(s,n)=>`Route: ${s} (stops: ${n})`,routeClear:'Clear the route',routeCleared:'The route is cleared.',routeKept:'A new route is already drawn, so the old one was not brought back.',routeFull:`A route has no more than ${MAX_ROUTE} stops.`,
   editor:'PIN',editorNone:'Select a pin on the map or in the list to change it.',name:'Name',type:'Type',note:'GM note',noteHint:'Players do not see it.',show:'Show to players',
-  crewHere:'The crew is here',crewAway:'The crew has left',remove:'Delete the pin',removed:n=>`Pin “${n}” is deleted.`,
+  crewHere:'The crew is here',remove:'Delete the pin',removed:n=>`Pin “${n}” is deleted.`,
   list:'PINS',listEmpty:'No pins yet. Press “Place a pin” and tap a place on the map.',listFiltered:'No pin matches this filter.',
   bCrew:'the crew is here',bShown:'shown to players',bStop:n=>`stop ${n}`,crewTag:'Crew',
   newPin:n=>`Pin ${n}`,full:`A map has no more than ${MAX_PINS} pins.`,sharedFull:`No more than ${MAX_SHARED} pins can be shown to players. Unmark another pin first.`,
   sayAdded:n=>`Pin “${n}” is placed.`,sayMoved:n=>`Pin “${n}” is moved.`,sayStop:(n,i)=>`“${n}” is stop ${i}.`,sayUnstop:n=>`“${n}” is taken off the route.`,sayCrew:n=>`The crew is marked at “${n}”.`,sayCrewOff:'The crew mark is removed.',
   share:'FOR PLAYERS IN THE ROOM',crewShow:'Show players where the crew is',
   stNoRoom:'No room is open. Marked pins reach the players once you create a room and choose this campaign in it.',stPlayer:'You are in the room as a player. Only the Game Master of the room can show the map.',stOther:'Another campaign is chosen in the room. To show these pins, choose this campaign on the “Online play” page.',
-  stLive:n=>`The room is open: players see pins: ${n}.`,stCrew:' The place of the crew is shown.',cut:(a,b)=>` Because of their size only ${a} of ${b} are sent to players.`,
-  roomFrom:'The pins are shown by the Game Master. The map picture stays with them; this is a placeholder grid.',roomStage:n=>`City scheme, pins: ${n}`,roomStageCrew:', the place of the crew is marked',roomCrewAt:n=>`The crew is here: ${n}`,roomCrew:'The crew is marked on the map.',updated:'The Game Master updated the city map.',
+  stLive:n=>`The room is open. Players see pins: ${n}.`,stCrew:' The place of the crew is shown.',cut:(a,b)=>` Because of their size only ${a} of ${b} are sent to players.`,
+  roomFrom:'The pins are shown by the Game Master. The map picture stays with them; this is a placeholder grid.',roomStage:n=>`City layout, pins: ${n}`,roomStageCrew:', the place of the crew is marked',roomCrewAt:n=>`The crew is here: ${n}`,roomCrew:'The crew is marked on the map.',updated:'The Game Master updated the city map.',
   gmSees:n=>`Players see pins: ${n}.`,gmNone:'Players do not see the map yet. Open the campaign → “City map” and mark pins.',gmNoCampaign:'To show the city map to players, choose a campaign for the room above.',
   types:{bar:'Bar',clinic:'Clinic',fixer:'Fixer',gang:'Gang',safehouse:'Safehouse',job:'Job',shop:'Shop',corp:'Corporation',danger:'Danger',other:'Other'}}
 };
@@ -134,6 +134,8 @@ function updatePin(map,id,patch){
  return true;
 }
 function movePin(map,id,x,y){const p=pinOf(map,id);if(!p)return false;p.x=clamp(x);p.y=clamp(y);return true}
+// The way a route reads once it is saved: only stops that are still pins, and no stop twice in a row.
+const routeNow=(map,ids)=>ids.filter(id=>pinOf(map,id)).filter((id,i,a)=>a[i-1]!==id);
 // Removing a pin takes it off the route and lifts the crew mark; what is returned puts all three back.
 function removePin(map,id){
  const index=map.pins.findIndex(p=>p.id===id);if(index<0)return null;
@@ -146,8 +148,11 @@ function removePin(map,id){
 function restorePin(map,snap){
  if(!snap?.pin||pinOf(map,snap.pin.id)||map.pins.length>=MAX_PINS)return false;
  map.pins.splice(Math.min(snap.index,map.pins.length),0,{...snap.pin});
- map.route=snap.route.filter(id=>pinOf(map,id));
- if(snap.crew)map.crew=snap.pin.id;
+ // The route and the crew mark come back only where nothing was done to them in the meantime: a route drawn after the
+ // removal, or a crew mark put on another pin, is newer than what is being taken back and has no "undo" of its own.
+ const id=snap.pin.id,left=routeNow(map,snap.route.filter(x=>x!==id)),now=map.route||[];
+ if(now.length===left.length&&now.every((x,i)=>x===left[i])){const old=routeNow(map,snap.route);if(old.length)map.route=old;else delete map.route}
+ if(snap.crew&&!map.crew)map.crew=id;
  return true;
 }
 // A tap on the last stop takes it off the route; a tap on any other pin makes it the next stop.
@@ -166,6 +171,16 @@ function setShown(map,id,on){
  if(on){if(p.shown!==true){if(count>=MAX_SHARED)return {ok:false,reason:'full'};p.shown=true;return {ok:true,count:count+1}}return {ok:true,count}}
  if(p.shown===true){delete p.shown;return {ok:true,count:count-1}}
  return {ok:true,count};
+}
+// Where "pin in the centre" puts a pin: the centre, or the nearest free place around it. A step is 12% of the width, and
+// the same distance down (the stage is rarely square), so on a phone two pins put this way do not lie on each other.
+function freeSpot(map){
+ const sx=120,sy=Math.round(sx*ratioOf(map.ratio)),taken=(x,y)=>map.pins.some(p=>Math.abs(p.x-x)<sx&&Math.abs(p.y-y)<sy);
+ for(let r=0;r<=4;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+  if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+  const x=500+dx*sx,y=500+dy*sy;if(y>=0&&y<=1000&&!taken(x,y))return {x,y};
+ }
+ return {x:500,y:500};
 }
 const typesUsed=map=>TYPES.map(t=>[t,map.pins.filter(p=>p.t===t).length]).filter(x=>x[1]);
 // An empty filter shows everything.
@@ -241,6 +256,9 @@ async function savePic(id,rec){
  if(kept)sweep(s).catch(()=>{});
  return kept?'saved':'session';
 }
+// Opening a map is the moment to look for pictures left behind by deleted campaigns: waiting for the next picture to be
+// saved would keep them for good on a device where no other map is ever loaded.
+function tidy(){try{const s=theStore();if(s)sweep(s).catch(()=>{})}catch{}}
 async function dropPic(id){
  const had=pics.get(id)?.rec||null;
  try{await theStore()?.del(id)}catch{}
@@ -274,10 +292,23 @@ async function attach(file,c,l){
  if(!rec||!validPic(rec)){say(readable?t.picHeavy:t.picBad);return 'bad'}
  // The campaign may have been deleted or replaced while the image was decoded.
  if(campaignOf(appState(),c.id)!==c||foreign(c))return 'none';
- const how=await savePic(String(c.id),rec);if(how==='bad'){say(t.picBad);return how}
+ return keepPic(c,rec,l);
+}
+// The stage takes the proportions of the picture, and the page shows it.
+function showPic(c,rec){
  const map=read(c)||blank();map.ratio=ratioOf(rec.w/rec.h);
  if(write(c,map)){try{global.App.save()}catch{}}
  if(!repaintOpen(String(c.id))){try{global.App.render()}catch{}}
+}
+// A new picture takes the place of the one before it. That one cannot be loaded again from anywhere (it may have come
+// from a file the user no longer has), so replacing it is offered back like every other removal on this page.
+async function keepPic(c,rec,l){
+ const t=T[L(l)],say=m=>{try{global.App?.notify?.(m)}catch{}},id=String(c.id);
+ const before=await loadPic(id).catch(()=>null);
+ const how=await savePic(id,rec);if(how==='bad'){say(t.picBad);return how}
+ showPic(c,rec);
+ const back=()=>{const now=campaignOf(appState(),c.id);if(!now||foreign(now))return;savePic(id,before).then(h=>{if(h!=='bad')showPic(now,before)})};
+ try{if(before&&before.src!==rec.src&&typeof global.App?.notifyAction==='function'){global.App.notifyAction(t.picChanged,t.undo,back);return how}}catch{}
  say(how==='saved'?t.picSaved:t.picSession);return how;
 }
 
@@ -299,10 +330,12 @@ const routeText=(map,t)=>{const names=(map.route||[]).map(id=>pinOf(map,id)?.nam
 const glyph=k=>`<span class="cm-chip cm-t-${k}" aria-hidden="true">${GLYPH[k]}</span>`;
 // Positions go into the markup as numbers made from checked whole numbers, never as text from the data.
 const at=(x,y)=>`--x:${x/10}%;--y:${y/10}%`;
+// A pin near the left or right edge hangs its label and the crew tag inwards, so they are not cut by the edge of the stage.
+const edge=x=>x<250?' cm-edge-l':x>750?' cm-edge-r':'';
 const routeSVG=pts=>`<svg class="cm-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">${pts.length>1?`<polyline points="${pts.map(p=>p[0]+','+p[1]).join(' ')}" vector-effect="non-scaling-stroke"/>`:''}</svg>`;
 function stageHTML(map,v,t,url){
  const pin=p=>{const stops=stopsOf(map,p.id),crew=map.crew===p.id;
-  return `<button type="button" class="cm-pin${v.sel===p.id?' cm-sel':''}${crew?' cm-crew':''}${p.shown?' cm-shown':''}" data-cm-pin="${esc(p.id)}" data-cm-xy="${p.x},${p.y}" style="${at(p.x,p.y)}" aria-pressed="${v.sel===p.id?'true':'false'}" aria-label="${esc(pinLabel(p,map,t))}">${glyph(p.t)}${stops.length?`<span class="cm-stop" aria-hidden="true">${stops[0]}</span>`:''}${crew?`<span class="cm-crew-tag" aria-hidden="true">${esc(t.crewTag)}</span>`:''}${v.labels?`<span class="cm-pin-name" aria-hidden="true">${esc(p.name)}</span>`:''}</button>`};
+  return `<button type="button" class="cm-pin${v.sel===p.id?' cm-sel':''}${crew?' cm-crew':''}${p.shown?' cm-shown':''}${edge(p.x)}" data-cm-pin="${esc(p.id)}" data-cm-xy="${p.x},${p.y}" style="${at(p.x,p.y)}" aria-pressed="${v.sel===p.id?'true':'false'}" aria-label="${esc(pinLabel(p,map,t))}">${glyph(p.t)}${stops.length?`<span class="cm-stop" aria-hidden="true">${stops[0]}</span>`:''}${crew?`<span class="cm-crew-tag" aria-hidden="true">${esc(t.crewTag)}</span>`:''}${v.labels?`<span class="cm-pin-name" aria-hidden="true">${esc(p.name)}</span>`:''}</button>`};
  const route=(map.route||[]).map(id=>pinOf(map,id)).filter(Boolean).map(p=>[p.x,p.y]);
  // The stage keeps the proportions of the picture (held between 1:2 and 2:1; a longer picture is fitted inside), and pins
  // are placed in shares of the stage, so they sit on the same spots at any zoom and on the players' grid.
@@ -327,8 +360,8 @@ function bodyHTML(c,l){
  const used=typesUsed(map);
  const filters=used.length?`<div class="cm-filters" role="group" aria-label="${esc(t.filter)}"><button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="" aria-pressed="${v.filter.size?'false':'true'}">${esc(t.all)} <span class="cm-count">${map.pins.length}</span></button>${used.map(([k,n])=>`<button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="${k}" aria-pressed="${v.filter.has(k)?'true':'false'}">${glyph(k)}${esc(t.types[k])} <span class="cm-count">${n}</span></button>`).join('')}</div>`:'';
  const hint=v.mode==='add'?t.hintAdd:v.mode==='route'?t.hintRoute:t.hintSelect;
- const main=`<section class="card cm-main">${tools}${filters}<p class="cm-hint" data-cm-hint>${esc(hint)}${pic?'':' '+esc(t.gridHint)}${volatile.has(id)?' '+esc(t.picSession):''}</p>${stageHTML(map,v,t,pic?.url||'')}<div class="cm-route-row"><p class="cm-route-line" data-cm-route-line>${esc(routeText(map,t))}</p>${map.route?.length?`<button type="button" class="btn ghost" data-cm-act="route-clear">${esc(t.routeClear)}</button>`:''}</div><p class="cm-say" role="status" aria-live="polite" data-cm-say>${esc(v.say)}</p><input type="hidden" data-cm-drop value=""></section>`;
- const editor=`<section class="card cm-editor"><div class="card-heading"><span>${esc(t.editor)}</span><span data-nx>${sel?glyph(sel.t):''}</span></div>${sel?`<label class="field">${esc(t.name)}<input type="text" data-cm-field="name" maxlength="${MAX_NAME}" value="${esc(sel.name)}" autocomplete="off"></label><label class="field">${esc(t.type)}<select data-cm-field="t">${TYPES.map(k=>`<option value="${k}"${sel.t===k?' selected':''}>${esc(t.types[k])}</option>`).join('')}</select></label><label class="field textarea-field">${esc(t.note)}<textarea data-cm-field="note" rows="4" maxlength="${MAX_NOTE}" aria-describedby="cm-note-hint">${esc(sel.note||'')}</textarea></label><p class="cm-hint" id="cm-note-hint">${esc(t.noteHint)}</p><label class="cm-check"><input type="checkbox" data-cm-field="shown"${sel.shown?' checked':''}> <span>${esc(t.show)}</span></label><div class="cm-actions"><button type="button" class="btn ghost" data-cm-act="crew" aria-pressed="${map.crew===sel.id?'true':'false'}">${esc(map.crew===sel.id?t.crewAway:t.crewHere)}</button><button type="button" class="btn ghost cm-danger" data-cm-act="pin-remove">✕ ${esc(t.remove)}</button></div>`:`<p class="cm-hint">${esc(t.editorNone)}</p>`}</section>`;
+ const main=`<section class="card cm-main">${tools}${filters}<p class="cm-hint" data-cm-hint>${esc(hint)}${pic?'':' '+esc(t.gridHint)}${volatile.has(id)?' '+esc(t.picSession):''}</p>${stageHTML(map,v,t,pic?.url||'')}<div class="cm-route-row"><p class="cm-route-line" data-cm-route-line>${esc(routeText(map,t))}</p>${map.route?.length?`<button type="button" class="btn ghost" data-cm-act="route-clear">${esc(t.routeClear)}</button>`:''}</div><p class="cm-say" aria-hidden="true" data-cm-say>${esc(v.say)}</p><input type="hidden" data-cm-drop value=""></section>`;
+ const editor=`<section class="card cm-editor"><div class="card-heading"><span>${esc(t.editor)}</span><span data-nx>${sel?glyph(sel.t):''}</span></div>${sel?`<label class="field">${esc(t.name)}<input type="text" data-cm-field="name" maxlength="${MAX_NAME}" value="${esc(sel.name)}" autocomplete="off"></label><label class="field">${esc(t.type)}<select data-cm-field="t">${TYPES.map(k=>`<option value="${k}"${sel.t===k?' selected':''}>${esc(t.types[k])}</option>`).join('')}</select></label><label class="field textarea-field">${esc(t.note)}<textarea data-cm-field="note" rows="4" maxlength="${MAX_NOTE}" aria-describedby="cm-note-hint">${esc(sel.note||'')}</textarea></label><p class="cm-hint" id="cm-note-hint">${esc(t.noteHint)}</p><label class="cm-check"><input type="checkbox" data-cm-field="shown"${sel.shown?' checked':''}> <span>${esc(t.show)}</span></label><div class="cm-actions"><button type="button" class="btn ghost" data-cm-act="crew" aria-pressed="${map.crew===sel.id?'true':'false'}">${esc(t.crewHere)}</button><button type="button" class="btn ghost cm-danger" data-cm-act="pin-remove">✕ ${esc(t.remove)}</button></div>`:`<p class="cm-hint">${esc(t.editorNone)}</p>`}</section>`;
  const row=p=>{const stops=stopsOf(map,p.id),badges=[map.crew===p.id?t.bCrew:'',p.shown?t.bShown:'',stops.length?t.bStop(stops.join(', ')):''].filter(Boolean);
   return `<li><button type="button" class="cm-row" data-cm-row="${esc(p.id)}" aria-pressed="${v.sel===p.id?'true':'false'}">${glyph(p.t)}<span class="cm-row-text"><b class="cm-row-name">${esc(p.name)}</b><span class="cm-row-type">${esc(t.types[p.t])}${badges.length?' · '+esc(badges.join(' · ')):''}</span></span></button></li>`};
  const list=`<section class="card cm-list"><div class="card-heading"><span>${esc(t.list)}</span><span data-nx>${vis.length===map.pins.length?map.pins.length:vis.length+' / '+map.pins.length}</span></div>${vis.length?`<ul class="cm-rows">${vis.map(row).join('')}</ul>`:`<p class="cm-hint">${esc(map.pins.length?t.listFiltered:t.listEmpty)}</p>`}</section>`;
@@ -336,10 +369,12 @@ function bodyHTML(c,l){
  return `<div class="cm-layout">${main}<div class="cm-side">${editor}${list}${share}</div></div>`;
 }
 // The page of the map: Campaigns.render returns it instead of the tracker while the map is open.
+// The line a screen reader hears after an action stands outside the part that is redrawn: a live region that arrives
+// together with its text is not read out, one whose text changes is. The line on the screen is a copy for the eyes.
 function page(c,characters,l){
  if(!isObj(c))return '';
  const t=T[L(l)];
- return `<div class="cm-page" data-cm-root data-cm-page="${esc(c.id)}"><div class="sheet-top"><button type="button" class="back-link" data-cm-act="close">← ${esc(t.back)}</button><span class="saved-indicator"><span class="status-dot"></span> ${esc(t.local)}</span></div><div class="page-header"><div><div class="overline">04 / JOB MANAGEMENT</div><h1>${esc(t.pageTitle)}</h1><p>${esc(t.lead(line(c.name,100)||'—'))}</p></div></div><div data-cm-body>${bodyHTML(c,l)}</div></div>`;
+ return `<div class="cm-page" data-cm-root data-cm-page="${esc(c.id)}"><div class="sheet-top"><button type="button" class="back-link" data-cm-act="close">← ${esc(t.back)}</button><span class="saved-indicator"><span class="status-dot"></span> ${esc(t.local)}</span></div><div class="page-header"><div><div class="overline">04 / JOB MANAGEMENT</div><h1>${esc(t.pageTitle)}</h1><p>${esc(t.lead(line(c.name,100)||'—'))}</p></div></div><p class="sr-only" role="status" aria-live="polite" data-cm-live></p><div data-cm-body>${bodyHTML(c,l)}</div></div>`;
 }
 // The small card on the campaign page that leads to the map.
 function card(c,l){
@@ -369,6 +404,8 @@ function repaint(root,c,l,prefer){
  let active=null;try{active=root.contains?.(global.document.activeElement)?global.document.activeElement:null}catch{}
  const want=prefer||focusKey(active),sc=root.querySelector('[data-cm-scroll]'),left=sc?.scrollLeft||0,top=sc?.scrollTop||0;
  body.innerHTML=bodyHTML(c,l);
+ // The same words twice in a row (a pin moved step by step) still have to be a change, or they are read once only.
+ try{const live=root.querySelector('[data-cm-live]'),say=foreign(c)?'':view(c).say;if(live)live.textContent=say&&live.textContent===say?say+'\u00a0':say}catch{}
  const now=root.querySelector('[data-cm-scroll]');if(now){now.scrollLeft=left;now.scrollTop=top}
  if(want){let el=null;try{el=root.querySelector(want)}catch{}if(!el||el.disabled)el=root.querySelector('[data-cm-act="mode"][aria-pressed="true"]');try{el?.focus?.({preventScroll:true})}catch{}}
  return true;
@@ -403,7 +440,7 @@ function handle(e,c,ctx){
  const l=L(ctx?.lang),t=T[l],idle={handled:true,dirty:false},notify=m=>{try{ctx?.notify?.(m)}catch{}};
  const act=e.type==='click'?el.closest?.('[data-cm-act]'):null,a=act?.dataset?.cmAct;
  // The focus follows the reader onto the page they asked for and back to the button they came from.
- if(a==='open'){openId=String(c.id);later(()=>global.document?.querySelector?.('[data-cm-page] [data-cm-act="close"]')?.focus?.());return {handled:true,dirty:false,rerender:true}}
+ if(a==='open'){openId=String(c.id);tidy();later(()=>global.document?.querySelector?.('[data-cm-page] [data-cm-act="close"]')?.focus?.());return {handled:true,dirty:false,rerender:true}}
  if(a==='close'){openId=null;later(()=>global.document?.querySelector?.('[data-cm-card] [data-cm-act="open"]')?.focus?.());return {handled:true,dirty:false,rerender:true}}
  if(!['click','change','input'].includes(e.type)||foreign(c))return idle;
  const map=read(c)||blank(),v=view(c),id=String(c.id);
@@ -459,10 +496,9 @@ function handle(e,c,ctx){
   if(a==='filter'){const k=act.dataset.cmValue;if(!k)v.filter.clear();else if(v.filter.has(k))v.filter.delete(k);else if(TYPES.includes(k))v.filter.add(k);const p=v.sel?pinOf(map,v.sel):null;if(p&&v.filter.size&&!v.filter.has(p.t))v.sel=null;return done(false)}
   if(a==='add-centre'){
    // A second pin put in the centre steps aside, so it does not hide the first one.
-   let x=500,y=500;while(map.pins.some(p=>p.x===x&&p.y===y)&&x<960){x+=30;y+=30}
-   return place(x,y);
+   const spot=freeSpot(map);return place(spot.x,spot.y);
   }
-  if(a==='route-clear'){const was=clearRoute(map);if(!was.length)return idle;const r=done(true,'[data-cm-act="mode"][aria-pressed="true"]',t.routeCleared);if(r.dirty)offerUndo(c,t.routeCleared,t.undo,m=>{m.route=was.filter(x=>pinOf(m,x))});return r}
+  if(a==='route-clear'){const was=clearRoute(map);if(!was.length)return idle;const r=done(true,'[data-cm-act="mode"][aria-pressed="true"]',t.routeCleared);if(r.dirty)offerUndo(c,t.routeCleared,t.undo,m=>{if(m.route?.length){notify(t.routeKept);return false}m.route=was.filter(x=>pinOf(m,x))});return r}
   if(a==='pin-remove')return v.sel?remove(v.sel):idle;
   if(a==='crew'){const p=v.sel?pinOf(map,v.sel):null;if(!p)return idle;const off=map.crew===p.id;setCrew(map,off?null:p.id);return done(true,'[data-cm-act="crew"]',off?t.sayCrewOff:t.sayCrew(p.name))}
   if(a==='pic-remove'){
@@ -559,8 +595,8 @@ function roomCard(){
  }
  const d=shownMap;if(!d.pins.length&&!d.crew)return '';
  const here=d.crew?d.pins.find(p=>p[1]===d.crew[0]&&p[2]===d.crew[1]):null;
- const pin=p=>`<span class="cm-pin cm-static${here===p?' cm-crew':''}" style="${at(p[1],p[2])}">${glyph(p[0])}<span class="cm-pin-name">${esc(p[3])}</span></span>`;
- const crew=d.crew?`<span class="cm-pin cm-static cm-crew${here?' cm-crew-only':''}" style="${at(d.crew[0],d.crew[1])}">${here?'':`<span class="cm-chip cm-t-crew">◎</span>`}<span class="cm-crew-tag">${esc(t.crewTag)}</span></span>`:'';
+ const pin=p=>`<span class="cm-pin cm-static${here===p?' cm-crew':''}${edge(p[1])}" style="${at(p[1],p[2])}">${glyph(p[0])}<span class="cm-pin-name">${esc(p[3])}</span></span>`;
+ const crew=d.crew?`<span class="cm-pin cm-static cm-crew${here?' cm-crew-only':''}${edge(d.crew[0])}" style="${at(d.crew[0],d.crew[1])}">${here?'':`<span class="cm-chip cm-t-crew">◎</span>`}<span class="cm-crew-tag">${esc(t.crewTag)}</span></span>`:'';
  return `<section class="card room-citymap" data-cm-room>${head(d.pins.length)}${d.campaign?`<p class="room-muted cm-campaign">${esc(d.campaign)}</p>`:''}<p class="room-muted">${esc(t.roomFrom)}</p><div class="cm-stage cm-grid cm-shared" style="aspect-ratio:${d.ratio}" role="img" aria-label="${esc(t.roomStage(d.pins.length)+(d.crew?t.roomStageCrew:''))}">${d.pins.map(pin).join('')}${crew}</div>${d.pins.length?`<ul class="cm-shared-list">${d.pins.map(p=>`<li>${glyph(p[0])}<span><b>${esc(p[3])}</b> — ${esc(t.types[p[0]])}</span></li>`).join('')}</ul>`:''}${d.crew?`<p class="cm-crew-line">${esc(here?t.roomCrewAt(here[3]):t.roomCrew)}</p>`:''}</section>`;
 }
 
@@ -606,7 +642,7 @@ wire();
 
 global.CityMap={TYPES,GLYPH,MAX_PINS,MAX_SHARED,MAX_ROUTE,MAX_NAME,MAX_NOTE,MAX_BYTES,TTL,PIC_SIDE,PIC_CHARS,
  clean,read,foreign,blank,write,addPin,updatePin,movePin,removePin,restorePin,toggleRoute,clearRoute,setCrew,setShown,typesUsed,filterPins,nudge,
- fit,validPic,loadPic,savePic,dropPic,sweep,
+ fit,validPic,loadPic,savePic,keepPic,dropPic,sweep,freeSpot,
  isOpen,page,card,owns,handle,
  payload,cleanShared,publish,receive,roomCard,statusText,
  // The Game Master role came (back) to this device: whoever held it in between sent a map of their own, so the next

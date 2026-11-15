@@ -1861,7 +1861,13 @@ async function main() {
     if (JSON.stringify(m.route) !== JSON.stringify([bar, clinic]) || !(await G.locator('.cm-route polyline').count()) || !/остановок: 2/.test(await G.locator('[data-cm-route-line]').textContent())) fail('the route of two stops was not built: ' + JSON.stringify(m.route));
     // The crew is at the clinic; the bar and the place of the crew are shown to players.
     await G.click('[data-cm-act="mode"][data-cm-value="select"]');
-    await G.click(`[data-cm-pin="${clinic}"]`); await G.click('[data-cm-act="crew"]');
+    await G.click(`[data-cm-pin="${clinic}"]`);
+    // What the action did is read out from a line that is not replaced by the redraw; the button keeps one label and says "pressed".
+    await G.evaluate(() => { window.__cmLive = document.querySelector('[data-cm-live]'); });
+    await G.click('[data-cm-act="crew"]'); await wait(100);
+    const said = await G.evaluate(() => { const l = document.querySelector('[data-cm-live]'), b = document.querySelector('[data-cm-act="crew"]'); return { same: !!l && l === window.__cmLive && l.isConnected, role: l?.getAttribute('role'), text: l?.textContent || '', seen: document.querySelector('[data-cm-say]')?.textContent || '', label: b?.textContent.trim(), pressed: b?.getAttribute('aria-pressed'), lives: document.querySelectorAll('[data-cm-body] [aria-live], [data-cm-body] .cm-say[role]').length }; });
+    if (!said.same || said.role !== 'status' || !/Группа отмечена на метке «Клиника у доков»/.test(said.text) || said.seen !== said.text || said.lives) fail('the status line is recreated with its text instead of being updated: ' + JSON.stringify(said));
+    if (said.label !== 'Группа здесь' || said.pressed !== 'true') fail('the crew button says the opposite of its state: ' + JSON.stringify(said));
     await G.click(`[data-cm-row="${bar}"]`); await G.check('[data-cm-field="shown"]'); await G.check('[data-cm-field="crewShown"]'); await wait(100);
     m = await map(G);
     if (m.crew !== clinic || m.crewShown !== true || m.pins[0].shown !== true || m.pins[1].shown) fail('the crew mark or «Показать игрокам» was not saved: ' + JSON.stringify(m));
@@ -1884,6 +1890,34 @@ async function main() {
     m = await map(G);
     if (m.pins.length !== 2 || m.crew !== clinic || JSON.stringify(m.route) !== JSON.stringify([bar, clinic])) fail('«Вернуть» did not bring the pin back with its route stop and the crew mark: ' + JSON.stringify(m));
     if ((await G.locator('button.cm-pin').count()) !== 2) fail('the map was not redrawn after «Вернуть»');
+    // A route changed after a deletion is newer than the deletion: «Вернуть» brings the pin back and leaves that route alone.
+    await G.click(`[data-cm-pin="${clinic}"]`); await G.click('[data-cm-act="pin-remove"]'); await wait(150);
+    await G.click('[data-cm-act="mode"][data-cm-value="route"]'); await G.click(`[data-cm-pin="${bar}"]`); await wait(100);
+    if (((await map(G)).route || []).length) fail('a tap on the last stop did not take it off the route');
+    await G.click('#app-notice .notice-action'); await wait(200);
+    m = await map(G);
+    if (m.pins.length !== 2 || m.crew !== clinic || (m.route || []).length) fail('«Вернуть» overwrote the route changed after the deletion: ' + JSON.stringify(m));
+    await G.click(`[data-cm-pin="${bar}"]`); await G.click(`[data-cm-pin="${clinic}"]`); await wait(100);
+    await G.click('[data-cm-act="route-clear"]'); await wait(100);
+    await G.click(`[data-cm-pin="${clinic}"]`); await wait(100);
+    await G.click('#app-notice .notice-action'); await wait(200);
+    m = await map(G);
+    if (JSON.stringify(m.route) !== JSON.stringify([clinic])) fail('«Вернуть» after «Очистить маршрут» overwrote the route drawn since: ' + JSON.stringify(m.route));
+    await G.click('[data-cm-act="mode"][data-cm-value="select"]');
+    // «Сменить картинку» can be taken back: the first picture returns with its proportions.
+    const png2 = await G.evaluate(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d'); g.fillStyle = '#5a1e2c'; g.fillRect(0, 0, 200, 200); return c.toDataURL('image/png').split(',')[1]; });
+    await G.setInputFiles('[data-cm-file]', { name: 'other.png', mimeType: 'image/png', buffer: Buffer.from(png2, 'base64') });
+    if (!(await until(() => G.evaluate(() => { const i = document.querySelector('.cm-stage img.cm-pic'); return !!i && i.complete && i.naturalWidth === 200; }), 5000))) fail('the second picture did not replace the first');
+    if ((await map(G)).ratio !== 1 || !/заменена/.test(await G.evaluate(() => document.querySelector('#app-notice')?.textContent || ''))) fail('replacing the picture is not announced with a way back');
+    await G.click('#app-notice .notice-action');
+    if (!(await until(() => G.evaluate(() => { const i = document.querySelector('.cm-stage img.cm-pic'); return !!i && i.complete && i.naturalWidth === 320; }), 5000)) || (await map(G)).ratio !== 2) fail('«Вернуть» did not bring the replaced picture back');
+    if ((await G.evaluate(() => new Promise(ok => { const rq = indexedDB.open('nightcity-red-citymap'); rq.onsuccess = () => { const g = rq.result.transaction('pics').objectStore('pics').get('k1'); g.onsuccess = () => { rq.result.close(); ok(g.result?.w); }; g.onerror = () => ok(-1); }; rq.onerror = () => ok(-1); }))) !== 320) fail('the picture brought back is not the one kept in the browser');
+    // Two pins put in the centre one after another do not lie on each other.
+    await G.click('[data-cm-act="add-centre"]'); await wait(100); await G.click('[data-cm-act="add-centre"]'); await wait(150);
+    const pair = await G.evaluate(() => { const b = [...document.querySelectorAll('button.cm-pin')].slice(-2).map(e => e.getBoundingClientRect()); return Math.max(Math.abs(b[0].x - b[1].x), Math.abs(b[0].y - b[1].y)); });
+    if (pair < 28) fail('two pins put in the centre overlap: ' + pair + 'px apart');
+    for (let i = 0; i < 2; i++) { await G.click('button.cm-pin >> nth=-1'); await G.click('[data-cm-act="pin-remove"]'); await wait(120); }
+    if ((await map(G)).pins.length !== 2) fail('the two extra pins were not removed');
     await axe(G, '[data-cm-page]', 'map page, native dark 1280'); await sideways(G, 'map page, 1280px');
     // The room: the player gets the chosen pin and the place of the crew, and nothing else.
     await G.goto(BASE + '#/room'); await wait(400);
@@ -1913,7 +1947,7 @@ async function main() {
     // The same page on a phone and in the other looks, with a pin selected and names that have no place to break.
     const solo = await device({ width: 390, look: 'native', theme: 'light' }), S = solo.page;
     await S.goto(BASE + '#/campaigns'); await wait(300);
-    await S.evaluate(() => { const c = window.App.getState().campaigns.find(x => x.id === 'k1'); c.cityMap = { v: 1, ratio: 0.75, pins: [{ id: 'a', t: 'gang', x: 0, y: 0, name: 'Щ'.repeat(60), shown: true }, { id: 'b', t: 'job', x: 1000, y: 1000, name: 'Заказ: склад у доков', note: 'x'.repeat(300) }, { id: 'c', t: 'safehouse', x: 500, y: 480, name: 'Убежище' }], route: ['a', 'c', 'b'], crew: 'c', crewShown: true }; window.App.save(); });
+    await S.evaluate(() => { const c = window.App.getState().campaigns.find(x => x.id === 'k1'); c.cityMap = { v: 1, ratio: 0.75, pins: [{ id: 'a', t: 'gang', x: 0, y: 0, name: 'Щ'.repeat(60), shown: true }, { id: 'b', t: 'job', x: 1000, y: 1000, name: 'Заказ: склад у доков', note: 'x'.repeat(300) }, { id: 'c', t: 'safehouse', x: 500, y: 480, name: 'Убежище' }], route: ['a', 'c', 'b'], crew: 'a', crewShown: true }; window.App.save(); });
     await wait(700);
     for (const [look, theme, width] of [['native', 'light', 390], ['board', 'dark', 390], ['cyber', 'dark', 390], ['board', 'light', 1280], ['cyber', 'dark', 1280]]) {
       await S.setViewportSize({ width, height: 844 });
@@ -1923,6 +1957,9 @@ async function main() {
       if ((await S.locator('button.cm-pin').count()) !== 3) { fail(where + ': the saved pins are not shown'); continue; }
       await S.click('[data-cm-row="a"]'); await wait(100);
       await sideways(S, where); await axe(S, '[data-cm-page]', where);
+      // Labels and the crew tag of pins in the very corners stay inside the stage.
+      const cut = await S.evaluate(() => { const st = document.querySelector('[data-cm-stage]').getBoundingClientRect(); return [...document.querySelectorAll('[data-cm-stage] .cm-pin-name, [data-cm-stage] .cm-crew-tag')].map(e => [e.className, e.getBoundingClientRect()]).filter(([, r]) => r.left < st.left - 1 || r.right > st.right + 1 || r.top < st.top - 1 || r.bottom > st.bottom + 1).map(([c, r]) => c + ' ' + Math.round(r.left - st.left) + '..' + Math.round(r.right - st.left) + ' / ' + Math.round(r.top - st.top)).join('; '); });
+      if (cut) fail(where + ': text on the map is cut by the edge of the stage: ' + cut);
       if (width === 390) await small(S, where);
       // Zoomed in, only the map box scrolls sideways.
       await S.click('[data-cm-act="zoom-in"]'); await wait(100);

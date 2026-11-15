@@ -24,6 +24,18 @@ const KEY='nc-news-seen',ARCHIVE_KEY='nightcity-red-v1';
 const BODY_MAX=800,URL_MAX=2000;
 
 const RELEASES=[
+ // Release 10 went out with only five of its lines written. Its number was already stored as «seen» in browsers by then,
+ // so the rest is a release of its own: the dot comes back for those who had read the short list.
+ {n:11,date:'2026-11-15',title:{ru:'Папки, свои таблицы, карта города',en:'Folders, your own tables, a city map'},items:[
+  {ru:'Папки и метки персонажей: на странице «Персонажи» листы раскладываются по папкам, отмечаются своими метками и ищутся по имени.',en:'Folders and tags for characters: on the Characters page, sheets go into folders, take your own tags and are found by name.'},
+  {ru:'Именованные модификаторы: свои прибавки и штрафы с названием включаются одним касанием рядом с кнопками бросков и могут быть привязаны к вещи.',en:'Named modifiers: your own named bonuses and penalties switch on with one tap next to the roll buttons and can be tied to an item.'},
+  {ru:'Группы предметов: вещи и оружие раскладываются по своим группам, группа сворачивается, а её броня надевается или снимается одной кнопкой.',en:'Item groups: gear and weapons go into groups of your own, a group folds away, and its armor goes on or off with one button.'},
+  {ru:'Ведущему: свои таблицы бросков с проверкой диапазонов и NPC по шагам — архетип, уровень угрозы, правки и копии сразу в трекер.',en:'For the GM: your own roll tables with a check of the ranges, and a step-by-step NPC builder: archetype, threat level, tweaks, and copies straight into the tracker.'},
+  {ru:'Часы с триггерами: напоминания на выбранном сегменте, бросок кубика для заполнения и ход часов с каждым раундом боя.',en:'Clocks with triggers: reminders at a chosen segment, a die roll to fill the clock, and clocks that advance with every combat round.'},
+  {ru:'Редактор NET-архитектуры: этажи карточками в виде дерева, перенос веток кнопками и режим «Проход» по этажам.',en:'A NET architecture editor: floors as cards in a tree, branches moved with buttons, and a run mode that walks the floors.'},
+  {ru:'В комнатах: ведущий выбирает, что игроки видят в списке инициативы, и ведёт ленту «Агент» — заказы, новости, розыск, события и места.',en:'In rooms: the GM chooses what players see in the initiative list and runs the Agent feed: jobs, news, wanted notices, events and places.'},
+  {ru:'Карта города в кампании: своя картинка остаётся в этом браузере, на ней метки, маршрут и место группы; выбранное можно показать игрокам.',en:'A city map for a campaign: your own picture stays in this browser and carries pins, a route and the crew’s position; chosen pins can be shown to players.'},
+ ]},
  {n:10,date:'2026-11-14',title:{ru:'Зал ожидания, инвентарь карточками, звук кубиков',en:'Waiting room, inventory cards, dice sound'},items:[
   {ru:'Зал ожидания в комнатах: ведущий сам впускает каждое устройство, а комната шифруется вторым ключом, который получают только впущенные.',en:'A waiting room for online rooms: the GM lets each device in by hand, and the room is encrypted with a second key that only admitted devices get.'},
   {ru:'Инвентарь карточками: всё имущество одним списком, с фильтрами по типам и действием прямо на карточке.',en:'Inventory as cards: everything a character owns in one list, with type filters and the action right on the card.'},

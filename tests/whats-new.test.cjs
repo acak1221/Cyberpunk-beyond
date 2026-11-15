@@ -47,8 +47,21 @@ test('releases run newest first with unbroken numbers, and every line exists in 
  for(const v of Object.values(W.T.en))assert.doesNotMatch(v,CYR);
 });
 
-test('the newest release names what was just added: the waiting room, inventory cards, dice sound and shaking, names, this page',()=>{
- const {W}=load(),top=W.RELEASES[0],ru=top.items.map(i=>i.ru).join(' '),en=top.items.map(i=>i.en).join(' ');
+test('every feature that shipped after release 10 was written up is on the page, under the name the README gives it',()=>{
+ const {W}=load(),r=W.RELEASES.find(x=>x.n===11),ru=r.items.map(i=>i.ru).join(' '),en=r.items.map(i=>i.en).join(' ');
+ // Release 10 keeps its number and its lines: the number is what browsers stored as «seen».
+ assert.equal(W.RELEASES.find(x=>x.n===10).items.length,5);assert.ok(r.date>=W.RELEASES.find(x=>x.n===10).date);
+ for(const re of [/Папки и метки персонажей/,/Именованные модификаторы/,/Группы предметов/,/свои таблицы бросков/,/NPC по шагам/,/Часы с триггерами/,/Редактор NET-архитектуры/,/видят в списке инициативы/,/«Агент»/,/Карта города/])assert.match(ru,re);
+ for(const re of [/Folders and tags/,/Named modifiers/,/Item groups/,/roll tables/,/step-by-step NPC/,/Clocks with triggers/,/NET architecture editor/,/initiative list/,/Agent feed/,/city map/i])assert.match(en,re);
+ // The README names the same things, each as a bullet that opens the way the others do: a bold name and a colon.
+ const readme=fs.readFileSync(path.join(SITE,'..','README.md'),'utf8');
+ for(const name of ['Папки и метки персонажей','Именованные модификаторы','Группы предметов','Свои таблицы бросков','NPC по шагам','Часы с триггерами','Редактор NET-архитектуры','Видимость участников боя в комнате','«Агент»','Карта города'])assert.ok(readme.includes('\n- **'+name+':** '),'README: '+name);
+ // A player who had read release 10 gets the mark again.
+ const back=load({store:{'nightcity-red-v1':'{}','nc-news-seen':'10'}});assert.equal(back.W.unread(),1);assert.notEqual(back.W.dot(),'');
+});
+
+test('release 10 names what it added: the waiting room, inventory cards, dice sound and shaking, names, this page',()=>{
+ const {W}=load(),top=W.RELEASES.find(x=>x.n===10),ru=top.items.map(i=>i.ru).join(' '),en=top.items.map(i=>i.en).join(' ');
  for(const re of [/Зал ожидания/,/Инвентарь карточками/,/Звук кубиков/,/встряхиванием/,/Генератор имён/,/Сообщить об ошибке/])assert.match(ru,re);
  for(const re of [/waiting room/i,/Inventory as cards/,/Dice sound/,/shaking/,/name and handle generator/,/Report a problem/])assert.match(en,re);
 });

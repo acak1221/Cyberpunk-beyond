@@ -66,6 +66,10 @@ button.cm-pin { cursor: pointer; touch-action: none; user-select: none; -webkit-
 .cm-stop { position: absolute; top: 3px; left: 3px; display: flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; color: var(--bg); background: var(--text); border-radius: 9px; font-size: 10px; font-weight: 700; line-height: 1; pointer-events: none; }
 .cm-crew-tag { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: -8px; padding: 1px 6px; color: var(--bg); background: var(--text); border-radius: 3px; font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap; letter-spacing: 0; text-transform: none; pointer-events: none; }
 .cm-pin-name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: -9px; max-width: 120px; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 3px; font-size: 11px; font-weight: 400; line-height: 1.45; pointer-events: none; }
+/* Near the left or right edge the label and the crew tag start at the pin and run inwards; a pin with the crew tag keeps a little more room above. */
+.cm-edge-l .cm-pin-name, .cm-edge-l .cm-crew-tag { left: 0; transform: none; }
+.cm-edge-r .cm-pin-name, .cm-edge-r .cm-crew-tag { left: auto; right: 0; transform: none; }
+.cm-pin.cm-crew { top: clamp(32px, var(--y), calc(100% - 34px)); }
 .cm-pin.cm-static { pointer-events: none; }
 .cm-crew-only { z-index: 2; }
 

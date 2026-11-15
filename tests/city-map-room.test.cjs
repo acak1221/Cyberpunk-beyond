@@ -81,6 +81,8 @@ test('the Game Master page publishes the map as one signed retained message; the
  assert.equal(s.M.publish(true,Date.now()+200000),true); // a later heartbeat repeats it for relays that lost their copy
  // The Game Master role came back to this device: the next publish goes out although nothing changed here.
  assert.equal(s.M.publish(false,Date.now()+200001),false);s.M.forget();assert.equal(s.M.publish(false,Date.now()+200002),true);await settle();
+ // room.js does exactly that at the moment the role arrives, next to the journal and the agent card.
+ assert.match(read('room.js'),/app\?\.notify\?\.\(ta\('nowGM'\)\);[^\n]*global\.CityMap\?\.forget\?\.\(\);/);
  // The room's own save path reaches it: a change is published together with the clocks.
  c.cityMap.pins[0].name='Новое имя';const before=s.sent.filter(x=>x.sub==='p').length;s.window.Room.changed();await settle(520);
  assert.equal(s.sent.filter(x=>x.sub==='p').length,before+1);
@@ -183,8 +185,8 @@ test('the Game Master leaving the room takes the map down together with the init
 
 test('the «Игрокам в комнате» block of the map page tells the state of the room',async()=>{
  const c=campaign(),g=await scene({role:'gm',campaignId:'c1',state:{lang:'ru',characters:[],campaigns:[c]}});
- assert.match(g.M.page(c,[],'ru'),/Комната открыта: игроки видят меток: 2\. Место группы показано\./);assert.match(g.M.page(c,[],'ru'),/2 \/ 40/);
- assert.match(g.M.page(c,[],'en'),/The room is open: players see pins: 2\. The place of the crew is shown\./);
+ assert.match(g.M.page(c,[],'ru'),/Комната открыта\. Игроки видят меток: 2\. Место группы показано\./);assert.match(g.M.page(c,[],'ru'),/2 \/ 40/);
+ assert.match(g.M.page(c,[],'en'),/The room is open. Players see pins: 2\. The place of the crew is shown\./);
  const other=await scene({role:'gm',campaignId:'zz'});assert.match(other.M.page(c,[],'ru'),/В комнате выбрана другая кампания/);assert.match(other.M.roomCard(),/выберите выше кампанию/);
  const player=await scene();assert.match(player.M.page(c,[],'ru'),/Вы в комнате как игрок/);
  const alone=loadTab();assert.match(alone.M.page(c,[],'en'),/No room is open/);assert.equal(alone.M.roomCard(),'');
@@ -230,4 +232,14 @@ test('with the waiting room on, a device at the door neither reads the map nor c
  await give(ann,await ann.R.signedEnvelope(eve,eve.fp+'.000000e1',ann.room.topic,ann.room.key,'p','citymap',fake,Date.now(),'x'+(serial++)),'p');
  await give(ann,await gm.R.signedEnvelope(gm.me,gm.memberId,gm.room.topic,gm.room.key,'p','citymap',fake,Date.now()+1000,'x'+(serial++)),'p');
  eq(ann.M._test.shown(),SHOWN);
+});
+
+test('the player card: labels near an edge hang inwards, and its name for a screen reader is plain English',async()=>{
+ const s=await scene({role:'player'});
+ await s.give(s.gm,'p','citymap',{campaign:'A',ratio:1.5,pins:[['bar',0,0,'Левая'],['bar',500,500,'Средняя'],['gang',1000,1000,'Правая']],crew:[990,10]});
+ const card=s.M.roomCard(),cls=name=>new RegExp('class="([^"]*)" style="[^"]*">(?:<span[^>]*>[^<]*</span>)?<span class="cm-pin-name">'+name+'<').exec(card)[1];
+ assert.match(cls('Левая'),/cm-edge-l/);assert.match(cls('Правая'),/cm-edge-r/);assert.doesNotMatch(cls('Средняя'),/cm-edge/);
+ assert.match(card,/class="cm-pin cm-static cm-crew cm-edge-r" style="--x:99%;--y:1%"/);
+ s.st.lang='en';assert.match(s.M.roomCard(),/aria-label="City layout, pins: 3, the place of the crew is marked"/);
+ assert.equal(/scheme/i.test(JSON.stringify(Object.values(s.M._test.T.en).map(v=>typeof v==='function'?v(1,2):v))),false);
 });

@@ -179,12 +179,12 @@ test('placing: a tap on the stage puts a pin at that share of the stage; «Ме�
  eq(s.stage(300,150),{handled:true,dirty:true});
  eq(c.cityMap.pins.map(p=>[p.t,p.x,p.y,p.name]),[['fixer',250,250,'Метка 1']]);
  assert.equal(s.view().mode,'select');assert.equal(s.view().sel,c.cityMap.pins[0].id);
- assert.match(s.body.innerHTML,/data-cm-field="name"[^>]*value="Метка 1"/);assert.match(s.body.innerHTML,/role="status" aria-live="polite" data-cm-say>Метка «Метка 1» поставлена\.</);
+ assert.match(s.body.innerHTML,/data-cm-field="name"[^>]*value="Метка 1"/);assert.match(s.body.innerHTML,/<p class="cm-say" aria-hidden="true" data-cm-say>Метка «Метка 1» поставлена\.</);
  s.act('mode','add');s.stage(5000,-90);eq([c.cityMap.pins[1].x,c.cityMap.pins[1].y],[1000,0]);
  s.act('mode','add');assert.equal(s.stage(300,150,{left:0,top:0,width:0,height:0}).dirty,false);assert.equal(s.stage(NaN,1).dirty,false);
  s.act('mode','select');
  assert.equal(s.act('add-centre').dirty,true);assert.equal(s.act('add-centre').dirty,true);
- eq(c.cityMap.pins.slice(2).map(p=>[p.x,p.y]),[[500,500],[530,530]]);
+ eq(c.cityMap.pins.slice(2).map(p=>[p.x,p.y]),[[500,500],[380,320]]);
  const full=camp({v:1,ratio:1.5,pins:Array.from({length:C.MAX_PINS},(_,i)=>pin('p'+i,'bar',i,i,'P'+i))}),f=scene(full),n=W.notices.length;
  assert.equal(f.act('add-centre').dirty,false);assert.match(W.notices[n],/не больше 80 меток/);assert.equal(full.cityMap.pins.length,C.MAX_PINS);
 });
@@ -203,7 +203,7 @@ test('editing: text is saved as it is typed without a redraw; type, «показ
  assert.equal(s.change({cmField:'t'},{value:'castle'}).dirty,false);
  assert.equal(s.change({cmField:'shown'},{checked:true}).dirty,true);assert.equal(c.cityMap.pins[0].shown,true);
  assert.equal(s.change({cmField:'shown'},{checked:false}).dirty,true);assert.equal('shown' in c.cityMap.pins[0],false);
- assert.equal(s.act('crew').dirty,true);assert.equal(c.cityMap.crew,'a');assert.match(s.body.innerHTML,/Группа отмечена на метке «Бар «Афтерлайф»»/);assert.match(s.body.innerHTML,/Группа ушла отсюда/);
+ assert.equal(s.act('crew').dirty,true);assert.equal(c.cityMap.crew,'a');assert.match(s.body.innerHTML,/Группа отмечена на метке «Бар «Афтерлайф»»/);assert.match(s.body.innerHTML,/data-cm-act="crew" aria-pressed="true">Группа здесь</);
  assert.equal(s.act('crew').dirty,true);assert.equal('crew' in c.cityMap,false);
  assert.equal(s.change({cmField:'crewShown'},{checked:true}).dirty,true);assert.equal(c.cityMap.crewShown,true);
  s.change({cmField:'crewShown'},{checked:false});assert.equal('crewShown' in c.cityMap,false);
@@ -322,4 +322,103 @@ test('the campaign page: the card leads to the map, the map page replaces the tr
  current=false;assert.equal(click('[data-cm-act]',{cmAct:'add-centre'},root),true);assert.equal(c.cityMap.pins.length,1,'a stale page changes nothing');assert.match(notices.at(-1),/повторите действие/);
  current=true;click('[data-cm-act]',{cmAct:'close'},root);assert.match(Camp.render(P.st.campaigns,[],'ru',null),/data-campaign-view="k1"/);
  assert.match(Camp.render(P.st.campaigns,[],'ru',null),/Меток: 1 · игрокам показано: 0/);
+});
+
+test('«Вернуть» after deleting a pin keeps a route and a crew mark made in the meantime',()=>{
+ // Nothing changed since: the pin comes back with its stops, also where its removal had joined two equal stops.
+ const same=C.clean({...three(),route:['a','b','a','c']}),s0=C.removePin(same,'b');
+ eq(C.clean(same).route,['a','c']);same.route=C.clean(same).route;
+ assert.equal(C.restorePin(same,s0),true);eq(same.route,['a','b','a','c']);assert.equal(same.crew,'b');
+ // A route drawn after the removal is newer than the one in the snapshot and stays.
+ const map=C.clean(three()),snap=C.removePin(map,'a');eq(map.route,['b']);
+ C.toggleRoute(map,'c');eq(map.route,['b','c']);
+ assert.equal(C.restorePin(map,snap),true);eq(map.pins.map(p=>p.id),['a','b','c']);eq(map.route,['b','c']);
+ // A route cleared and drawn anew stays as well.
+ const m2=C.clean(three()),s2=C.removePin(m2,'a');C.clearRoute(m2);C.toggleRoute(m2,'c');C.toggleRoute(m2,'b');
+ C.restorePin(m2,s2);eq(m2.route,['c','b']);
+ // The crew mark goes back onto the pin only when the crew has not been marked elsewhere since.
+ const m3=C.clean(three()),s3=C.removePin(m3,'b');assert.equal('crew' in m3,false);C.setCrew(m3,'c');
+ C.restorePin(m3,s3);assert.equal(m3.crew,'c');
+ const m4=C.clean({...three(),route:undefined}),s4=C.removePin(m4,'b');C.restorePin(m4,s4);assert.equal(m4.crew,'b');assert.equal('route' in m4,false);
+ // The same on the page: delete a stop, add another, press «Вернуть».
+ const P=load(),c=camp(three()),s=scene(c,{page:P});P.st.campaigns.push(c);
+ s.pin('a');s.act('pin-remove');eq(c.cityMap.route,['b']);
+ s.act('mode','route');s.pin('c');eq(c.cityMap.route,['b','c']);
+ P.actions[0].run();eq(c.cityMap.pins.map(p=>p.id),['a','b','c']);eq(c.cityMap.route,['b','c'],'the stop added after the deletion is not lost');
+});
+
+test('«Вернуть» after «Очистить маршрут» does not overwrite a route drawn since, and says so',()=>{
+ const P=load(),c=camp(three()),s=scene(c,{page:P});P.st.campaigns.push(c);
+ s.act('route-clear');assert.equal('route' in c.cityMap,false);
+ s.act('mode','route');s.pin('c');s.pin('a');eq(c.cityMap.route,['c','a']);
+ const n=P.notices.length,saves=P.saves();P.actions[0].run();
+ eq(c.cityMap.route,['c','a']);assert.equal(P.saves(),saves,'nothing was rewritten');assert.match(P.notices[n],/прежний не возвращён/);
+ const E=load(),ce=camp(three()),se=scene(ce,{page:E,lang:'en'});E.st.campaigns.push(ce);
+ se.act('route-clear');se.act('mode','route');se.pin('c');const k=E.notices.length;E.actions[0].run();assert.match(E.notices[k],/old one was not brought back/);
+});
+
+test('«Метку в центр» several times: the pins do not lie on each other',()=>{
+ for(const ratio of [.5,1,1.5,2]){
+  const c=camp({v:1,ratio,pins:[]}),s=scene(c),sy=Math.round(120*ratio);
+  for(let i=0;i<12;i++)assert.equal(s.act('add-centre').dirty,true);
+  const pins=c.cityMap.pins;eq([pins[0].x,pins[0].y],[500,500]);
+  for(const a of pins)for(const b of pins)if(a!==b)assert.ok(Math.abs(a.x-b.x)>=120||Math.abs(a.y-b.y)>=sy,ratio+': '+JSON.stringify([a,b]));
+  for(const p of pins)assert.ok(p.x>=0&&p.x<=1000&&p.y>=0&&p.y<=1000);
+ }
+ // A map with no free place left still takes the pin, in the centre.
+ const full=C.blank();for(let x=0;x<=1000;x+=100)for(let y=0;y<=1000;y+=250)if(full.pins.length<70)full.pins.push(pin('p'+x+'_'+y,'bar',x,y,'P'));
+ eq(C.freeSpot(full),{x:500,y:500});
+});
+
+test('a pin near the left or right edge hangs its label inwards; the crew button keeps one label',()=>{
+ const c=camp({v:1,ratio:1.5,pins:[pin('l','bar',0,0,'Левая'),pin('m','bar',500,500,'Средняя'),pin('r','bar',1000,1000,'Правая'),pin('n','bar',249,10,'L2'),pin('o','bar',751,10,'R2'),pin('q','bar',250,10,'M2')],crew:'l'});
+ const html=C.page(c,[],'ru'),cls=id=>new RegExp('class="([^"]*)" data-cm-pin="'+id+'"').exec(html)[1];
+ assert.match(cls('l'),/cm-edge-l/);assert.match(cls('n'),/cm-edge-l/);assert.match(cls('r'),/cm-edge-r/);assert.match(cls('o'),/cm-edge-r/);
+ for(const id of ['m','q'])assert.doesNotMatch(cls(id),/cm-edge/);
+ const css=read('city-map.css');
+ assert.match(css,/\.cm-edge-l \.cm-pin-name, \.cm-edge-l \.cm-crew-tag \{ left: 0; transform: none; \}/);assert.match(css,/\.cm-edge-r \.cm-pin-name, \.cm-edge-r \.cm-crew-tag \{ left: auto; right: 0; transform: none; \}/);
+ assert.match(css,/\.cm-pin\.cm-crew \{ top: clamp\(32px,/);
+ // «Группа здесь» is one label with a pressed state; a label that flips together with the state says the opposite.
+ const s=scene(c);s.row('l');assert.match(s.body.innerHTML,/data-cm-act="crew" aria-pressed="true">Группа здесь</);
+ s.row('m');assert.match(s.body.innerHTML,/data-cm-act="crew" aria-pressed="false">Группа здесь</);
+ for(const l of ['ru','en'])assert.equal('crewAway' in C._test.T[l],false);
+});
+
+test('what an action did is put into a status line that outlives the redraw',()=>{
+ const c=camp(three()),html=C.page(c,[],'ru');
+ assert.match(html,/<p class="sr-only" role="status" aria-live="polite" data-cm-live><\/p><div data-cm-body>/);
+ assert.equal(html.split('data-cm-body>')[1].includes('aria-live'),false,'no live region is created together with its text');
+ assert.match(read('styles.css'),/\.sr-only\{position:absolute;width:1px;height:1px/);
+ const s=scene(c),live={textContent:''};s.root.querySelector=q=>q==='[data-cm-body]'?s.body:q==='[data-cm-live]'?live:null;
+ s.change({cmDrop:''},{value:'c|120,340'});assert.equal(live.textContent,'Метка «Стая» передвинута.');
+ // The same words again must still be a change for a screen reader.
+ s.change({cmDrop:''},{value:'c|130,340'});assert.notEqual(live.textContent,'Метка «Стая» передвинута.');assert.equal(live.textContent.trim().replace(/\u00a0/g,''),'Метка «Стая» передвинута.');
+ s.change({cmDrop:''},{value:'c|140,340'});assert.equal(live.textContent,'Метка «Стая» передвинута.');
+ s.row('a');s.act('crew');assert.equal(live.textContent,'Группа отмечена на метке «Бар».');
+ s.act('labels');assert.equal(live.textContent,'','an action with nothing to report clears the line');
+});
+
+test('«Сменить картинку» can be taken back: the picture before it returns with its proportions',async()=>{
+ const P=load(),c=camp(three()),PIC2={v:1,w:2,h:4,src:'data:image/png;base64,AAAA',at:2};P.st.campaigns.push(c);
+ assert.equal(await P.C.keepPic(c,PIC,'ru'),'saved');
+ assert.equal(P.actions.length,0,'the first picture replaces nothing');assert.equal(P.notices.at(-1),'Картинка карты сохранена в этом браузере.');assert.equal(c.cityMap.ratio,2);
+ assert.equal(await P.C.keepPic(c,PIC2,'ru'),'saved');eq(P.store.m.get(c.id),PIC2);assert.equal(c.cityMap.ratio,.5);
+ assert.equal(P.actions.length,1);eq([P.actions[0].m,P.actions[0].label],['Картинка карты заменена.','Вернуть']);
+ P.actions[0].run();await settle();
+ eq(P.store.m.get(c.id),PIC);assert.equal(c.cityMap.ratio,2);assert.match(P.C.page(c,[],'ru'),/src="data:image\/png;base64,iVBORw0KGgo="/);
+ // The same picture chosen again replaces nothing.
+ assert.equal(await P.C.keepPic(c,PIC,'ru'),'saved');assert.equal(P.actions.length,1);
+ // A page opened later: the earlier picture is read from the storage before it is replaced.
+ const Q=load({store:P.store}),again=plain(c);Q.st.campaigns.push(again);
+ await Q.C.keepPic(again,PIC2,'en');eq([Q.actions[0].m,Q.actions[0].label],['The map picture is replaced.','Undo']);
+ Q.st.campaigns.length=0;Q.actions[0].run();await settle();eq(Q.store.m.get(again.id),PIC2,'an undo for a campaign that is gone does nothing');
+});
+
+test('opening a map marks pictures left by deleted campaigns, without waiting for another picture to be saved',async()=>{
+ const P=load(),live=camp();P.st.campaigns.push(live);
+ P.store.m.set(live.id,plain(PIC));P.store.m.set('old-campaign',plain(PIC));P.store.m.set('long-gone',{...plain(PIC),gone:Date.now()-8*24*3600*1000});
+ eq(scene(live,{page:P}).act('open'),{handled:true,dirty:false,rerender:true});await settle();
+ eq(P.store.m.get(live.id),PIC);assert.equal(typeof P.store.m.get('old-campaign').gone,'number');assert.equal(P.store.m.has('long-gone'),false);
+ // A browser without the storage opens the page all the same.
+ const none=load({store:null}),n=camp();eq(scene(n,{page:none}).act('open'),{handled:true,dirty:false,rerender:true});
 });
