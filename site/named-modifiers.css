@@ -1,0 +1,70 @@
+/* Named modifiers (named-modifiers.js): a row of switches inside the «Следующий бросок» bar and, folded under it,
+   the place to make and change them. Only the variables of the looks are used, so the block follows all three. */
+.nm-bar { flex: 1 1 100%; min-width: 0; display: grid; gap: 8px; }
+.nm-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* A switch: the name, the number and, when the modifier is not for every check, what it is for. */
+.nm-chip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; max-width: 100%; min-height: 44px; padding: 6px 12px; color: var(--text); background: var(--panel); border: 1px solid var(--border); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* The parts of a switch wrap as whole pieces, so the name is cut inside a word only when it alone is wider than the
+   switch. The dot is drawn inside the name: on its own it could be left alone on the first line. */
+.nm-chip .nm-name { min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.nm-chip b { flex: none; font: 800 17px/1 var(--display, inherit); }
+/* A tag that does not fit beside the name goes under it: held on the same line, a long one («Пилотирование воздушного
+   транспорта») left the name a column a few letters wide on a phone. */
+.nm-chip small { flex: 0 1 auto; min-width: 0; max-width: 100%; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.nm-chip .nm-name::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -2px; border: 2px solid currentColor; border-radius: 50%; }
+.nm-chip[aria-checked="true"] .nm-name::before { background: currentColor; }
+.nm-chip[aria-checked="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
+.nm-chip[aria-checked="true"] small { color: inherit; }
+/* Asleep: its thing is not on the sheet. Said with the border and the tag, not with paler text. */
+.nm-chip.nm-asleep { border-style: dashed; }
+.nm-chip.nm-asleep[aria-checked="true"] { color: var(--text); background: var(--panel); border-color: var(--yellow); }
+.nm-chip.nm-asleep[aria-checked="true"] small { color: var(--muted); }
+.nm-chip:focus-visible, .nm-edit > summary:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+.nm-edit { min-width: 0; }
+.nm-edit > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; list-style: none; }
+.nm-edit > summary::-webkit-details-marker { display: none; }
+.nm-edit > summary::before { content: "▸"; margin-right: 8px; font-size: 11px; }
+.nm-edit[open] > summary::before { content: "▾"; }
+.nm-edit[open] { padding: 0 12px 12px; background: var(--panel); border: 1px solid var(--border); }
+.nm-edit[open] > summary { padding-left: 0; color: var(--text); }
+.nm-help { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.nm-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.nm-row-text { flex: 1 1 200px; min-width: 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.nm-row-text small { display: block; color: var(--muted); font-size: 11px; }
+.nm-row-actions, .nm-form-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Written long enough to win over the looks, which give their buttons a lower height of their own. */
+html .nm-bar .nm-btn.cx-button { min-height: 44px; font-size: 12px; }
+.nm-btn.nm-primary { font-weight: 800; }
+
+.nm-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border); }
+.nm-form-title { font-size: 12px; overflow-wrap: anywhere; }
+.nm-field { min-width: 0; }
+.nm-field input, .nm-field select { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; height: 44px; min-height: 44px; font-size: 16px; }
+.nm-form-actions { align-self: end; }
+@media (min-width: 641px) {
+  .nm-form { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr) auto; align-items: end; }
+  .nm-form-title { grid-column: 1 / -1; }
+  .nm-field input, .nm-field select { font-size: 14px; }
+}
+
+/* On an inventory card: what is tied to the thing. */
+.nm-item-chip { flex: 1 1 100%; min-width: 0; color: var(--text); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.nm-item-chip.nm-off { color: var(--muted); }
+
+/* The looks mark a pressed control each in its own way; the switches follow the «Закрепить» button next to them. */
+html.ui-native .nm-chip { border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--border); }
+/* White on the accent is too pale to read in the dark native look, so a switch that is on is tinted and ringed instead. */
+html.ui-native .nm-chip[aria-checked="true"] { color: var(--text); background: color-mix(in srgb, var(--red) 24%, var(--panel)); box-shadow: inset 0 0 0 2px var(--red); }
+html.ui-native .nm-chip[aria-checked="true"] .nm-name::before { color: var(--red); }
+html.ui-native .nm-chip.nm-asleep { box-shadow: none; border: 1px dashed var(--border); }
+html.ui-native .nm-chip.nm-asleep[aria-checked="true"] { color: var(--text); background: var(--panel); border-color: var(--red); box-shadow: none; }
+html.ui-native .nm-edit[open] { border: 0; border-radius: 12px; }
+html.ui-native .nm-chip:focus-visible, html.ui-native .nm-edit > summary:focus-visible { outline-color: var(--red); }
+html.ui-native.ui-board .nm-chip { border-radius: 4px; }
+html.ui-native.ui-board .nm-chip[aria-checked="true"] { color: #fff; background: var(--board-accent); box-shadow: none; }
+html.ui-native.ui-board .nm-chip[aria-checked="true"] .nm-name::before { color: inherit; }
+html.ui-native.ui-board .nm-chip.nm-asleep[aria-checked="true"] { color: var(--text); background: var(--panel); border-color: var(--board-accent); }
+html.ui-native.ui-board .nm-edit[open] { border: 1px solid var(--border); border-radius: 4px; }

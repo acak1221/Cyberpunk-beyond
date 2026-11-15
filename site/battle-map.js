@@ -53,6 +53,10 @@ const L=lang=>lang==='en'?'en':'ru';
 const int=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi;
 const key=(x,y)=>x+','+y;
 const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+// Is this participant kept from the players? room-visibility.js answers when it is on the page, so the map, the tracker
+// and the room list always agree. Without it the old flag decides, and a campaign whose room hides everybody by default
+// (campaign.vis, written by that file) still hides: a script that failed to load must not show the enemies.
+const hiddenRow=(r,campaign)=>window.RoomVisibility?.level?window.RoomVisibility.level(r,campaign)==='hidden':r?.kind==='npc'&&(r.hidden===true||(campaign?.vis==='hidden'&&!['name','state','full'].includes(r.vis)&&!/^[0-9a-f]{16}:.{1,60}$/.test(typeof r.own==='string'?r.own:'')));
 
 /* ---------- Data ---------- */
 // A copy that can be trusted, or null. `roster` (optional) drops tokens whose participant is gone.
@@ -249,7 +253,7 @@ function inner(campaign,characters,lang){
   for(const [k,d] of steps(map,selTok)){if(!d||d>total)continue;cells.set(k,{...(cells.get(k)||{}),reach:d<=left?'reach':'run'})}
  }
  for(const tok of map.tokens){const r=byId.get(tok.id),name=nameOf(r,characters,t);
-  cells.set(key(tok.x,tok.y),{token:true,id:tok.id,name,label:label(name),pc:r.kind==='pc',hidden:r.kind==='npc'&&r.hidden===true,out:r.out===true||r.dead===true,current:tok.id===now,sel:tok.id===v.sel,target:tok.id===v.target})}
+  cells.set(key(tok.x,tok.y),{token:true,id:tok.id,name,label:label(name),pc:r.kind==='pc',hidden:hiddenRow(r,campaign),out:r.out===true||r.dead===true,current:tok.id===now,sel:tok.id===v.sel,target:tok.id===v.target})}
  const [fx,fy]=String(v.focus).split(',').map(Number);if(!inside(map,fx,fy))v.focus='0,0';
  const focus=selTok?key(selTok.x,selTok.y):v.focus;
  const tray=roster.filter(r=>!map.tokens.some(k=>k.id===r.id));
@@ -257,7 +261,7 @@ function inner(campaign,characters,lang){
  const mode=(id,text)=>`<button type="button" class="btn ghost bm-mode" data-bm-act="mode" data-bm-value="${id}" aria-pressed="${v.mode===id?'true':'false'}">${esc(text)}</button>`;
  return head+`<p class="muted">${esc(t.help)}</p>
 <div class="bm-toolbar"><div class="bm-modes" role="group" aria-label="${esc(t.modeLabel)}">${mode('move',t.modeMove)}${mode('cover',t.modeCover)}</div><button type="button" class="btn ghost" data-bm-act="place-all"${tray.length?'':' disabled'}>${esc(t.placeAll)}</button><button type="button" class="btn ghost" data-bm-act="undo"${v.last?'':' disabled'}>↶ ${esc(t.undo)}</button></div>
-<div class="bm-tray"><span class="bm-tray-label">${esc(t.tray)}:</span>${tray.length?tray.map(r=>{const name=nameOf(r,characters,t);return `<button type="button" class="bm-chip ${r.kind==='pc'?'bm-pc':'bm-npc'}${r.kind==='npc'&&r.hidden===true?' bm-hidden':''}" data-bm-tray="${esc(r.id)}" aria-pressed="${v.sel===r.id?'true':'false'}"><span class="bm-token" aria-hidden="true">${esc(label(name))}</span><span class="bm-chip-name">${esc(name)}</span></button>`}).join(''):`<span class="muted">${esc(roster.length?t.trayNone:t.noRoster)}</span>`}</div>
+<div class="bm-tray"><span class="bm-tray-label">${esc(t.tray)}:</span>${tray.length?tray.map(r=>{const name=nameOf(r,characters,t);return `<button type="button" class="bm-chip ${r.kind==='pc'?'bm-pc':'bm-npc'}${(hiddenRow(r,campaign))?' bm-hidden':''}" data-bm-tray="${esc(r.id)}" aria-pressed="${v.sel===r.id?'true':'false'}"><span class="bm-token" aria-hidden="true">${esc(label(name))}</span><span class="bm-chip-name">${esc(name)}</span></button>`}).join(''):`<span class="muted">${esc(roster.length?t.trayNone:t.noRoster)}</span>`}</div>
 <div class="bm-scroll" data-bm-scroll data-bm-mode="${v.mode}">${gridHTML(map,cells,t.grid,t,true,focus)}</div>
 ${legendHTML(t,true)}
 <div class="bm-status" data-bm-status role="status" aria-live="polite">${v.say?`<p class="bm-say">${esc(v.say)}</p>`:''}${statusHTML(campaign,characters,map,v,t,lang)}</div>
@@ -384,7 +388,7 @@ function handle(e,campaign,ctx){
 // so their tokens never leave the GM's device. A token points at its row by index.
 function sharedPart(campaign,rows){
  const map=read(campaign);if(!map||!Array.isArray(rows))return null;
- const index=new Map();rows.slice(0,SHARED_ROWS).forEach((r,i)=>{if(r&&typeof r.id==='string'&&!(r.kind==='npc'&&r.hidden===true))index.set(r.id,i)});
+ const index=new Map();rows.slice(0,SHARED_ROWS).forEach((r,i)=>{if(r&&typeof r.id==='string'&&!hiddenRow(r,campaign))index.set(r.id,i)});
  const t=map.tokens.filter(k=>index.has(k.id)).map(k=>[index.get(k.id),k.x,k.y]);
  return {map:{w:map.w,h:map.h,c:map.cover.map(c=>[c[0],c[1]]),t}};
 }

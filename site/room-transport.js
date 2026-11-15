@@ -87,6 +87,9 @@ function connectBroker(broker,{topic,onMessage,onStatus,WebSocketImpl,will}){
   send(bytes){if(ready&&ws?.readyState===1){ws.send(bytes);return true}return false},
   close(){closed=true;clearTimeout(timer);clearInterval(ping);clearTimeout(probeTimer);try{if(ws?.readyState===1)ws.send(encode.disconnect());ws?.close()}catch{}},
   reconnectNow:probe,
+  // Subscribing again makes the broker send what it keeps once more (MQTT 3.1.1, 3.8.4): a page that has just been given
+  // the key of a room with a waiting room can now read it.
+  resubscribe(){if(ready&&ws?.readyState===1)try{ws.send(encode.subscribe(1,topic+'/#'))}catch{}},
  };
 }
 
@@ -100,6 +103,7 @@ function create({topic,brokers,onMessage,onStatus,WebSocketImpl,will}){
   status:summary,
   close(){for(const c of conns)c.close()},
   wake(){for(const c of conns)c.reconnectNow()},
+  resubscribe(){for(const c of conns)c.resubscribe()},
  };
 }
 global.RoomTransport={create,encode,createParser,DEFAULT_BROKERS};

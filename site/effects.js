@@ -6,7 +6,9 @@
    Critical Injuries: Corebook pp. 187–188. A Quick Fix or Treatment takes the effect away.
    Cyberware: pp. 110–116, 358–364. Only effects that are always on and name what they change are
    applied; the rest are reminders. More than one of the same implant never stacks.
-   Street drugs: pp. 227–229. A drug acts while its Primary Effect lasts; an addiction acts on its own. */
+   Street drugs: pp. 227–229. A drug acts while its Primary Effect lasts; an addiction acts on its own.
+   Named modifiers the player wrote on the sheet (named-modifiers.js) are added last; one «to checks with a STAT»
+   is kept in checkStats, apart from the STAT changes, so it never moves Initiative. */
 (function(){
 'use strict';
 // By table and 2d6 score: all = every check, melee/ranged = attacks of that kind, move = MOVE, death = Base Death Save Penalty.
@@ -122,13 +124,15 @@ function collect(c){
  }
  for(const [skill,n] of Object.entries(total.drugSkills||{}))total.skills[skill]=(total.skills[skill]||0)+n;
  delete total.drugSkills;
+ // The player's own named modifiers (named-modifiers.js) come on top of everything above.
+ try{globalThis.window?.NamedModifiers?.contribute?.(c,total)}catch{}
  return total;
 }
 // What a weapon's attack skill makes the attack: 'melee', 'ranged' or '' when it cannot be told.
 function attackKind(skill){return RANGED.has(skill)?'ranged':MELEE.has(skill)||/^martial arts/i.test(String(skill||''))?'melee':''}
 // The modifier the effects add to a check; `kind` is 'melee' or 'ranged' for an attack, `skill` the Skill being rolled.
 // `stat` is the STAT the check is rolled with, so a drug that moves REF or INT counts.
-function checkModifier(c,kind,skill,stat){const t=collect(c);return t.all+(kind==='melee'?t.melee:kind==='ranged'?t.ranged:0)+(skill&&Object.hasOwn(t.skills,skill)?t.skills[skill]:0)+(stat&&Object.hasOwn(t.stats,stat)?t.stats[stat]:0)}
+function checkModifier(c,kind,skill,stat){const t=collect(c);return t.all+(kind==='melee'?t.melee:kind==='ranged'?t.ranged:0)+(skill&&Object.hasOwn(t.skills,skill)?t.skills[skill]:0)+(stat&&Object.hasOwn(t.stats,stat)?t.stats[stat]:0)+(stat&&isObject(t.checkStats)&&Object.hasOwn(t.checkStats,stat)?t.checkStats[stat]:0)}
 const initiative=c=>{const t=collect(c);return t.initiative+(t.stats.REF||0)},ignoresSerious=c=>collect(c).ignoreSerious;
 function move(c,base){const n=Number(base);if(!Number.isFinite(n))return base;const delta=collect(c).move;return delta?Math.max(1,n+delta):n}
 const signed=n=>(n<0?'−':'+')+Math.abs(n);
@@ -137,7 +141,8 @@ function lines(c,lang){
  const ru=lang!=='en',i=ru?0:1;
  return collect(c).sources.map(s=>{
   const p=s.parts,bits=[];
-  if(p.all)bits.push(signed(p.all)+(ru?' ко всем действиям':' to all Actions'));
+  // A named modifier is made «for all checks» in its editor and is called the same here; «Actions» is the wording of the injuries.
+  if(p.all)bits.push(signed(p.all)+(s.kind==='named'?(ru?' ко всем проверкам':' to all checks'):(ru?' ко всем действиям':' to all Actions')));
   if(p.melee)bits.push(signed(p.melee)+(ru?' к атакам ближнего боя':' to melee attacks'));
   if(p.ranged)bits.push(signed(p.ranged)+(ru?' к дальним атакам':' to ranged attacks'));
   if(p.move)bits.push('MOVE '+signed(p.move));
@@ -145,6 +150,7 @@ function lines(c,lang){
   if(p.initiative)bits.push(signed(p.initiative)+(ru?' к инициативе':' to Initiative'));
   if(p.ignoreSerious)bits.push(ru?'штраф тяжёлого ранения не действует':'no Seriously Wounded penalty');
   for(const [stat,n] of Object.entries(p.stats||{}))bits.push(stat+' '+signed(n));
+  for(const [stat,n] of Object.entries(p.checkStats||{}))bits.push(signed(n)+(ru?' к проверкам ':' to checks with ')+stat);
   if(p.skills){const by=new Map();for(const [skill,bonus] of Object.entries(p.skills)){if(!by.has(bonus))by.set(bonus,[]);by.get(bonus).push(globalThis.window?.SKILL_LABELS?.[skill]?.[ru?'ru':'en']||skill)}for(const [bonus,names] of by)bits.push(signed(bonus)+(ru?' к навыкам: ':' to Skills: ')+names.join(', '))}
   if(s.note)bits.push(s.note[i]);
   return {name:s.name[ru?'ru':'en']||'',text:bits.join('; ')};

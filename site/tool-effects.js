@@ -37,6 +37,8 @@ function detail(c,opts){
    const bonus=own(p.skills,skill);
    if(bonus&&(!implant||bonus>implant.value)){if(implant){sum-=implant.value;parts.splice(parts.indexOf(implant),1)}implant={name,value:bonus};parts.push(implant);sum+=bonus}
   }
+  // A named modifier of the sheet (named-modifiers.js) is listed under its own name.
+  else if(s.kind==='named')value=own(p,'all')+(kind?own(p,kind):0)+own(p.skills,skill)+own(p.checkStats,stat);
   if(value){parts.push({name,value});sum+=value}
   if(Array.isArray(s.note)&&s.note.length===2&&(s.kind==='injury'||s.kind==='drug'))reminders.push({name,note:[String(s.note[0]),String(s.note[1])]});
   if(p.ignoreSerious===true)reminders.push({name,note:['штраф тяжёлого ранения не действует — не вносите его в модификатор','no Seriously Wounded penalty — do not enter it in the modifier']});
@@ -49,8 +51,19 @@ const mod=(c,opts)=>detail(c,opts).mod;
 function apply(modifier,c,opts){if(!whole(modifier))return modifier;return Math.max(-100,Math.min(100,modifier+mod(c,opts)))}
 const lang2=lang=>lang==='en'?'en':'ru';
 const partsText=(d,l)=>d.parts.map(p=>`${p.name[l]} ${signed(p.value)}`).join('; ');
-// A tail for the label of a roll, the way the sheet writes it: « · эффекты −2».
-function label(c,opts,lang){const n=mod(c,opts);return n?(lang2(lang)==='ru'?' · эффекты ':' · effects ')+signed(n):''}
+/* A tail for the label of a roll, the way the sheet writes it: « · эффекты −2 · Smartgun +1». The player's named
+   modifiers (named-modifiers.js) are inside the number n; here they are taken out of «эффекты» and named, so a sheet
+   with no injury does not blame «эффекты» for its Smartgun. Without that module the tail is what it always was. */
+function tail(c,opts,n,l){
+ let named=[],own='';
+ try{
+  const N=globalThis.window?.NamedModifiers,got=N?.forCheck?.(c,isObject(opts)?opts:{});
+  if(Array.isArray(got)){named=got.filter(p=>isObject(p)&&typeof p.name==='string'&&whole(p.value)&&p.value!==0);own=String(N.tail?.(named,l)||'')}
+ }catch{own=''}
+ const rest=own?n-named.reduce((a,p)=>a+p.value,0):n;
+ return (rest?(l==='ru'?' · эффекты ':' · effects ')+signed(rest):'')+own;
+}
+function label(c,opts,lang){return isObject(c)?tail(c,opts,mod(c,opts),lang2(lang)):''}
 // One plain line: «Эффекты листа: −2 (Сотрясение −2). Уже в броске.» Empty when nothing acts on the check.
 function text(c,opts,lang){
  const d=detail(c,opts),l=lang2(lang),ru=l==='ru';if(!d.parts.length&&!d.reminders.length)return '';
@@ -72,7 +85,7 @@ function html(c,opts,lang){
 function use(c,opts,lang){
  const d=isObject(c)?detail(c,opts):NONE,l=lang2(lang),n=d.mod;
  return {mod:n,parts:d.parts,add:value=>whole(value)?Math.max(-100,Math.min(100,value+n)):value,
-  label:n?(l==='ru'?' · эффекты ':' · effects ')+signed(n):'',
+  label:isObject(c)?tail(c,opts,n,l):'',
   line:d.parts.length?`\n${l==='ru'?'Эффекты листа':'Sheet effects'}: ${n?signed(n):'0'} (${partsText(d,l)})`:''};
 }
 window.ToolEffects={detail,mod,apply,label,text,html,use};

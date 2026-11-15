@@ -142,6 +142,9 @@ test('a sheet sent to the GM opens only with the GM page key, not with the room 
  await R.ensureGMKeys();const pub=plain(R.gmPub());assert.match(pub.x,/^[A-Za-z0-9_-]{43}$/);
  const sheet=R.sheetCopy({id:'v1',name:'Ви',notes:'тайна',extra:{portrait:'data:image/png;base64,AAAA',portraitThumb:'t',sourceKey:'x'}});
  assert.equal(sheet.extra.portrait,undefined);assert.equal(sheet.extra.sourceKey,undefined);assert.equal(sheet.extra.portraitThumb,'t');
+ // The folder and tags a sheet is filed under on its owner's device stay there; the sheet itself is not changed by sending it.
+ const filed={id:'v2',name:'Ви',extra:{folder:'Мои',tags:['долг'],uid:'u'}},was=JSON.stringify(filed),out=R.sheetCopy(filed);
+ assert.equal('folder' in out.extra,false);assert.equal('tags' in out.extra,false);assert.equal(out.extra.uid,'u');assert.equal(JSON.stringify(filed),was);
  const box=await R.sealFor(pub,sheet);
  assert.ok(!JSON.stringify(box).includes('тайна'));
  assert.deepEqual(plain(await R.openFromPeer(box)),plain(sheet));

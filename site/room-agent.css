@@ -1,0 +1,57 @@
+/* «Агент» (room-agent.js): the Game Master's editor under a campaign and the read-only card on the room page.
+   Only theme variables are used, so both follow all three looks and the light theme. */
+.ra-card { margin-bottom: 16px; min-width: 0; }
+.ra-edit { min-width: 0; }
+/* Cards put labels and headings in capitals in some looks; a feed is ordinary reading text. */
+.ra-item, .ra-status, .ra-editing, .ra-help { letter-spacing: 0; text-transform: none; }
+.ra-help { margin: 8px 0 0; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+.ra-edit [hidden] { display: none; }
+
+.ra-status { margin: 10px 0; padding: 8px 12px; border-left: 3px solid var(--border); background: var(--panel-2); color: var(--text); overflow-wrap: anywhere; }
+.ra-editing { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-left: 3px solid var(--yellow); background: var(--panel-2); color: var(--text); }
+
+/* The form: one column on a phone, kind and rating side by side when there is room. */
+.ra-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 14px; min-width: 0; }
+.ra-form .field { min-width: 0; }
+.ra-form input, .ra-form select, .ra-form textarea { width: 100%; min-width: 0; }
+/* The ids win over the general field rule of the app, which stops at 42px. */
+.ra-form #ra-kind, .ra-form #ra-rating, .ra-form #ra-title { min-height: 44px; }
+.ra-form #ra-text { min-height: 88px; }
+.ra-form input:focus-visible, .ra-form select:focus-visible, .ra-form textarea:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+@media (min-width: 560px) {
+  .ra-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ra-f-title, .ra-f-text, .ra-f-actions { grid-column: 1 / -1; }
+}
+
+.ra-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-width: 0; }
+.ra-f-actions { margin-top: 0; }
+html .ra-edit .ra-actions .btn.btn { min-height: 44px; }
+/* On a phone the buttons share a row where they fit and grow to fill it; the one button of the form takes the whole row. */
+@media (max-width: 559px) { .ra-actions .btn { flex: 1 1 auto; } .ra-f-actions .btn { flex: 1 1 100%; } }
+
+.ra-group { margin-top: 18px; min-width: 0; }
+.ra-sub { margin: 0 0 4px; font-size: .95rem; font-weight: 700; color: var(--text); letter-spacing: 0; text-transform: none; }
+.ra-sub:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+.ra-campaign { margin-top: 6px; font-weight: 700; color: var(--text); }
+.ra-list { display: grid; gap: 12px; margin-top: 12px; min-width: 0; }
+/* The coloured edge only repeats what the chip already says in words. */
+.ra-item { min-width: 0; padding: 8px 0 2px 12px; border-top: 1px solid var(--border); border-left: 3px solid var(--border); overflow-wrap: anywhere; }
+.ra-k-job { border-left-color: var(--green); }
+.ra-k-wanted { border-left-color: var(--red); }
+.ra-k-place, .ra-k-event { border-left-color: var(--yellow); }
+.ra-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.ra-chip { padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius, 0); background: var(--panel-2); color: var(--text); font-size: .75rem; font-weight: 700; }
+.ra-stars { color: var(--text); letter-spacing: .1em; white-space: nowrap; }
+.ra-head time { font-size: .75rem; color: var(--muted); }
+.ra-title { display: block; margin-top: 6px; color: var(--text); font-size: 1rem; line-height: 1.35; }
+.ra-item p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); line-height: 1.45; }
+
+.ra-more { margin-top: 12px; }
+/* A flex row loses the browser's own triangle, so the summary draws one: without it the line reads as plain text. */
+.ra-more summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-weight: 600; list-style: none; }
+.ra-more summary::-webkit-details-marker { display: none; }
+.ra-more summary::before { content: "▸"; flex: none; width: 12px; color: var(--muted); transition: transform .12s; }
+.ra-more[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .ra-more summary::before { transition: none; } }
+.ra-more summary:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }

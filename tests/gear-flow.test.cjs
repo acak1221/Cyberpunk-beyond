@@ -132,3 +132,11 @@ test('role set-up: points to place for Solo, Medtech and Tech; nothing for other
   const tech = { role: 'tech', rank: 4, extra: { roleTools: { tech: { values: { field: 3 } } } } }; s = RS.status(tech); assert.deepEqual([s.spent, s.total, s.left], [3, 8, 5]);
   assert.equal(RS.createdHint('nomad', 'ru'), ''); assert.match(RS.createdHint('medtech', 'ru'), /распределите 4 очк/); assert.match(RS.createdHint('tech', 'en'), /place the 8 points/);
 });
+
+test('a group stays with the sheet it was made on: a given thing arrives without one, a deleted thing comes back with it', () => {
+  const a = person({ itemGroups: [{ id: 'g-bag', name: 'Bag' }], items: [{ id: 'a', name: 'Rope', category: 'equipment', quantity: 5, group: 'g-bag' }, { id: 'b', name: 'Lamp', category: 'equipment', quantity: 1, group: 'g-bag' }] }), b = { id: 'p2', name: 'Rook', extra: { itemGroups: [{ id: 'g-bag', name: 'Another bag' }] } };
+  const r = GF.give(a, b, 'items', 'a', 2, 'en');
+  assert.equal(r.ok, true); assert.equal('group' in b.extra.items[0], false, 'the id of the giver means nothing on the other sheet'); assert.equal(a.extra.items[0].group, 'g-bag');
+  const gone = GF.remove(a, 'items', 'b', 'en'); assert.equal(gone.ok, true);
+  assert.equal(GF.restore(a, gone.undo, 'en').ok, true); assert.equal(a.extra.items[1].group, 'g-bag');
+});

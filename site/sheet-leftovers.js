@@ -76,13 +76,13 @@ function ipChipHTML(c,lang){
  const ru=lang!=='en',t=`${ru?'Опыт (IP)':'Improvement Points'}: ${n}. ${ru?'Открыть':'Open'}`;
  return `<button type="button" class="hud-chip hud-ip" data-hud-jump="sheet-ip" aria-label="${esc(t)}" title="${esc(t)}"><span aria-hidden="true">▲</span><small>IP</small><b>${n}</b></button>`;
 }
-const PART={wound:['ранение','wound'],effects:['эффекты','effects'],sheet:['модификатор','modifier'],luck:['LUCK','LUCK'],precision:['Precision Attack','Precision Attack'],threat:['Threat Detection','Threat Detection'],weapon:['оружие','weapon'],aim:['прицел','aimed'],reputation:['репутация','Reputation'],other:['прочее','other']};
+const PART={wound:['ранение','wound'],effects:['эффекты','effects'],sheet:['модификатор','modifier'],luck:['LUCK','LUCK'],precision:['Precision Attack','Precision Attack'],threat:['Threat Detection','Threat Detection'],weapon:['оружие','weapon'],aim:['прицел','aimed'],reputation:['репутация','Reputation'],named:['модификатор','modifier'],other:['прочее','other']};
 function partsText(parts,mod,lang){
  if(!Array.isArray(parts)||!Number.isFinite(mod))return mod?' '+(mod>0?'+':'−')+' '+Math.abs(mod):'';
  const ru=lang!=='en',list=[];let sum=0;
- for(const p of parts){if(!isObj(p)||!Number.isSafeInteger(p.v)||p.v===0)continue;list.push({k:PART[p.k]?p.k:'other',v:p.v});sum+=p.v}
+ for(const p of parts){if(!isObj(p)||!Number.isSafeInteger(p.v)||p.v===0)continue;list.push({k:PART[p.k]?p.k:'other',v:p.v,n:p.k==='named'&&typeof p.n==='string'&&p.n.trim()?p.n.trim().slice(0,32):''});sum+=p.v}
  if(mod-sum!==0)list.push({k:'other',v:mod-sum});
- return list.map(p=>` ${p.v<0?'−':'+'} ${Math.abs(p.v)} (${PART[p.k][ru?0:1]})`).join('');
+ return list.map(p=>` ${p.v<0?'−':'+'} ${Math.abs(p.v)} (${p.n||PART[p.k][ru?0:1]})`).join('');
 }
 global.SheetLeftovers={patchRow,specParent,specLabel,specRows,specRowsHTML,otherSpecRowsHTML,ipBalanceOf,ipChipHTML,partsText};
 })(window);

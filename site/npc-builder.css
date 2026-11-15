@@ -1,0 +1,90 @@
+/* «NPC по шагам» (npc-builder.js): the four-step card above the NPC library on the GM screen. Colours come from
+   the theme variables only, so the card reads the same in the cyberpunk look, the clean look (dark and light)
+   and «Досье». Nothing has a fixed width and every text cell may wrap, so a 390px phone never scrolls sideways.
+   A pressed chip is told by its check mark and thick border as well as by aria-pressed, not by colour alone. */
+.nb-card{min-width:0;overflow-wrap:anywhere;display:grid;gap:14px}
+.nb-card>*{min-width:0;margin-top:0;margin-bottom:0}
+.nb-card>.card-heading{margin-bottom:6px}
+.nb-card .btn,html.ui-native.ui-board .nb-card .btn{min-height:44px;margin-top:0;flex:0 1 auto}
+.nb-note{margin:0;font-size:.86rem;line-height:1.55;color:var(--muted)}
+.nb-status{color:var(--text);border-left:3px solid var(--yellow);padding-left:10px}
+.nb-status:empty{display:none}
+.nb-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nb-mono{font:600 .85rem/1.4 'IBM Plex Mono',monospace;color:var(--text)}
+
+/* the step line */
+.nb-steps{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.nb-steps li{min-width:0;display:flex}
+.nb-step{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius,2px);background:transparent;color:var(--muted);font:inherit;font-size:.86rem;text-align:left}
+.nb-step b{flex:none;font:700 .9rem/1 'IBM Plex Mono',monospace;color:var(--text)}
+button.nb-step{cursor:pointer;color:var(--text)}
+button.nb-step:hover{background:var(--panel-2)}
+.nb-here .nb-step{border-color:var(--red);border-width:2px;color:var(--text);font-weight:700}
+.nb-step:focus-visible,.nb-chip:focus-visible,.nb-title:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+/* The step heading is set in the body face: the display face of the cyberpunk look has no Cyrillic. */
+.nb-card .nb-title{margin:0;font:700 1.1rem/1.3 var(--body);letter-spacing:0;text-transform:none;text-shadow:none;color:var(--text)}
+
+/* a step */
+.nb-body{display:grid;gap:16px;min-width:0}
+.nb-body>*{min-width:0;margin-top:0;margin-bottom:0}
+.nb-block{display:grid;gap:10px;min-width:0}
+.nb-block>*{min-width:0;margin-top:0;margin-bottom:0}
+.nb-block h4{margin:0;font-size:.95rem;color:var(--text)}
+.nb-set{margin:0;padding:12px;border:1px solid var(--border);border-radius:var(--radius,2px);min-width:0;display:grid;gap:10px}
+.nb-set>*{min-width:0;margin-top:0;margin-bottom:0}
+.nb-set legend{padding:0 6px;color:var(--text);font-weight:700;font-size:.92rem}
+.nb-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;min-width:0}
+.nb-tiers{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.nb-option{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0;margin:0;padding:8px 10px;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius,2px);cursor:pointer;color:var(--text);font-size:.92rem;font-weight:400;letter-spacing:0;text-transform:none}
+.nb-option:hover{background:var(--panel-2)}
+.nb-option:has(input:checked){border-color:var(--red);border-width:2px;padding:7px 9px}
+.nb-option:focus-within{outline:2px solid var(--red);outline-offset:2px}
+.nb-option input{width:20px;height:20px;flex:none;margin:0;accent-color:var(--red)}
+.nb-option span{display:grid;gap:2px;min-width:0}
+.nb-option strong{color:var(--text);font-size:.95rem;line-height:1.3}
+.nb-option small{color:var(--muted);font-size:.8rem;line-height:1.35}
+.nb-card .nb-field{margin:0;min-width:0;width:auto;flex:1 1 220px}
+.nb-card .nb-field input,.nb-card .nb-field select{width:100%;box-sizing:border-box;min-height:44px}
+.nb-sum{margin:0;display:flex;flex-wrap:wrap;gap:6px}
+.nb-sum span{padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius,2px);font:700 .85rem/1.4 'IBM Plex Mono',monospace;color:var(--text);white-space:nowrap}
+
+/* plus and minus */
+.nb-stepper{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+.nb-card .nb-pm,html.ui-native.ui-board .nb-card .nb-pm{flex:none;width:44px;min-width:44px;padding:0;justify-content:center;font-size:1.15rem;line-height:1}
+.nb-card [aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.nb-value{min-width:0;color:var(--text);font:600 .9rem/1.4 'IBM Plex Mono',monospace}
+.nb-qty{min-width:3.2em;text-align:center;white-space:nowrap}
+
+/* chips: weapons and skills */
+.nb-chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.nb-chip{min-height:40px;max-width:100%;padding:6px 12px;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius,2px);background:transparent;color:var(--muted);font:inherit;font-size:.86rem;line-height:1.35;text-align:left;cursor:pointer}
+.nb-chip:hover{background:var(--panel-2)}
+.nb-chip[aria-pressed="true"]{border-color:var(--red);border-width:2px;padding:5px 11px;color:var(--text);font-weight:600}
+.nb-chip[aria-pressed="true"]::before{content:'✓ '}
+.nb-add{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;min-width:0}
+
+/* the kit */
+.nb-kit{list-style:none;margin:0;padding:0;display:grid;gap:8px;min-width:0}
+.nb-kit li{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius,2px)}
+.nb-kit-name{min-width:0;flex:1 1 auto;color:var(--text);font-size:.92rem;line-height:1.4}
+.nb-kit .nb-stepper{flex:none}
+
+/* the review */
+.nb-preview{min-width:0}
+.nb-preview .nl-text{color:var(--text)}
+.nb-where{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;min-width:0}
+.nb-count{display:grid;gap:7px;min-width:0}
+.nb-card .nb-count .nb-field{flex:none}
+.nb-card .nb-count input{width:5.5rem;min-height:44px;box-sizing:border-box;text-align:center}
+.nb-foot{padding-top:4px}
+
+@media (max-width:560px){
+ /* A phone shows the step numbers only; the name of the step is in the heading under them. */
+ .nb-step>span{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+ .nb-step{min-width:44px;justify-content:center}
+ .nb-options,.nb-tiers{grid-template-columns:minmax(0,1fr)}
+ .nb-chip{min-height:44px}
+ .nb-add .btn,.nb-foot .btn{flex:1 1 auto}
+ .nb-kit li{flex-wrap:wrap}
+ .nb-kit .nb-stepper{margin-left:auto}
+}

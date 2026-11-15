@@ -1,0 +1,9 @@
+/* The sound and shake switches on the «Кубики» page (dice-feel.js). */
+.dice-feel { display: grid; gap: 8px; margin-top: 10px; }
+.dice-feel .haptics-toggle { margin: 0; }
+.dice-volume { display: grid; grid-template-columns: auto minmax(120px, 1fr); align-items: center; gap: 12px; color: var(--muted, #aaa); font-size: 13px; }
+.dice-volume input[type="range"] { width: 100%; min-height: 32px; accent-color: var(--yellow, #e9c66d); }
+.dice-feel-help { color: var(--muted, #aaa); font-size: 12px; line-height: 1.45; }
+.dice-feel-note { margin: 0; padding: 8px 10px; color: var(--text); border-left: 3px solid var(--red, #c33); font-size: 13px; }
+@media (max-width: 650px) { .dice-volume input[type="range"] { min-height: 44px; } }
+@media print { .dice-feel { display: none !important; } }

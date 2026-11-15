@@ -1,0 +1,74 @@
+/* The NET architecture as a tree and the run through it (net-editor.js). Only theme variables and transparent
+   backgrounds are used, so the three looks colour it themselves. */
+.net-tools .net-ed-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.net-tools .net-ed-modes .btn { min-height: 44px; }
+/* The chosen mode is marked by a thick underline and bold text, not by a fill: the text keeps the contrast each look gives a button. */
+.net-tools .net-ed-modes .btn[aria-pressed="true"] { border-color: var(--yellow, #e9c66d); box-shadow: inset 0 -4px 0 var(--yellow, #e9c66d); font-weight: 700; }
+
+/* Lists carry the structure for screen readers; the look is cards, so the bullets and default indents go. */
+.net-tools .net-ed-tree, .net-tools .net-ed-branch, .net-tools .net-ed-chips, .net-tools .net-run-path, .net-tools .net-run-entries { list-style: none; margin: 0; padding: 0; }
+.net-tools .net-ed-tree > li, .net-tools .net-ed-branch > li { min-width: 0; }
+/* A branch is shifted a little and has a line on its left. The shift is small on phones and stops after four
+   levels (.flat), because a deep tree must not make a 390px screen scroll sideways. */
+.net-tools .net-ed-branch { margin: 0 0 0 2px; padding: 0 0 0 8px; border-left: 2px solid var(--yellow, #e9c66d); }
+.net-tools .net-ed-branch + .net-ed-branch { margin-top: 14px; }
+.net-tools .net-ed-branch.flat { margin-left: 0; padding-left: 0; border-left: 0; border-top: 2px solid var(--yellow, #e9c66d); }
+.net-tools .net-ed-card { min-width: 0; padding: 12px; }
+.net-tools .net-ed-card.is-moving { border-style: dashed; border-color: var(--yellow, #e9c66d); }
+.net-tools .net-ed-head { display: grid; gap: 6px; min-width: 0; }
+.net-tools .net-ed-title, .net-tools .net-run-name { margin: 0; font-size: 1.05rem; line-height: 1.3; overflow-wrap: anywhere; }
+.net-tools .net-ed-title span { font-weight: 400; }
+.net-tools .net-ed-branch-note { margin: 0; color: var(--muted, #aaa); font-size: .9rem; overflow-wrap: anywhere; }
+.net-tools .net-ed-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* The state is always written in words; the coloured edge only repeats it. */
+.net-tools .net-ed-chip { max-width: 100%; padding: 3px 8px; color: var(--text); border: 1px solid var(--border, #444); border-left-width: 4px; border-radius: 4px; font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
+.net-tools .net-ed-chip[data-state="open"], .net-tools .net-ed-chip[data-state="derezzed"] { border-left-color: #3fa66b; }
+.net-tools .net-ed-chip[data-state="closed"], .net-tools .net-ed-chip[data-state="waiting"] { border-left-color: var(--yellow, #e9c66d); }
+.net-tools .net-ed-chip[data-state="pursuing"] { border-left-color: #d9534f; }
+.net-tools .net-ed-chip[data-state="destroyed"] { border-left-style: dashed; }
+.net-tools .net-ed-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.net-tools .net-ed-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 6px 10px; }
+/* On a phone the toolbar shows the glyphs only; each button keeps its full name in aria-label and title. */
+.net-tools .net-ed-txt { display: none; }
+.net-tools .net-ed-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.net-tools .net-ed-btn[aria-pressed="true"] { border-color: var(--yellow, #e9c66d); }
+.net-tools .net-ed-btn[aria-pressed="true"] .net-ed-txt { display: inline; }
+.net-tools .net-ed-here { min-height: 44px; margin: 0 0 10px; }
+.net-tools .net-ed-pick { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--yellow, #e9c66d); line-height: 1.5; }
+/* While a target is chosen the cards are headings only, so the gaps between them shrink too. */
+.net-tools .net-ed-tree.is-picking .net-ed-here { margin: 10px 0 0; }
+
+.net-tools .net-run-status { margin: 6px 0; overflow-wrap: anywhere; }
+.net-tools .net-run-path { display: flex; flex-wrap: wrap; gap: 6px; }
+.net-tools .net-run-path .btn, .net-tools .net-run .net-actions .btn, .net-tools .net-run-floor .btn, .net-tools .net-run-map .btn { min-height: 44px; }
+/* REZ -1 and +1 are two characters wide; a thumb still needs the full square. */
+.net-tools .net-run-floor .net-actions .btn { min-width: 44px; }
+/* The board (Dossier) look sets its buttons to 40px with a selector stronger than the rules above (board.css, "Controls").
+   These are the buttons of a run at the table, pressed on a phone, so they keep 44px there as well. */
+html.ui-native.ui-board .net-tools :is(.net-ed-btn, .net-ed-modes .btn, .net-ed-here, .net-run-path .btn, .net-run .net-actions .btn, .net-run-floor .btn, .net-run-map .btn) { min-height: 44px; }
+.net-tools .net-run-path .btn[aria-current="step"] { border-color: var(--yellow, #e9c66d); font-weight: 700; }
+.net-tools .net-run-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.net-tools .net-run-cols > * { min-width: 0; }
+.net-tools .net-run-floor:focus { outline: 2px solid var(--yellow, #e9c66d); outline-offset: 2px; }
+.net-tools .net-run-entry { padding: 12px 0; border-top: 1px solid var(--border, #444); }
+.net-tools .net-run-entry-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.net-tools .net-run-type { color: var(--muted, #aaa); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.net-tools .net-run-dv { font-weight: 700; }
+.net-tools .net-run-stats { margin: 8px 0 0; overflow-wrap: anywhere; }
+.net-tools .net-run-notes { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.net-tools .net-run-locked { padding: 8px 12px; border-left: 3px solid var(--yellow, #e9c66d); color: var(--text); }
+.net-tools .net-run-move { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.net-tools .net-run-move .btn { overflow-wrap: anywhere; }
+.net-tools .net-run-map .net-ed-tree > li, .net-tools .net-run-map .net-ed-branch > li { margin: 6px 0; }
+.net-tools .net-run-line { display: block; width: 100%; min-height: 44px; padding: 8px 10px; color: var(--text); background: transparent; border: 1px solid var(--border, #444); border-radius: 4px; font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.net-tools .net-run-line[aria-current] { border-color: var(--yellow, #e9c66d); font-weight: 700; }
+.net-tools .net-run-map .net-ed-chips { margin-top: 4px; }
+
+@media (min-width: 640px) {
+  .net-tools .net-ed-txt { display: inline; }
+  .net-tools .net-ed-branch { margin-left: 6px; padding-left: 14px; }
+  .net-tools .net-ed-card { padding: 16px; }
+}
+@media (min-width: 960px) {
+  .net-tools .net-run-cols { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+}

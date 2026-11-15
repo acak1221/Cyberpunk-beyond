@@ -40,7 +40,8 @@ test('damaged results are refused instead of breaking the page',()=>{
 
 test('the GM tools offer the book tables, keep prep on the device and write results to a journal',()=>{
  const extras=source('gm-extras.js'),market=source('night-market.js');
- assert.match(source('index.html'),/<script src="book-tables\.js"><\/script><script src="gm-extras\.js">/);
+ // Both modules whose results gm-extras draws load before it: it reads the saved results while it loads.
+ assert.match(source('index.html'),/<script src="book-tables\.js"><\/script>(<script src="roll-tables\.js"><\/script>)?<script src="gm-extras\.js">/);
  for(const a of ['book-headline','book-vendit','book-bodega'])assert.match(extras,new RegExp(`case '${a}':pushLog\\(\\{kind:'book'`));
  assert.match(extras,/PREP_KEY='nc-gm-prep-v1'/);assert.match(extras,/function pushLog\(entry\)\{log\.unshift\(entry\);log=log\.slice\(0,LOG_SIZE\);storePrep\(\)\}/);
  assert.match(extras,/window\.Campaigns\?\.journalAdd\?\.\(target,text\.slice\(0,2000\),false\)/);

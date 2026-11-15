@@ -3,7 +3,8 @@
    written for this app; it does not reproduce the corebook or any official tables. The three book
    tables live in book-tables.js and are marked with their pages. Loot draws real items from the app
    catalog (window.CATALOG). Recent table and weather results are kept on this device, so session
-   prep survives a reload, and any result can be written into a campaign journal. */
+   prep survives a reload, and any result can be written into a campaign journal. The user's own roll tables
+   (roll-tables.js) are drawn as one more card of this group and hand their results to the same list. */
 (function(){
 'use strict';
 const SIZES=Object.freeze([4,6,8,10,12]);
@@ -16,7 +17,11 @@ function cleanClock(c){
  const size=Number(c.size);if(!SIZES.includes(size))return null;
  const id=typeof c.id==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(c.id)?c.id:null;if(!id)return null;
  const f=Number(c.filled),filled=Number.isFinite(f)?Math.min(size,Math.max(0,Math.trunc(f))):0;
- return {id,name:cleanName(c.name),size,filled,shared:c.shared===true};
+ // Reminders, the die and the combat link (clock-triggers.js) are rebuilt by their own module and merged here, because every
+ // write of the clocks goes through this function: without it they would be dropped on the next change. A page that
+ // does not have that module (an older cached copy) keeps the five old fields only, as it always did with unknown ones.
+ const base={id,name:cleanName(c.name),size,filled,shared:c.shared===true},extra=window.ClockTriggers?.cleanExtra?.(c,size);
+ return extra?{...base,...extra}:base;
 }
 function readClocks(state){
  const raw=state&&state.gmExtras&&typeof state.gmExtras==='object'&&!Array.isArray(state.gmExtras)?state.gmExtras.clocks:null;
@@ -247,6 +252,8 @@ function loadPrep(){
  }catch(_){log=[];weatherLog=[]}
 }
 function pushLog(entry){log.unshift(entry);log=log.slice(0,LOG_SIZE);storePrep()}
+// A result made by another module (the user's own roll tables). It is taken only if it can be drawn.
+function push(entry){if(!usable(x=>entryHtml(x,'ru',T.ru),entry))return false;pushLog(entry);const r=typeof document!=='undefined'?document.querySelector?.('[data-gx-root]'):null;if(r)rerender(r);return true}
 // Plain text of a result for the campaign journal, made from the same markup the GM sees.
 function plainText(html){return String(html).replace(/<button[^>]*>.*?<\/button>/g,'').replace(/<\/dt>/g,': ').replace(/<\/(dd|li|strong|h4)>/g,'; ').replace(/<\/span>/g,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').replace(/(; )+/g,'; ').replace(/ ;/g,';').replace(/[;:\s]+$/,'').trim()}
 function prepCampaigns(){const st=appState();return (Array.isArray(st?.campaigns)?st.campaigns:[]).filter(c=>c&&typeof c.id==='string')}
@@ -271,7 +278,7 @@ function renderClocks(l,t){
  h+=`<div class="gx-new"><label class="field">${esc(t.newName)}<input type="text" maxlength="${MAX_NAME}" data-gx-field="draft" placeholder="${esc(t.newPlaceholder)}" value="${esc(ui.draft)}"></label><label class="field">${esc(t.segments)}<select data-gx-field="size">${SIZES.map(s=>`<option value="${s}"${s===ui.size?' selected':''}>${s}</option>`).join('')}</select></label><button type="button" class="btn primary" data-gx-action="add"${clocks.length>=MAX_CLOCKS?' disabled':''}>+ ${esc(t.create)}</button></div>`;
  if(clocks.length>=MAX_CLOCKS)h+=`<p class="gx-note">${esc(t.limit)}</p>`;
  if(!clocks.length)h+=`<p class="gx-note" role="status">${esc(t.none)}</p>`;
- else h+=`<div class="gx-clock-grid">${clocks.map(c=>`<div class="gx-clock${c.filled===c.size?' full':''}" data-gx-clock="${esc(c.id)}">${clockSvg(c,t)}<input type="text" class="gx-clock-name" maxlength="${MAX_NAME}" data-gx-field="name" data-gx-id="${esc(c.id)}" value="${esc(c.name)}" placeholder="${esc(t.untitled)}" aria-label="${esc(t.rename)}"><div class="gx-count"><button type="button" class="btn ghost gx-step" data-gx-action="minus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.minus)}">−</button><strong>${c.filled}/${c.size}</strong><button type="button" class="btn ghost gx-step" data-gx-action="plus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.plus)}">+</button></div>${c.filled===c.size?`<p class="gx-full">${esc(t.full)}</p>`:''}<label class="gx-share"><input type="checkbox" data-gx-field="shared" data-gx-id="${esc(c.id)}"${c.shared?' checked':''}> ${esc(t.shared)}</label><div class="gx-clock-actions"><button type="button" class="btn ghost" data-gx-action="reset" data-gx-id="${esc(c.id)}">↺ ${esc(t.reset)}</button><button type="button" class="btn ghost gx-del${ui.armed===c.id?' armed':''}" data-gx-action="del" data-gx-id="${esc(c.id)}">✕ ${esc(ui.armed===c.id?t.confirm:t.del)}</button></div></div>`).join('')}</div>`;
+ else h+=`<div class="gx-clock-grid">${clocks.map(c=>`<div class="gx-clock${c.filled===c.size?' full':''}" data-gx-clock="${esc(c.id)}">${clockSvg(c,t)}<input type="text" class="gx-clock-name" maxlength="${MAX_NAME}" data-gx-field="name" data-gx-id="${esc(c.id)}" value="${esc(c.name)}" placeholder="${esc(t.untitled)}" aria-label="${esc(t.rename)}"><div class="gx-count"><button type="button" class="btn ghost gx-step" data-gx-action="minus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.minus)}">−</button><strong>${c.filled}/${c.size}</strong><button type="button" class="btn ghost gx-step" data-gx-action="plus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.plus)}">+</button></div>${c.filled===c.size?`<p class="gx-full">${esc(t.full)}</p>`:''}${window.ClockTriggers?.cardHTML?.(c,l)||''}<label class="gx-share"><input type="checkbox" data-gx-field="shared" data-gx-id="${esc(c.id)}"${c.shared?' checked':''}> ${esc(t.shared)}</label><div class="gx-clock-actions"><button type="button" class="btn ghost" data-gx-action="reset" data-gx-id="${esc(c.id)}">↺ ${esc(t.reset)}</button><button type="button" class="btn ghost gx-del${ui.armed===c.id?' armed':''}" data-gx-action="del" data-gx-id="${esc(c.id)}">✕ ${esc(ui.armed===c.id?t.confirm:t.del)}</button></div></div>`).join('')}</div>`;
  return h+'</section>';
 }
 function entryHtml(e,l,t){
@@ -279,6 +286,7 @@ function entryHtml(e,l,t){
  if(e.kind==='gig'){const g=e.gig;return `<div class="gx-entry"><span class="overline">${esc(t.gig)}</span><dl class="gx-dl"><dt>${esc(t.client)}</dt><dd>${esc(L(g.client,l))}</dd><dt>${esc(t.job)}</dt><dd>${esc(L(g.job,l))}</dd><dt>${esc(t.where)}</dt><dd>${esc(L(g.place,l))}</dd><dt>${esc(t.twist)}</dt><dd>${esc(L(g.complication,l))}</dd><dt>${esc(t.pay)}</dt><dd><span class="gx-mono">${g.pay.min}–${g.pay.max}eb</span> · ${esc(t.payNote)}</dd></dl></div>`}
  if(e.kind==='loot'){const o=e.loot;return `<div class="gx-entry"><span class="overline">${esc(t.loot)} · ${esc(o.mode==='stash'?t.stash:t.pockets)}</span><ul class="gx-list">${o.items.map(i=>`<li>${esc(L(i.name,l))} <span class="gx-mono">${esc(i.price)}eb</span>${i.page?` <button class="rule-source" type="button" data-action="book-page" data-page="${esc(i.page)}">${l==='en'?'p.':'стр.'} ${esc(i.page)}</button>`:''}${window.GMTable?.giveButton?.({item:i.id},l)||''}</li>`).join('')}${o.flavor.map(f=>`<li class="gx-flavor">${esc(L(f,l))}</li>`).join('')}<li>${esc(t.cash)}: <span class="gx-mono">${o.cash}eb</span>${window.GMTable?.giveButton?.({cash:o.cash},l)||''}</li></ul></div>`}
  if(e.kind==='book')return window.BookTables?.html?.(e.book,l)||'';
+ if(e.kind==='custom')return window.RollTables?.entryHtml?.(e.custom,l)||'';
  if(e.kind==='oracle'){const o=e.oracle,lv=LIKELIHOOD.find(x=>x.id===o.likelihood);return `<div class="gx-entry gx-oracle-out"><span class="overline">${esc(t.oracle)} · ${esc(lv[l])}</span><div class="gx-oracle-row"><span class="gx-die" aria-label="${esc(t.die)}: ${o.roll}">${o.roll}</span><strong class="gx-answer ${o.answer.startsWith('yes')?'yes':'no'}">${esc(ANSWERS[o.answer][l])}</strong><span class="gx-note">${esc(t.die)} ≥ ${lv.min}</span></div></div>`}
  return '';
 }
@@ -306,11 +314,11 @@ function render(lang){
  // On boot app.js renders the first view before it defines window.App, so saved clocks are not
  // readable yet: re-render this group once the bridge exists.
  if(!appState()&&!lateRender&&typeof setTimeout==='function'&&typeof document!=='undefined'){lateRender=true;setTimeout(()=>{lateRender=false;const r=document.querySelector?.('[data-gx-root]');if(r&&appState())rerender(r)},0)}
- return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p>${renderClocks(l,t)}${renderTables(l,t)}${renderWeather(l,t)}${window.NpcLibrary?.render?.(l)||''}</div>`;
+ return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p>${renderClocks(l,t)}${renderTables(l,t)}${window.RollTables?.render?.(l)||''}${renderWeather(l,t)}${window.NpcBuilder?.render?.(l)||''}${window.NpcLibrary?.render?.(l)||''}</div>`;
 }
 
 // ---------- events ----------
-function mutate(fn){const st=appState();if(!st)return false;const r=fn(readClocks(st));if(!r.ok)return false;writeClocks(st,r.clocks);try{window.App.save()}catch(_){}return true}
+function mutate(fn){const st=appState();if(!st)return false;const before=readClocks(st),r=fn(before);if(!r.ok)return false;writeClocks(st,r.clocks);try{window.App.save()}catch(_){}try{window.ClockTriggers?.changed?.(before,readClocks(st))}catch(_){}return true}
 function rerender(root,lang){
  const l=lang||(typeof window!=='undefined'&&window.App?.lang?.())||root.dataset.lang;
  if(typeof root.outerHTML!=='string'||root.isConnected===false)return;
@@ -343,7 +351,7 @@ function act(a,b,root,rng){
   case 'clear-log':log=[];storePrep();return true;
   case 'weather':{const v=root.querySelector?.('[data-gx-field="season"]')?.value;if(v==='auto'||SEASONS.some(s=>s.id===v))ui.season=v;weatherLog.unshift(genWeather(ui.season==='auto'?null:ui.season,rng));weatherLog=weatherLog.slice(0,4);storePrep();return true}
  }
- return false;
+ return !!window.ClockTriggers?.act?.(a,b,root,rng);
 }
 function handle(e,lang,rng=Math.random){
  const target=e?.target,root=target?.closest?.('[data-gx-root]');
@@ -360,7 +368,7 @@ function handle(e,lang,rng=Math.random){
   // Rename saves without re-rendering so a click elsewhere is not swallowed by the DOM swap.
   if(f==='name'){const v=cleanName(target.value);mutate(list=>updateClock(list,target.dataset.gxId,c=>(c.name=v,c)));return true}
   if(f==='shared'){mutate(list=>updateClock(list,target.dataset.gxId,c=>(c.shared=!!target.checked,c)));return true}
-  return false;
+  {const r=window.ClockTriggers?.change?.(target);if(r==='render')rerender(root,lang);return !!r}
  }
  let b=null;
  if(e.type==='click')b=target.closest('[data-gx-action]');
@@ -370,9 +378,11 @@ function handle(e,lang,rng=Math.random){
  rerender(root,lang);
  return true;
 }
+// Draws the group again after a change made outside a click on it (an undo button in a notice).
+function refresh(){const r=typeof document!=='undefined'?document.querySelector?.('[data-gx-root]'):null;if(r)rerender(r)}
 function reset(){log=[];weatherLog=[];ui={size:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};storePrep()}
 loadPrep();
 if(typeof document!=='undefined'&&document.addEventListener){for(const type of ['click','change','input','keydown'])document.addEventListener(type,e=>{handle(e)})}
 window.GMExtras={SIZES,MAX_CLOCKS,MAX_NAME,LIKELIHOOD,SEASONS,WEATHER,SEASON_TABLE,FIRST,LAST,HANDLES,CLIENTS,JOBS,PLACES,COMPLICATIONS,FLAVOR,
- cleanClock,readClocks,writeClocks,sharedClocks,addClock,updateClock,clickSegment,step,genName,formatName,genGig,genLoot,lootPool,oracle,oracleAnswer,seasonFor,genWeather,render,handle,reset,get log(){return log},get weatherLog(){return weatherLog}};
+ cleanClock,readClocks,writeClocks,sharedClocks,addClock,updateClock,clickSegment,step,genName,formatName,genGig,genLoot,lootPool,oracle,oracleAnswer,seasonFor,genWeather,render,handle,push,refresh,reset,get log(){return log},get weatherLog(){return weatherLog}};
 })();

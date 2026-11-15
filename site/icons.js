@@ -17,6 +17,7 @@ const I={
  campaigns:svg('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>'),
  room:svg('<circle cx="12" cy="12" r="2"/><path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 8.3a5.2 5.2 0 0 1 0 7.4M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13"/>'),
  book:svg('<path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z"/><path d="M5 18a3 3 0 0 1 3-3h11"/><path d="M9 7h6"/>'),
+ news:svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.6 10.4 15.5 12l-1.9 1.6L12 15.5l-1.6-1.9L8.5 12l1.9-1.6z"/>'),
  menu:svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
 };
 global.Icons=I;

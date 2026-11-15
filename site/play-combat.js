@@ -345,16 +345,23 @@ const THROW=[[0,6,16],[7,12,15],[13,25,15]];
 function soloBonus(c){let s=null;try{s=global.RoleTools?.soloRollBonuses?.(c)||null}catch{}if(!s)return {ok:true,precision:0,fumble:false};if(!s.ok)return {ok:false};return {ok:true,precision:s.enabled?int(s.precision,0,10):0,fumble:s.enabled&&s.fumble===true}}
 const precision=c=>soloBonus(c).precision||0;
 const statNow=(c,stat)=>{let v=null;try{v=global.DossierPanel?.statBase?.(c,stat)?.value}catch{}return Number.isFinite(Number(v))?Number(v):num(c?.stats?.[stat])};
+// The player's named modifiers (named-modifiers.js) that are inside the «effect» number of App.rollMods, so a burst or a
+// thrown grenade names them like any other sheet roll instead of calling them «эффекты». Without them: an empty list.
+function namedIn(A,c,o){
+ let got=[];try{got=A.rollNamed?.(c,o.kind||'',o.skillKey||'',o.stat)||[]}catch{}
+ return (Array.isArray(got)?got:[]).filter(p=>p&&typeof p.name==='string'&&Number.isSafeInteger(p.value)&&p.value!==0).slice(0,24);
+}
+function namedTail(A,named){if(!named.length)return '';try{return String(global.NamedModifiers?.tail?.(named,A.lang?.())||'')}catch{return ''}}
 /* One check through the sheet's own numbers. App.checkBonus already holds the STAT after armor, wounds, effects, the modifier
    and the LUCK set for the next roll; like every sheet roll this one then uses them up. */
 function sheetCheck(c,o){
  const A=global.App;if(!A?.check||!A?.checkBonus)return null;
  let x=null;try{x=global.CharacterExtra?.init?.(c)||null}catch{}if(!x)return null;
  const level=int(o.level,0,10),bonus=num(A.checkBonus(c,o.stat,level,o.kind||'',o.skillKey||'')),base=statNow(c,o.stat);
- const sheetMod=int(x.modifier,-100,100),rm=A.rollMods?.(c,o.kind||'',o.skillKey||'',o.stat)||{wound:0,effect:0},luck=Math.min(int(x.luck,0,20),int(x.luckUse,0,20));x.luck=int(x.luck,0,20)-luck;x.luckUse=0;if(x.modifierHold!==true)x.modifier=0;
+ const sheetMod=int(x.modifier,-100,100),rm=A.rollMods?.(c,o.kind||'',o.skillKey||'',o.stat)||{wound:0,effect:0},named=namedIn(A,c,o),luck=Math.min(int(x.luck,0,20),int(x.luckUse,0,20));x.luck=int(x.luck,0,20)-luck;x.luckUse=0;if(x.modifierHold!==true)x.modifier=0;
  const precision=o.solo?.precision||0,extra=int(o.extra,-100,100)+precision;
- const label=o.label+(precision?` · Precision Attack +${precision}`:'')+(luck?` · LUCK +${luck}`:'');
- return A.check(base,label,{wounds:false,dv:o.dv||0,skill:level,mod:bonus-base-level+extra,ignoreFumble:o.solo?.fumble===true,parts:[{k:'wound',v:rm.wound},{k:'effects',v:rm.effect},{k:'sheet',v:sheetMod},{k:'luck',v:luck},{k:'weapon',v:int(o.extra,-100,100)},{k:'precision',v:precision}]});
+ const label=o.label+(precision?` · Precision Attack +${precision}`:'')+(luck?` · LUCK +${luck}`:'')+namedTail(A,named);
+ return A.check(base,label,{wounds:false,dv:o.dv||0,skill:level,mod:bonus-base-level+extra,ignoreFumble:o.solo?.fumble===true,parts:[{k:'wound',v:rm.wound},{k:'effects',v:num(rm.effect)-named.reduce((a,p)=>a+p.value,0)},...named.map(p=>({k:'named',v:p.value,n:p.name})),{k:'sheet',v:sheetMod},{k:'luck',v:luck},{k:'weapon',v:int(o.extra,-100,100)},{k:'precision',v:precision}]});
 }
 function weaponModes(c,w,l){
  if(!w?.id||!c)return '';

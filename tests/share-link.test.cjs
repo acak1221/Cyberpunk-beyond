@@ -227,3 +227,7 @@ test('unpacking reads up to the limit whole and refuses anything past it',async(
  assert.equal((await S.inflate(await deflate(new Uint8Array(0)),10)).length,0);
  await assert.rejects(()=>S.inflate(new Uint8Array([255,255,255,255]),10));
 });
+test('a link carries the folder and tags of a sheet: they are part of the sheet, unlike the pictures',()=>{
+ const {S}=load(),c={id:'v1',name:'Vee',role:'solo',extra:{folder:'Gang',tags:['debt'],portrait:'data:image/png;base64,AAAA',sourceKey:'k'}},out=S.shareable(c);
+ assert.equal(out.extra.folder,'Gang');assert.deepEqual(JSON.parse(JSON.stringify(out.extra.tags)),['debt']);assert.equal(out.extra.portrait,undefined);assert.equal(out.extra.sourceKey,undefined);
+});

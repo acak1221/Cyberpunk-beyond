@@ -18,12 +18,19 @@ const T={ru:{nav:'Игра онлайн',over:'05 / ONLINE ROOM',title:'ИГРА
 
 let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,clocks=[],lastClocks='',combatAt=0,clocksAt=0,outbox=[],connectedAt=0,deferredRepaint=false,selectHold=0,holdTimer=null,feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false,gmKeys=null,gmPub=null,incoming=[],qrFor='',qrMarkup='',sheetState=null,sheetTimer=null,device='',combatBy='',clocksBy='',gmSeenAt=0,combatGot=0,clocksGot=0,combatSig='',clocksSig='';
 const combatSeen=new Map(),clocksSeen=new Map(),rivals=new Map();
+/* The waiting room (room-gate.js). roomKey: the key of a room that has one, held by the Game Master and by the pages let in.
+   waiting: requests to enter, as the Game Master sees them. gateSeenAt: the time, by the Game Master's clock, of its last
+   word about the waiting room that this page took. A player's first status waits for that word for a moment (gateSettled). */
+const GATE_WAIT=900,GATE_ANSWER=5000;
+let roomKey=null,gateSeenAt=0,gateHeard=0,gateSaid=0,gateName='',gateSettled=true,gateTimer=null,lastKnock='',knockState='';
+const waiting=new Map(),answered=new Map(),knocked=new Set();
 
 Object.assign(T.ru,{keyMine:'Ваш ключ ведущего',keyLink:'Ведущий подтверждён ссылкой, его ключ',keyFirst:'Ключ ведущего запомнен при входе; если входили по коду, сверьте его с ведущим',gmFirst:'Ведущий комнаты: {name}. Его ключ {key} запомнен. Если вы входили по коду, а не по ссылке, сверьте ключ с ведущим.',impostor:'называет себя ведущим',impostorNote:'Кто-то ещё называет себя ведущим. Инициатива, счётчики и листы принимаются только от ведущего с ключом этой комнаты.',mute:'Скрыть',muteTitle:'Не показывать этого участника и не принимать его сообщения',mutedCount:'Скрыто участников',unmute:'Показать всех',oldVersion:'У кого-то в комнате старая версия приложения. Попросите его обновить страницу, иначе вы не увидите друг друга.',pinNote:'Ссылка называет ключ ведущего',yourTurn:'Ваш ход',yourTurnHint:'Инициатива перешла к вашему персонажу',veiled:'Ходит скрытый участник',initSet:'Инициатива записана в трекер',liveHp:'в комнате',pinChange:'Эта ссылка называет другого ведущего: ключ {new} вместо {old}. Доверять новому ключу?'});
 Object.assign(T.en,{keyMine:'Your Game Master key',keyLink:'Game Master confirmed by the link, their key',keyFirst:'Game Master key remembered on joining; if you joined by code, check it with your GM',gmFirst:'Game Master of this room: {name}. Their key {key} is remembered. If you joined by code and not by link, check the key with your GM.',impostor:'claims to be the Game Master',impostorNote:'Someone else claims to be the Game Master. Initiative, clocks and sheets are accepted only from the GM with this room’s key.',mute:'Hide',muteTitle:'Stop showing this member and drop their messages',mutedCount:'Hidden members',unmute:'Show all',oldVersion:'Someone in the room has an older version of the app. Ask them to reload the page, or you will not see each other.',pinNote:'The link names the Game Master key',yourTurn:'Your turn',yourTurnHint:'Initiative has come to your character',veiled:'A hidden participant is acting',initSet:'Initiative written to the tracker',liveHp:'in the room',pinChange:'This link names another Game Master: key {new} instead of {old}. Trust the new key?'});
 Object.assign(T.ru,{noCampHint:'На этом устройстве нет кампаний. Экспортируйте кампанию на другом устройстве («Кампании» → «Файл кампании» → «Экспорт этой кампании») и импортируйте здесь («Кампании» → «Импорт из файла»).'});Object.assign(T.en,{noCampHint:'This device has no campaigns. Export the campaign on the other device (Campaigns → Campaign file → Export this campaign) and import it here (Campaigns → Import from a file).'});
 Object.assign(T.ru,{woundSerious:'тяжело ранен',woundMortal:'при смерти',clockMoved:'Счётчик'});
 Object.assign(T.en,{woundSerious:'Seriously Wounded',woundMortal:'Mortally Wounded',clockMoved:'Clock'});
+Object.assign(T.ru,{clockFull:'Счётчик заполнен'});Object.assign(T.en,{clockFull:'Clock is full'});
 Object.assign(T.ru,{initAdded:'Добавлен в трекер из комнаты',initNoCampaign:'Игрок бросил инициативу, но для комнаты не выбрана кампания. Выберите её на странице «Игра онлайн» — и броски игроков будут попадать в трекер.',initNotShown:'Бросок виден в ленте комнаты, но вашего персонажа пока нет в трекере ведущего: он не выбрал кампанию для комнаты. Назовите результат голосом.',initPickChar:'Чтобы инициатива попала в трекер ведущего, выберите этого персонажа на странице «Игра онлайн».',fromRoom:'Игроки в комнате',fromRoomHelp:'Игрок попадает в трекер и получает сигнал «Ваш ход», даже если ещё не прислал лист. Его бросок инициативы запишется сам.',fromRoomAdd:'В трекер',fromRoomAll:'Все игроки комнаты уже в трекере.',fromRoomNone:'В комнате пока нет игроков с персонажем.',fromRoomAdded:'Добавлен в трекер',liveTitle:'HP ведёт сам игрок на своём листе. Чтобы изменить — нажмите «Выдать».',liveOff:'не в сети',fromRoomTag:'из комнаты'});
 Object.assign(T.en,{initAdded:'Added to the tracker from the room',initNoCampaign:'A player rolled initiative, but no campaign is chosen for the room. Choose one on the “Online play” page and players’ rolls will go to the tracker.',initNotShown:'The roll is in the room feed, but your character is not in the GM’s tracker yet: no campaign is chosen for the room. Say the result out loud.',initPickChar:'To send initiative to the GM’s tracker, choose this character on the “Online play” page.',fromRoom:'Players in the room',fromRoomHelp:'A player joins the tracker and gets the “Your turn” signal even before sending a sheet. Their initiative roll is written by itself.',fromRoomAdd:'To tracker',fromRoomAll:'Every player in the room is already in the tracker.',fromRoomNone:'No players with a character are in the room yet.',fromRoomAdded:'Added to the tracker',liveTitle:'The player keeps HP on their own sheet. To change it, press “Give”.',liveOff:'offline',fromRoomTag:'from the room'});
 const lang=()=>{try{return app?.getState?.().lang==='en'?'en':'ru'}catch{return 'ru'}};
@@ -71,7 +78,10 @@ const sharedKey=(priv,pub)=>global.crypto.subtle.deriveKey({name:'ECDH',public:p
 async function sealFor(pub,data){const subtle=global.crypto.subtle,eph=await subtle.generateKey(ECDH,true,['deriveKey']),k=await sharedKey(eph.privateKey,await importPub(pub)),iv=rand(12),ct=new Uint8Array(await subtle.encrypt({name:'AES-GCM',iv},k,ArrayBuffer.isView(data)?data:te.encode(JSON.stringify(data)))),j=await subtle.exportKey('jwk',eph.publicKey);return {epk:{x:j.x,y:j.y},iv:b64(iv),ct:b64(ct)}}
 async function openBytes(box){if(!gmKeys||!isCoord(box?.epk?.x)||!isCoord(box?.epk?.y)||typeof box.iv!=='string'||typeof box.ct!=='string')return null;const k=await sharedKey(gmKeys.privateKey,await importPub(box.epk));return new Uint8Array(await global.crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(box.iv)},k,unb64(box.ct)))}
 async function openFromPeer(box){const plain=await openBytes(box);return plain&&JSON.parse(td.decode(plain))}
-function sheetCopy(c){const copy=JSON.parse(JSON.stringify(c));if(copy.extra&&typeof copy.extra==='object'){delete copy.extra.portrait;delete copy.extra.sourceKey}return copy}
+// The folder and tags of a sheet (char-tags.js) are its owner's private sorting and never leave through the room.
+// The same goes for the owner's item groups (item-groups.js): the list of groups and the group each thing or weapon points to.
+function dropItemGroups(extra){delete extra.itemGroups;for(const k of ['items','weapons'])if(Array.isArray(extra[k]))for(const r of extra[k])if(r&&typeof r==='object'&&!Array.isArray(r))delete r.group}
+function sheetCopy(c){const copy=JSON.parse(JSON.stringify(c));if(copy.extra&&typeof copy.extra==='object'){delete copy.extra.portrait;delete copy.extra.sourceKey;delete copy.extra.folder;delete copy.extra.tags;if(!Array.isArray(copy.extra))dropItemGroups(copy.extra)}return copy}
 /* A sheet travels as {who,dev,character}: 'z' = deflate-raw (all current browsers), 'j' = plain JSON. GM pages list the forms they read
    in their status ('sheets'); older GM pages list none and read only a bare character. */
 async function pipe(bytes,stream){return new Uint8Array(await new global.Response(new global.Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer())}
@@ -170,6 +180,14 @@ const seal=obj=>sealText(JSON.stringify(obj));
 const PAD=[512,1024,2048,4096,8192,16384];
 function padded(text){const n=te.encode(text).length,size=PAD.find(x=>x>=n)||Math.ceil(n/16384)*16384;return text+' '.repeat(size-n)}
 async function open(bytes){if(bytes.length<29||bytes.length>MAX_BYTES)return null;const plain=await global.crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.subarray(0,12)},key,bytes.subarray(12));return JSON.parse(td.decode(plain))}
+// What arrives is sealed either with the key of a room that has a waiting room (deep) or with the room code alone.
+// The room key is tried first: in such a room nearly everything is sealed with it.
+async function openAny(bytes){
+ if(bytes.length<29||bytes.length>MAX_BYTES)return null;
+ const subtle=global.crypto.subtle,iv=bytes.subarray(0,12),ct=bytes.subarray(12),k2=roomKey;
+ if(k2)try{return {outer:JSON.parse(td.decode(await subtle.decrypt({name:'AES-GCM',iv},k2,ct))),deep:true}}catch{}
+ return {outer:JSON.parse(td.decode(await subtle.decrypt({name:'AES-GCM',iv},key,ct))),deep:false};
+}
 
 // The roll feed outlives a reload of the page (a phone that locks, a tab that is restored): it is kept on the device for the
 // room it belongs to and dropped when the room is left. Rolls that were never sent are not kept.
@@ -296,14 +314,24 @@ function paintLive(){
  // A player came or went: the row changes shape (its HP field, the «Выдать» button), so the tracker is drawn again unless something in it is being typed.
  if(flipped&&st?.view==='campaigns'&&!['INPUT','TEXTAREA','SELECT'].includes(doc.activeElement?.tagName))try{global.App?.render?.()}catch{}
 }
+// What a participant's level adds to its row (room-visibility.js). The HP and armor are looked up only for the levels
+// that send them, so a «name» row is built exactly as before and a mistake here cannot put a number into it.
+function visPart(r,c,camp){
+ const V=global.RoomVisibility;if(!V?.part||!V.level||(r.kind==='pc'&&!c))return {};
+ const lv=V.level(r,camp);if(lv!=='state'&&lv!=='full')return {};
+ const live=liveRow(r,c),sum=c?characterSummary(c):null;
+ const hp=live?live.hp:sum?sum.hp:int(r.hp),max=live?live.max:sum?sum.max:Number.isSafeInteger(r.maxHp)&&r.maxHp>0?r.maxHp:0;
+ // Armor goes out only for an NPC the Game Master runs: a player's armor is theirs to tell.
+ return V.part(lv,{hp,max,dead:r.dead===true||c?.extra?.deathRecord?.dead===true,out:r.out===true,sp:c||rowOwn(r)?null:r.sp});
+}
 function combatPayload(){
  if(!drives()||!session.campaignId)return null;
  const st=app?.getState?.(),camp=st?.campaigns?.find(x=>x.id===session.campaignId);if(!camp)return null;
  const roster=[...(camp.roster||[])].sort((a,b)=>{let n=(Number(b.initiative)||0)-(Number(a.initiative)||0);if(n)return n;const x=a.ties||[],y=b.ties||[];for(let i=0;i<Math.max(x.length,y.length);i++){n=(Number(y[i])||0)-(Number(x[i])||0);if(n)return n}return (Number(a.order)||0)-(Number(b.order)||0)});
- const turn=int(camp.turnIndex,0,500),shown=roster.map((r,i)=>({r,now:i===turn})).filter(x=>x.r.hidden!==true||x.r.kind==='pc'||rowOwn(x.r));
+ const turn=int(camp.turnIndex,0,500),shown=roster.map((r,i)=>({r,now:i===turn})).filter(x=>global.RoomVisibility?.level?global.RoomVisibility.level(x.r,camp)!=='hidden':x.r.kind==='pc'||!!rowOwn(x.r)||(x.r.hidden!==true&&!(camp.vis==='hidden'&&!['name','state','full'].includes(x.r.vis))));
  // A row whose character was deleted keeps a visible name for older pages; newer ones read 'none' and show «без персонажа».
  // Hidden participants are not sent at all; when one of them acts, players only learn that somebody hidden does.
- return {campaign:clip(camp.name,80),round:int(camp.round||1,1,9999),...(roster[turn]&&!shown.some(x=>x.now)?{veiled:true}:{}),order:shown.slice(0,40).map(({r,now})=>{const sheet=r.kind==='pc',c=sheet&&st.characters?.find(x=>x.id===r.characterId),own=sheet?(c?ownerOf(c):''):rowOwn(r),pc=sheet||!!own;return {name:clip(sheet?c?.name||'—':r.name,60),pc,...(sheet&&!c?{none:true}:{}),...(own?{own}:{}),init:int(r.initiative),current:now}}),...(global.BattleMap?.sharedPart?.(camp,shown.map(x=>x.r))||{})};
+ return {campaign:clip(camp.name,80),round:int(camp.round||1,1,9999),...(roster[turn]&&!shown.some(x=>x.now)?{veiled:true}:{}),order:shown.slice(0,40).map(({r,now})=>{const sheet=r.kind==='pc',c=sheet&&st.characters?.find(x=>x.id===r.characterId),own=sheet?(c?ownerOf(c):''):rowOwn(r),pc=sheet||!!own;return {name:clip(sheet?c?.name||'—':r.name,60),pc,...(sheet&&!c?{none:true}:{}),...(own?{own}:{}),init:int(r.initiative),current:now,...visPart(r,c||null,camp)}}),...(global.BattleMap?.sharedPart?.(camp,shown.map(x=>x.r))||{})};
 }
 
 function cleanClocks(list){return Array.isArray(list)?list.slice(0,12).filter(x=>x&&typeof x==='object').map(x=>{const size=int(x.size,2,12);return {name:clip(x.name,60),size,filled:int(x.filled,0,size)}}):[]}
@@ -319,6 +347,10 @@ const drives=()=>!!session&&(session.role==='gm'||amDeputy());
 // With a co-GM two devices can set the initiative and the clocks, and the last change wins: a device does not repeat an
 // unchanged state (or send its first one after connecting) over what the other one may have sent since.
 const yields=(by,s,last)=>!!deputyFp()&&by!==myFp()&&(s===last||!last);
+// What a level adds to a row (room-visibility.js: w, out, hp, max, sp) follows the players' HP by itself, with nobody
+// touching the tracker. For «the last change wins» that is not a change: compared without those fields, a list that
+// differs only in them still yields to the other device, which sends the same facts from its own copy.
+const bare=s=>{try{const d=s?JSON.parse(s):null;return d&&Array.isArray(d.order)?JSON.stringify({...d,order:d.order.map(r=>{const {w,out,hp,max,sp,...rest}=r||{};return rest})}):s}catch{return s}};
 // The Game Master's status names the co-GM. Only a status newer than the last one handled counts, so an old copy of it,
 // sent again by someone whose rights were taken back, changes nothing. «Newer» is by the Game Master's own clock (at is
 // the time it signed, not capped by this device's clock): a copy sent again can never look newer than the original.
@@ -365,21 +397,32 @@ async function adoptProof(fp,proof){
  const wasGM=session.role==='gm';
  Object.assign(session,{gmFp:fp,gmAt:res.at,gmPin:'handover',gmWas:earlierGMs(pinned),deputyFp:'',deputyBy:'',deputyAt:0});delete session.handoverTo;delete session.gmVoid;gmSeenAt=0;
  if(wasGM){session.role='player';delete session.gmChain}
+ // The waiting room: a Game Master that steps down keeps the room key the way a player does. The new Game Master's notices are
+ // ordered by its own clock, so the time of the last one taken starts over.
+ if(session.gate){const g=wasGM?GATE()?.asPlayer(session.gate):session.gate;if(g){g.at=0;session.gate=g}else delete session.gate}
+ if(wasGM){waiting.clear();answered.clear();knocked.clear()}gateSeenAt=0;
  for(const x of members.values())if(x.role==='gm'&&x.fp!==fp){x.role='player';x.pub=null;x.sheets=''}
  saveSession();app?.notify?.(ta(wasGM?'steppedDown':'gmMoved').replace('{key}',keyLabel(fp)));
  if(wasGM)publishMember(true);
  return true;
 }
 // The Game Master handed the room to this device: check the chain that came with it and take the role.
-async function takeOver(chain){
+async function takeOver(chain,lists){
  const A=AUTH(),pinned=session.gmFp,room=base;if(!A||session.role!=='player'||!FP.test(pinned||''))return false;
  const me=await ensureIdentity(),res=await A.verifyChain(chain,{room,root:pinned,leaf:me.fp,after:int(session.gmAt,0,Number.MAX_SAFE_INTEGER)});
  if(!res||!session||base!==room||session.gmFp!==pinned||session.role!=='player'||me.fp!==myFp())return false;
  await ensureGMKeys();if(!session||base!==room||session.role!=='player')return false;
  Object.assign(session,{role:'gm',gmFp:me.fp,gmPin:'self',gmAt:res.at,gmWas:earlierGMs(pinned),gmChain:A.cleanChain(chain),deputyFp:'',deputyBy:'',deputyAt:0});delete session.gmVoid;gmSeenAt=0;
+ // The room key this page was given as a player stays the key of the room. The previous device, now a player, stays let in.
+ if(session.gate){
+  const G=GATE(),g=G?.asGM(session.gate,lists,Date.now());
+  if(g){g.admitted=G.cleanAdmitted({[pinned]:{name:[...members.values()].find(x=>x.fp===pinned)?.name||'',at:Date.now()},...g.admitted});delete g.admitted[me.fp];g.denied=g.denied.filter(f=>f!==pinned&&f!==me.fp);session.gate=g}
+  else if(session.gate.on)delete session.gate;
+ }
+ waiting.clear();answered.clear();knocked.clear();gateSeenAt=0;
  for(const x of members.values())if(x.role==='gm'&&!x.me){x.role='player';x.pub=null;x.sheets=''}
- saveSession();app?.notify?.(ta('nowGM'));lastCombat='';lastClocks='';combatBy='';clocksBy='';global.RoomJournal?.forget?.();
- publishMember(true);publishCombat(true);publishClocks(true);
+ saveSession();app?.notify?.(ta('nowGM'));lastCombat='';lastClocks='';combatBy='';clocksBy='';global.RoomJournal?.forget?.();global.RoomAgent?.forget?.();global.CityMap?.forget?.();
+ publishGate();publishMember(true);publishCombat(true);publishClocks(true);
  return true;
 }
 function setDeputy(fp){
@@ -390,7 +433,8 @@ function setDeputy(fp){
  refresh();
 }
 // The handover is repeated with every heartbeat until the new device shows itself as the Game Master (see adoptProof).
-function sendHandover(){const h=session?.handoverTo;return h&&session.role==='gm'&&FP.test(h.fp||'')?send('e','handover',{to:h.fp,chain:h.chain}):Promise.resolve(0)}
+// In a room with a waiting room the lists of who is let in and who is refused go along: the new device already holds the room key.
+function sendHandover(){const h=session?.handoverTo;return h&&session.role==='gm'&&FP.test(h.fp||'')?send('e','handover',{to:h.fp,chain:h.chain,...(gateOn()?{gate:{admitted:session.gate.admitted,denied:session.gate.denied}}:{})}):Promise.resolve(0)}
 async function startHandover(fp){
  const A=AUTH(),target=[...members.values()].find(m=>!m.me&&m.fp===fp&&m.pk);if(!A||!session||session.role!=='gm'||!target||fp===myFp())return false;
  const room=base,me=await ensureIdentity();let chain;
@@ -402,6 +446,9 @@ async function saveGMFile(){
  const A=AUTH();if(!A||!session||session.role!=='gm')return null;
  const me=await ensureIdentity();let file;
  try{file=await A.makeFile({chain:session.gmChain,me,room:base,code:session.code,name:session.name})}catch(e){app?.notify?.(ta(e?.message==='chain_full'?'chainFull':'noCrypto'));return null}
+ // The file says only that the room has a waiting room. The device that opens it makes a new room key and lets the players
+ // in again: a key or a list from the file could be older than the last time somebody was removed.
+ if(gateOn())file.gated=true;
  try{A.download('night-city-room-'+formatCode(session.code).slice(0,4)+'-gm.json',JSON.stringify(file))}catch{}
  app?.notify?.(ta('fileSaved'));return file;
 }
@@ -409,7 +456,157 @@ async function openGMFile(text,name){
  const A=AUTH(),file=A?.parseFile(text);let res=null;
  if(file)try{const me=await ensureIdentity(),room=await deriveRoom(file.code);res=await A.redeem(file,me,room.topic)}catch{}
  if(!res){app?.notify?.(ta('fileBad'));return false}
- await startSession({code:file.code,role:'gm',name:clip(name,40)||file.name||'GM',gmChain:res.chain,gmAt:res.at});return true;
+ await startSession({code:file.code,role:'gm',name:clip(name,40)||file.name||'GM',gmChain:res.chain,gmAt:res.at,gated:file.gated===true});return true;
+}
+
+/* ---------- The waiting room (key helpers, checks of what arrives, texts and markup: room-gate.js) ---------- */
+const GATE=()=>global.RoomGate||null,tg=k=>GATE()?.t(k,lang())??k;
+const gateOn=()=>!!session?.gate?.on;
+// This page reads and writes the room: the room has no waiting room, or this page holds the key in use.
+const inRoom=()=>!!session&&(!gateOn()||(!!roomKey&&!!session.gate.kid&&(session.role==='gm'||session.gate.kid===session.gate.want)));
+// What a room with a waiting room still sends sealed with the code alone: the Game Master's notice, requests to enter, the
+// answers to them, and a broker's word that a connection dropped (prepared before a page is let in; it names nothing but the page).
+const LOBBY=new Set(['gate','knock','admit','deny','gone']);
+// The key a message is sealed with. null: this page is still waiting and may not send it.
+function layerKey(type){if(!gateOn()||LOBBY.has(type))return key;if(inRoom())return roomKey;return type==='left'?key:null}
+function settleGate(){gateSettled=true;clearTimeout(gateTimer);gateTimer=null}
+// A player's page that has not heard about a waiting room yet gives the Game Master's notice (the brokers keep it) a moment
+// to arrive once it is connected, and only then shows its status the usual way.
+function armGate(){if(gateSettled||gateTimer)return;gateTimer=setTimeout(()=>{gateTimer=null;if(session&&!gateSettled){gateSettled=true;publishMember(true)}},GATE_WAIT)}
+async function freshGate(){const G=GATE();if(!G)return null;try{const made=await G.newKey();return {on:true,key:made.key,kid:made.kid,admitted:{},denied:[],at:Date.now()}}catch{return null}}
+// The notice is kept by the brokers, so a device that opens the link later reads it before anything else. It also says who the
+// Game Master is, for a page that cannot read the room yet. A room that never had a waiting room sends none.
+const gateNotice=()=>({on:gateOn(),...(gateOn()?{kid:session.gate.kid}:{}),name:clip(session.name,40),...(session.gmChain?.length?{proof:session.gmChain}:{}),...(heldSince()?{since:heldSince()}:{})});
+function publishGate(){return session?.role==='gm'&&session.gate&&GATE()?send('g','gate',gateNotice(),true):Promise.resolve(0)}
+// The room key for one page, sealed to the key only that page holds.
+async function sendAdmit(id,box){
+ const g=session?.gate,room=base;if(session?.role!=='gm'||!g?.on||!box)return 0;
+ try{const sealed=await sealFor(box,{k:g.key,kid:g.kid});return session?.gate===g&&base===room?await send('e','admit',{to:id,...sealed}):0}catch{return 0}
+}
+const republish=()=>{publishMember(true);publishCombat(true);publishClocks(true)};
+// The Game Master turns the waiting room on or off.
+async function setGate(on){
+ const G=GATE(),room=base;if(!G||!session||session.role!=='gm'||on===gateOn())return false;
+ if(on){
+  let made,k;try{made=await G.newKey();k=await G.importKey(made.key)}catch{app?.notify?.(tg('noCrypto'));return false}
+  if(!session||base!==room||session.role!=='gm'||gateOn())return false;
+  // Everyone who is in the room stays: the link let them in. Their pages get the key before the notice, so none of them is shown the waiting screen.
+  const admitted={},here=[];
+  for(const [id,m] of members)if(!m.me&&FP.test(m.fp||'')){admitted[m.fp]={name:m.name,at:Date.now()};if(m.box)here.push([id,m.box])}
+  session.gate={on:true,key:made.key,kid:made.kid,admitted:G.cleanAdmitted(admitted),denied:[],at:Date.now()};roomKey=k;waiting.clear();answered.clear();knocked.clear();saveSession();
+  await Promise.all(here.map(([id,box])=>sendAdmit(id,box)));
+ }else{session.gate={on:false,at:Date.now()};roomKey=null;waiting.clear();answered.clear();knocked.clear();saveSession()}
+ if(!session||base!==room)return false;
+ await publishGate();republish();refresh();return true;
+}
+// A request to enter reached the Game Master (or the status of a page that does not know about the waiting room).
+function noteWaiting(id,fp,w){
+ const prev=waiting.get(id);if(prev&&(prev.sentAt>w.sentAt||(w.legacy&&!prev.legacy)))return;
+ // One device, one line: a page that was reloaded asks again under a new member id.
+ for(const [k,x] of waiting)if(k!==id&&x.fp===fp)waiting.delete(k);
+ // A full list is not announced line by line: whoever floods the door with new keys gets no word for each of them.
+ let full=false;if(!prev&&waiting.size>=(GATE()?.MAX_WAITING||20)){let old=null;for(const [k,x] of waiting)if(!old||x.at<old[1].at)old=[k,x];if(old)waiting.delete(old[0]);full=true}
+ waiting.set(id,{...w,fp});
+ if(!knocked.has(fp)){if(knocked.size>200)knocked.clear();knocked.add(fp);if(!full)app?.notify?.(`${w.name} ${tg('knocking')}`)}
+ repaint();
+}
+function admitWaiting(id){
+ const G=GATE(),g=session?.gate,w=waiting.get(id);if(!G||session?.role!=='gm'||!g?.on||!w)return false;
+ // The list is long enough for any table; when it is full, the one let in longest ago who is not here now gives way.
+ if(!g.admitted[w.fp]&&Object.keys(g.admitted).length>=G.MAX_ADMITTED){const here=new Set([...members.values()].map(m=>m.fp));let old='';for(const [f,v] of Object.entries(g.admitted))if(!here.has(f)&&(!old||v.at<g.admitted[old].at))old=f;if(old)delete g.admitted[old]}
+ g.admitted[w.fp]={name:w.name,at:Date.now()};g.denied=g.denied.filter(f=>f!==w.fp);waiting.delete(id);knocked.delete(w.fp);saveSession();
+ if(w.box)sendAdmit(id,w.box);refresh();return true;
+}
+function denyWaiting(id){
+ const G=GATE(),g=session?.gate,w=waiting.get(id);if(!G||session?.role!=='gm'||!g?.on||!w)return false;
+ g.denied=G.cleanDenied([...g.denied,w.fp]);waiting.delete(id);saveSession();send('e','deny',{to:id});refresh();return true;
+}
+// A member is removed: they leave the list and the key is replaced. Pages that are here get the new key at once; the rest ask
+// for it by themselves when they read the notice. The removed device is also refused until the Game Master allows it again.
+async function removeMember(fp){
+ const G=GATE(),g=session?.gate,room=base;if(!G||session?.role!=='gm'||!g?.on||!FP.test(fp||'')||fp===myFp())return false;
+ let made,k;try{made=await G.newKey();k=await G.importKey(made.key)}catch{app?.notify?.(tg('noCrypto'));return false}
+ if(!session||base!==room||session.role!=='gm'||session.gate!==g)return false;
+ const admitted={...g.admitted};delete admitted[fp];
+ const next=session.gate={on:true,key:made.key,kid:made.kid,admitted,denied:G.cleanDenied([...g.denied,fp]),at:Date.now()};roomKey=k;answered.clear();
+ for(const [id,m] of members)if(m.fp===fp)members.delete(id);
+ for(const [id,w] of waiting)if(w.fp===fp)waiting.delete(id);
+ saveSession();
+ if(session.deputyFp===fp)setDeputy('');
+ if(session.handoverTo?.fp===fp)cancelHandover();
+ await Promise.all([...members.entries()].filter(([,m])=>!m.me&&m.box&&next.admitted[m.fp]).map(([id,m])=>sendAdmit(id,m.box)));
+ if(!session||base!==room||session.gate!==next)return false;
+ await publishGate();republish();app?.notify?.(tg('removed'));refresh();return true;
+}
+// Did this key hand the room on to this device? (One of the keys its chain of handovers passes through.)
+async function handedBy(fp){const A=AUTH(),chain=A?.cleanChain(session?.gmChain);if(!chain)return false;try{for(const c of chain)if(await fingerprint(A.readHandover(c).from)===fp)return true}catch{}return false}
+// The Game Master's notice reached a player's page.
+function applyNotice(n,rawAt){
+ const was=session.gate,held=!!was?.on&&!!was.key&&!!roomKey,keep=n.on&&held&&was.kid===n.kid;
+ if(keep)session.gate={...was,want:n.kid,at:rawAt};
+ else if(n.on){session.gate={on:true,want:n.kid,kid:'',at:rawAt};roomKey=null;if(knockState!=='denied')knockState=held||knockState==='rekey'?'rekey':''}
+ else{session.gate={on:false,at:rawAt};roomKey=null;knockState=''}
+ saveSession();settleGate();
+ if(keep&&was.want===n.kid)return;
+ lastMember='';lastKnock='';publishMember(true);refresh();
+}
+// This page has just been given the key in use. What it showed of the others came sealed with another key (or with none) and
+// is dropped; the brokers are asked for what they keep once more, now that it can be read.
+function enterRoom(){
+ for(const id of [...members.keys()])if(id!==session.memberId)members.delete(id);
+ lastMember='';lastKnock='';try{transport?.resubscribe?.()}catch{}
+ publishMember(true);if(drives()){publishCombat(true);publishClocks(true)}flushOutbox();global.RoomWhispers?.flush?.();refresh();
+}
+// Messages a room with a waiting room sends sealed with the code alone (see LOBBY). Each is signed like any other.
+async function gateMessage(m,p,sub,fp,rawAt,at,when,fresh){
+ const G=GATE(),d=m.d;if(!G)return;
+ if(m.t==='gate'&&sub==='g'){
+  const n=G.cleanNotice(d);if(!n)return;
+  // The notice is also the Game Master's word about itself for a page that cannot read the room yet: the first Game Master a
+  // player meets, and a new device shown by a chain of handovers, are taken from it exactly as from a status.
+  if(!session.gmFp&&session.role==='player'){session.gmFp=fp;session.gmPin='first';saveSession();app?.notify?.(t('gmFirst').replace('{name}',n.name||'?').replace('{key}',keyLabel(fp)))}
+  if(fp!==session.gmFp&&d.proof&&await adoptProof(fp,d.proof)===null)return;
+  if(!session)return;
+  if(fp!==session.gmFp){
+   // This device became the Game Master through a file saved before the waiting room was turned on: the room stays closed.
+   if(session.role==='gm'&&!session.gate&&n.on&&await handedBy(fp)&&session?.role==='gm'&&!session.gate&&await setGate(true))app?.notify?.(tg('kept'));
+   return;
+  }
+  if(session.role==='gm')return;
+  const since=int(d.since,0,Number.MAX_SAFE_INTEGER);if(since>int(session.gmAt,0,Number.MAX_SAFE_INTEGER)){session.gmAt=since;saveSession()}
+  gateName=n.name;if(!p.retain)gateHeard=Date.now();
+  // Only a notice newer than the last word taken counts: an old one, sent again by somebody else, changes nothing.
+  // The very notice this page took last, kept by the brokers: nothing has changed, and its first status need not wait any longer.
+  if(!(rawAt>gateSeenAt)){if(rawAt===gateSeenAt&&!gateSettled){settleGate();publishMember(true)}return}
+  gateSeenAt=rawAt;applyNotice(n,rawAt);
+ }else if(m.t==='knock'&&sub==='m/'+m.from){
+  if(session.role!=='gm'||!gateOn()||Date.now()-at>STATE_TTL)return;
+  const k=G.cleanKnock(d),g=session.gate;if(!k||g.denied.includes(fp))return;
+  // A device let in before gets the key again without a question (a reloaded page, a key that was replaced).
+  if(g.admitted[fp]){const last=answered.get(m.from);if(last&&last.box===k.box.x&&last.kid===g.kid&&Date.now()-last.at<GATE_ANSWER)return;if(answered.size>200)answered.clear();answered.set(m.from,{box:k.box.x,kid:g.kid,at:Date.now()});sendAdmit(m.from,k.box);return}
+  // Somebody new is at the door right now: the notice is said again, so their page knows the Game Master is here.
+  if(!p.retain&&Date.now()-gateSaid>1500){gateSaid=Date.now();publishGate()}
+  noteWaiting(m.from,fp,{name:k.name,cname:k.cname,box:k.box,sentAt:at,at:when,legacy:false});
+ }else if(m.t==='admit'&&sub==='e'){
+  // The room key: only from the Game Master this page trusts, only live, only addressed here. Nobody else can open it: it is
+  // sealed to the key this open page holds. It must be the key the last notice names, or be newer than that notice (the key
+  // was replaced and the notice is still on its way): a key that has been replaced since is refused.
+  const mine=()=>!!session&&session.role!=='gm'&&!!session.gmFp&&fp===session.gmFp&&d.to===session.memberId;
+  const inUse=kid=>(gateOn()&&session.gate.want===kid)||rawAt>gateSeenAt;
+  if(!mine()||!fresh||p.retain)return;
+  let got=null;try{got=await G.readAdmit(await openFromPeer(d))}catch{return}
+  if(!got||!mine()||!inUse(got.kid)||(gateOn()&&roomKey&&session.gate.kid===got.kid))return;
+  let k;try{k=await G.importKey(got.key)}catch{return}
+  if(!mine()||!inUse(got.kid))return;
+  // Say so only to somebody who was shown the waiting screen: not when the room key is replaced, nor when the waiting room is turned on around those already in.
+  const waited=gateOn()&&!inRoom()&&knockState==='';
+  gateSeenAt=Math.max(gateSeenAt,rawAt);session.gate={on:true,want:got.kid,kid:got.kid,key:got.key,at:gateSeenAt};roomKey=k;knockState='';saveSession();settleGate();
+  if(waited)app?.notify?.(tg('admitted'));
+  enterRoom();
+ }else if(m.t==='deny'&&sub==='e'){
+  if(session.role==='gm'||fp!==session.gmFp||d.to!==session.memberId||!fresh||p.retain||!gateOn()||inRoom()||knockState==='denied')return;
+  knockState='denied';lastKnock='';app?.notify?.(tg('lobbyDenied'));publishMember(true);refresh();
+ }
 }
 
 /* ---------- Networking ---------- */
@@ -419,22 +616,34 @@ async function signedEnvelope(who,from,room,k,sub,type,data,at,id){
  return sealText(padded(JSON.stringify({v:PROTOCOL,b:body,s:b64(sig)})),k);
 }
 // The room key, topic and sender are taken at the moment of the call: signing is asynchronous, and leaving a room clears them at once.
-function envelope(sub,type,data,at=Date.now(),id=hex(rand(8))){const k=key,room=base,from=session.memberId;return ensureIdentity().then(me=>signedEnvelope(me,from,room,k,sub,type,data,at,id))}
+// In a room with a waiting room the key depends on the message (layerKey); a page that is still waiting sends only its request.
+function envelope(sub,type,data,at=Date.now(),id=hex(rand(8))){const k=layerKey(type),room=base,from=session.memberId;if(!k)return Promise.reject(Error('waiting'));return ensureIdentity().then(me=>signedEnvelope(me,from,room,k,sub,type,data,at,id))}
 async function send(sub,type,data,retain=false,via=transport,at=Date.now(),id=hex(rand(8))){
  if(!via||!key||!session)return 0;
  // Receivers drop anything over MAX_BYTES, so it is not sent at all.
  try{const bytes=await envelope(sub,type,data,at,id);return bytes.length>MAX_BYTES?0:via.publish(sub,bytes,retain)}catch{return 0}
 }
-function publishMember(force=false){if(!session)return;const d=memberPayload(),s=JSON.stringify(d);if(!force&&s===lastMember)return;lastMember=s;self(d);send('m/'+session.memberId,'member',d,true)}
+function publishMember(force=false){
+ if(!session)return;const d=memberPayload(),s=JSON.stringify(d);
+ // A room with a waiting room, and this page is not let in: it shows nothing of itself but a request to enter (a name and the
+ // key to seal the answer to), kept by the brokers until the Game Master is there. A page that was refused takes the request back.
+ if(!inRoom()){
+  const k={name:d.name,cname:clip(d.character?.name,60),box:gmPub},ks=knockState+JSON.stringify(k);if(!force&&ks===lastKnock)return;lastKnock=ks;self(d);
+  if(knockState==='denied')send('m/'+session.memberId,'left',{},true);else if(gmPub)send('m/'+session.memberId,'knock',k,true);
+  return;
+ }
+ if(!gateSettled){if(force||s!==lastMember)self(d);return}
+ if(!force&&s===lastMember)return;lastMember=s;self(d);send('m/'+session.memberId,'member',d,true)
+}
 function publishCombat(force=false){
- if(!drives())return;const d=combatPayload(),s=JSON.stringify(d);if(!force&&s===lastCombat)return;if(yields(combatBy,s,lastCombat)){lastCombat=s;return}lastCombat=s;combatBy=myFp();
+ if(!drives())return;const d=combatPayload(),s=JSON.stringify(d);if(!force&&s===lastCombat)return;if(yields(combatBy,bare(s),bare(lastCombat))){lastCombat=s;return}lastCombat=s;combatBy=myFp();
  const at=Date.now();combatAt=at;combatGot=at;combatSig='';
  if(d){combat={...d,from:session.memberId,at};send('c','combat',d,true,transport,at)}
  else{combat=null;send('c','cleared',{},true,transport,at)}
  refresh();
 }
 function publishClocks(force=false){
- if(!drives())return;global.RoomJournal?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
+ if(!drives())return;global.RoomJournal?.publish?.(force);global.CityMap?.publish?.(force);global.RoomAgent?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
  const at=Date.now();clocksAt=at;clocksGot=at;clocksSig='';
  if(d.length)send('k','clocks',{list:d},true,transport,at);else send('k','cleared',{},true,transport,at);
  refresh();
@@ -469,7 +678,7 @@ async function receive(p){
  const sub=p.topic.slice(base.length+1);
  // Empty retained messages carry no key, so anyone on a public broker could send one: ignore them.
  if(!p.payload.length||!underCap())return;
- let outer;try{outer=await open(p.payload)}catch{return}
+ let outer,deep=false;try{const got=await openAny(p.payload);outer=got?.outer;deep=!!got?.deep}catch{return}
  if(!session)return;
  // A page that has not been updated yet speaks the previous protocol: say so instead of staying silent. Only live traffic counts:
  // a copy a broker kept from before the update says nothing about who is in the room now.
@@ -489,8 +698,16 @@ async function receive(p){
  const rawAt=int(m.at,0,Number.MAX_SAFE_INTEGER),at=Math.min(rawAt,Date.now()),when=p.retain?at:Date.now();
  // Only the Game Master this page trusts can set the initiative and the clocks or answer about a sheet; events must be recent.
  const fromGM=!!session.gmFp&&fp===session.gmFp,fresh=Math.abs(Date.now()-rawAt)<=EVENT_WINDOW,live=Date.now()-rawAt<=EVENT_WINDOW,fromDeputy=!!deputyFp()&&fp===deputyFp();
- if(m.t==='left'&&sub==='m/'+m.from){const prev=members.get(m.from);if(prev&&prev.sentAt>at)return;if(members.delete(m.from))repaint();return}
+ if(m.t==='left'&&sub==='m/'+m.from){const w=waiting.get(m.from);if(w&&w.sentAt<=at){waiting.delete(m.from);repaint()}const prev=members.get(m.from);if(prev&&prev.sentAt>at)return;if(members.delete(m.from))repaint();return}
  if(m.t==='gone'&&sub==='m/'+m.from){const known=members.get(m.from);if(known&&rawAt>(known.goneMark||0)){known.goneMark=rawAt;known.suspectAt=Date.now();setTimeout(repaint,GONE_GRACE+200)}return}
+ // The waiting room. Sealed with the code alone, only the door is heard (see LOBBY); everything else must come sealed with the
+ // key the Game Master gave to those let in, so a stranger who has the code can neither read the room nor put anything into it.
+ if(LOBBY.has(m.t)){if(!deep)await gateMessage(m,p,sub,fp,rawAt,at,when,fresh);return}
+ if(gateOn()&&!deep){
+  // A page that was not updated, or one that has not read the notice yet, shows its status the old way: the Game Master sees it among those who wait.
+  if(m.t==='member'&&sub==='m/'+m.from&&session.role==='gm'&&Date.now()-at<FORGET_AFTER){const g=session.gate;if(!g.denied.includes(fp)&&!g.admitted[fp])noteWaiting(m.from,fp,{name:clip(m.d.name,40)||'?',cname:clip(m.d.character?.name,60),box:isCoord(m.d.box?.x)&&isCoord(m.d.box?.y)?{x:m.d.box.x,y:m.d.box.y}:null,sentAt:at,at:when,legacy:true})}
+  return;
+ }
  if(m.t==='member'&&sub==='m/'+m.from){
   if(Date.now()-at>FORGET_AFTER)return;
   const prev=members.get(m.from);if(prev&&prev.sentAt>at)return; // an older retained copy must not overwrite a newer status
@@ -504,7 +721,7 @@ async function receive(p){
   else if(claims&&d.proof&&session.role==='gm')noteRival(fp,d.proof);
   if(!prev&&members.size>=MAX_MEMBERS&&!evictOne())return;
   if(outbox.length&&!p.retain)flushOutbox(); // someone (re)connected: give them the rolls made while offline
-  if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive()},0);
+  if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive();if(lastCombat&&lastCombat!=='null')publishCombat()},0); // a player's HP changed: rows that show a state or HP follow at once (nothing is sent when the list is the same)
   members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',box:isCoord(d.box?.x)&&isCoord(d.box?.y)?{x:d.box.x,y:d.box.y}:null,at:when});
   // A member who (re)appears may carry a new box: whispers waiting for them go out now.
   if(!p.retain)setTimeout(()=>global.RoomWhispers?.flush?.(m.from.slice(0,24)),0);
@@ -515,7 +732,7 @@ async function receive(p){
   combatAt=at;combatBy=fp;if(m.t==='cleared'){combat=null;repaint();return}
   const d=m.d;if(!Array.isArray(d.order))return;
   const was=myTurn(combat);
-  combat={campaign:clip(d.campaign,80),round:int(d.round,1,9999),veiled:d.veiled===true,order:d.order.slice(0,40).map(r=>({name:clip(r?.name,60),pc:!!r?.pc,none:!!(r?.pc&&r?.none),own:typeof r?.own==='string'&&OWN.test(r.own)?r.own:'',init:int(r?.init),current:!!r?.current})),map:global.BattleMap?.cleanShared?.(d.map,Math.min(d.order.length,40))||null,from:m.from,at:when};
+  combat={campaign:clip(d.campaign,80),round:int(d.round,1,9999),veiled:d.veiled===true,order:d.order.slice(0,40).map(r=>({name:clip(r?.name,60),pc:!!r?.pc,none:!!(r?.pc&&r?.none),own:typeof r?.own==='string'&&OWN.test(r.own)?r.own:'',init:int(r?.init),current:!!r?.current,...(global.RoomVisibility?.clean?.(r)||{})})),map:global.BattleMap?.cleanShared?.(d.map,Math.min(d.order.length,40))||null,from:m.from,at:when};
   // The turn has just come to this player's character: say so, even when the room page is not the one open.
   if(!was&&myTurn(combat)&&!p.retain){if(session.toasts!==false)toast({total:'▶',who:t('yourTurn'),label:t('yourTurnHint'),kind:'turn'});try{if(global.localStorage?.getItem('nc-haptics')!=='off')global.navigator?.vibrate?.([120,80,120])}catch{}}
   repaint();
@@ -524,15 +741,21 @@ async function receive(p){
   const sig=m.t+JSON.stringify(m.d);if(fp!==clocksBy||sig!==clocksSig)clocksGot=Date.now();clocksSig=sig;clocksSeen.set(fp,rawAt);
   const before=clocks;clocksAt=at;clocksBy=fp;clocks=m.t==='cleared'?[]:cleanClocks(m.d.list);
   // A clock that moved (or a new one) gets a word, even when the room page is not the one open.
-  if(!p.retain&&session.toasts!==false)for(const k of clocks){const old=before.find(x=>x.name===k.name);if(old?old.filled!==k.filled:before.length||k.filled)toast({total:`${k.filled}/${k.size}`,who:t('clockMoved'),label:k.name,kind:'clock'})}
+  if(!p.retain&&session.toasts!==false)for(const k of clocks){const old=before.find(x=>x.name===k.name);if(old?old.filled!==k.filled:before.length||k.filled)toast({total:`${k.filled}/${k.size}`,who:t(k.filled>=k.size?'clockFull':'clockMoved'),label:k.name,kind:'clock'})}
   repaint();
  }else if(m.t==='journal'&&sub==='j'){
   if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();
+ }else if(m.t==='agent'&&sub==='a'){
+  if(fromGM&&global.RoomAgent?.receive?.(m.d,at,p.retain))repaint();
+ }else if(m.t==='citymap'&&sub==='p'){
+  if(fromGM&&global.CityMap?.receive?.(m.d,at,p.retain))repaint();
  }else if(m.t==='sheet'&&sub==='e'){
   if(session.role!=='gm'||m.d.to!==session.memberId||!fresh)return;
   let got=null;try{got=await readSheet(m.d)}catch{return}
   // Only something shaped like a sheet is listed: the list is drawn from its name and role.
   const c=got?.character;if(!c||typeof c!=='object'||Array.isArray(c)||typeof c.name!=='string'||typeof c.role!=='string')return;
+  // A page of an older version, or a changed one, may still send a folder, tags and item groups; they are not taken from another device.
+  if(c.extra&&typeof c.extra==='object'&&!Array.isArray(c.extra)){delete c.extra.folder;delete c.extra.tags;dropItemGroups(c.extra)}
   const ref=typeof m.d.ref==='string'?m.d.ref.slice(0,40):'',item={from:m.from,dev:got.dev,who:members.get(m.from)?.name||got.who||'—',character:c,ref,at:Date.now()},src=sheetSource(item),note=`${item.who} ${t('sheetReceived')}: ${clip(c.name,60)||'—'}`;
   incoming=[item,...incoming.filter(x=>sheetSource(x)!==src)].slice(0,10);keepIncoming();
   if(ref)send('e','sheet-got',{to:m.from,ref},false); // tells the player it arrived; 'sheet-ack' follows on accept
@@ -563,7 +786,7 @@ async function receive(p){
  }else if(m.t==='grant-ack'&&sub==='e'){
   if(session.role==='gm'&&fresh&&m.d.to===session.memberId)global.RoomGrants?.acked?.(m.d,{from:m.from});
  }else if(m.t==='handover'&&sub==='e'){
-  if(fromGM&&fresh&&m.d.to===myFp()&&await takeOver(m.d.chain))repaint();
+  if(fromGM&&fresh&&m.d.to===myFp()&&await takeOver(m.d.chain,m.d.gate))repaint();
  }
 }
 // The message a broker sends for this page when its connection drops without a goodbye (MQTT Last Will). It is signed like any other.
@@ -580,12 +803,19 @@ async function connect(){
   if(session.role==='gm'&&session.gmChain&&await AUTH()?.leafOf(session.gmChain)!==me.fp)delete session.gmChain;
   gmSeenAt=int(session.deputyAt,0,Number.MAX_SAFE_INTEGER);combatBy='';clocksBy='';combatSeen.clear();clocksSeen.clear();rivals.clear();combatGot=0;clocksGot=0;combatSig='';clocksSig='';
   muted.clear();for(const f of Array.isArray(session.muted)?session.muted:[])if(FP.test(f))muted.add(f);
+  // The waiting room: the room key this page holds (the Game Master's own, or the one a player was given) and the time of the last notice taken.
+  roomKey=null;waiting.clear();answered.clear();knocked.clear();knockState='';lastKnock='';gateHeard=0;gateSaid=0;gateName='';clearTimeout(gateTimer);gateTimer=null;
+  const G=GATE();if(session.gate){const g=G?.cleanGate(session.gate,session.role);if(g)session.gate=g;else delete session.gate}
+  if(session.gate?.on&&session.gate.key)try{roomKey=await G.importKey(session.gate.key)}catch{if(session.role==='gm')delete session.gate;else session.gate={on:true,want:session.gate.want,kid:'',at:session.gate.at}}
+  gateSeenAt=session.role==='gm'?0:int(session.gate?.at,0,Number.MAX_SAFE_INTEGER);
+  // A player's first status waits a moment for the notice: in a room with a waiting room it must not go out sealed with the code alone.
+  gateSettled=session.role==='gm'||!G||!!session.gate?.on;
   saveSession();await prepareWill();
  }catch{app?.notify?.(t('unsupported'));session=null;saveSession();refresh();return}
  members=new Map();combat=null;clocks=[];feed=loadFeed();if(session.role==='gm'&&!incoming.length)incoming=loadIncoming();outbox=[];clearTimeout(sheetTimer);sheetState=null;lastMember='';lastCombat='';lastClocks='';combatAt=0;clocksAt=0;connectedAt=Date.now();setTimeout(refresh,NO_GM_HINT+500);
- transport=global.RoomTransport.create({topic:base,brokers:brokers(),will:()=>willBytes&&session?{subtopic:'m/'+session.memberId,payload:willBytes}:null,onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){publishMember(true);publishCombat(true);publishClocks(true);flushOutbox();global.RoomWhispers?.flush?.()}refresh()}});
- publishMember(true);publishCombat(true);publishClocks(true);
- heartbeat=setInterval(()=>{publishMember(true);if(drives()){publishCombat(true);publishClocks(true)}sendHandover();prune();flushOutbox();global.RoomWhispers?.flush?.();prepareWill();refresh()},HEARTBEAT);
+ transport=global.RoomTransport.create({topic:base,brokers:brokers(),will:()=>willBytes&&session?{subtopic:'m/'+session.memberId,payload:willBytes}:null,onMessage:p=>{receive(p)},onStatus:s=>{const was=netStatus.online;netStatus=s;if(s.online>was){armGate();publishGate();publishMember(true);publishCombat(true);publishClocks(true);flushOutbox();global.RoomWhispers?.flush?.()}refresh()}});
+ publishGate();publishMember(true);publishCombat(true);publishClocks(true);
+ heartbeat=setInterval(()=>{publishGate();publishMember(true);if(drives()){publishCombat(true);publishClocks(true)}sendHandover();prune();flushOutbox();global.RoomWhispers?.flush?.();prepareWill();refresh()},HEARTBEAT);
  refresh();
 }
 function disconnect(clear=true){
@@ -599,9 +829,13 @@ function disconnect(clear=true){
   else if(dep&&(who.role==='gm'||dep===mine)){if(combatBy===mine)markers.push(send('c','cleared',{},true,tr));if(clocksBy===mine)markers.push(send('k','cleared',{},true,tr))}
   // The shared journal is only ever the Game Master's: an empty one replaces the retained copy (room-journal.js reads it as taken back).
   if(who.role==='gm')markers.push(send('j','journal',{campaign:'',list:[]},true,tr));
+  // The same for the «Агент» feed (room-agent.js): what was published does not outlive the Game Master's stay in the room.
+  if(who.role==='gm')markers.push(send('a','agent',{campaign:'',list:[]},true,tr));
+  // And for the pins of the city map shown to players (city-map.js).
+  if(who.role==='gm')markers.push(send('p','citymap',{campaign:'',pins:[]},true,tr));
   Promise.allSettled(markers).then(()=>setTimeout(()=>tr.close(),300));
  }else if(tr)tr.close();
- key=null;
+ key=null;roomKey=null;clearTimeout(gateTimer);gateTimer=null;
 }
 
 /* ---------- UI ---------- */
@@ -623,7 +857,7 @@ function woundOf(c){return c.hp<1?'mortal':c.hp<Math.ceil(c.max/2)?'serious':c.h
 function presence(m){if(m.me)return `<span class="room-dot on"></span>${esc(t('you'))}`;const age=Date.now()-m.at;return isOnline(m)?`<span class="room-dot on"></span>${esc(t('online'))}`:`<span class="room-dot"></span>${esc(t('offline'))} · ${Math.max(1,Math.round(age/60000))} ${esc(t('ago'))}`}
 function memberCard(id,m){
  const c=m.character;
- const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}${m.role!=='gm'&&m.fp&&m.fp===deputyFp()?AUTH()?.coBadge(lang())||'':''}${m.impostor?`<span class="room-badge warn">${esc(t('impostor'))}</span>`:''}<small>${presence(m)}</small>${!m.me&&m.role!=='gm'&&FP.test(m.fp||'')?`<button type="button" class="room-mute" data-room-action="mute" data-fp="${esc(m.fp)}" title="${esc(t('muteTitle'))}">${esc(t('mute'))}</button>`:''}</div>${AUTH()?.memberTools(m,{lang:lang(),gm:session?.role==='gm',deputy:deputyFp(),pending:!!session?.handoverTo})||''}${session?.role==='gm'&&!m.me?global.RoomGrants?.memberButton?.(id)||'':''}${!m.me?global.RoomWhispers?.memberButton?.(id)||'':''}`;
+ const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}${m.role!=='gm'&&m.fp&&m.fp===deputyFp()?AUTH()?.coBadge(lang())||'':''}${m.impostor?`<span class="room-badge warn">${esc(t('impostor'))}</span>`:''}<small>${presence(m)}</small>${!m.me&&m.role!=='gm'&&FP.test(m.fp||'')?`<button type="button" class="room-mute" data-room-action="mute" data-fp="${esc(m.fp)}" title="${esc(t('muteTitle'))}">${esc(t('mute'))}</button>`:''}</div>${AUTH()?.memberTools(m,{lang:lang(),gm:session?.role==='gm',deputy:deputyFp(),pending:!!session?.handoverTo})||''}${GATE()?.memberTool(m,{lang:lang(),gm:session?.role==='gm',on:gateOn()})||''}${session?.role==='gm'&&!m.me?global.RoomGrants?.memberButton?.(id)||'':''}${!m.me?global.RoomWhispers?.memberButton?.(id)||'':''}`;
  if(!c)return `<article class="room-member ${m.me?'me':''}">${head}<p class="room-muted">${esc(t('noChar'))}</p></article>`;
  const pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100))),w=woundOf(c);
  return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}${w==='serious'||w==='mortal'?` · <em class="room-wound ${w}">${esc(t(w==='mortal'?'woundMortal':'woundSerious'))}</em>`:''}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div>${c.rep?`<div><dt>REP</dt><dd>${c.rep}</dd></div>`:''}</dl></article>`;
@@ -632,7 +866,7 @@ function joinForms(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[],prev=session||loadSession()||{},code=pendingCode?formatCode(pendingCode):'';
  const charSelect=`<select id="room-character">${`<option value="">${esc(t('noCharacter'))}</option>`}${chars.map(c=>`<option value="${esc(c.id)}" ${prev.characterId===c.id?'selected':''}>${esc(c.name||'—')} · ${esc(roleName(c.role))}</option>`).join('')}</select>`;
  const nameVal=esc(prev.name||'');
- return `<div class="room-join-grid">${code?'':`<section class="card room-join"><div class="card-heading"><span>${esc(t('gm'))}</span><span>GM</span></div><p>${esc(t('gmLead'))}</p><label class="field">${esc(t('name'))}<input id="room-gm-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('campaign'))}<select id="room-campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'—')}</option>`).join('')}</select></label><label class="field">${esc(t('character'))}${charSelect.replace('id="room-character"','id="room-gm-character"')}</label><button type="button" class="btn primary wide" data-room-action="create">＋ ${esc(t('create'))}</button></section>`}<section class="card room-join"><div class="card-heading"><span>${esc(t('player'))}</span><span>JOIN</span></div><p>${esc(t('playerLead'))}</p><label class="field">${esc(t('code'))}<input id="room-code" maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${esc(t('codePh'))}" value="${esc(code)}"></label>${code&&pendingPin?`<p class="room-muted">${esc(t('pinNote'))}: <b>${esc(keyLabel(pendingPin))}</b></p>`:''}<label class="field">${esc(t('name'))}<input id="room-player-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('character'))}${charSelect}</label><button type="button" class="btn primary wide" data-room-action="join">→ ${esc(t('join'))}</button></section>${code?'':AUTH()?.importCard({lang:lang(),name:prev.name})||''}</div>`;
+ return `<div class="room-join-grid">${code?'':`<section class="card room-join"><div class="card-heading"><span>${esc(t('gm'))}</span><span>GM</span></div><p>${esc(t('gmLead'))}</p><label class="field">${esc(t('name'))}<input id="room-gm-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('campaign'))}<select id="room-campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'—')}</option>`).join('')}</select></label><label class="field">${esc(t('character'))}${charSelect.replace('id="room-character"','id="room-gm-character"')}</label>${GATE()?.createField(lang())||''}<button type="button" class="btn primary wide" data-room-action="create">＋ ${esc(t('create'))}</button></section>`}<section class="card room-join"><div class="card-heading"><span>${esc(t('player'))}</span><span>JOIN</span></div><p>${esc(t('playerLead'))}</p><label class="field">${esc(t('code'))}<input id="room-code" maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${esc(t('codePh'))}" value="${esc(code)}"></label>${code&&pendingPin?`<p class="room-muted">${esc(t('pinNote'))}: <b>${esc(keyLabel(pendingPin))}</b></p>`:''}<label class="field">${esc(t('name'))}<input id="room-player-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('character'))}${charSelect}</label><button type="button" class="btn primary wide" data-room-action="join">→ ${esc(t('join'))}</button></section>${code?'':AUTH()?.importCard({lang:lang(),name:prev.name})||''}</div>`;
 }
 function roomView(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[];
@@ -641,12 +875,16 @@ function roomView(){
  const charSelect=`<select data-room-field="character"><option value="">${esc(t('noCharacter'))}</option>${chars.map(c=>`<option value="${esc(c.id)}" ${session.characterId===c.id?'selected':''}>${esc(c.name||'—')}</option>`).join('')}</select>`;
  const campSelect=drives()?`<label class="field">${esc(t('campaign'))}<select data-room-field="campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}" ${session.campaignId===c.id?'selected':''}>${esc(c.name||'—')}</option>`).join('')}</select></label>${camps.length?'':`<small class="room-muted" data-room-nocamp>${esc(t('noCampHint'))}</small>`}`:'';
  const gms=list.filter(([,m])=>m.role==='gm').length,hasOtherGM=list.some(([,m])=>m.role==='gm'&&!m.me);
- const notes=`${pendingCode&&pendingCode!==session.code?`<div class="room-alert"><p>${esc(t('otherRoom'))}: <b>${esc(formatCode(pendingCode))}</b></p><div><button type="button" class="btn primary" data-room-action="switch">${esc(t('switchRoom'))}</button><button type="button" class="btn ghost" data-room-action="stay">${esc(t('stayRoom'))}</button></div></div>`:''}${session.role==='player'&&!hasOtherGM&&netStatus.online&&Date.now()-connectedAt>NO_GM_HINT?`<p class="room-alert soft">${esc(t('noGM'))}</p>`:''}${gms>1?`<p class="room-alert soft">${esc(t('twoGM'))}</p>`:''}${list.some(([,m])=>m.impostor)?`<p class="room-alert soft">${esc(t('impostorNote'))}</p>`:''}${Date.now()-oldSeen<120000?`<p class="room-alert soft">${esc(t('oldVersion'))}</p>`:''}`;
- return notes+`<div class="room-banner ${netStatus.online?'ok':'bad'}"><div><small>${esc(t('room'))}</small><strong class="room-code">${esc(formatCode(session.code))}</strong></div><div class="room-banner-actions"><button type="button" class="btn primary" data-room-action="copy">⧉ ${esc(t('copy'))}</button>${global.navigator?.share?`<button type="button" class="btn ghost" data-room-action="share">↗ ${esc(t('share'))}</button>`:''}<button type="button" class="btn ghost" data-room-action="qr" aria-expanded="${qrFor===session.code}">▦ QR</button><button type="button" class="btn ghost" data-room-action="leave">✕ ${esc(t('leave'))}</button></div>${qrFor===session.code&&qrMarkup?`<div class="room-qr">${qrMarkup}<small>${esc(lang()==='ru'?'Наведите камеру телефона, чтобы открыть комнату':'Point a phone camera here to open the room')}</small></div>`:''}${FP.test(session.gmFp||'')?`<p class="room-key">${esc(session.gmPin==='handover'?ta('keyMoved'):t(session.role==='gm'?'keyMine':session.gmPin==='link'?'keyLink':'keyFirst'))}: <b>${esc(keyLabel(session.gmFp))}</b></p>`:''}${session.role!=='gm'&&AUTH()?`<p class="room-key">${esc(ta('myKey'))}: <b>${esc(keyLabel(myFp()))}</b></p>`:''}${muted.size?`<p class="room-key">${esc(t('mutedCount'))}: ${muted.size} <button type="button" class="room-mute" data-room-action="unmute-all">${esc(t('unmute'))}</button></p>`:''}<p class="room-net"><span class="room-dot ${netStatus.online?'on':''}"></span>${esc(t('servers'))}: ${net}${netStatus.total&&!netStatus.online?` — ${esc(t('noNetwork'))}`:''}</p></div>
- <section class="card room-me"><div class="card-heading"><span>${esc(t('you'))}: ${esc(session.name)} · ${esc(t(session.role==='gm'?'asGM':'asPlayer'))}${amDeputy()?' · '+esc(ta('coBadge')):''}</span><span>SETTINGS</span></div><div class="room-me-grid"><label class="field">${esc(t('character'))}${charSelect}</label>${campSelect}</div><label class="room-check"><input type="checkbox" data-room-field="broadcast" ${session.broadcastRolls!==false?'checked':''}> ${esc(t('broadcast'))}</label><label class="room-check"><input type="checkbox" data-room-field="toasts" ${session.toasts!==false?'checked':''}> ${esc(t('toasts'))}</label><label class="room-check"><input type="checkbox" data-room-field="portrait" ${session.sharePortrait!==false?'checked':''}> ${esc(t('sharePortrait'))}</label>${AUTH()?.panel({lang:lang(),gm:session.role==='gm',co:amDeputy(),deputy:deputyFp(),pending:session.handoverTo,keyLabel})||''}${session.role==='player'&&session.characterId&&chars.some(c=>c.id===session.characterId)?`<div class="room-send"><button type="button" class="btn ghost" data-room-action="send-sheet" ${hasOtherGM?'':'disabled'}>📤 ${esc(t('sendSheet'))}</button><small>${esc(hasOtherGM?t('sendSheetHelp'):t('noGMKey'))}</small>${sheetState&&sheetState.char===session.characterId?`<p class="room-send-status" data-state="${sheetState.state}"><span aria-hidden="true">${SHEET_ICON[sheetState.state]||''}</span> ${esc(sheetText(sheetState))}</p>`:''}</div>`:''}</section>${session.role==='gm'&&incoming.length?`<section class="card room-incoming"><div class="card-heading"><span>${esc(t('incoming'))}</span><span data-nx>${incoming.length}</span></div><ul>${incoming.map((x,i)=>`<li><div><b>${esc(clip(x.character.name,60)||'—')}</b><small>${esc(t('fromPlayer'))} ${esc(x.who)}${x.character.role?` · ${esc(roleName(clip(x.character.role,20)))}`:''}</small></div><div>${x.saved&&chars.some(c=>c?.id===x.saved)?`<button type="button" class="btn ghost" data-room-action="open-sheet" data-id="${esc(x.saved)}">${esc(t('openSheet'))}</button>`:`<button type="button" class="btn primary" data-room-action="accept-sheet" data-index="${i}">${esc(t(sheetKnown(x,chars)?'update':'accept'))}</button><button type="button" class="btn ghost" data-room-action="decline-sheet" data-index="${i}">${esc(t('decline'))}</button>`}</div></li>`).join('')}</ul></section>`:''}
- <div class="room-columns"><section class="card room-team"><div class="card-heading"><span>${esc(t('team'))}</span><span data-nx>${list.length}</span></div>${session.role==='gm'?global.RoomGrants?.teamButton?.()||'':''}${list.length>1?'':`<p class="room-muted">${esc(t('noTeam'))}</p>`}<div class="room-members">${list.map(([id,m])=>memberCard(id,m)).join('')}</div></section>
- <div class="room-side">${clocks.length?`<section class="card room-clocks"><div class="card-heading"><span>${esc(t('clocks'))}</span><span data-nx>${clocks.length}</span></div><div class="room-clock-list">${clocks.map(k=>`<div class="room-clock">${clockSvg(k.size,k.filled)}<div><b>${esc(k.name)}</b><small>${k.filled} / ${k.size}</small></div></div>`).join('')}</div></section>`:''}<section class="card room-combat"><div class="card-heading"><span>${esc(t('initiative'))}</span><span>${combat?`${esc(t('round'))} ${combat.round}`:'—'}</span></div>${combat?`<p class="room-muted">${esc(combat.campaign)}</p>${combat.veiled?`<p class="room-alert soft">${esc(t('veiled'))}</p>`:''}<ol class="room-order">${combat.order.map(r=>`<li class="${r.current?'current':''} ${r.pc?'pc':'npc'}${isMine(r)?' mine':''}"><b>${r.init}</b>${r.pc&&(r.none||!r.name)?`<span class="room-none">${esc(t('noChar'))}</span>`:`<span>${esc(r.name)}</span>`}${r.current?`<em>${esc(isMine(r)?t('yourTurn'):t('turn'))}</em>`:''}</li>`).join('')}</ol>${global.BattleMap?.sharedHTML?.(combat,lang())||''}`:`<p class="room-muted">${esc(t('noCombat'))}</p>`}</section>${global.RoomJournal?.card?.()||''}
- <section class="card room-feed"><div class="card-heading"><span>${esc(t('rolls'))}</span><span data-nx>${feed.length}</span></div>${feed.length?`<ol class="room-rolls">${feed.map(r=>`<li class="${r.crit} ${r.mine?'mine':''}"><b class="room-roll-total">${esc(r.total)}</b><div><strong>${esc(r.who)}${r.character?` · ${esc(r.character)}`:''}</strong><span>${esc(r.label)}${r.crit?` · <em>${esc(t(r.crit))}</em>`:''}</span><small>${esc(r.detail)} · ${new Date(r.at).toLocaleTimeString(lang()==='ru'?'ru-RU':'en-GB',{hour:'2-digit',minute:'2-digit'})}${r.pending?` · <span class="room-pending">⏳ ${esc(t('notSent'))}</span>`:''}</small></div></li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noRolls'))}</p>`}</section></div></div>`;
+ // The waiting room (room-gate.js): a page that is not let in yet sees the door, not the room; the Game Master sees who waits.
+ const G=GATE(),lobby=!!key&&!inRoom(),isGM=session.role==='gm',queue=isGM&&gateOn()?[...waiting.entries()].sort((a,b)=>a[1].at-b[1].at):[],refused=isGM&&gateOn()?session.gate.denied.length:0;
+ const gateCard=G&&(queue.length||refused)?G.waitingCard({lang:lang(),waiting:queue,denied:refused,keyLabel}):'';
+ const lobbyCard=lobby?G?.lobby({lang:lang(),state:knockState,gm:gateName,gmOnline:gateHeard?Date.now()-gateHeard<ONLINE_FOR:Date.now()-connectedAt>HEARTBEAT+15000?false:null,myKey:keyLabel(myFp())})||'':'';
+ const notes=`${pendingCode&&pendingCode!==session.code?`<div class="room-alert"><p>${esc(t('otherRoom'))}: <b>${esc(formatCode(pendingCode))}</b></p><div><button type="button" class="btn primary" data-room-action="switch">${esc(t('switchRoom'))}</button><button type="button" class="btn ghost" data-room-action="stay">${esc(t('stayRoom'))}</button></div></div>`:''}${session.role==='player'&&!lobby&&!hasOtherGM&&netStatus.online&&Date.now()-connectedAt>NO_GM_HINT?`<p class="room-alert soft">${esc(t('noGM'))}</p>`:''}${gms>1?`<p class="room-alert soft">${esc(t('twoGM'))}</p>`:''}${list.some(([,m])=>m.impostor)?`<p class="room-alert soft">${esc(t('impostorNote'))}</p>`:''}${Date.now()-oldSeen<120000?`<p class="room-alert soft">${esc(t('oldVersion'))}</p>`:''}`;
+ return notes+`<div class="room-banner ${netStatus.online?'ok':'bad'}"><div><small>${esc(t('room'))}</small><strong class="room-code">${esc(formatCode(session.code))}</strong></div><div class="room-banner-actions"><button type="button" class="btn primary" data-room-action="copy">⧉ ${esc(t('copy'))}</button>${global.navigator?.share?`<button type="button" class="btn ghost" data-room-action="share">↗ ${esc(t('share'))}</button>`:''}<button type="button" class="btn ghost" data-room-action="qr" aria-expanded="${qrFor===session.code}">▦ QR</button><button type="button" class="btn ghost" data-room-action="leave">✕ ${esc(t('leave'))}</button></div>${qrFor===session.code&&qrMarkup?`<div class="room-qr">${qrMarkup}<small>${esc(lang()==='ru'?'Наведите камеру телефона, чтобы открыть комнату':'Point a phone camera here to open the room')}</small></div>`:''}${FP.test(session.gmFp||'')?`<p class="room-key">${esc(session.gmPin==='handover'?ta('keyMoved'):t(session.role==='gm'?'keyMine':session.gmPin==='link'?'keyLink':'keyFirst'))}: <b>${esc(keyLabel(session.gmFp))}</b></p>`:''}${session.role!=='gm'&&AUTH()?`<p class="room-key">${esc(ta('myKey'))}: <b>${esc(keyLabel(myFp()))}</b></p>`:''}${muted.size?`<p class="room-key">${esc(t('mutedCount'))}: ${muted.size} <button type="button" class="room-mute" data-room-action="unmute-all">${esc(t('unmute'))}</button></p>`:''}${G&&gateOn()&&!lobby?G.lockNote({lang:lang(),gm:isGM}):''}<p class="room-net"><span class="room-dot ${netStatus.online?'on':''}"></span>${esc(t('servers'))}: ${net}${netStatus.total&&!netStatus.online?` — ${esc(t('noNetwork'))}`:''}</p></div>
+ ${gateCard}${lobby?lobbyCard:''}<section class="card room-me"><div class="card-heading"><span>${esc(t('you'))}: ${esc(session.name)} · ${esc(t(session.role==='gm'?'asGM':'asPlayer'))}${amDeputy()?' · '+esc(ta('coBadge')):''}</span><span>SETTINGS</span></div><div class="room-me-grid"><label class="field">${esc(t('character'))}${charSelect}</label>${campSelect}</div><label class="room-check"><input type="checkbox" data-room-field="broadcast" ${session.broadcastRolls!==false?'checked':''}> ${esc(t('broadcast'))}</label><label class="room-check"><input type="checkbox" data-room-field="toasts" ${session.toasts!==false?'checked':''}> ${esc(t('toasts'))}</label><label class="room-check"><input type="checkbox" data-room-field="portrait" ${session.sharePortrait!==false?'checked':''}> ${esc(t('sharePortrait'))}</label>${isGM&&G?G.toggle({lang:lang(),on:gateOn()}):''}${AUTH()?.panel({lang:lang(),gm:session.role==='gm',co:amDeputy(),deputy:deputyFp(),pending:session.handoverTo,keyLabel})||''}${session.role==='player'&&!lobby&&session.characterId&&chars.some(c=>c.id===session.characterId)?`<div class="room-send"><button type="button" class="btn ghost" data-room-action="send-sheet" ${hasOtherGM?'':'disabled'}>📤 ${esc(t('sendSheet'))}</button><small>${esc(hasOtherGM?t('sendSheetHelp'):t('noGMKey'))}</small>${sheetState&&sheetState.char===session.characterId?`<p class="room-send-status" data-state="${sheetState.state}"><span aria-hidden="true">${SHEET_ICON[sheetState.state]||''}</span> ${esc(sheetText(sheetState))}</p>`:''}</div>`:''}</section>${session.role==='gm'&&incoming.length?`<section class="card room-incoming"><div class="card-heading"><span>${esc(t('incoming'))}</span><span data-nx>${incoming.length}</span></div><ul>${incoming.map((x,i)=>`<li><div><b>${esc(clip(x.character.name,60)||'—')}</b><small>${esc(t('fromPlayer'))} ${esc(x.who)}${x.character.role?` · ${esc(roleName(clip(x.character.role,20)))}`:''}</small></div><div>${x.saved&&chars.some(c=>c?.id===x.saved)?`<button type="button" class="btn ghost" data-room-action="open-sheet" data-id="${esc(x.saved)}">${esc(t('openSheet'))}</button>`:`<button type="button" class="btn primary" data-room-action="accept-sheet" data-index="${i}">${esc(t(sheetKnown(x,chars)?'update':'accept'))}</button><button type="button" class="btn ghost" data-room-action="decline-sheet" data-index="${i}">${esc(t('decline'))}</button>`}</div></li>`).join('')}</ul></section>`:''}
+ ${lobby?'':`<div class="room-columns"><section class="card room-team"><div class="card-heading"><span>${esc(t('team'))}</span><span data-nx>${list.length}</span></div>${session.role==='gm'?global.RoomGrants?.teamButton?.()||'':''}${list.length>1?'':`<p class="room-muted">${esc(t('noTeam'))}</p>`}<div class="room-members">${list.map(([id,m])=>memberCard(id,m)).join('')}</div></section>
+ <div class="room-side">${clocks.length?`<section class="card room-clocks"><div class="card-heading"><span>${esc(t('clocks'))}</span><span data-nx>${clocks.length}</span></div><div class="room-clock-list">${clocks.map(k=>`<div class="room-clock${k.filled>=k.size?' full':''}">${clockSvg(k.size,k.filled)}<div><b>${esc(k.name)}</b><small>${k.filled} / ${k.size}${k.filled>=k.size?' · '+esc(t('clockFull')):''}</small></div></div>`).join('')}</div></section>`:''}<section class="card room-combat"><div class="card-heading"><span>${esc(t('initiative'))}</span><span>${combat?`${esc(t('round'))} ${combat.round}`:'—'}</span></div>${combat?`<p class="room-muted">${esc(combat.campaign)}</p>${combat.veiled?`<p class="room-alert soft">${esc(t('veiled'))}</p>`:''}<ol class="room-order">${combat.order.map(r=>`<li class="${r.current?'current':''} ${r.pc?'pc':'npc'}${isMine(r)?' mine':''}${global.RoomVisibility?.chips?.(r,lang())?' rv-has':''}"><b>${r.init}</b>${r.pc&&(r.none||!r.name)?`<span class="room-none">${esc(t('noChar'))}</span>`:`<span>${esc(r.name)}</span>`}${global.RoomVisibility?.chips?.(r,lang())||''}${r.current?`<em>${esc(isMine(r)?t('yourTurn'):t('turn'))}</em>`:''}</li>`).join('')}</ol>${session.role==='gm'?global.RoomVisibility?.gmNote?.(lang())||'':''}${global.BattleMap?.sharedHTML?.(combat,lang())||''}`:`<p class="room-muted">${esc(t('noCombat'))}</p>`}</section>${global.RoomAgent?.card?.()||''}${global.RoomJournal?.card?.()||''}${global.CityMap?.roomCard?.()||''}
+ <section class="card room-feed"><div class="card-heading"><span>${esc(t('rolls'))}</span><span data-nx>${feed.length}</span></div>${feed.length?`<ol class="room-rolls">${feed.map(r=>`<li class="${r.crit} ${r.mine?'mine':''}"><b class="room-roll-total">${esc(r.total)}</b><div><strong>${esc(r.who)}${r.character?` · ${esc(r.character)}`:''}</strong><span>${esc(r.label)}${r.crit?` · <em>${esc(t(r.crit))}</em>`:''}</span><small>${esc(r.detail)} · ${new Date(r.at).toLocaleTimeString(lang()==='ru'?'ru-RU':'en-GB',{hour:'2-digit',minute:'2-digit'})}${r.pending?` · <span class="room-pending">⏳ ${esc(t('notSent'))}</span>`:''}</small></div></li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noRolls'))}</p>`}</section></div></div>`}`;
 }
 function inner(){
  return `<div class="page-header"><div><div class="overline">${esc(t('over'))}</div><h1>${esc(t('title'))}</h1><p>${esc(t('lead'))}</p></div></div>${session?roomView():joinForms()}<div class="source-strip room-how"><div class="source-symbol">⌬</div><div><strong>${lang()==='ru'?'КАК ЭТО РАБОТАЕТ':'HOW IT WORKS'}</strong><p>${esc(t('how'))} ${esc(t('tip'))}</p></div></div>`;
@@ -688,16 +926,20 @@ function renderPill(){
  const others=[...members.values()].filter(m=>!m.me&&isOnline(m)).length;
  // While the turn is this player's, the pill says so on every page: the toast is gone in a few seconds.
  const mine=myTurn(combat),w=global.RoomWhispers?.unread?.()||0;
- return `<button type="button" class="room-pill ${netStatus.online?'ok':''}${mine?' turn':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${mine?'▶ '+esc(t('yourTurn')):esc(t('nav'))}</span> · ${others+1}${w?` <span class="room-pill-unread" aria-label="${esc(lang()==='ru'?'Непрочитанный шёпот':'Unread whisper')}">✉ ${w}</span>`:''}</button>`;
+ // The waiting room is seen from any page: the Game Master learns that somebody waits, a player that they are still at the door.
+ const queue=session.role==='gm'&&gateOn()?waiting.size:0,door=!!key&&!inRoom();
+ return `<button type="button" class="room-pill ${netStatus.online?'ok':''}${mine?' turn':''}" data-room-pill data-action="navigate" data-view="room" title="${esc(door?tg('pillWait'):t('nav'))}"><span class="room-dot ${netStatus.online?'on':''}"></span><span class="room-pill-label">${mine?'▶ '+esc(t('yourTurn')):esc(t('nav'))}</span> · ${door?'⏳':others+1}${queue?` <span class="room-pill-unread room-pill-gate" aria-label="${esc(tg('pill'))}">⏳ ${queue}</span>`:''}${w?` <span class="room-pill-unread" aria-label="${esc(lang()==='ru'?'Непрочитанный шёпот':'Unread whisper')}">✉ ${w}</span>`:''}</button>`;
 }
 
 async function startSession(next){
  if(joining)return;joining=true;
  try{
   let me;try{me=await ensureIdentity()}catch{app?.notify?.(t('unsupported'));return}
-  if(session&&transport)disconnect(true);
   const gm=next.role==='gm',pin=!gm&&FP.test(next.pin||'')?next.pin:'';
-  session={code:next.code,role:next.role,name:next.name,characterId:next.characterId||'',campaignId:next.campaignId||'',memberId:me.fp+'.'+hex(rand(4)),gmFp:gm?me.fp:pin,gmPin:gm?'self':pin?'link':'',muted:[],broadcastRolls:true,toasts:true,sharePortrait:true,...(gm&&next.gmChain?{gmChain:next.gmChain,gmAt:next.gmAt}:{})};
+  // A room created with a waiting room has its key before the first message goes out.
+  const gate=gm&&next.gated?await freshGate():null;
+  if(session&&transport)disconnect(true);
+  session={code:next.code,role:next.role,name:next.name,characterId:next.characterId||'',campaignId:next.campaignId||'',memberId:me.fp+'.'+hex(rand(4)),gmFp:gm?me.fp:pin,gmPin:gm?'self':pin?'link':'',muted:[],broadcastRolls:true,toasts:true,sharePortrait:true,...(gm&&next.gmChain?{gmChain:next.gmChain,gmAt:next.gmAt}:{}),...(gate?{gate}:{})};
   pendingCode=null;pendingPin='';saveSession();
   await connect();
  }finally{joining=false}
@@ -706,7 +948,7 @@ function value(sel){return doc.querySelector(sel)?.value?.trim()||''}
 doc.addEventListener('click',async e=>{
  const b=e.target.closest?.('[data-room-action]');if(!b)return;
  const a=b.dataset.roomAction;
- if(a==='create'){const name=clip(value('#room-gm-name'),40);if(!name){app?.notify?.(t('needName'));doc.querySelector('#room-gm-name')?.focus();return}await startSession({code:newCode(),role:'gm',name,campaignId:value('#room-campaign'),characterId:value('#room-gm-character')});global.scrollTo?.(0,0)}
+ if(a==='create'){const name=clip(value('#room-gm-name'),40);if(!name){app?.notify?.(t('needName'));doc.querySelector('#room-gm-name')?.focus();return}await startSession({code:newCode(),role:'gm',name,campaignId:value('#room-campaign'),characterId:value('#room-gm-character'),gated:!!doc.querySelector('#room-gate')?.checked});global.scrollTo?.(0,0)}
  else if(a==='join'){const invite=parseInvite(value('#room-code')),code=invite?.code,pin=invite?.pin||(code&&code===pendingCode?pendingPin:'');if(!code){app?.notify?.(t('badCode'));doc.querySelector('#room-code')?.focus();return}const name=clip(value('#room-player-name'),40);if(!name){app?.notify?.(t('needName'));doc.querySelector('#room-player-name')?.focus();return}await startSession({code,pin,role:'player',name,characterId:value('#room-character')});global.scrollTo?.(0,0)}
  else if(a==='switch'&&pendingCode){const code=pendingCode,pin=pendingPin;await startSession({code,pin,role:'player',name:session?.name||'?',characterId:session?.characterId||''});global.scrollTo?.(0,0)}
  else if(a==='stay'){pendingCode=null;pendingPin='';refresh()}
@@ -722,6 +964,12 @@ doc.addEventListener('click',async e=>{
  else if(a==='co-revoke'){setDeputy('')}
  else if(a==='handover'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('handoverConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;b.disabled=true;await startHandover(fp)}
  else if(a==='handover-cancel')cancelHandover();
+ else if(a==='gate-admit')admitWaiting(b.dataset.id);
+ else if(a==='gate-admit-all'){for(const id of [...waiting.keys()])admitWaiting(id)}
+ else if(a==='gate-deny')denyWaiting(b.dataset.id);
+ else if(a==='gate-forgive'){if(session?.role!=='gm'||!gateOn())return;session.gate.denied=[];knocked.clear();saveSession();refresh()}
+ else if(a==='gate-remove'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!gateOn()||!m)return;if(!global.confirm(tg('removeConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;b.disabled=true;await removeMember(fp)}
+ else if(a==='gate-again'){if(!session||inRoom()||knockState!=='denied')return;knockState='';lastKnock='';publishMember(true);refresh()}
  else if(a==='gm-file'){b.disabled=true;await saveGMFile();refresh()}
  else if(a==='gm-file-open'){const name=value('#room-file-name'),text=await AUTH()?.pickFile();if(!text)return;if(await openGMFile(text,name))global.scrollTo?.(0,0)}
  else if(a==='leave'){if(!global.confirm(t('leaveConfirm')))return;global.RoomWhispers?.forget?.();disconnect(true);session=null;members=new Map();combat=null;feed=[];incoming=[];keepFeed();keepIncoming();clearTimeout(sheetTimer);sheetState=null;saveSession();refresh()}
@@ -735,6 +983,8 @@ doc.addEventListener('change',e=>{
  else if(f==='broadcast'){session.broadcastRolls=e.target.checked;saveSession()}
  else if(f==='toasts'){session.toasts=e.target.checked;saveSession()}
  else if(f==='portrait'){session.sharePortrait=e.target.checked;saveSession();publishMember()}
+ // The waiting room is turned on or off only after a question: both change who can see the room.
+ else if(f==='gate'){const on=!!e.target.checked;if(session.role!=='gm'||on===gateOn()||!global.confirm?.(tg(on?'onConfirm':'offConfirm'))){refresh();return}setGate(on).then(done=>{if(!done)refresh()})}
 });
 // Capture a shared room link before the router normalizes the address.
 function captureCode(){
@@ -750,7 +1000,8 @@ function adoptPin(pin){
  if(Array.isArray(session.gmWas)&&session.gmWas.includes(pin))return false;
  if(FP.test(session.gmFp||'')&&!global.confirm?.(t('pinChange').replace('{old}',keyLabel(session.gmFp)).replace('{new}',keyLabel(pin))))return false;
  // The time of the last handover belongs to the key trusted before; kept, it would refuse every handover the new key signs.
- session.gmFp=pin;session.gmPin='link';delete session.gmAt;delete session.gmWas;saveSession();return true;
+ // What the key trusted before said about a waiting room, and the room key it gave, are not the new Game Master's.
+ session.gmFp=pin;session.gmPin='link';delete session.gmAt;delete session.gmWas;delete session.gate;saveSession();return true;
 }
 captureCode();
 global.addEventListener?.('popstate',captureCode);
@@ -787,7 +1038,10 @@ global.Room={
  },
  active:()=>!!session,
  // For room-journal.js: who this page is in the room, and the Game Master's retained message with the shared journal.
+ mapLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('p','citymap',d,true,transport,at):Promise.resolve(0)},
  journalLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('j','journal',d,true,transport,at):Promise.resolve(0)},
+ // For room-agent.js: the same view of the room, and the Game Master's retained message with the «Агент» feed.
+ agentLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('a','agent',d,true,transport,at):Promise.resolve(0)},
  // For room-grants.js. Only the Game Master's device sends a grant; a player's device sends only the answer to one.
  grantLink:{
   who:()=>session?{role:session.role,code:session.code,memberId:session.memberId,characterId:session.characterId||''}:null,
@@ -810,6 +1064,6 @@ global.Room={
  liveText(c){try{const row=rowOwn(c),live=row?liveRow(c,null):liveFor(c);return live?`♥ ${live.hp}/${live.max} ${t('liveHp')}`:row?`${t('fromRoomTag')} · ${t('liveOff')}`:''}catch{return ''}},
  liveRow(r,c){try{return liveRow(r,c)}catch{return null}},
  rosterCard(camp){try{return rosterCard(camp)}catch{return ''}},
- _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,restore:()=>{feed=loadFeed();incoming=loadIncoming()},addFromRoom,syncRows,rosterCard,liveRow,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
+ _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,restore:()=>{feed=loadFeed();incoming=loadIncoming()},addFromRoom,syncRows,rosterCard,liveRow,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),gate:{setGate,admitWaiting,denyWaiting,removeMember,publishGate,layerKey,openAny,inRoom,gateOn,waiting:()=>waiting,roomKey:()=>roomKey,state:()=>({knockState,gateSeenAt,gateSettled,gateHeard}),hold:()=>{gateSettled=false},settle:()=>{settleGate();publishMember(true)}},auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
 };
 })(window);

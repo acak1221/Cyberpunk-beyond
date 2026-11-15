@@ -145,7 +145,8 @@ function parseFile(text){
  if(!o||typeof o!=='object'||Array.isArray(o)||o.format!==FILE_FORMAT||o.v!==FILE_VERSION||typeof o.code!=='string'||!CODE.test(o.code))return null;
  const chain=cleanChain(o.chain),k=o.key;
  if(!chain||!k||typeof k!=='object'||k.kty!=='EC'||k.crv!=='P-256'||!isCoord(k.x)||!isCoord(k.y)||!isCoord(k.d))return null;
- return {code:o.code,name:typeof o.name==='string'?o.name.slice(0,40):'',chain,key:{kty:'EC',crv:'P-256',x:k.x,y:k.y,d:k.d}};
+ // gated: the room had a waiting room when the file was saved (room-gate.js); the device that opens it keeps the room closed.
+ return {code:o.code,name:typeof o.name==='string'?o.name.slice(0,40):'',chain,key:{kty:'EC',crv:'P-256',x:k.x,y:k.y,d:k.d},gated:o.gated===true};
 }
 // The spare key from the file signs for this device. The result is checked like any chain a stranger would show.
 async function redeem(file,me,room){

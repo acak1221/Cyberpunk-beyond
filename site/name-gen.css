@@ -1,0 +1,19 @@
+/* The die and the «вернуть» button next to a name field (name-gen.js). The buttons are ordinary ghost buttons, so every
+   look colours them itself; only the size and the place are set here. */
+.ng-slot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; min-width: 0; container-type: inline-size; }
+.ng-slot > .field { flex: 1 1 0; min-width: 0; margin: 0; }
+/* The flex row would otherwise show a button that carries the hidden attribute. */
+.ng-slot > [hidden] { display: none !important; }
+/* One height for the field and the buttons, and a full touch target on a phone and a desktop alike. */
+.ng-slot .field input { min-height: 44px; }
+.ng-slot > .ng-btn { display: inline-grid; place-items: center; flex: none; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; margin: 0; font-size: 18px; line-height: 1; }
+.ng-btn svg { width: 20px; height: 20px; }
+/* In a narrow place (a side column on a desktop, a padded card on a phone) the two buttons would leave the field too
+   short for the longest names, and their ends would be cut off. There the field takes the whole row and the buttons go
+   under it. The width is that of the slot, not of the screen, and it does not depend on whether the undo button shows,
+   so the die never jumps away at the first tap. A browser without container queries keeps everything in one row. */
+@container (max-width: 319px) { .ng-slot > .field { flex-basis: 100%; } }
+@media print { .ng-btn { display: none !important; } }
+/* The quick builder puts its fields in narrow columns (two even on a phone in the cyber look): next to two buttons the
+   handle would be cut after a few letters, so there the field takes the whole row. */
+.quick-grid > .ng-slot { grid-column: 1 / -1; }

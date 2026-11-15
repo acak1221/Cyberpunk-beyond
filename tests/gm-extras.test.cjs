@@ -120,3 +120,22 @@ test('index.html loads gm-extras before app.js and its stylesheet before theme.c
  assert(html.indexOf('gm-extras.js')>html.indexOf('night-market.js'));assert(html.indexOf('gm-extras.js')<html.indexOf('src="app.js"'));
  assert(html.indexOf('gm-extras.css')>0&&html.indexOf('gm-extras.css')<html.indexOf('theme.css'));
 });
+
+test('custom roll tables: the card sits between the tables and the weather, results are taken only if they can be drawn',()=>{
+ // Without the module nothing changes: no card, and a result of a kind nobody can draw is refused.
+ assert.equal(context.window.RollTables,undefined);
+ const bare=GX.render('ru');assert.doesNotMatch(bare,/rtb-/);
+ GX.reset();
+ assert.equal(GX.push({kind:'custom',custom:{name:'T',die:'1d6',dice:[2],total:2,text:'x'}}),false);assert.equal(GX.log.length,0);
+ for(const bad of [null,5,'x',{},{kind:'nope'}])assert.equal(GX.push(bad),false);
+ context.window.RollTables={render:l=>'<section data-rtb-root data-lang="'+l+'">CARD</section>',entryHtml:(c,l)=>c&&c.name?'<div class="gx-entry"><span class="overline">'+c.name+'</span><strong>'+c.text+'</strong></div>':''};
+ try{
+  const h=GX.render('en');
+  assert(h.indexOf('data-gx-section="tables"')<h.indexOf('data-rtb-root')&&h.indexOf('data-rtb-root')<h.indexOf('data-gx-section="weather"'),'between the random tables and the weather');
+  assert(h.includes('<section data-rtb-root data-lang="en">CARD</section>'));
+  assert.equal(GX.push({kind:'custom',custom:{name:'Port',text:'Patrol'}}),true);
+  assert.equal(GX.push({kind:'custom',custom:{}}),false,'an entry the module cannot draw is refused');
+  assert.equal(GX.log.length,1);assert.equal(GX.log[0].kind,'custom');
+  assert(GX.render('en').includes('<span class="overline">Port</span><strong>Patrol</strong>'));
+ }finally{delete context.window.RollTables;GX.reset()}
+});

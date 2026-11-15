@@ -31,14 +31,20 @@
     const x = obj(c.extra) ? c.extra : {};
     let app = null; try { app = global.App?.rollMods?.(c, '', skill, stat) || null; } catch { app = null; }
     const wound = int(app?.wound, -100, 100), effect = int(app?.effect, -100, 100), modifier = int(x.modifier, -100, 100);
+    // The player's named modifiers (named-modifiers.js) are inside «effect»; the list is only for naming them in the text.
+    let named = []; try { named = global.App?.rollNamed?.(c, '', skill, stat) || []; } catch { named = []; }
+    named = (Array.isArray(named) ? named : []).filter(p => obj(p) && typeof p.name === 'string' && Number.isSafeInteger(p.value) && p.value !== 0).slice(0, 24).map(p => ({ name: p.name.slice(0, 32), value: p.value }));
     const pool = x.luck === undefined || x.luck === '' ? int(c.stats?.LUCK, 0, 100) : int(x.luck, 0, 100);
     const luck = Math.min(pool, int(x.luckUse, 0, 100));
-    return { wound, effect, modifier, luck, pool, total: wound + effect + modifier + luck };
+    // A sheet without such a modifier gets the same object as before.
+    return { wound, effect, modifier, luck, pool, total: wound + effect + modifier + luck, ...(named.length ? { named } : {}) };
   }
   function modsText(m, lang) {
     const ru = lng(lang) === 'ru', parts = [];
     if (m.wound) parts.push(`${ru ? 'ранение' : 'wound'} ${signed(m.wound)}`);
-    if (m.effect) parts.push(`${ru ? 'эффекты' : 'effects'} ${signed(m.effect)}`);
+    const named = Array.isArray(m.named) ? m.named : [], rest = m.effect - named.reduce((a, p) => a + p.value, 0);
+    if (rest) parts.push(`${ru ? 'эффекты' : 'effects'} ${signed(rest)}`);
+    for (const p of named) parts.push(`${p.name} ${signed(p.value)}`);
     if (m.modifier) parts.push(`${ru ? 'модификатор листа' : 'sheet modifier'} ${signed(m.modifier)}`);
     if (m.luck) parts.push(`LUCK ${signed(m.luck)}`);
     return parts.length ? ` · ${parts.join(', ')}` : '';

@@ -6,13 +6,13 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 const eq=(a,b)=>assert.deepEqual(plain(a),plain(b));
 
 // One page: the real modules the transfer leans on, and an app stub with a state, a save and a sheet import.
-function load({state,saveResult={ok:true}}={}){
+function load({state,saveResult={ok:true},more=[]}={}){
  const listeners={},notices=[];let saves=0,renders=0,n=0;
  const document={addEventListener(t,f){(listeners[t]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[]};
  const store=new Map(),storage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
  const window={document,crypto:{randomUUID:()=>'u-'+(++n)},confirm:()=>true,sessionStorage:storage,localStorage:storage};
  const ctx={window,document,globalThis:window,sessionStorage:storage,localStorage:storage,Math,Number,String,Array,Object,Set,Map,WeakMap,JSON,Date,Promise,RegExp,Error,Infinity,setTimeout,clearTimeout,console,TextEncoder,URL,Blob};
- for(const f of ['beat-chart.js','campaigns.js','gm-tools.js','gm-extras.js','npc-library.js','room-journal.js','campaign-io.js'])vm.runInNewContext(read(f),ctx,{filename:f});
+ for(const f of ['beat-chart.js','campaigns.js','gm-tools.js','gm-extras.js','npc-library.js','room-journal.js',...more,'campaign-io.js'])vm.runInNewContext(read(f),ctx,{filename:f});
  const st=state||{lang:'ru',characters:[],campaigns:[],gmExtras:undefined,gmWorkspace:window.GMTools.initial()};
  window.App={getState:()=>st,lang:()=>st.lang,save:()=>{saves++;return Promise.resolve(saveResult)},render:()=>{renders++},notify:m=>notices.push(m),
   findImport:obj=>{const c=st.characters.find(x=>x.extra?.uid&&x.extra.uid===obj?.extra?.uid);return c?{id:c.id,name:c.name}:null},
@@ -158,6 +158,10 @@ test('undo takes back exactly what an import added',()=>{
  done.undo();eq(plain(st),before);
  const empty=load(),r2=empty.IO.parse(JSON.stringify(file)),d2=empty.IO.apply(r2.bundle,empty.IO.defaultSelect(r2.bundle),{getState:()=>empty.st}),was=plain(load().st);
  d2.undo();eq(plain(empty.st),was);assert.equal(empty.st.gmExtras,undefined);
+ // The user's own roll tables live in the same section: tables made after the import survive its undo.
+ const kept=load(),r3=kept.IO.parse(JSON.stringify(file)),d3=kept.IO.apply(r3.bundle,kept.IO.defaultSelect(r3.bundle),{getState:()=>kept.st});
+ kept.st.gmExtras.rollTables=[{id:'t1',name:'Слухи',group:'',die:'1d6',entries:[{from:1,to:6,text:'Правда'}]}];
+ d3.undo();eq(plain(kept.st.gmExtras),{rollTables:[{id:'t1',name:'Слухи',group:'',die:'1d6',entries:[{from:1,to:6,text:'Правда'}]}]});eq(kept.st.campaigns.length,0);
 });
 
 test('the campaigns page gets the transfer card; a chosen file shows a preview and is added only on confirmation',async()=>{
@@ -201,4 +205,54 @@ test('every text exists in Russian and in English, and Russian addresses the rea
  const src=read('campaign-io.js')+read('room-journal.js'),keys=block=>[...block.matchAll(/[,{]([A-Za-z]+):/g)].map(m=>m[1]).sort().join();
  for(const file of ['campaign-io.js','room-journal.js']){const s=read(file),ru=/\n ru:\{([\s\S]*?)\},\n en:\{/.exec(s)[1],en=/\n en:\{([\s\S]*?)\},\n\};/.exec(s)[1];assert.equal(keys(ru),keys(en),file)}
  assert.ok(!/(^|[^А-Яа-яЁё])(ты|тебя|тебе|твой|твои|твоя)([^А-Яа-яЁё]|$)/i.test(src));
+});
+
+/* ---------- The city map (city-map.js): pins travel with the campaign, the picture never does ---------- */
+const cityCampaign=()=>({id:'camp-9',name:'Город',notes:'',round:1,turnIndex:0,roster:[],cityMap:{v:1,ratio:1.25,
+ pins:[{id:'a',t:'bar',x:100,y:200,name:'Бар',note:'Заметка ведущего',shown:true},{id:'b',t:'clinic',x:500,y:500,name:'Клиника'},{id:'c',t:'gang',x:900,y:800,name:'Стая'}],route:['a','b','c'],crew:'b',crewShown:true}});
+const cityDeps=to=>({lang:'ru',getState:()=>to.st,findImport:to.window.App.findImport,importCharacter:to.window.App.importCharacter});
+
+test('the city map goes through export and import whole: pins, notes, route, crew mark and what is shown to players',()=>{
+ const from=load({more:['city-map.js']}),c=cityCampaign(),file=JSON.stringify(from.IO.buildExport({lang:'ru',characters:[],campaigns:[c]}));
+ assert.equal(file.includes('data:image'),false);
+ const to=load({more:['city-map.js']}),r=to.IO.parse(file);assert.equal(r.ok,true);assert.equal(r.bundle.dropped,0);
+ assert.equal(to.IO.plan(r.bundle,to.st,to.IO.defaultSelect(r.bundle),cityDeps(to)).campaigns[0].pins,3);
+ assert.equal(to.IO.apply(r.bundle,to.IO.defaultSelect(r.bundle),cityDeps(to)).ok,true);
+ eq(to.st.campaigns[0].cityMap,c.cityMap);assert.notEqual(to.st.campaigns[0].id,'');
+ to.IO.load(file,'city.json');assert.match(to.IO.decorate('<div class="campaign-grid"></div>',to.st),/меток на карте города: 3/);
+ to.st.lang='en';assert.match(to.IO.decorate('<div class="campaign-grid"></div>',to.st),/city map pins: 3/);
+});
+
+test('a city map from a file is rebuilt by its module: a picture, unknown keys and broken pins do not get in',()=>{
+ const c=cityCampaign();
+ c.cityMap.src='data:image/png;base64,AAAA';c.cityMap.picture={w:1,h:1,src:'data:image/png;base64,AAAA'};c.cityMap.__proto__x='y';
+ c.cityMap.pins[0].src='data:image/png;base64,AAAA';c.cityMap.pins[0].html='<script>alert(1)</script>';
+ c.cityMap.pins.push({id:'bad id',t:'bar',x:1,y:1,name:'x'},{id:'d',t:'castle',x:1,y:1,name:'x'},{id:'e',t:'bar',x:5000,y:1,name:'x'},...Array.from({length:200},(_,i)=>({id:'m'+i,t:'job',x:i,y:i,name:'Я'.repeat(300),shown:true})));
+ c.cityMap.route.push('ghost','c','c');
+ const to=load({more:['city-map.js']}),r=to.IO.parse(JSON.stringify({format:'nightcity-red-campaign',version:1,campaigns:[c]}));assert.equal(r.ok,true);
+ to.IO.apply(r.bundle,to.IO.defaultSelect(r.bundle),cityDeps(to));
+ const m=to.st.campaigns[0].cityMap,text=JSON.stringify(m);
+ assert.equal(text.includes('data:'),false);assert.equal(text.includes('script'),false);assert.equal(text.includes('picture'),false);
+ eq(Object.keys(m).sort(),['crew','crewShown','pins','ratio','route','v']);
+ assert.equal(m.pins.length,to.window.CityMap.MAX_PINS);assert.ok(m.pins.every(p=>p.name.length<=60&&/^[A-Za-z0-9_-]+$/.test(p.id)));
+ assert.equal(m.pins.filter(p=>p.shown).length,to.window.CityMap.MAX_SHARED);eq(m.route,['a','b','c']);
+ eq(m.pins[0],{id:'a',t:'bar',x:100,y:200,name:'Бар',note:'Заметка ведущего',shown:true});
+ // A map in a format this version does not know is left out and counted.
+ const odd=load({more:['city-map.js']}),r2=odd.IO.parse(JSON.stringify({format:'nightcity-red-campaign',version:1,campaigns:[{...cityCampaign(),cityMap:{v:7,pins:[]}}]}));
+ assert.equal(r2.ok,true);assert.equal(r2.bundle.dropped,1);odd.IO.apply(r2.bundle,odd.IO.defaultSelect(r2.bundle),cityDeps(odd));assert.equal('cityMap' in odd.st.campaigns[0],false);
+});
+
+test('without the city map module the import still works and the map is left out, never kept as it came',()=>{
+ const to=load(),r=to.IO.parse(JSON.stringify({format:'nightcity-red-campaign',version:1,campaigns:[cityCampaign()]}));
+ assert.equal(to.window.CityMap,undefined);assert.equal(r.ok,true);assert.equal(r.bundle.dropped,1);
+ assert.equal(to.IO.apply(r.bundle,to.IO.defaultSelect(r.bundle),cityDeps(to)).ok,true);
+ assert.equal(to.st.campaigns[0].name,'Город');assert.equal('cityMap' in to.st.campaigns[0],false);
+});
+
+test('the city map page gets no import or transfer cards under it',()=>{
+ const to=load({state:sample(),more:['city-map.js']}),page=to.window.CityMap.page(to.st.campaigns[0],[],'ru');
+ assert.equal(to.IO.decorate(page,to.st),page);
+ // The list still gets them, also when a campaign is named like the marker of the map page.
+ to.st.campaigns[0].name='<div class="cm-page" data-cm-page>';
+ assert.match(to.IO.decorate('<div class="campaign-grid">&lt;div class=&quot;cm-page&quot;</div>',to.st),/data-cio-root/);
 });

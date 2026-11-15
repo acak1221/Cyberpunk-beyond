@@ -155,6 +155,8 @@
     try { copy = JSON.parse(JSON.stringify(out.record)); } catch { return fail(lang, 'stale'); }
     copy.id = uid();
     delete copy.humanityLossIncluded;
+    // A group belongs to the sheet it was made on: its id means nothing on the receiver's sheet.
+    delete copy.group;
     if (kind === 'items') copy.quantity = out.count;
     if (copy.starterArmor !== undefined && out.count !== 1) delete copy.starterArmor;
     if (global.CharacterExtra?.init) global.CharacterExtra.init(to);

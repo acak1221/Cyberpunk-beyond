@@ -12,7 +12,7 @@ const T={
   errBig:'Файл слишком большой: больше 16 МБ.',errJson:'Файл не читается: это не JSON.',errFormat:'Это не файл кампании Night City // RED.',errBackup:'Это полная резервная копия, а не файл кампании. Откройте «Персонажи» → «Данные», чтобы добавить данные из копии.',errNewer:'Файл создан более новой версией приложения. Обновите страницу и повторите.',errEmpty:'В файле нет записей, которые можно добавить.',errRead:'Не удалось прочитать файл.',
   preview:'ПРЕДПРОСМОТР ИМПОРТА',file:'Файл',safe:'Ничего не будет заменено или удалено: записи из файла добавятся рядом с вашими. Если название уже занято, новая запись получит номер.',
   campaigns:'Кампании',clocks:'Часы прогресса',library:'Библиотека NPC',gmNpcs:'NPC из инструментов ведущего',sheets:'Листы персонажей',
-  as:'будет добавлена как',renamed:'название занято',roster:(p,n)=>`участников: ${p+n} (персонажей ${p}, NPC ${n})`,journal:n=>`журнал: ${n}`,beats:n=>`битов в плане: ${n}`,notes:n=>`заметки: ${n} зн.`,
+  as:'будет добавлена как',renamed:'название занято',roster:(p,n)=>`участников: ${p+n} (персонажей ${p}, NPC ${n})`,journal:n=>`журнал: ${n}`,pins:n=>`меток на карте города: ${n}`,agent:n=>`лента «Агент»: ${n}`,beats:n=>`битов в плане: ${n}`,notes:n=>`заметки: ${n} зн.`,
   pcAdd:n=>`листов добавится: ${n}`,pcHave:n=>`связано с вашими листами: ${n}`,pcNone:n=>`без листа: ${n} (в списке будет «не привязан»)`,dropped:n=>`Пропущено непонятных записей: ${n}.`,
   stAdd:'добавится',stRename:n=>`добавится как «${n}»`,stSame:'уже есть у вас, пропущено',stLimit:'не поместится: достигнут предел',stBad:'не подходит, пропущено',stHave:n=>`уже есть у вас («${n}»), ваш лист не изменится`,stUnused:'не нужен выбранным кампаниям, пропущено',
   apply:'Добавить выбранное',cancel:'Отмена',nothing:'Ничего не выбрано.',done:(c,k,l,g,s)=>`Импорт завершён. Кампаний: ${c}, часов: ${k}, NPC в библиотеке: ${l}, NPC ведущего: ${g}, листов: ${s}.`,sheetFail:n=>` Листов не удалось добавить: ${n}.`,
@@ -23,7 +23,7 @@ const T={
   errBig:'The file is too large: over 16 MB.',errJson:'The file cannot be read: it is not JSON.',errFormat:'This is not a Night City // RED campaign file.',errBackup:'This is a full backup, not a campaign file. Open “Characters” → “Data” to add data from a backup.',errNewer:'The file was made by a newer version of the app. Reload the page and try again.',errEmpty:'The file has no records that can be added.',errRead:'The file could not be read.',
   preview:'IMPORT PREVIEW',file:'File',safe:'Nothing will be replaced or deleted: records from the file are added next to yours. When a name is taken, the new record gets a number.',
   campaigns:'Campaigns',clocks:'Progress clocks',library:'NPC library',gmNpcs:'NPCs from the GM tools',sheets:'Character sheets',
-  as:'will be added as',renamed:'name is taken',roster:(p,n)=>`participants: ${p+n} (characters ${p}, NPCs ${n})`,journal:n=>`journal: ${n}`,beats:n=>`Beats in the plan: ${n}`,notes:n=>`notes: ${n} chars`,
+  as:'will be added as',renamed:'name is taken',roster:(p,n)=>`participants: ${p+n} (characters ${p}, NPCs ${n})`,journal:n=>`journal: ${n}`,pins:n=>`city map pins: ${n}`,agent:n=>`“Agent” feed: ${n}`,beats:n=>`Beats in the plan: ${n}`,notes:n=>`notes: ${n} chars`,
   pcAdd:n=>`sheets to add: ${n}`,pcHave:n=>`linked to your sheets: ${n}`,pcNone:n=>`without a sheet: ${n} (shown as “not linked”)`,dropped:n=>`Unreadable records skipped: ${n}.`,
   stAdd:'will be added',stRename:n=>`will be added as “${n}”`,stSame:'you already have it, skipped',stLimit:'does not fit: the limit is reached',stBad:'not usable, skipped',stHave:n=>`you already have it (“${n}”), your sheet stays as it is`,stUnused:'not needed by the chosen campaigns, skipped',
   apply:'Add the selected',cancel:'Cancel',nothing:'Nothing is selected.',done:(c,k,l,g,s)=>`Import finished. Campaigns: ${c}, clocks: ${k}, library NPCs: ${l}, GM NPCs: ${g}, sheets: ${s}.`,sheetFail:n=>` Sheets that could not be added: ${n}.`,
@@ -52,7 +52,7 @@ function inert(v,depth=0,text=2000){
  return out;
 }
 function extras(src,known,out){for(const k of Object.keys(src).slice(0,80)){if(known.has(k)||BAD_KEYS.has(k)||k.length>60)continue;const x=inert(src[k],1);if(x!==undefined)out[k]=x}return out}
-const ROSTER_KEYS=new Set(['id','kind','characterId','name','ref','hp','maxHp','initiative','bonus','order','ties','held','out','dead','hidden','deathPenalty','sp','body','sourcePage','sourceTemplate','sourceLibrary','combatNote']);
+const ROSTER_KEYS=new Set(['id','kind','characterId','name','ref','hp','maxHp','initiative','bonus','order','ties','held','out','dead','hidden','vis','deathPenalty','sp','body','sourcePage','sourceTemplate','sourceLibrary','combatNote']);
 function cleanRosterEntry(r,taken,index=0){
  if(!isObj(r)||!['pc','npc'].includes(r.kind))return null;
  const out=extras(r,ROSTER_KEYS,{});
@@ -64,6 +64,8 @@ function cleanRosterEntry(r,taken,index=0){
  const order=num(r.order);out.order=Number.isFinite(order)?order:index;
  if(Array.isArray(r.ties)){const ties=r.ties.filter(n=>Number.isInteger(n)&&n>=-999&&n<=999).slice(0,20);if(ties.length)out.ties=ties}
  for(const k of ['held','out','dead','hidden'])if(r[k]===true)out[k]=true;
+ // What players in a room see of this participant (room-visibility.js); «hidden» is the flag above.
+ if(['name','state','full'].includes(r.vis))out.vis=r.vis;
  const pen=int(r.deathPenalty,0,99,0);if(pen)out.deathPenalty=pen;
  if(isObj(r.sp)){const h=int(r.sp.head,0,30,NaN),b=int(r.sp.body,0,30,NaN);if(Number.isFinite(h)&&Number.isFinite(b))out.sp={head:h,body:b}}
  const body=int(r.body,1,20,NaN);if(Number.isFinite(body)&&r.body!==undefined)out.body=body;
@@ -73,13 +75,14 @@ function cleanRosterEntry(r,taken,index=0){
  if(isObj(r.combatNote)&&typeof r.combatNote.text==='string'){const text=para(r.combatNote.text,300);if(text)out.combatNote={version:1,text}}
  return out;
 }
-const CAMPAIGN_KEYS=new Set(['id','name','notes','roster','round','turnIndex','journal','beats','journalShared']);
+const CAMPAIGN_KEYS=new Set(['id','name','notes','roster','round','turnIndex','journal','beats','journalShared','vis','agentFeed','cityMap']);
 // A campaign from a file, rebuilt: {campaign, dropped}. The id is kept only as a hint; apply() always gives a new one.
 function cleanCampaign(c){
  if(!isObj(c))return null;
  let dropped=0;const out=extras(c,CAMPAIGN_KEYS,{}),ids=new Set(),raw=Array.isArray(c.roster)?c.roster:[];
  out.id=validId(c.id)?c.id:uid();out.name=line(c.name,MAX_NAME);out.notes=para(c.notes,MAX_NOTES);out.roster=[];
  raw.slice(0,MAX_ROSTER).forEach((r,i)=>{const x=cleanRosterEntry(r,ids,i);if(x)out.roster.push(x);else dropped++});dropped+=Math.max(0,raw.length-MAX_ROSTER);
+ if(['hidden','state','full'].includes(c.vis))out.vis=c.vis;
  out.round=int(c.round,1,9999,1);out.turnIndex=int(c.turnIndex,0,Math.max(0,out.roster.length-1),0);
  const rawJournal=Array.isArray(c.journal)?c.journal:[],journal=global.Campaigns?.readJournal?.({journal:rawJournal})||[],jids=new Set();
  for(const e of journal){if(jids.has(e.id))e.id=freshId(jids);else jids.add(e.id)}
@@ -89,6 +92,11 @@ function cleanCampaign(c){
  dropped+=rawBeats.length-beats.length;if(beats.length)out.beats=beats;
  const shared=[];for(const id of Array.isArray(c.journalShared)?c.journalShared:[]){if(typeof id==='string'&&jids.has(id)&&!shared.includes(id))shared.push(id);if(shared.length>=20)break}
  if(shared.length)out.journalShared=shared;
+ // The «Агент» feed is rebuilt by its own module; without that module it is left out, never kept as it came.
+ const rawFeed=Array.isArray(c.agentFeed)?c.agentFeed:[],feed=global.RoomAgent?.read?.({agentFeed:rawFeed})||[];
+ dropped+=rawFeed.length-feed.length;if(feed.length)out.agentFeed=feed;
+ // The city map is rebuilt by its own module (city-map.js); without that module it is left out, never kept as it came.
+ if(c.cityMap!==undefined&&c.cityMap!==null){const cm=global.CityMap?.clean?.(c.cityMap);if(cm)out.cityMap=cm;else dropped++}
  return {campaign:out,dropped};
 }
 // The same check app.js makes for a campaign in a snapshot.
@@ -128,7 +136,7 @@ function parse(text){
  for(const c of list('campaigns').slice(0,MAX_CAMPAIGNS)){const x=cleanCampaign(c);if(x){bundle.campaigns.push(x.campaign);bundle.dropped+=x.dropped}else bundle.dropped++}
  bundle.dropped+=Math.max(0,list('campaigns').length-MAX_CAMPAIGNS);
  const X=global.GMExtras,L=global.NpcLibrary,G=global.GMTools;
- for(const c of list('clocks').slice(0,X?.MAX_CLOCKS||30)){const x=X?.cleanClock?.(c);if(x)bundle.clocks.push({name:x.name,size:x.size,filled:x.filled});else bundle.dropped++}
+ for(const c of list('clocks').slice(0,X?.MAX_CLOCKS||30)){const x=X?.cleanClock?.(c);if(x)bundle.clocks.push({name:x.name,size:x.size,filled:x.filled,...(x.triggers?{triggers:x.triggers}:{}),...(x.die?{die:x.die}:{})});else bundle.dropped++}
  for(const e of list('library').slice(0,L?.MAX||100)){const x=L?.cleanEntry?.(e);if(x)bundle.library.push(x);else bundle.dropped++}
  for(const n of list('gmNpcs').slice(0,MAX_GM_NPCS)){const x=isObj(n)?inert(n,0,5000):null,base=G?.initial?.();
   if(x&&base&&G.validWorkspace({...base,roster:[{...x,id:'check'}]}))bundle.gmNpcs.push({...x,id:validId(x.id)?x.id:uid()});else bundle.dropped++}
@@ -166,7 +174,7 @@ function plan(bundle,state,select=defaultSelect(bundle),deps={}){
  bundle.campaigns.forEach((c,i)=>{
   const selected=select.campaigns?.[i]!==false,name=c.name||t.imported,finalName=selected?uniqueName(name,names):name,roster=c.roster;
   let add=0,have=0,none=0;for(const r of roster)if(r.kind==='pc'){const s=sheetFor.get(r.characterId);if(s?.status==='add')add++;else if(s?.status==='have'||local.has(r.characterId))have++;else none++}
-  out.campaigns.push({index:i,selected,name,finalName,renamed:finalName!==name,pcs:roster.filter(r=>r.kind==='pc').length,npcs:roster.filter(r=>r.kind==='npc').length,journal:c.journal?.length||0,beats:c.beats?.length||0,notes:c.notes.length,pcAdd:add,pcHave:have,pcNone:none});
+  out.campaigns.push({index:i,selected,name,finalName,renamed:finalName!==name,pcs:roster.filter(r=>r.kind==='pc').length,npcs:roster.filter(r=>r.kind==='npc').length,journal:c.journal?.length||0,agent:c.agentFeed?.length||0,beats:c.beats?.length||0,pins:c.cityMap?.pins?.length||0,notes:c.notes.length,pcAdd:add,pcHave:have,pcNone:none});
  });
  const section=(key,existing,limit,maxName,skip)=>{
   const taken=new Set(existing.map(x=>nameKey(x.name)));let count=existing.length;
@@ -179,7 +187,7 @@ function plan(bundle,state,select=defaultSelect(bundle),deps={}){
    out[key].push(row);
   });
  };
- section('clocks',X?.readClocks?.(state)||[],X?.MAX_CLOCKS||30,X?.MAX_NAME||60,['id','shared']);
+ section('clocks',X?.readClocks?.(state)||[],X?.MAX_CLOCKS||30,X?.MAX_NAME||60,['id','shared','tick']);
  section('library',L?.readLibrary?.(state)||[],L?.MAX||100,60,['id']);
  const ws=state?.gmWorkspace,wsOk=!!global.GMTools?.validWorkspace?.(ws);
  if(wsOk)section('gmNpcs',ws.roster,MAX_GM_NPCS,MAX_NAME,['id']);
@@ -215,7 +223,7 @@ function apply(bundle,select,deps={}){
  }
  if(X&&p.clocks.some(r=>r.status==='add'||r.status==='rename')){
   const list=X.readClocks(state),ids=new Set(list.map(x=>x.id));
-  for(const row of p.clocks){if(row.status!=='add'&&row.status!=='rename')continue;const src=bundle.clocks[row.index],c=X.cleanClock({id:freshId(ids,()=>shortId('clk')),name:row.finalName,size:src.size,filled:src.filled,shared:false});if(c){list.push(c);counts.clocks++}}
+  for(const row of p.clocks){if(row.status!=='add'&&row.status!=='rename')continue;const src=bundle.clocks[row.index],c=X.cleanClock({id:freshId(ids,()=>shortId('clk')),name:row.finalName,size:src.size,filled:src.filled,shared:false,triggers:src.triggers,die:src.die});if(c){list.push(c);counts.clocks++}}
   X.writeClocks(state,list);
  }
  const ws=state.gmWorkspace;
@@ -239,7 +247,8 @@ function apply(bundle,select,deps={}){
  const undo=()=>{
   const st=getState();if(!st)return;
   for(const id of before.campaignIds){const i=st.campaigns.findIndex(c=>c?.id===id);if(i>=0)st.campaigns.splice(i,1)}
-  if(before.hadExtras===undefined)st.gmExtras=undefined;
+  // Only what the import brought is taken back: the user's own roll tables made since then live in the same section.
+  if(before.hadExtras===undefined){if(isObj(st.gmExtras)){delete st.gmExtras.clocks;delete st.gmExtras.npcLibrary;if(!Object.keys(st.gmExtras).length)st.gmExtras=undefined}}
   else if(isObj(st.gmExtras)){if(before.clocks===undefined)delete st.gmExtras.clocks;else st.gmExtras.clocks=before.clocks;if(before.library===undefined)delete st.gmExtras.npcLibrary;else st.gmExtras.npcLibrary=before.library}
   if(isObj(st.gmWorkspace)&&Array.isArray(st.gmWorkspace.roster))for(const id of before.gmIds){const i=st.gmWorkspace.roster.findIndex(n=>n?.id===id);if(i>=0)st.gmWorkspace.roster.splice(i,1)}
  };
@@ -262,7 +271,7 @@ function statusLabel(row,t){return row.status==='rename'?t.stRename(row.finalNam
 function previewHTML(state,t,l){
  const pend=ui.pending;if(!pend)return '';
  const p=plan(pend.bundle,state,pend.select,{lang:l,findImport:app()?.findImport});
- const camp=c=>`<li class="cio-item${c.selected?'':' off'}">${check('data-cio-pick','c'+c.index,c.selected,`<b>${esc(c.name)}</b>`)}<div class="cio-detail">${c.selected&&c.renamed?`<p class="cio-rename">${esc(t.renamed)} — ${esc(t.as)} <b>«${esc(c.finalName)}»</b></p>`:''}<p>${esc([t.roster(c.pcs,c.npcs),t.journal(c.journal),t.beats(c.beats),t.notes(c.notes)].join(' · '))}</p>${c.pcs?`<p>${esc([c.pcAdd?t.pcAdd(c.pcAdd):'',c.pcHave?t.pcHave(c.pcHave):'',c.pcNone?t.pcNone(c.pcNone):''].filter(Boolean).join(' · '))}</p>`:''}</div></li>`;
+ const camp=c=>`<li class="cio-item${c.selected?'':' off'}">${check('data-cio-pick','c'+c.index,c.selected,`<b>${esc(c.name)}</b>`)}<div class="cio-detail">${c.selected&&c.renamed?`<p class="cio-rename">${esc(t.renamed)} — ${esc(t.as)} <b>«${esc(c.finalName)}»</b></p>`:''}<p>${esc([t.roster(c.pcs,c.npcs),t.journal(c.journal),...(c.agent?[t.agent(c.agent)]:[]),t.beats(c.beats),...(c.pins?[t.pins(c.pins)]:[]),t.notes(c.notes)].join(' · '))}</p>${c.pcs?`<p>${esc([c.pcAdd?t.pcAdd(c.pcAdd):'',c.pcHave?t.pcHave(c.pcHave):'',c.pcNone?t.pcNone(c.pcNone):''].filter(Boolean).join(' · '))}</p>`:''}</div></li>`;
  const rows=(key,title)=>p[key].length?`<div class="cio-section">${check('data-cio-pick',key,pend.select[key]!==false,`<b>${esc(title)}</b> <span class="cio-n">${p[key].length}</span>`)}${pend.select[key]!==false?`<ul class="cio-rows">${p[key].map(r=>`<li class="${r.status==='add'||r.status==='rename'?'':'skip'}"><span>${esc(r.name)}</span><small>${esc(statusLabel(r,t))}</small></li>`).join('')}</ul>`:''}</div>`:'';
  const sheets=pend.bundle.sheets.length?`<div class="cio-section">${check('data-cio-pick','sheets',pend.select.sheets!==false,`<b>${esc(t.sheets)}</b> <span class="cio-n">${pend.bundle.sheets.length}</span>`)}${pend.select.sheets!==false?`<ul class="cio-rows">${p.sheets.map(s=>`<li class="${s.status==='add'?'':'skip'}"><span>${esc(s.name)}</span><small>${esc(s.status==='add'?t.stAdd:s.status==='have'?t.stHave(s.targetName):t.stUnused)}</small></li>`).join('')}</ul>`:''}</div>`:'';
  return `<section class="card cio-preview" data-cio-preview aria-labelledby="cio-preview-title"><div class="card-heading"><span id="cio-preview-title" tabindex="-1">${esc(t.preview)}</span><span>${p.total+p.counts.sheets}</span></div><p class="cio-file"><b>${esc(t.file)}:</b> ${esc(pend.fileName)}</p><p class="cio-safe">${esc(t.safe)}</p>${p.campaigns.length?`<div class="cio-section"><p class="cio-sub">${esc(t.campaigns)} <span class="cio-n">${p.campaigns.length}</span></p><ul class="cio-list">${p.campaigns.map(camp).join('')}</ul></div>`:''}${sheets}${rows('clocks',t.clocks)}${rows('library',t.library)}${rows('gmNpcs',t.gmNpcs)}${p.dropped?`<p class="cio-warn">${esc(t.dropped(p.dropped))}</p>`:''}<div class="cio-actions"><button type="button" class="btn primary" data-cio-action="apply"${p.total?'':' disabled'}>＋ ${esc(t.apply)}</button><button type="button" class="btn ghost" data-cio-action="cancel">${esc(t.cancel)}</button></div>${p.total?'':`<p class="muted" role="status">${esc(t.nothing)}</p>`}</section>`;
@@ -272,9 +281,11 @@ function previewHTML(state,t,l){
 function decorate(html,state){
  try{
   if(!isObj(state))return html;
+  // The city map page of a campaign (city-map.js) is neither the list nor the tracker: nothing is added under it.
+  if(String(html).startsWith('<div class="cm-page" '))return html;
   const l=state?.lang==='en'?'en':'ru',t=T[l],m=/data-campaign-view="([^"]*)"/.exec(String(html)),open=m?campaignsOf(state).find(c=>esc(c.id)===m[1])||null:null;
   if(m&&!open)return html;
-  return html+`<div class="cio" data-cio-root>${open?(global.RoomJournal?.panel?.(open,l)||'')+transferHTML(state,t,open):previewHTML(state,t,l)+transferHTML(state,t,null)}</div>`;
+  return html+`<div class="cio" data-cio-root>${open?(global.RoomJournal?.panel?.(open,l)||'')+(global.RoomAgent?.panel?.(open,l)||'')+transferHTML(state,t,open):previewHTML(state,t,l)+transferHTML(state,t,null)}</div>`;
  }catch{return html}
 }
 function download(name,body){try{const doc=global.document,url=URL.createObjectURL(new Blob([body],{type:'application/json'})),a=doc.createElement('a');a.href=url;a.download=name;doc.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return true}catch{return false}}

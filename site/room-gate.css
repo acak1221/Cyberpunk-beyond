@@ -1,0 +1,48 @@
+/* Online rooms: the waiting room (room-gate.js): the Game Master's list of those who wait, the switch, and the door a device sees until it is let in. */
+.room-gate-help { display: block; margin: 4px 0 12px; color: var(--muted, #aaa); font-size: 12px; line-height: 1.45; }
+.room-gate-switch { margin-top: 8px; }
+.room-gate-switch .room-check { margin-top: 0; }
+.room-gate-switch .room-gate-help { margin: 4px 0 0 24px; }
+.room-gate-lock { color: #d9cfc4; }
+.room-gate-key { font-variant-numeric: tabular-nums; letter-spacing: .04em; white-space: nowrap; }
+
+/* Somebody waits: the card stands out until the Game Master has decided. */
+.room-gate { margin-bottom: 16px; }
+.room-gate.busy { border-left: 3px solid var(--yellow, #e9c66d); }
+.room-gate > .btn { margin-top: 10px; }
+.room-gate .room-key { margin-top: 10px; }
+.room-gate-list { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.room-gate-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, .04); border: 1px solid var(--border, #333); }
+.room-gate-list li > div:first-child { display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.room-gate-list li > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.room-gate-list b { overflow-wrap: anywhere; }
+.room-gate-list small { color: var(--muted, #aaa); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.room-gate-list small .room-gate-key { color: var(--text); }
+.room-gate-list li.legacy { border-style: dashed; }
+
+/* The door. */
+.room-lobby { margin-bottom: 16px; }
+.room-lobby-text { margin: 0 0 12px; color: var(--text); font-size: 15px; line-height: 1.5; }
+.room-lobby .room-muted { margin-bottom: 12px; }
+.room-lobby .room-key { margin-top: 12px; }
+.room-lobby .btn { margin-bottom: 4px; }
+.room-lobby-wait { display: inline-block; animation: room-gate-wait 2.4s ease-in-out infinite; }
+@keyframes room-gate-wait { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .room-lobby-wait { animation: none; } }
+
+/* In the header pill: how many wait (the Game Master). */
+.room-pill-gate { margin-left: 4px; color: #111; background: var(--yellow, #e9c66d); padding: 1px 6px; border-radius: 9px; }
+
+html.ui-native .room-gate-list li { border: 0; border-radius: 12px; }
+html.ui-native .room-gate-list li.legacy { outline: 1px dashed var(--border, #444); }
+html.ui-native .room-gate.busy { border-left: 3px solid var(--yellow, #e9c66d); }
+html.ui-native.ui-light .room-gate-list li { background: rgba(0, 0, 0, .04); }
+html.ui-native.ui-light .room-gate-lock { color: #5b5750; }
+html.ui-native.ui-light .room-pill-gate { color: #111; background: #f0c419; }
+
+@media (max-width: 650px) {
+  .room-gate-list li > div:last-child { width: 100%; }
+  .room-gate-list li > div:last-child .btn { flex: 1 1 0; min-height: 44px; }
+  .room-gate > .btn, .room-lobby .btn { width: 100%; min-height: 44px; }
+  .room-gate-switch .room-gate-help { margin-left: 0; }
+}

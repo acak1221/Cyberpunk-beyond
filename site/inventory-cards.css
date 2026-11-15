@@ -1,0 +1,58 @@
+/* The inventory as cards (inventory-cards.js) and the type chips above it (inventory-filter.js). */
+.inventory-filter { grid-template-columns: 1fr; }
+.inventory-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.inventory-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 10px; color: var(--text); background: transparent; border: 1px solid var(--border, #444); border-radius: 18px; font: inherit; font-size: 13px; cursor: pointer; }
+.inventory-chip b { min-width: 18px; padding: 1px 5px; color: var(--muted, #aaa); background: rgba(127, 127, 127, .16); border-radius: 9px; font-size: 11px; font-weight: 700; text-align: center; }
+.inventory-chip[aria-pressed="true"] { color: #111; background: var(--yellow, #e9c66d); border-color: var(--yellow, #e9c66d); font-weight: 700; }
+.inventory-chip[aria-pressed="true"] b { color: #111; background: rgba(0, 0, 0, .14); }
+.inventory-chip[aria-pressed="true"] .inv-sign { color: #111; background: transparent; border-color: rgba(0, 0, 0, .35); }
+.inventory-chip.empty { opacity: .5; }
+.inventory-chip .inv-sign { width: 20px; height: 20px; font-size: 12px; }
+
+/* The sign of a type: one glyph in a small square, the same in a chip and on a card. */
+.inv-sign { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; color: var(--yellow, #e9c66d); border: 1px solid var(--border, #444); border-radius: 6px; font-size: 15px; line-height: 1; }
+.inv-sign[data-inv-sign="armor"] { color: #8fb8e8; }
+.inv-sign[data-inv-sign="cyberware"] { color: #7fd3c4; }
+.inv-sign[data-inv-sign="weapon"] { color: #f08a7c; }
+.inv-sign[data-inv-sign="other"], .inv-sign[data-inv-sign="ammo"] { color: var(--muted, #aaa); }
+
+/* A card: the name line, then what the thing is and what can be done with it right now. */
+.cx-item-edit > summary .inv-sign { margin-right: 2px; }
+.inv-head { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px 8px 34px; }
+.inv-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.inv-quick { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 0 12px 10px 34px; }
+.inv-line { flex: 1 1 220px; min-width: 0; color: var(--muted, #aaa); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.inv-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.inv-act { min-height: 36px; }
+.inv-act.inv-primary { color: #111; background: var(--yellow, #e9c66d); border-color: var(--yellow, #e9c66d); font-weight: 700; }
+.cx-item-edit[open] + .inv-quick { padding-top: 10px; border-top: 1px solid var(--border, #444); }
+
+/* The armor and cyberware block, folded under the list. */
+.inv-more { margin-top: 16px; }
+.inv-more > summary { display: grid; gap: 2px; padding: 12px 14px 12px 36px; position: relative; cursor: pointer; list-style: none; border: 1px solid var(--border, #444); }
+.inv-more > summary::-webkit-details-marker { display: none; }
+.inv-more > summary::before { content: "▸"; position: absolute; left: 14px; top: 13px; color: var(--muted, #aaa); font-size: 12px; transition: transform .12s; }
+.inv-more[open] > summary::before { transform: rotate(90deg); }
+.inv-more > summary span { font-weight: 700; font-size: 14px; }
+.inv-more > summary small { color: var(--muted, #aaa); font-size: 12px; line-height: 1.4; }
+.inv-more[open] > summary { margin-bottom: 12px; }
+
+html.ui-native .inventory-chip { border-radius: 18px; }
+html.ui-native .inv-more > summary { border: 0; border-radius: 14px; background: var(--panel, rgba(255, 255, 255, .04)); }
+html.ui-native.ui-light .inventory-chip b { color: #554638; }
+html.ui-native.ui-light .inv-sign { color: #8a5a00; }
+html.ui-native.ui-light .inv-sign[data-inv-sign="armor"] { color: #1f5f9e; }
+html.ui-native.ui-light .inv-sign[data-inv-sign="cyberware"] { color: #0f6f60; }
+html.ui-native.ui-light .inv-sign[data-inv-sign="weapon"] { color: #a8281a; }
+html.ui-native.ui-light .inv-sign[data-inv-sign="other"], html.ui-native.ui-light .inv-sign[data-inv-sign="ammo"] { color: #5b5750; }
+html.ui-native.ui-light .inventory-chip[aria-pressed="true"], html.ui-native.ui-light .inv-act.inv-primary { color: #111; background: #f0c419; border-color: #f0c419; }
+html.ui-native.ui-light .inventory-chip[aria-pressed="true"] .inv-sign { color: #111; }
+
+@media (max-width: 650px) {
+  .inventory-chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -4px; padding: 2px 4px 6px; scrollbar-width: thin; }
+  .inventory-chip { flex: none; min-height: 40px; }
+  .inv-quick { padding-left: 12px; }
+  .inv-actions { width: 100%; }
+  .inv-actions .inv-act { flex: 1 1 0; min-height: 44px; }
+}
+@media print { .inventory-chips, .inv-actions, .inv-more > summary { display: none !important; } .inv-more:not([open]) > * { display: block; } }

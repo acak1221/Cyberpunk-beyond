@@ -1,0 +1,64 @@
+/* Item groups (item-groups.js): the chips of the player's own groups, the folding group headers in the list of cards,
+   and the small panels that make, rename and delete a group. The chips reuse .inventory-chip (inventory-cards.css),
+   the panels reuse .gf-panel (gear-flow.css), the buttons are .cx-button, so every look styles them as it styles those. */
+
+/* The second row of chips, right under the type chips. A long group name wraps inside its chip instead of
+   pushing the row wider than the page. */
+.inventory-groups { margin-top: 6px; }
+.inventory-groups .inventory-chip { max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+.inventory-groups .ig-new { border-style: dashed; color: var(--muted, #aaa); }
+.inventory-groups + .ig-panel { margin-top: 8px; }
+
+/* A group in the list: a header that folds it, the tools of the group, and the cards. */
+.ig-none, .ig-group { margin-top: 14px; }
+.ig-title { margin: 0 0 6px; color: var(--muted, #aaa); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.ig-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--border, #444); }
+.ig-toggle { display: flex; flex: 1 1 180px; align-items: center; gap: 8px; min-width: 0; min-height: 44px; padding: 6px 4px; color: var(--text); background: transparent; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.ig-toggle strong { min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.ig-caret { flex: none; width: 12px; color: var(--muted, #aaa); font-size: 12px; transition: transform .12s; }
+.ig-toggle[aria-expanded="true"] .ig-caret { transform: rotate(90deg); }
+.ig-count { flex: none; min-width: 18px; padding: 1px 5px; color: var(--muted, #aaa); background: rgba(127, 127, 127, .16); border-radius: 9px; font-size: 11px; font-weight: 700; text-align: center; }
+.ig-tools { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 6px; }
+.ig-tool { min-height: 36px; }
+.ig-body { padding-left: 8px; border-left: 2px solid var(--border, #444); }
+.ig-body > .ig-empty { margin: 0; padding: 8px 4px; }
+.ig-group > .ig-panel { margin-bottom: 8px; }
+
+/* The «Группа» select of a card, and the panels. */
+.ig-field select { min-height: 36px; max-width: 100%; }
+.inv-actions .ig-field { flex-direction: row; align-items: center; gap: 6px; font-size: 11px; }
+.ig-panel .field input { max-width: 420px; }
+.ig-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ig-panel .cx-entry-actions { margin-top: 10px; }
+.ig-error { margin: 8px 0 0; color: var(--red, #e0584a); font-size: 12px; font-weight: 700; }
+/* The cyber look: its red is too dark for small text on a panel (3.9:1), so the error line takes a lighter one. */
+html:not(.ui-native) .ig-error { color: #ff8a80; }
+.cx-item-edit > .ig-panel, .inv-weapon > .ig-panel { margin: 12px; }
+
+html.ui-native .ig-toggle { border-radius: 10px; }
+html.ui-native.ui-light .ig-count { color: #554638; }
+html.ui-native.ui-light .inventory-groups .ig-new, html.ui-native.ui-light .ig-title { color: #5b5750; }
+html.ui-native.ui-light .ig-error { color: #a8281a; }
+
+@media (max-width: 650px) {
+  /* Phone: every control of a group is a 44px target, and the cards use the whole width. */
+  /* The type chips scroll in one row; the groups wrap instead, so that «＋ Группа» is never off the screen. */
+  .inventory-groups { flex-wrap: wrap; overflow-x: visible; margin: 6px 0 0; padding: 0; }
+  .inventory-groups .inventory-chip { min-height: 44px; max-width: 100%; }
+  .ig-toggle { flex-basis: 100%; }
+  .ig-tools { width: 100%; }
+  .ig-tool { flex: 1 1 0; min-height: 44px; }
+  .ig-body { padding-left: 0; border-left: 0; }
+  .ig-field select, .ig-panel .cx-button, .ig-panel input { min-height: 44px; }
+  /* The Досье look sets its buttons to 40px with a heavier selector (board.css); these outweigh it. */
+  html .ig-group .ig-tools .ig-tool.cx-button, html .ig-panel.gf-panel .cx-button.cx-button { min-height: 44px; }
+  .inv-actions .ig-field { flex: 1 1 100%; }
+  .inv-actions .ig-field select { flex: 1; min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .ig-caret { transition: none; } }
+/* On paper the groups stay as headings over their things; a folded group is printed too. */
+@media print {
+  .inventory-groups, .ig-tools, .ig-panel, .ig-caret, .ig-field { display: none !important; }
+  .ig-body[hidden] { display: block !important; }
+  .ig-toggle { color: #111; }
+}

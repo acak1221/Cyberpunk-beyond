@@ -1,0 +1,88 @@
+/* «Свои таблицы бросков» (roll-tables.js): the card in the GM tools group. Colours come from the theme
+   variables only, so the card reads the same in the cyberpunk look, the clean look (dark and light) and «Досье».
+   Nothing has a fixed width, so a 390px phone never scrolls sideways. */
+.rtb-card{min-width:0;overflow-wrap:anywhere;display:grid;gap:14px}
+.rtb-card>*{min-width:0;margin-top:0;margin-bottom:0}
+.rtb-card>.card-heading{margin-bottom:6px}
+.rtb-card .btn,html.ui-native.ui-board .rtb-card .btn{min-height:44px;margin-top:0;flex:0 1 auto}
+.rtb-note{margin:0;font-size:.86rem;line-height:1.55;color:var(--muted)}
+.rtb-text{margin:0;font-size:.9rem;line-height:1.5;color:var(--text)}
+.rtb-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rtb-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* the list */
+.rtb-group{display:grid;gap:8px;min-width:0}
+.rtb-group-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px}
+.rtb-group-head h4{margin:0;font-size:.95rem;color:var(--text)}
+.rtb-list,.rtb-plan,.rtb-problems{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.rtb-table{border:1px solid var(--border);border-radius:var(--radius,2px);padding:12px;display:grid;gap:10px;min-width:0;background:var(--panel-2)}
+.rtb-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.rtb-head strong{color:var(--text);font-size:1rem}
+.rtb-die{font:700 .85rem/1.2 'IBM Plex Mono',monospace;color:var(--text);border:1px solid var(--border);border-radius:var(--radius,2px);padding:2px 8px;white-space:nowrap}
+.rtb-meta{font-size:.82rem;color:var(--muted)}
+/* The warning colour is carried by the border, the words stay in the text colour: yellow letters are too pale
+   on the light theme. */
+.rtb-flag{font-size:.78rem;color:var(--text);border-left:3px solid var(--yellow);padding-left:8px}
+.rtb-actions{display:flex;flex-wrap:wrap;gap:8px}
+.rtb-result{margin:0;padding:10px 12px;border-left:3px solid var(--yellow);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;color:var(--text);min-width:0}
+.rtb-result strong{font-size:1.02rem;line-height:1.4;min-width:0}
+.rtb-dice{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font:700 1rem/1 'IBM Plex Mono',monospace;color:var(--text)}
+.rtb-face{display:inline-grid;place-items:center;min-width:36px;height:36px;padding:0 6px;box-sizing:border-box;border:2px solid var(--yellow);color:var(--text)}
+.rtb-sum{white-space:nowrap}
+.rtb-undo{margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius,2px);background:var(--panel-2);color:var(--text);font-size:.9rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.rtb-check{display:flex;align-items:center;gap:10px;min-height:44px;color:var(--text);font-size:.92rem;cursor:pointer}
+.rtb-check input{width:22px;height:22px;flex:none;accent-color:var(--red)}
+.rtb-file{position:relative;cursor:pointer;display:inline-flex;align-items:center}
+.rtb-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.rtb-file:focus-within{outline:2px solid var(--red);outline-offset:2px}
+.rtb-error{margin:0;padding:10px 12px;border:1px solid var(--red);border-radius:var(--radius,2px);color:var(--text);background:var(--panel-2);font-size:.9rem;line-height:1.45}
+
+/* the editor */
+.rtb-form{display:grid;gap:12px;min-width:0}
+.rtb-form>*{min-width:0;margin-top:0;margin-bottom:0}
+.rtb-form-title{margin:0;font-size:1.05rem;color:var(--text)}
+.rtb-form .field{margin:0;min-width:0;width:auto;flex:none}
+.rtb-form input:not([type=checkbox]),.rtb-form select,.rtb-form textarea{width:100%;box-sizing:border-box;min-height:44px}
+.rtb-form textarea{resize:vertical}
+.rtb-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;align-items:end}
+.rtb-over{margin:4px 0 0}
+.rtb-entries{display:grid;gap:10px;min-width:0}
+.rtb-entries:empty{display:none}
+/* A row has a border and no fill of its own: the clean dark look paints fields with the panel colour and no
+   visible border, so on a filled row the three fields could not be told from the row. */
+.rtb-entry{margin:0;padding:10px;border:1px solid var(--border);border-radius:var(--radius,2px);min-width:0;display:grid;grid-template-columns:minmax(0,5.5rem) minmax(0,5.5rem) minmax(0,1fr) 44px;gap:8px;align-items:end}
+.rtb-card .rtb-x,html.ui-native.ui-board .rtb-card .rtb-x{width:44px;min-width:44px;padding:0;justify-content:center}
+.rtb-bulk{border:1px solid var(--border);border-radius:var(--radius,2px);padding:0 12px;min-width:0}
+.rtb-bulk>summary{padding:12px 0;line-height:20px;cursor:pointer;color:var(--text);font-weight:700;font-size:.92rem}
+.rtb-bulk[open]{padding-bottom:12px;display:grid;gap:10px}
+.rtb-bulk>*{margin-top:0;margin-bottom:0}
+.rtb-problems{gap:6px}
+.rtb-problems li{padding:6px 10px;border-left:3px solid var(--border);font-size:.88rem;line-height:1.45;color:var(--text)}
+.rtb-problems .rtb-bad{border-left-color:var(--red)}
+.rtb-problems .rtb-gap{border-left-color:var(--yellow)}
+.rtb-problems .rtb-fine{border-left-color:var(--green,var(--border));color:var(--muted)}
+
+/* a table file before it is taken in */
+.rtb-preview{display:grid;gap:10px;padding:14px;border:1px solid var(--yellow);border-radius:var(--radius,2px);min-width:0}
+.rtb-preview>*{margin-top:0;margin-bottom:0}
+.rtb-preview h4{margin:0;color:var(--text)}
+.rtb-warn{border-left:3px solid var(--yellow);padding-left:10px}
+.rtb-plan{gap:6px;max-height:320px;overflow:auto}
+.rtb-plan li{display:flex;gap:8px;align-items:baseline;font-size:.9rem;color:var(--text);min-width:0}
+.rtb-plan li>span:last-child{min-width:0}
+.rtb-tag{flex:none;padding:1px 8px;border:1px solid var(--border);border-radius:999px;font-size:.75rem;color:var(--text);background:var(--panel-2);white-space:nowrap}
+.rtb-tag.rtb-new{border-color:var(--green,var(--border))}
+.rtb-tag.rtb-update{border-color:var(--yellow)}
+.rtb-tag.rtb-same,.rtb-tag.rtb-overflow{color:var(--muted)}
+
+/* a result in the «recent results» list of gm-extras: a total of 100 needs a wider box than one d10 */
+.gm-extras .gx-die.rtb-total{width:auto;min-width:40px;padding:0 6px;box-sizing:border-box}
+.gm-extras .rtb-log strong{min-width:0}
+
+@media (max-width:560px){
+ /* Two lines per row on a phone: the range and the delete button, then the text at full width. */
+ .rtb-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px}
+ .rtb-entry .rtb-wide{grid-column:1/-1;grid-row:2}
+ .rtb-two{grid-template-columns:minmax(0,1fr)}
+ .rtb-actions .btn{flex:1 1 auto}
+}

@@ -325,3 +325,41 @@ test('a receipt counts only from a GM the sheet went to, with the reference sent
  await tell(q,'gm1','sheet-ack',{ref:qref,name:'Ви'});assert.equal(q.R.sheetState().state,'sent');
  assert.deepEqual(await tell(q,'gm1','sheet-ack',{name:'Ви'}),['Ведущий принял ваш лист: Ви']);assert.equal(q.R.sheetState().state,'accepted');
 });
+test('the folder and tags of a sheet never travel through the room, not even from a page of an older version',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub());
+ const filed={...V,extra:{...V.extra,folder:'Мои персонажи',tags:['долг','босс'],uid:'u1'}};
+ const p1=await player(r,{store:new Map(),memberId:'pf1',character:filed,gmPub:pub});
+ await p1.R.sendSheet();assert.equal(p1.sent.length,1);
+ assert.deepEqual(plain(filed.extra.tags),['долг','босс'],'sending does not un-file the player\'s own sheet');
+ await deliver(gm,r,p1.sent);
+ const got=gm.R.incoming()[0].character;assert.equal(got.extra.uid,'u1');assert.equal('folder' in got.extra,false);assert.equal('tags' in got.extra,false);
+ // An older page does not know to leave them out: what it sends is dropped on arrival, before the sheet is listed.
+ const old=await gm.R.packSheet({who:'Old',dev:'',character:{...V,id:'v7',extra:{folder:'Чужая папка',tags:['чужая'],uid:'u7'}}},'j');
+ await gm.R.receive({topic:r.topic+'/e',retain:false,payload:await sealE({id:'oldtags',from:'pf2',t:'sheet',at:Date.now(),d:{to:ID('gm1'),enc:old.enc,ref:'r7',...await gm.R.sealFor(pub,old.bytes)}})});
+ const item=gm.R.incoming()[0].character;assert.equal(item.id,'v7');assert.equal(item.extra.uid,'u7');assert.equal('folder' in item.extra,false);assert.equal('tags' in item.extra,false);
+ const legacy=await sealE({id:'oldtags2',from:'pf3',t:'sheet',at:Date.now(),d:{to:ID('gm1'),...await gm.R.sealFor(pub,{...V,id:'v8',extra:{folder:'X',tags:['y']}})}});
+ await gm.R.receive({topic:r.topic+'/e',retain:false,payload:legacy});
+ assert.equal(gm.R.incoming()[0].character.id,'v8');assert.deepEqual(plain(gm.R.incoming()[0].character.extra),{});
+});
+
+test('the item groups of a sheet never travel through the room, not even from a page of an older version',{skip:!zipOK},async()=>{
+ const {r,gm}=await room(),pub=plain(gm.R.gmPub());
+ const groups=[{id:'g-abc',name:'Тайник у Марии',collapsed:true}],items=[{id:'i1',name:'Пистолет',category:'other',quantity:1,group:'g-abc',notes:'n'},null,'x'],weapons=[{id:'w1',name:'W',group:'g-abc'}];
+ const sorted={...V,extra:{...V.extra,itemGroups:groups,items,weapons,uid:'u1'}};
+ const p1=await player(r,{store:new Map(),memberId:'pg1',character:sorted,gmPub:pub});
+ await p1.R.sendSheet();assert.equal(p1.sent.length,1);
+ assert.deepEqual(plain(sorted.extra.itemGroups),groups,'sending does not un-sort the player\'s own sheet');assert.equal(sorted.extra.items[0].group,'g-abc');assert.equal(sorted.extra.weapons[0].group,'g-abc');
+ await deliver(gm,r,p1.sent);
+ const got=gm.R.incoming()[0].character;assert.equal(got.extra.uid,'u1');assert.equal('itemGroups' in got.extra,false);
+ assert.deepEqual(plain(got.extra.items[0]),{id:'i1',name:'Пистолет',category:'other',quantity:1,notes:'n'},'the thing itself arrives whole, without its group');assert.deepEqual(plain(got.extra.weapons),[{id:'w1',name:'W'}]);
+ assert.doesNotMatch(JSON.stringify(got),/Тайник у Марии|g-abc/);
+ // An older page does not know to leave them out: what it sends is dropped on arrival, before the sheet is listed.
+ const old=await gm.R.packSheet({who:'Old',dev:'',character:{...V,id:'v7',extra:{itemGroups:groups,items:[{id:'i2',name:'A',group:'g-abc'}],weapons:'broken',uid:'u7'}}},'j');
+ await gm.R.receive({topic:r.topic+'/e',retain:false,payload:await sealE({id:'oldgroups',from:'pg2',t:'sheet',at:Date.now(),d:{to:ID('gm1'),enc:old.enc,ref:'r7',...await gm.R.sealFor(pub,old.bytes)}})});
+ const item=gm.R.incoming()[0].character;assert.equal(item.id,'v7');assert.deepEqual(plain(item.extra),{items:[{id:'i2',name:'A'}],weapons:'broken',uid:'u7'});
+ // What the GM page hands to the app on «Принять» has neither.
+ const given=[];const real=gm.window.App.importCharacter;gm.window.App.importCharacter=(c,o)=>{given.push(plain(c));return real(c,o)};
+ await gm.R.acceptSheet(0);
+ assert.equal(given.length,1);assert.equal('folder' in given[0].extra,false);assert.equal('tags' in given[0].extra,false);
+ assert.ok(!JSON.stringify(gm.window.chars).includes('Чужая')&&!JSON.stringify(gm.R.incoming()).includes('чужая'));
+});

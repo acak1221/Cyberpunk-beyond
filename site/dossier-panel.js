@@ -85,7 +85,7 @@ function armorBlocked(c,stat){
 }
 // A Stim set up for the next Skill or attack roll: that roll leaves the wound penalty out.
 function stimPrimed(c){try{return global.StimRoll?.primed?.(c)===true}catch{return false}}
-const SOURCE={injury:['критическая травма','Critical Injury'],cyber:['киберимплант','cyberware'],drug:['уличный наркотик','street drug']};
+const SOURCE={injury:['критическая травма','Critical Injury'],cyber:['киберимплант','cyberware'],drug:['уличный наркотик','street drug'],named:['свой модификатор','named modifier']};
 // One row per thing acting on the character that changes this very check; the situational reminders go to `notes`.
 function effectRows(c,q,l){
  const ru=l!=='en',rows=[],notes=[];let total=null;
@@ -97,6 +97,7 @@ function effectRows(c,q,l){
    if(q.move)v+=num(p.move);
   }
   if(kind==='drug'&&q.stat&&isObject(p.stats)&&Object.hasOwn(p.stats,q.stat))v+=num(p.stats[q.stat]);
+  if(kind==='named'&&q.check){v+=num(p.all)+(q.kind==='melee'?num(p.melee):q.kind==='ranged'?num(p.ranged):0);if(q.stat&&isObject(p.checkStats)&&Object.hasOwn(p.checkStats,q.stat))v+=num(p.checkStats[q.stat])}
   if(kind!=='injury'&&q.skill&&isObject(p.skills)&&Object.hasOwn(p.skills,q.skill))v+=num(p.skills[q.skill]);
   const name=String(s?.name?.[ru?'ru':'en']||s?.name?.en||'').trim()||(ru?SOURCE[kind][0]:SOURCE[kind][1]);
   if(v)rows.push({label:name,source:ru?SOURCE[kind][0]:SOURCE[kind][1],value:v});

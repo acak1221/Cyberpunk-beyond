@@ -1,0 +1,101 @@
+/* City map (city-map.js): the Game Master's page of a campaign, the card that leads to it and the read-only card on the
+   room page. Colours come from the theme variables only, so all three looks and the light theme work. A pin is a solid
+   chip with an outline: it must be readable over any picture the user brings. */
+.cm-page, .cm-main, .cm-editor, .cm-list, .cm-share, .city-map-card, .room-citymap { min-width: 0; }
+.cm-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; min-width: 0; }
+.cm-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+@media (min-width: 1100px) { .cm-layout { grid-template-columns: minmax(0, 1fr) 340px; } }
+.cm-layout > .card, .cm-side > .card { margin: 0; }
+/* Cards put text in capitals in some looks; the map is ordinary reading text. */
+.cm-hint, .cm-row, .cm-filter, .cm-status, .cm-route-line, .cm-say, .cm-check, .cm-pin-name, .cm-shared-list, .cm-crew-line { letter-spacing: 0; text-transform: none; }
+.cm-hint { margin: 8px 0; color: var(--muted); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+html .cm-page .btn.btn, html .city-map-card .btn.btn { min-height: 44px; }
+.cm-page .btn:focus-visible, .cm-filter:focus-visible, .cm-row:focus-visible, .cm-scroll:focus-visible, .cm-file:focus-within { outline: 3px solid var(--yellow); outline-offset: 2px; }
+html .cm-page .cm-danger { color: var(--red); }
+
+/* Toolbar */
+.cm-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 0 0 10px; min-width: 0; }
+.cm-modes { display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--muted); border-radius: var(--radius, 2px); overflow: hidden; }
+html .cm-page .cm-modes .cm-mode { border: 0; border-radius: 0; color: var(--text); background: transparent; }
+html .cm-page .cm-modes .cm-mode[aria-pressed="true"], html .cm-page .btn[data-cm-act="labels"][aria-pressed="true"], html .cm-page .btn[data-cm-act="crew"][aria-pressed="true"] { color: var(--bg); background: var(--text); }
+.cm-newtype { margin: 0; flex: 0 1 180px; min-width: 140px; }
+.cm-newtype select { width: 100%; min-height: 44px; }
+.cm-zoom { display: inline-flex; align-items: center; gap: 4px; }
+.cm-zoom .btn { min-width: 44px; padding-left: 0; padding-right: 0; justify-content: center; }
+.cm-zoom-now { min-width: 30px; text-align: center; color: var(--text); font-weight: 700; }
+/* The file field lies over its label, invisible: a tap and the keyboard both reach it, and the label shows the focus. */
+.cm-file { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+html .cm-page .cm-file input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 44px; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+@media (max-width: 559px) {
+  .cm-toolbar > .btn, .cm-toolbar > .cm-file { flex: 1 1 auto; justify-content: center; }
+  .cm-modes { width: 100%; }
+  .cm-modes .cm-mode { flex: 1 1 auto; }
+  .cm-newtype { flex: 1 1 100%; }
+}
+
+/* Type chips: the sign, never the colour alone, tells the types apart; three of them are square. */
+.cm-chip { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; box-sizing: border-box; color: var(--text); background: var(--panel); border: 2px solid var(--text); border-radius: 50%; font: 700 15px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.cm-chip.cm-t-gang, .cm-chip.cm-t-danger, .cm-chip.cm-t-corp { border-radius: 4px; }
+.cm-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.cm-filter { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; max-width: 100%; padding: 4px 14px 4px 8px; color: var(--text); background: var(--panel-2); border: 1px solid var(--muted); border-radius: 22px; font: inherit; font-size: 13px; cursor: pointer; }
+.cm-filter[data-cm-value=""] { padding-left: 14px; }
+.cm-filter[aria-pressed="true"] { color: var(--bg); background: var(--text); border-color: var(--text); }
+.cm-count { font-weight: 700; }
+
+/* The stage. Only this box scrolls sideways, and only when the map is zoomed in. */
+.cm-scroll { max-width: 100%; max-height: 78vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius, 2px); background: var(--bg); -webkit-overflow-scrolling: touch; }
+.cm-stage { position: relative; overflow: hidden; background: var(--panel-2); }
+[data-cm-mode="add"] .cm-stage { cursor: crosshair; }
+/* No picture: an abstract grid of blocks and streets, drawn with gradients. It shows no real place. */
+.cm-grid { background-color: var(--panel-2); background-image: linear-gradient(var(--bg) 5px, transparent 5px), linear-gradient(90deg, var(--bg) 5px, transparent 5px), linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 20% 25%, 20% 25%, 5% 6.25%, 5% 6.25%; }
+.cm-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.cm-route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 0 1px var(--bg)) drop-shadow(0 0 2px var(--bg)); }
+.cm-route polyline { fill: none; stroke: var(--yellow); stroke-width: 4; stroke-dasharray: 12 7; stroke-linejoin: round; stroke-linecap: round; }
+
+/* A pin: a 44px touch area around a 28px chip. Near an edge it is kept wholly inside the stage, with room for its label below and the crew tag above. */
+.cm-pin { position: absolute; z-index: 1; left: clamp(22px, var(--x), calc(100% - 22px)); top: clamp(28px, var(--y), calc(100% - 34px)); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 0; margin: -22px 0 0 -22px; padding: 0; color: var(--text); background: transparent; border: 0; border-radius: 50%; font: inherit; }
+button.cm-pin { cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cm-pin .cm-chip { box-shadow: 0 0 0 2px var(--bg); }
+.cm-pin:focus-visible { outline: 3px solid var(--yellow); outline-offset: -2px; z-index: 4; }
+.cm-pin.cm-sel { z-index: 3; }
+.cm-pin.cm-sel .cm-chip { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.cm-pin.cm-crew .cm-chip { box-shadow: 0 0 0 2px var(--bg), 0 0 0 5px var(--text); }
+.cm-pin.cm-dragging { z-index: 5; opacity: .85; }
+/* A dot for "shown to players"; the list says the same in words. */
+.cm-pin.cm-shown::after { content: ""; position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; box-sizing: border-box; background: var(--green); border: 2px solid var(--bg); border-radius: 50%; pointer-events: none; }
+.cm-stop { position: absolute; top: 3px; left: 3px; display: flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; color: var(--bg); background: var(--text); border-radius: 9px; font-size: 10px; font-weight: 700; line-height: 1; pointer-events: none; }
+.cm-crew-tag { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: -8px; padding: 1px 6px; color: var(--bg); background: var(--text); border-radius: 3px; font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap; letter-spacing: 0; text-transform: none; pointer-events: none; }
+.cm-pin-name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: -9px; max-width: 120px; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 3px; font-size: 11px; font-weight: 400; line-height: 1.45; pointer-events: none; }
+.cm-pin.cm-static { pointer-events: none; }
+.cm-crew-only { z-index: 2; }
+
+.cm-route-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 0; min-width: 0; }
+.cm-route-line { flex: 1 1 220px; min-width: 0; margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.cm-say { margin: 6px 0 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.cm-say:empty { margin: 0; }
+
+/* Editor, list, sharing */
+.cm-editor .field { display: block; margin: 0 0 10px; min-width: 0; }
+.cm-editor .field input, .cm-editor .field select, .cm-editor .field textarea { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.cm-editor .field textarea { min-height: 96px; }
+.cm-check { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--text); cursor: pointer; overflow-wrap: anywhere; }
+.cm-check input { flex: none; width: 20px; height: 20px; margin: 0; }
+.cm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cm-actions .btn { flex: 1 1 auto; justify-content: center; }
+.cm-rows, .cm-shared-list { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.cm-rows { max-height: 420px; overflow: auto; padding: 3px; }
+.cm-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius, 2px); font: inherit; text-align: left; cursor: pointer; }
+.cm-row[aria-pressed="true"] { border-color: var(--yellow); box-shadow: inset 4px 0 0 var(--yellow); }
+.cm-row-text { display: grid; min-width: 0; }
+.cm-row-name { overflow-wrap: anywhere; }
+.cm-row-type { color: var(--text); font-size: 12px; overflow-wrap: anywhere; }
+.cm-status { margin: 10px 0; padding: 8px 12px; color: var(--text); background: var(--panel-2); border-left: 3px solid var(--border); overflow-wrap: anywhere; }
+
+/* Room page: what players see */
+.room-citymap { margin-bottom: 16px; }
+.cm-shared { max-width: 640px; margin: 10px 0; border: 1px solid var(--border); }
+.cm-shared-list li { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.cm-shared-list li > span:last-child { min-width: 0; }
+.cm-crew-line { margin: 10px 0 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+
+@media print { .cm-toolbar, .cm-filters, .cm-editor, .cm-share, .cm-page .sheet-top { display: none; } }
