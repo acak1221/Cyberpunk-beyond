@@ -236,6 +236,8 @@ const coreGearDescriptions=[
  ['cyberware-contraceptive-implant',362,'Предотвращает нежелательную беременность; внутренняя кибернетика.','Prevents unwanted pregnancy; internal body cyberware.']
 ];
 for(const [id,page,ru,en] of coreGearDescriptions){const matches=window.CATALOG.filter(x=>x.id===id);if(matches.length!==1)throw Error('Missing or duplicate core gear: '+id);const item=matches[0];if(item.details?.ru||item.details?.en)throw Error('Core gear description already present: '+id);item.details={ru,en};item.page=page;}
+// Slots of the three deck qualities (the numbers are in the descriptions above), kept as a number so the NETRUN tab does not parse text.
+for(const [id,slots] of [['gear-cyberdeck-poor-quality',5],['gear-cyberdeck-standard-quality',7],['gear-cyberdeck-excellent-quality',9]]){const item=window.CATALOG.find(x=>x.id===id);if(!item||!item.stats||typeof item.stats!=='object')throw Error('Missing cyberdeck: '+id);item.stats.slots=slots}
 // Full equipment listings, pp. 358–367; these descriptions do not apply effects automatically.
 const cyberDetails=[
  ['cyberware-emp-threading',358,'Декоративные линии под кожей. Утверждения о защите от ЭМИ или радиации научно не подтверждены.','Decorative lines under the skin. Claims of protection against EMP or radiation lack scientific support.'],

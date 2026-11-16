@@ -1,0 +1,29 @@
+/* Role: «Игрок / Ведущий». Chooser card on the home page, the switch in the menu, the notice on a Game Master screen.
+   Colours come from each look's own variables, so every look and both themes follow. */
+.role-chooser{margin:18px 0;padding:16px 20px;color:var(--text);background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:4px}
+html.ui-native .role-chooser{border-radius:14px}
+.role-chooser h2{margin:0 0 10px;font-size:20px;line-height:1.25;color:var(--text);letter-spacing:0;text-transform:none}
+.role-chooser-actions{display:flex;flex-wrap:wrap;gap:8px}
+.role-chooser-actions .btn{flex:1 1 140px;min-height:44px}
+.role-chooser p{margin:10px 0 0;max-width:68ch;font-size:14px;line-height:1.5;color:var(--muted)}
+
+.role-switch{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:0 0 12px;padding:2px;font-size:11px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:10px}
+.role-switch-label{width:100%;margin:2px 6px 0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.role-switch button{flex:1 1 0;min-width:44px;min-height:44px;padding:4px 6px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:8px;cursor:pointer}
+.role-switch button.active{color:var(--text);background:var(--panel);border-color:var(--red)}
+.role-switch button:focus-visible,.role-chooser .btn:focus-visible,.role-notice .btn:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.sidebar > .role-switch{margin:12px 10px 0}
+html:not(.ui-native) .role-switch{border-radius:0}
+html:not(.ui-native) .role-switch button{border-radius:0}
+
+.role-notice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 16px;padding:10px 14px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:4px;font-size:14px;line-height:1.4}
+html.ui-native .role-notice{border-radius:12px}
+.role-notice span{flex:1 1 220px;min-width:0}
+.role-notice .btn{min-height:44px;flex:0 1 auto}
+/* The «Досье» look sets 40 px on every .btn; these three buttons keep their 44 px target. */
+html.ui-native.ui-board .role-chooser .btn,html.ui-native.ui-board .role-notice .btn{min-height:44px}
+@media(max-width:700px){
+ .role-chooser{padding:14px 14px 16px}
+ .role-chooser h2{font-size:18px}
+ .role-notice .btn{flex:1 1 100%}
+}

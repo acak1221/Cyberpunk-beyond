@@ -1,0 +1,64 @@
+/* The run console of the NETRUN tab (netrun-console.js). Compact on a phone: status, DV and the ability grid are on one screen.
+   Colour comes from theme variables only, so every look and theme follows its own palette. Every target is at least 44 px. */
+.nc-card .nc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 8px; }
+.nc-status { justify-content: space-between; }
+.nc-state { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.nc-state i { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.nc-state.is-in { color: var(--text); }
+.nc-state.is-in i { background: var(--green); box-shadow: 0 0 0 3px var(--panel-2); }
+.nc-rank { font-size: 13px; color: var(--muted); }
+.nc-rank b { color: var(--yellow); font-size: 18px; }
+.nc-count { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.nc-count b { color: var(--text); font-size: 16px; }
+.nc-pips { display: inline-flex; gap: 4px; }
+.nc-pip { width: 12px; height: 12px; border: 2px solid var(--yellow); border-radius: 50%; background: transparent; }
+.nc-pip.is-on { background: var(--yellow); }
+.nc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.nc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 auto; min-height: 44px; min-width: 44px; padding: 8px 12px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-weight: 600; line-height: 1.2; text-align: center; }
+.nc-btn:hover:not(:disabled) { background: var(--panel-hover); border-color: var(--yellow); }
+.nc-btn.nc-primary { color: #fff; background: var(--red-dark); border-color: var(--red); }
+.nc-btn.nc-primary:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
+.nc-btn.is-in { border-color: var(--green); }
+.nc-buttons { flex-wrap: nowrap; }
+.nc-buttons .nc-btn { padding: 8px 8px; }
+.nc-jack { flex: 1.5 1 0; }
+
+.nc-fields { align-items: flex-end; flex-wrap: nowrap; }
+.nc-field { display: grid; flex: 1 1 0; min-width: 0; gap: 3px; font-size: 12px; color: var(--muted); }
+html .nc-card .nc-field input, html .nc-card .nc-field select { width: 100%; min-height: 44px; padding: 6px 10px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; font-size: 16px; }
+.nc-hint { margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+/* nine abilities: three columns on a phone, name above the total */
+.nc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.nc-ab { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 56px; padding: 6px 8px; }
+.nc-ab b { font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; }
+.nc-ab em { font-size: 20px; line-height: 1; }
+.nc-ab small { color: var(--muted); font-size: 10px; line-height: 1.2; }
+/* off = jacked out: a dashed border, not a dimmed colour (dimming broke the colour contrast of the totals) */
+.nc-ab.is-off { border-style: dashed; }
+@media (min-width: 640px) { .nc-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; } .nc-ab { min-height: 64px; padding: 8px 12px; } }
+
+.nc-result { margin: 10px 0 0; }
+.nc-result:empty { display: none; }
+.nc-result p, .nc-attack p { margin: 0 0 8px; }
+.nc-last { font-size: 13px; line-height: 1.5; color: var(--text); }
+.nc-last > span { color: var(--muted); }
+.nc-last strong { color: var(--yellow); font-size: 18px; }
+.nc-msg { padding: 8px 10px; border: 1px solid var(--red); border-left-width: 3px; background: var(--panel-2); font-size: 13px; }
+.nc-note { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.nc-dmg { padding: 8px 10px; border-left: 3px solid var(--yellow); background: var(--panel-2); font-size: 14px; font-weight: 700; }
+.nc-zap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.nc-zap .nc-btn { flex: 0 0 auto; }
+.nc-what { margin: 10px 0 0; border-top: 1px solid var(--border); }
+.nc-what summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.nc-what ul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.nc-card .netrun-actions { margin: 8px 0 0; }
+html .nc-card .netrun-actions .btn { min-height: 44px; }
+.nc-attack { margin: 8px 0 4px; padding: 10px 0 0; border-top: 1px dashed var(--border); }
+.nc-attack .nc-btn { flex: 0 1 auto; }
+.nc-attack .nc-field { flex: 0 1 180px; }
+@media print { .nc-card .nc-btn, .nc-card .nc-field { display: none; } }
+/* the pointer to the NETRUN tab is for the other tabs: on the tab itself the console is right there */
+.sheet-layout[data-active-tab="netrun"] .rt-section:has([data-netrun-open]) { display: none; }
+.rt-actions .rt-button[data-netrun-open] { min-height: 44px; }

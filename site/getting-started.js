@@ -7,7 +7,7 @@ const copy={
   ['Подключите книгу','В разделе «Книга» выберите свой PDF Corebook. Файл остаётся в браузере; после перезагрузки выберите его снова. Ссылки на страницы в инструментах открывают соответствующую страницу.','Открыть книгу','navigate','book'],
   ['Подготовьте игру','В разделе «Кампании» можно вести личные заметки и инициативу. В разделе «Ведущему» находятся инструменты для подготовки игры.','Открыть кампании','navigate','campaigns'],
   ['Проверьте бой и лечение','Разделы «Бой» и «Медицина» помогают с проверками и состоянием персонажей. Читайте подсказки: некоторые решения и эффекты нужно подтвердить или учесть вручную.','Открыть бой','navigate','combat']
- ],directoryTitle:'Где найти инструменты',directory:[
+ ],playerStep:['Присоединитесь к игре','Если ведущий играет онлайн, в разделе «Комната» вы присоединяетесь по коду, который он вам даст. Это не обязательно: приложение работает и без комнаты.','Открыть комнату','navigate','room'],directoryTitle:'Где найти инструменты',directory:[
   ['Персонажи','Листы, экипировка, способности роли и история персонажа.','characters'],
   ['Жизненный путь','Происхождение, связи и прошлое персонажа.','lifepath'],
   ['Правила','Поиск и краткие справки по правилам.','rules'],
@@ -26,7 +26,7 @@ const copy={
   ['Connect your book','In Book, choose your own Corebook PDF. The file stays in your browser; select it again after a reload. Page links in tools open the corresponding page.','Open book','navigate','book'],
   ['Prepare the game','Use Campaigns for personal notes and initiative. GM tools help you prepare the game.','Open campaigns','navigate','campaigns'],
   ['Check combat and healing','Combat and Medicine help with checks and character condition. Read the on-screen notes: some decisions and effects need confirmation or manual tracking.','Open combat','navigate','combat']
- ],directoryTitle:'Find your tools',directory:[
+ ],playerStep:['Join the game','If your GM plays online, use Room to join with the code they give you. This is optional: the app works without a room too.','Open room','navigate','room'],directoryTitle:'Find your tools',directory:[
   ['Characters','Sheets, equipment, role abilities and character history.','characters'],
   ['Lifepath','Character origins, connections and background.','lifepath'],
   ['Rules','Search and quick rules references.','rules'],
@@ -41,6 +41,6 @@ const copy={
   ['Book','Your PDF, contents, search and bookmarks.','book']
  ],saveTitle:'Saving and backups',save:'All data stays in this browser only — no sign-up and no server. To move it to another device or share it with your GM, download a backup (or one character as JSON) from Characters and import the file where you need it. Back up regularly: clearing browser data deletes the archive.',saveButton:'Go to characters'}
 };
-function render(lang){const t=copy[lang==='en'?'en':'ru'];return `<details class="getting-started"><summary>${t.title}</summary><p>${t.intro}</p><ol>${t.steps.map(([heading,body,button,action,view])=>`<li><h3>${heading}</h3><p>${body}</p><button class="btn ghost" type="button" data-action="${action}"${view?` data-view="${view}"`:''}>${button} ↗</button></li>`).join('')}</ol><div class="getting-started-directory"><h3>${t.directoryTitle}</h3><div>${t.directory.map(([title,description,view])=>`<button type="button" data-action="navigate" data-view="${view}"><strong>${title} ↗</strong><span>${description}</span></button>`).join('')}</div></div><div class="getting-started-save"><h3>${t.saveTitle}</h3><p>${t.save}</p><button class="btn ghost" type="button" data-action="navigate" data-view="characters">${t.saveButton} ↗</button></div></details>`}
+function render(lang){const t=copy[lang==='en'?'en':'ru'],hid=v=>!!window.RoleMode?.hides?.(v),steps=t.steps.map(s=>hid(s[4])?t.playerStep:s),directory=t.directory.filter(d=>!hid(d[2]));return `<details class="getting-started"><summary>${t.title}</summary><p>${t.intro}</p><ol>${steps.map(([heading,body,button,action,view])=>`<li><h3>${heading}</h3><p>${body}</p><button class="btn ghost" type="button" data-action="${action}"${view?` data-view="${view}"`:''}>${button} ↗</button></li>`).join('')}</ol><div class="getting-started-directory"><h3>${t.directoryTitle}</h3><div>${directory.map(([title,description,view])=>`<button type="button" data-action="navigate" data-view="${view}"><strong>${title} ↗</strong><span>${description}</span></button>`).join('')}</div></div><div class="getting-started-save"><h3>${t.saveTitle}</h3><p>${t.save}</p><button class="btn ghost" type="button" data-action="navigate" data-view="characters">${t.saveButton} ↗</button></div></details>`}
 window.GettingStarted={render};
 })();

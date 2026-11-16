@@ -30,6 +30,12 @@ test('the focus enters the drawer only after the slide has finished',()=>{
  h.runTimers();assert.equal(h.page.nav.focused,1);
 });
 
+test('a control used inside the drawer during the slide keeps the focus',()=>{
+ const h=setup();h.click({shell:'menu'});h.focus(h.page.nav);
+ const other={focus(){}};h.page.sidebar.kids.push(other);h.focus(other);
+ h.runTimers();assert.equal(h.page.nav.focused,0,'the focus is not pulled to the first menu item');assert.equal(h.active,other);
+});
+
 test('closing before the slide ends does not pull the focus into a hidden drawer',()=>{
  const h=setup();h.click({shell:'menu'});h.click({shell:'close'});h.runTimers();
  assert.equal(h.page.nav.focused,0);assert.equal(h.page.content.inert,false);

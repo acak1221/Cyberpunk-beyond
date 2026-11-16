@@ -643,7 +643,7 @@ function publishCombat(force=false){
  refresh();
 }
 function publishClocks(force=false){
- if(!drives())return;global.RoomJournal?.publish?.(force);global.CityMap?.publish?.(force);global.RoomAgent?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
+ if(!drives())return;global.RoomJournal?.publish?.(force);global.CityMap?.publish?.(force);global.RoomAgent?.publish?.(force);global.RoomNetrun?.publish?.(force);const d=clocksPayload(),s=JSON.stringify(d);if(!force&&s===lastClocks)return;if(yields(clocksBy,s,lastClocks)){lastClocks=s;return}lastClocks=s;clocksBy=myFp();clocks=d;
  const at=Date.now();clocksAt=at;clocksGot=at;clocksSig='';
  if(d.length)send('k','clocks',{list:d},true,transport,at);else send('k','cleared',{},true,transport,at);
  refresh();
@@ -724,7 +724,7 @@ async function receive(p){
   if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive();if(lastCombat&&lastCombat!=='null')publishCombat()},0); // a player's HP changed: rows that show a state or HP follow at once (nothing is sent when the list is the same)
   members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',box:isCoord(d.box?.x)&&isCoord(d.box?.y)?{x:d.box.x,y:d.box.y}:null,at:when});
   // A member who (re)appears may carry a new box: whispers waiting for them go out now.
-  if(!p.retain)setTimeout(()=>global.RoomWhispers?.flush?.(m.from.slice(0,24)),0);
+  if(!p.retain)setTimeout(()=>{global.RoomWhispers?.flush?.(m.from.slice(0,24));global.RoomNetrun?.publish?.(false)},0);
   repaint();
  }else if((m.t==='combat'||m.t==='cleared')&&sub==='c'){
   if(!(fromGM||fromDeputy)||Date.now()-at>STATE_TTL||!inOrder(combatSeen.get(fp),fp===combatBy,rawAt,at,combatAt,combatGot,p.retain))return;
@@ -747,6 +747,11 @@ async function receive(p){
   if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();
  }else if(m.t==='agent'&&sub==='a'){
   if(fromGM&&global.RoomAgent?.receive?.(m.d,at,p.retain))repaint();
+ }else if(m.t==='netrun'&&sub==='n'){
+  // «Показать нетраннеру» (room-netrun.js): sealed to one member's box and addressed to them; the receiving page checks both.
+  if(fromGM&&await global.RoomNetrun?.receive?.(m.d,at,p.retain))repaint();
+ }else if(m.t==='netrun-up'&&sub==='e'){
+  if(session.role==='gm'&&fresh&&!p.retain&&m.d.to===session.memberId&&await global.RoomNetrun?.receiveUp?.(m.d,{fp,from:m.from}))repaint();
  }else if(m.t==='citymap'&&sub==='p'){
   if(fromGM&&global.CityMap?.receive?.(m.d,at,p.retain))repaint();
  }else if(m.t==='sheet'&&sub==='e'){
@@ -831,11 +836,13 @@ function disconnect(clear=true){
   if(who.role==='gm')markers.push(send('j','journal',{campaign:'',list:[]},true,tr));
   // The same for the «Агент» feed (room-agent.js): what was published does not outlive the Game Master's stay in the room.
   if(who.role==='gm')markers.push(send('a','agent',{campaign:'',list:[]},true,tr));
+  // And the run shown to one player (room-netrun.js): only when this page is the one that showed it.
+  if(who.role==='gm'&&global.RoomNetrun?.sharing?.())markers.push(send('n','netrun',{clear:true},true,tr));
   // And for the pins of the city map shown to players (city-map.js).
   if(who.role==='gm')markers.push(send('p','citymap',{campaign:'',pins:[]},true,tr));
   Promise.allSettled(markers).then(()=>setTimeout(()=>tr.close(),300));
  }else if(tr)tr.close();
- key=null;roomKey=null;clearTimeout(gateTimer);gateTimer=null;
+ key=null;roomKey=null;clearTimeout(gateTimer);gateTimer=null;global.RoomNetrun?.forget?.();
 }
 
 /* ---------- UI ---------- */
@@ -866,7 +873,9 @@ function joinForms(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[],prev=session||loadSession()||{},code=pendingCode?formatCode(pendingCode):'';
  const charSelect=`<select id="room-character">${`<option value="">${esc(t('noCharacter'))}</option>`}${chars.map(c=>`<option value="${esc(c.id)}" ${prev.characterId===c.id?'selected':''}>${esc(c.name||'—')} · ${esc(roleName(c.role))}</option>`).join('')}</select>`;
  const nameVal=esc(prev.name||'');
- return `<div class="room-join-grid">${code?'':`<section class="card room-join"><div class="card-heading"><span>${esc(t('gm'))}</span><span>GM</span></div><p>${esc(t('gmLead'))}</p><label class="field">${esc(t('name'))}<input id="room-gm-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('campaign'))}<select id="room-campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'—')}</option>`).join('')}</select></label><label class="field">${esc(t('character'))}${charSelect.replace('id="room-character"','id="room-gm-character"')}</label>${GATE()?.createField(lang())||''}<button type="button" class="btn primary wide" data-room-action="create">＋ ${esc(t('create'))}</button></section>`}<section class="card room-join"><div class="card-heading"><span>${esc(t('player'))}</span><span>JOIN</span></div><p>${esc(t('playerLead'))}</p><label class="field">${esc(t('code'))}<input id="room-code" maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${esc(t('codePh'))}" value="${esc(code)}"></label>${code&&pendingPin?`<p class="room-muted">${esc(t('pinNote'))}: <b>${esc(keyLabel(pendingPin))}</b></p>`:''}<label class="field">${esc(t('name'))}<input id="room-player-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('character'))}${charSelect}</label><button type="button" class="btn primary wide" data-room-action="join">→ ${esc(t('join'))}</button></section>${code?'':AUTH()?.importCard({lang:lang(),name:prev.name})||''}</div>`;
+ const gmCard=code?'':`<section class="card room-join"><div class="card-heading"><span>${esc(t('gm'))}</span><span>GM</span></div><p>${esc(t('gmLead'))}</p><label class="field">${esc(t('name'))}<input id="room-gm-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('campaign'))}<select id="room-campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'—')}</option>`).join('')}</select></label><label class="field">${esc(t('character'))}${charSelect.replace('id="room-character"','id="room-gm-character"')}</label>${GATE()?.createField(lang())||''}<button type="button" class="btn primary wide" data-room-action="create">＋ ${esc(t('create'))}</button></section>`;const joinCard=`<section class="card room-join"><div class="card-heading"><span>${esc(t('player'))}</span><span>JOIN</span></div><p>${esc(t('playerLead'))}</p><label class="field">${esc(t('code'))}<input id="room-code" maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${esc(t('codePh'))}" value="${esc(code)}"></label>${code&&pendingPin?`<p class="room-muted">${esc(t('pinNote'))}: <b>${esc(keyLabel(pendingPin))}</b></p>`:''}<label class="field">${esc(t('name'))}<input id="room-player-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('character'))}${charSelect}</label><button type="button" class="btn primary wide" data-room-action="join">→ ${esc(t('join'))}</button></section>`;
+ // The role only decides which card comes first (a player joins, a Game Master creates); both stay on the page.
+ return `<div class="room-join-grid">${global.RoleMode?.get?.()==='player'?joinCard+gmCard:gmCard+joinCard}${code?'':AUTH()?.importCard({lang:lang(),name:prev.name})||''}</div>`;
 }
 function roomView(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[];
@@ -1042,6 +1051,15 @@ global.Room={
  journalLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('j','journal',d,true,transport,at):Promise.resolve(0)},
  // For room-agent.js: the same view of the room, and the Game Master's retained message with the «Агент» feed.
  agentLink:{who:()=>session?{role:session.role,room:base,campaignId:session.campaignId||'',online:netStatus.online}:null,send:(d,at)=>session?.role==='gm'?send('a','agent',d,true,transport,at):Promise.resolve(0)},
+ // For room-netrun.js: the view of a run is sealed to one member's box (the whisper mechanism) and kept by the brokers on the subtopic 'n'.
+ netrunLink:{
+  who:()=>session?{role:session.role,room:base,memberId:session.memberId,fp:myFp(),gmFp:FP.test(session.gmFp||'')?session.gmFp:'',characterId:session.characterId||'',online:netStatus.online}:null,
+  peers:()=>session&&session.role==='gm'?[...members.entries()].filter(([,m])=>!m.me&&m.role!=='gm'&&!m.impostor&&FP.test(m.fp||'')&&m.box).map(([id,m])=>({id,fp:m.fp,name:m.name,role:m.role,online:isOnline(m),at:m.sentAt||m.at||0,box:m.box,character:m.character?.name||''})):[],
+  seal:(pub,o)=>sealFor(pub,o),
+  open:box=>openFromPeer(box),
+  send:(d,at)=>session?.role==='gm'?send('n','netrun',d,true,transport,at):Promise.resolve(0),
+  up:async inner=>{if(!session||session.role==='gm')return 0;const g=[...members.entries()].find(([,m])=>m.role==='gm'&&!m.me&&m.fp===session.gmFp&&m.box);if(!g)return 0;try{return await send('e','netrun-up',{to:g[0],...await sealFor(g[1].box,{...inner,v:1,from:myFp(),to:g[0]})})}catch{return 0}},
+ },
  // For room-grants.js. Only the Game Master's device sends a grant; a player's device sends only the answer to one.
  grantLink:{
   who:()=>session?{role:session.role,code:session.code,memberId:session.memberId,characterId:session.characterId||''}:null,

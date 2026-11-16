@@ -16,8 +16,9 @@ function setOpen(open){
  root.classList.toggle('nav-open',open);
  sync();
  clearTimeout(focusTimer);
- // The drawer slides in and is not focusable until it is visible: move the focus when the slide has finished.
- if(open)focusTimer=setTimeout(()=>{if(root.classList.contains('nav-open'))doc.querySelector('#app-sidebar .nav-item.active, #app-sidebar .nav-item')?.focus({preventScroll:true})},260);
+ // The drawer slides in and is not focusable until it is visible: move the focus when the slide has finished,
+ // unless it is already inside the drawer (a control was used during the slide).
+ if(open)focusTimer=setTimeout(()=>{if(root.classList.contains('nav-open')&&!doc.querySelector('#app-sidebar')?.contains(doc.activeElement))doc.querySelector('#app-sidebar .nav-item.active, #app-sidebar .nav-item')?.focus({preventScroll:true})},260);
  else if(was&&doc.querySelector('#app-sidebar')?.contains(doc.activeElement))doc.querySelector('.menu-toggle')?.focus({preventScroll:true});
 }
 // Capture phase: app.js handles data-action clicks on #app; this only closes the drawer.

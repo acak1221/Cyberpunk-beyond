@@ -29,11 +29,14 @@ async function main() {
   const server = spawn(process.execPath, [path.join(ROOT, 'scripts', 'serve.mjs'), out, '--port', String(port)], { stdio: 'ignore' });
   const cleanup = [() => server.kill()];
   let brokerUrl = null;
+  // What the broker is given on the subtopic of a shown run: the bytes any member of the room could read off the wire.
+  const runBytes = [];
   const aedesFactory = optional('aedes'), ws = optional('ws');
   if (aedesFactory && ws) {
     const aedes = (aedesFactory.createBroker || aedesFactory.default || aedesFactory)(), brokerPort = await freePort(), srv = http.createServer();
     const wss = new ws.WebSocketServer({ server: srv, handleProtocols: p => (p.has('mqtt') ? 'mqtt' : false) });
     wss.on('connection', socket => aedes.handle(ws.createWebSocketStream(socket)));
+    aedes.on('publish', packet => { if (/\/n$/.test(packet.topic || '') && packet.payload?.length) runBytes.push(Buffer.from(packet.payload)); });
     await new Promise(r => srv.listen(brokerPort, '127.0.0.1', r));
     brokerUrl = `ws://127.0.0.1:${brokerPort}`;
     cleanup.push(() => { wss.close(); srv.close(); aedes.close(); });
@@ -64,6 +67,8 @@ async function main() {
     return { ctx, page };
   }
   async function check(name, fn) {
+    // E2E_ONLY=text runs only the checks whose name contains it (to repeat one check while working on it).
+    if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return;
     const problems = [], t0 = Date.now();
     try { await fn(msg => problems.push(msg)); } catch (e) { problems.push('crashed: ' + (e && e.message || e).toString().split('\n')[0]); }
     results.push({ name, problems });
@@ -1969,6 +1974,536 @@ async function main() {
     }
     for (const e of S.errs) fail(e);
     await solo.ctx.close();
+  });
+
+  await check('NETRUN deck: a rack of slots, a picker, install and remove without a native dialog and with Undo, in every look at 390 and 1280', async fail => {
+    const axe = (() => { try { return fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; } })();
+    const base = { stats: { INT: 8, REF: 7, DEX: 6, TECH: 6, COOL: 6, WILL: 6, LUCK: 6, MOVE: 6, BODY: 6, EMP: 6 }, skills: {}, hp: 35, humanity: 60, head: 0, bodyArmor: 0 };
+    // A bought cyberdeck and programs in the inventory, no deck yet; and a multiclass character with Netrunner as an additional role.
+    const runner = { id: 'nd1', name: 'Nova', role: 'netrunner', rank: 4, ...base, extra: { items: [{ id: 'i1', catalogId: 'gear-cyberdeck-standard-quality', name: 'Cyberdeck', quantity: 1 }, { id: 'i2', catalogId: 'extra-program-sword', name: 'Sword', quantity: 2 }, { id: 'i3', catalogId: 'extra-ice-hellhound', name: 'Hellhound', quantity: 1 }] } };
+    const multi = { id: 'nd2', name: 'Kit', role: 'solo', rank: 5, ...base, extra: { additionalRoles: [{ role: 'netrunner', rank: 3 }] } };
+    const seed = async (page, c) => {
+      await page.goto(BASE + '#/characters'); await wait(300);
+      await page.evaluate(ch => { const st = window.App.getState(); st.characters.push(ch); window.App.save(); }, c);
+      await page.goto(BASE + '#/sheet/' + c.id); await wait(500);
+      await page.evaluate(() => { try { localStorage.setItem('nightcity-red-sheet-tab-v1', 'netrun'); } catch {} });
+      const tab = page.locator('[data-sheet-tab="netrun"]'); if (await tab.count()) await tab.first().click(); await wait(300);
+    };
+    const decks = (page, id = 'nd1') => page.evaluate(i => window.App.getState().characters.find(x => x.id === i).extra.cyberdecks?.decks || [], id);
+    const sideways = async (page, where) => { const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]); if (sw > iw) fail(where + ': the page scrolls sideways (' + sw + ' > ' + iw + ')'); };
+    const small = async (page, where) => {
+      const bad = await page.evaluate(() => [...document.querySelectorAll('[data-nd-root] button, #nd-overlay button, [data-nd-root] select, [data-nd-root] input, #nd-overlay input, [data-nd-root] summary')].map(b => [b, b.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.width < 44 || r.height < 44)).map(([b, r]) => (b.dataset.ndAct || b.dataset.rpDeck || b.dataset.ndF || b.className || b.tagName) + ' ' + r.width.toFixed(1) + 'x' + r.height.toFixed(1)));
+      if (bad.length) fail(where + ': targets under 44px: ' + bad.slice(0, 4).join(', '));
+    };
+    const cells = page => page.evaluate(() => ({ all: document.querySelectorAll('[data-nd-root] .nd-cell').length, empty: document.querySelectorAll('[data-nd-root] .nd-empty').length, wide: [...document.querySelectorAll('[data-nd-root] .nd-cell[data-span="2"]')].map(c => c.getBoundingClientRect().width), one: [...document.querySelectorAll('[data-nd-root] .nd-cell:not([data-span])')].map(c => c.getBoundingClientRect().width) }));
+    const axeFor = async (page, selector, where) => {
+      if (!axe) return;
+      await page.mouse.move(0, 0); await wait(100); await page.evaluate(axe);
+      const found = await page.evaluate(sel => window.axe.run(document.querySelector(sel), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => v.id + ' (' + v.nodes.length + ')')), selector);
+      for (const v of found) fail(where + ': ' + v);
+    };
+
+    // The whole flow once, on a phone, native look.
+    const d = await device({ width: 390 }), page = d.page; let dialogs = 0;
+    page.on('dialog', () => { dialogs++; });
+    await seed(page, runner);
+    if (!(await page.locator('[data-nd-root]').count())) { fail('no deck card on the NETRUN tab'); await d.ctx.close(); return; }
+    if (await page.locator('[data-deck-root]').count()) fail('the old deck block is still drawn in the role panel');
+    if (/в инструментах роли/.test(await page.evaluate(() => document.querySelector('#sheet-netrun')?.innerText || ''))) fail('the tab still points to the role tools for the deck');
+    if (!(await page.evaluate(() => { const g = document.querySelector('.netrun-grid'), r = document.querySelector('[data-nd-root]'); return !!g && !!r && !!(g.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING); }))) fail('the deck is not under the run controls');
+    await page.click('[data-nd-act="create-owned"][data-nd-source="gear-cyberdeck-standard-quality"]'); await wait(250);
+    if (await page.evaluate(() => !document.activeElement || document.activeElement === document.body)) fail('focus is lost after creating a deck');
+    let k = await cells(page);
+    if (k.all !== 7 || k.empty !== 7) fail('a standard deck is not 7 empty cells: ' + JSON.stringify(k));
+    if ((await decks(page))[0]?.slots !== 7) fail('the slot count was not filled in from the inventory item');
+    if (!(await page.locator('#app-notice .notice-action').count())) fail('no «Отменить» after creating a deck');
+    // The picker is a dialog: focus goes in, search and Arrow + Enter pick, the focus lands on the new cell.
+    await page.focus('[data-nd-act="add"]'); await page.keyboard.press('Enter'); await wait(200);
+    const dlg = await page.evaluate(() => { const o = document.querySelector('#nd-overlay [role="dialog"]'); return o ? { modal: o.getAttribute('aria-modal'), named: !!document.getElementById(o.getAttribute('aria-labelledby')), inside: o.contains(document.activeElement) } : null; });
+    if (!dlg || dlg.modal !== 'true' || !dlg.named || !dlg.inside) fail('the picker is not a named modal dialog with focus inside: ' + JSON.stringify(dlg));
+    if ((await page.locator('#nd-overlay .nd-chip').count()) !== 5) fail('the picker does not have the five classes');
+    await small(page, 'picker 390'); await axeFor(page, '#nd-overlay', 'picker');
+    await page.click('#nd-overlay [data-nd-chip="attacker"]'); await page.fill('#nd-overlay [data-nd-q]', 'sword'); await wait(100);
+    const rows = await page.$$eval('#nd-overlay .nd-row', r => r.map(x => x.innerText.replace(/\s+/g, ' ')));
+    if (rows.length !== 1 || !/Sword/.test(rows[0]) || !/куплено 2, свободно 2/.test(rows[0]) || !/ATK \d+ · DEF \d+ · REZ \d+/.test(rows[0])) fail('the Sword row is wrong: ' + JSON.stringify(rows));
+    await page.focus('#nd-overlay [data-nd-q]'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); await wait(300);
+    if (await page.locator('#nd-overlay').count()) fail('the picker stays open after an install');
+    const foc = await page.evaluate(() => document.activeElement?.dataset?.ndEntry ? document.activeElement.className : 'elsewhere: ' + document.activeElement?.tagName);
+    if (!/nd-filled/.test(foc)) fail('after installing, the focus is not on the new cell: ' + foc);
+    k = await cells(page);
+    if (k.all !== 7 || k.empty !== 6) fail('after one program there should be 7 cells and 6 empty: ' + JSON.stringify(k));
+    // Escape closes the picker and gives the focus back to the cell that opened it.
+    await page.focus('[data-nd-act="add"]'); await page.keyboard.press('Enter'); await wait(150);
+    await page.keyboard.press('Escape'); await wait(150);
+    if (await page.locator('#nd-overlay').count()) fail('Escape does not close the picker');
+    if (!(await page.evaluate(() => document.activeElement?.dataset?.ndAct === 'add'))) fail('after Escape the focus is not back on a cell');
+    // Black ICE takes two cells.
+    await page.focus('[data-nd-act="add"]'); await page.keyboard.press('Enter'); await wait(150);
+    await page.click('#nd-overlay [data-nd-chip="ice"]'); await page.fill('#nd-overlay [data-nd-q]', 'hellhound'); await wait(100);
+    await page.click('#nd-overlay .nd-row'); await wait(300);
+    k = await cells(page);
+    if (k.all !== 6 || k.empty !== 4 || k.wide.length !== 1) fail('Black ICE is not one wide cell among 6: ' + JSON.stringify(k));
+    else if (k.wide[0] < k.one[0] * 1.9) fail('the two-slot cell is not about twice a one-slot cell: ' + JSON.stringify(k));
+    // Fill the rest with boosters; a full rack offers no empty cell, and a row that does not fit says why.
+    for (let i = 0; i < 4; i++) { await page.focus('[data-nd-act="add"]'); await page.keyboard.press('Enter'); await wait(120); await page.click('#nd-overlay [data-nd-chip="booster"]'); await page.click('#nd-overlay .nd-row:not(.is-off)'); await wait(250); }
+    if (await page.locator('[data-nd-root] .nd-empty').count()) fail('the rack should be full now');
+    if ((await decks(page))[0].entries.length !== 6) fail('six copies were not installed: ' + (await decks(page))[0].entries.length);
+    // Remove from the detail card: no native dialog, and «Отменить» brings it back.
+    await page.click('[data-nd-root] .nd-filled'); await wait(150);
+    if (!(await page.locator('#nd-detail').count())) fail('a filled cell does not open its details');
+    await page.click('[data-nd-act="remove"]'); await wait(250);
+    if ((await decks(page))[0].entries.length !== 5) fail('remove did not remove');
+    if (dialogs) fail('a native dialog was shown (' + dialogs + ')');
+    await page.click('#app-notice .notice-action'); await wait(250);
+    if ((await decks(page))[0].entries.length !== 6) fail('«Отменить» did not bring the program back');
+    if (await page.evaluate(() => document.activeElement === document.body)) fail('focus is lost after Undo');
+    // Delete the deck: undo brings the whole rack back.
+    await page.click('[data-nd-root] .nd-settings summary'); await page.click('[data-nd-act="deck-delete"]'); await wait(250);
+    if ((await decks(page)).length) fail('the deck was not deleted');
+    await page.click('#app-notice .notice-action'); await wait(250);
+    if ((await page.locator('[data-nd-root] .nd-filled').count()) !== 6) fail('undo of the delete did not bring the deck back');
+    if (dialogs) fail('a native dialog was shown after delete (' + dialogs + ')');
+    // The run state is still kept from the same cards: activate the first booster.
+    await page.click('[data-nd-root] .nd-cell.nd-filled:not(.nd-k-ice) >> nth=1'); await wait(120);
+    if (!(await page.locator('#nd-detail [data-rp-deck="toggle"]').count())) fail('a booster has no Activate in its details');
+    else { await page.click('#nd-detail [data-rp-deck="toggle"]'); await wait(300); if (!(await page.locator('[data-nd-root] .nd-filled.is-on').count())) fail('an activated program is not marked on its cell'); }
+    const saved = await page.evaluate(() => window.App.getState().characters.find(x => x.id === 'nd1').extra.cyberdecks);
+    if (saved.version !== 1 || 'current' in saved || saved.decks.some(x => !x.id || !Array.isArray(x.entries))) fail('the saved deck data changed shape: ' + JSON.stringify(saved).slice(0, 200));
+    await sideways(page, 'native 390'); await small(page, 'native 390'); await axeFor(page, '[data-nd-root]', 'deck card');
+    for (const e of page.errs) fail(e);
+    await d.ctx.close();
+
+    // The same card in every look and theme, on a phone and on a desktop: two decks, Hardware-only slots, no sideways scroll, big targets.
+    const saved2 = { version: 1, decks: [{ id: 'old', name: 'Старая дека', slots: 5, hardwareOnly: 2, entries: [{ id: 'a', catalogId: 'extra-program-sword', name: { ru: 'Sword', en: 'Sword' }, kind: 'program', slots: 1 }, { id: 'b', catalogId: 'extra-ice-hellhound', name: { ru: 'Hellhound', en: 'Hellhound' }, kind: 'ice', slots: 2 }, { id: 'c', catalogId: 'extra-deck-range-upgrade', name: { ru: 'Range Upgrade', en: 'Range Upgrade' }, kind: 'hardware', slots: 1 }] }, { id: 'two', name: 'Запасная', slots: 3, hardwareOnly: 0, entries: [] }] };
+    for (const [look, theme, width] of [['native', 'light', 390], ['cyber', 'dark', 390], ['board', 'dark', 390], ['board', 'light', 390], ['native', 'light', 1280], ['board', 'light', 1280], ['native', 'dark', 1280], ['cyber', 'dark', 1280], ['board', 'dark', 1280]]) {
+      const o = await device({ look, theme, width }), p = o.page, tag = `${look} ${theme} ${width}`;
+      await seed(p, { ...runner, id: 'nd3', extra: { ...runner.extra, cyberdecks: saved2 } });
+      if (!(await p.locator('[data-nd-root] .nd-cell').count())) { fail(tag + ': no rack'); await o.ctx.close(); continue; }
+      const kk = await cells(p);
+      if (kk.all !== 6 || kk.wide.length !== 1 || kk.empty !== 3) fail(tag + ': the old deck is not drawn as 6 cells with one wide: ' + JSON.stringify(kk));
+      if (!(await p.locator('[data-nd-select]').count())) fail(tag + ': two decks but no deck picker');
+      if (!(await p.locator('[data-nd-root] .nd-cells-hw').count()) || !(await p.locator('[data-nd-root] .nd-empty.nd-hw').count())) fail(tag + ': Hardware-only slots are not drawn apart');
+      await p.click('[data-nd-root] .nd-empty:not(.nd-hw)'); await wait(200);
+      await small(p, tag + ' picker'); await sideways(p, tag + ' picker'); await axeFor(p, '#nd-overlay', tag + ' picker');
+      const fits = await p.evaluate(() => { const dlg = document.querySelector('#nd-overlay .nd-dialog'); if (!dlg) return null; const r = dlg.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; });
+      if (fits !== true) fail(tag + ': the picker does not fit the screen');
+      await p.keyboard.press('Escape'); await wait(100);
+      await sideways(p, tag); await small(p, tag);
+      for (const e of o.page.errs) fail(tag + ': ' + e);
+      await o.ctx.close();
+    }
+
+    // A multiclass netrunner (Netrunner as an additional role) has the tab and can make a deck.
+    const m = await device({ width: 390 });
+    await seed(m.page, multi);
+    if (!(await m.page.locator('[data-nd-root]').count())) fail('a multiclass netrunner has no deck card');
+    else {
+      await m.page.fill('[data-nd-form="create"] [data-nd-f="name"]', 'Запасная');
+      await m.page.click('[data-nd-act="create-free"]'); await wait(250);
+      const made = (await decks(m.page, 'nd2'))[0]?.name;
+      if (made !== 'Запасная') fail('a multiclass netrunner could not make a deck: ' + made);
+    }
+    for (const e of m.page.errs) fail('multiclass: ' + e);
+    await m.ctx.close();
+  });
+
+  await check('NETRUN console: jack in and out with undo, one-tap rolls with totals, Zap and attacker damage in one flow, no repeated Interface block, in native and cyber at 390 and 1280', async fail => {
+    const axe = (() => { try { return fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; } })();
+    const base = { stats: { INT: 8, REF: 7, DEX: 6, TECH: 6, COOL: 6, WILL: 6, LUCK: 6, MOVE: 6, BODY: 6, EMP: 6 }, skills: {}, hp: 35, humanity: 60, head: 0, bodyArmor: 0 };
+    const E = (id, cat, name, kind = 'program', slots = 1) => ({ id, catalogId: cat, name: { ru: name, en: name }, kind, slots });
+    const runner = id => ({ id, name: 'Nova', role: 'netrunner', rank: 4, ...base, extra: { cyberdecks: { version: 1, decks: [{ id: 'd1', name: 'Deck', slots: 7, hardwareOnly: 0, entries: [E('e1', 'extra-program-worm', 'Worm'), E('e2', 'extra-program-hellbolt', 'Hellbolt'), E('e3', 'extra-program-sword', 'Sword')] }] } } });
+    const seed = async (page, c) => {
+      await page.goto(BASE + '#/characters'); await wait(300);
+      await page.evaluate(ch => { window.App.getState().characters.push(ch); window.App.save(); }, c);
+      await page.goto(BASE + '#/sheet/' + c.id); await wait(500);
+      await page.evaluate(() => { try { localStorage.setItem('nightcity-red-sheet-tab-v1', 'netrun'); } catch {} });
+      const tab = page.locator('[data-sheet-tab="netrun"]'); if (await tab.count()) await tab.first().click(); await wait(300);
+    };
+    const hist = page => page.evaluate(() => window.App.getState().history.map(h => h.label + ' | ' + h.detail));
+    const run = (page, id) => page.evaluate(i => window.App.getState().characters.find(x => x.id === i).extra.roleTools?.netrunner?.values || {}, id);
+    const sideways = async (page, where) => { const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]); if (sw > iw) fail(where + ': the page scrolls sideways (' + sw + ' > ' + iw + ')'); };
+    const small = async (page, where) => {
+      const bad = await page.evaluate(() => [...document.querySelectorAll('[data-nc-root] button, [data-nc-root] input, [data-nc-root] select, [data-nc-attack] button, [data-nc-attack] input, [data-nc-attack] select, .rp-prog-row .rt-button')].map(b => [b, b.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.width < 44 || r.height < 44)).map(([b, r]) => (b.dataset.ncAct || b.dataset.netrunRoll || b.dataset.ncMod || b.className || b.tagName) + ' ' + r.width.toFixed(1) + 'x' + r.height.toFixed(1)));
+      if (bad.length) fail(where + ': targets under 44px: ' + bad.slice(0, 4).join(', '));
+    };
+    const axeFor = async (page, where) => {
+      if (!axe) return;
+      await page.mouse.move(0, 0); await wait(100); await page.evaluate(axe);
+      const found = await page.evaluate(() => window.axe.run(document.querySelector('[data-nc-root]'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => v.id + ' (' + v.nodes.length + ')')));
+      for (const v of found) fail(where + ': ' + v);
+    };
+    const setField = async (page, sel, v) => { await page.fill(sel, String(v)); await page.dispatchEvent(sel, 'change'); };
+
+    // The whole flow on a phone, native look.
+    const d = await device({ width: 390 }), page = d.page; let dialogs = 0;
+    page.on('dialog', () => { dialogs++; });
+    await seed(page, runner('nc1'));
+    if (!(await page.locator('[data-nc-root]').count())) { fail('no run console on the NETRUN tab'); await d.ctx.close(); return; }
+    if ((await page.locator('[data-netrun-roll]').count()) !== 9) fail('the console does not have nine abilities');
+    if (await page.locator('[data-netrun-zap]').count()) fail('the separate Zap damage button is still drawn');
+    const cols = await page.evaluate(() => getComputedStyle(document.querySelector('.nc-grid')).gridTemplateColumns.split(' ').length);
+    if (cols < 2) fail('the ability grid has ' + cols + ' column(s) at 390');
+    // The role panel does not repeat the Interface block.
+    if (await page.locator('[data-rt-action="net-roll"], [data-rt-field="netAbility"], [data-rt-field="netDv"]').count()) fail('the role panel still has its own Interface roll');
+    if (!(await page.locator('[data-netrun-open]').count())) fail('the role panel has no pointer to the NETRUN tab');
+    // The pointer is for the other tabs: hidden on the NETRUN tab itself, a 44 px target on the role tab, and it brings the player back.
+    if (await page.locator('[data-netrun-open]').first().isVisible()) fail('the pointer to the NETRUN tab is shown on the NETRUN tab itself');
+    await page.click('[data-sheet-tab="role"]'); await wait(250);
+    { const bx = await page.locator('[data-netrun-open]').first().boundingBox(); if (!bx || bx.height < 43.5) fail('the pointer to the NETRUN tab is under 44 px on the role tab: ' + (bx && bx.height)); }
+    await page.click('[data-netrun-open]'); await wait(250);
+    if (await page.getAttribute('[data-sheet-tab="netrun"]', 'aria-selected') !== 'true' && !(await page.locator('.sheet-layout[data-active-tab="netrun"]').count())) fail('the pointer did not open the NETRUN tab');
+    // Status line, DV and the grid are on one screen below the pinned header.
+    // Compact layout, not a sticky bar: from the status line to the end of the grid the console is shorter than what a phone screen
+    // leaves under the pinned sheet header (about 140 px) and above the bottom bar (about 80 px), so all of it is on one screen.
+    const fit = await page.evaluate(() => { const root = document.querySelector('[data-nc-root]'), r = s => root.querySelector(s).getBoundingClientRect(); return { span: r('.nc-grid').bottom - r('[data-nc-status]').top, vh: innerHeight, dvInside: r('[data-rp-net-dv]').top > r('[data-nc-status]').top && r('[data-rp-net-dv]').bottom < r('.nc-grid').top }; });
+    if (fit.span > fit.vh - 220 || !fit.dvInside) fail('the counter, the DV and the grid are not compact enough for one screen at 390: ' + JSON.stringify(fit));
+    await small(page, 'console 390');
+    // Jacked out is the state everybody sees first: its colours must pass too (the buttons are marked by a dashed border, not dimmed).
+    try {
+      const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
+      await page.evaluate(axeSrc);
+      const bad = await page.evaluate(() => window.axe.run({ include: [['[data-nc-root]']] }, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => v.id + ' x' + v.nodes.length)));
+      if (bad.length) fail('the jacked-out console has accessibility violations: ' + bad.join(', '));
+    } catch (e) { if (!/Cannot find module/.test(String(e))) throw e; }
+    // Jacked out (old data): a NET ability explains itself and does not roll; Scanner is not blocked.
+    const h0 = (await hist(page)).length;
+    await page.click('[data-netrun-roll="Backdoor"]'); await wait(200);
+    if ((await hist(page)).length !== h0) fail('Backdoor rolled while jacked out');
+    if (!/не в сети/i.test(await page.evaluate(() => document.querySelector('[data-nc-root] .nc-msg')?.innerText || ''))) fail('no explanation on the console when jacked out');
+    if (await page.evaluate(() => !!document.querySelector('[data-nc-result] .nc-msg'))) fail('the explanation is inside the live region (announced twice with the toast)');
+    await page.click('[data-netrun-roll="Scanner"]'); await wait(200);
+    if ((await hist(page)).length !== h0 + 1) fail('Scanner did not roll while jacked out');
+    if (((await run(page, 'nc1')).used || 0) !== 0) fail('Scanner spent a NET Action');
+    // Jack In starts a turn; the total on the button is what is rolled (own modifier included).
+    await page.click('[data-nc-act="jack-in"]'); await wait(200);
+    if (!(await page.locator('[data-nc-act="jack-out"]').count()) || (await run(page, 'nc1')).jackedIn !== true) fail('Jack In did not set the flag');
+    if (await page.evaluate(() => document.activeElement?.dataset?.ncAct) !== 'jack-out') fail('the focus was lost after Jack In');
+    await setField(page, '[data-nc-mod]', 3); await wait(100);
+    const total = await page.evaluate(() => Number(document.querySelector('[data-netrun-roll="Backdoor"]').dataset.ncTotal));
+    if (total !== 7) fail('the Backdoor button shows ' + total + ' instead of 7 (Interface 4 + 3)');
+    if ((await run(page, 'nc1')).modifier !== 3) fail('the own modifier was not kept in the sheet');
+    await setField(page, '[data-rp-net-dv]', 11);
+    await page.click('[data-netrun-roll="Backdoor"]'); await wait(300);
+    const rolled = (await hist(page))[0];
+    if (!/^Backdoor \(Interface 4\) \| .*\+ 4 \+ 0 \+ 3 \(модификатор\)/.test(rolled)) fail('the roll in history is not labelled with the modifier: ' + rolled);
+    if (!/DV 11/.test(rolled)) fail('the DV is not in the roll: ' + rolled);
+    if ((await run(page, 'nc1')).used !== 1) fail('the roll did not spend one NET Action');
+    if ((await page.locator('.nc-pip.is-on').count()) !== 2) fail('the pips do not show 2 actions left');
+    // Zap: a sure hit and a sure miss (modifier +100 / -100).
+    await setField(page, '[data-nc-mod]', 100); await setField(page, '[data-rp-net-dv]', 50);
+    await page.click('[data-netrun-roll="Zap"]'); await wait(300);
+    if (!(await page.locator('[data-nc-act="zap-dmg"]').count())) fail('a Zap hit does not offer its damage right there');
+    else {
+      await page.click('[data-nc-act="zap-dmg"]'); await wait(250);
+      const t = await page.evaluate(() => document.querySelector('[data-nc-dmg]')?.innerText || '');
+      if (!/1d6 = [1-6]$/.test(t.trim())) fail('the Zap damage line is wrong: ' + t);
+      if (!/Zap/.test((await hist(page))[0]) || !/1d6: [1-6]/.test((await hist(page))[0])) fail('the Zap damage did not reach the history: ' + (await hist(page))[0]);
+    }
+    await setField(page, '[data-nc-mod]', -100); await setField(page, '[data-rp-net-dv]', 99);
+    await page.click('[data-netrun-roll="Zap"]'); await wait(300);
+    if (await page.locator('[data-nc-act="zap-dmg"]').count()) fail('a Zap miss offers damage');
+    // Attacker program: no REZ controls, activate (costs an action), Attack, then its damage. A new turn first: the counter is spent.
+    await page.click('[data-nc-act="turn"]'); await wait(150);
+    await page.click('[data-nd-entry="e2"]'); await wait(150);
+    if (await page.locator('.nd-detail [data-rp-deck="rez-"]').count()) fail('an attacker has REZ buttons');
+    await page.click('.nd-detail [data-rp-deck="toggle"]'); await wait(400);
+    if (!(await page.locator('.nd-detail').count())) await page.click('[data-nd-entry="e2"]');
+    await wait(150);
+    if (!(await page.locator('[data-nc-act="attack"]').count())) fail('no «Атака» on the card of an attacker');
+    else {
+      await setField(page, '[data-nc-mod]', 100); await setField(page, '[data-rp-net-dv]', 50);
+      const used = (await run(page, 'nc1')).used;
+      await page.click('[data-nc-act="attack"]'); await wait(300);
+      if (!/^Hellbolt \(Interface 4 \+ ATK 2\)/.test((await hist(page))[0])) fail('the attack label is wrong: ' + (await hist(page))[0]);
+      if ((await run(page, 'nc1')).used !== used) fail('the attack spent a NET Action by itself');
+      if (!(await page.locator('[data-nc-act="attack-dmg"]').count())) fail('a hit by Hellbolt does not offer its damage');
+      else {
+        await page.click('[data-nc-act="attack-dmg"]'); await wait(250);
+        if (!/2d6 \(\d \+ \d\) = \d+ в мозг/.test(await page.evaluate(() => document.querySelector('[data-nc-dmg]')?.innerText || ''))) fail('the Hellbolt damage line is wrong');
+      }
+      await setField(page, '[data-nc-mod]', -100); await setField(page, '[data-rp-net-dv]', 99);
+      await page.click('[data-nc-act="attack"]'); await wait(300);
+      if (await page.locator('[data-nc-act="attack-dmg"]').count()) fail('a missed attack offers damage');
+    }
+    await small(page, 'console and card 390');
+    // Jack Out: no dialog, does what it did, and «Отменить» brings the run back.
+    await page.click('[data-nc-act="jack-out"]'); await wait(300);
+    if (await page.evaluate(() => document.activeElement?.dataset?.ncAct) !== 'jack-in') fail('the focus was lost after Jack Out');
+    const out = await run(page, 'nc1');
+    if (out.jackedIn !== undefined || out.used !== 0) fail('Jack Out did not clear the flag and the counter: ' + JSON.stringify(out));
+    if (await page.evaluate(() => window.App.getState().characters.find(x => x.id === 'nc1').extra.cyberdecks.decks[0].entries.some(e => e.active || e.rez !== undefined))) fail('Jack Out did not reset the programs');
+    if (dialogs) fail('a native dialog was shown (' + dialogs + ')');
+    if (!(await page.locator('#app-notice .notice-action').count())) fail('no «Отменить» after Jack Out');
+    else { await page.click('#app-notice .notice-action'); await wait(250); if ((await run(page, 'nc1')).jackedIn !== true) fail('«Отменить» did not bring the run back'); }
+    await sideways(page, 'native 390'); await axeFor(page, 'native 390');
+    for (const e of page.errs) fail(e);
+    await d.ctx.close();
+
+    // Cyber and the other looks: the console draws, rolls, fits, has big targets.
+    for (const [look, theme, width] of [['cyber', 'dark', 390], ['cyber', 'dark', 1280], ['native', 'light', 1280], ['board', 'dark', 390]]) {
+      const o = await device({ look, theme, width }), p = o.page, tag = `${look} ${theme} ${width}`;
+      await seed(p, runner('nc2'));
+      if (!(await p.locator('[data-nc-root]').count())) { fail(tag + ': no console'); await o.ctx.close(); continue; }
+      await p.click('[data-nc-act="jack-in"]'); await wait(150);
+      await p.click('[data-netrun-roll="Control"]'); await wait(250);
+      if ((await run(p, 'nc2')).used !== 1) fail(tag + ': a roll did not spend an action');
+      await small(p, tag); await sideways(p, tag); await axeFor(p, tag);
+      const cc = await p.evaluate(() => getComputedStyle(document.querySelector('.nc-grid')).gridTemplateColumns.split(' ').length);
+      if (cc < (width < 600 ? 2 : 3)) fail(tag + ': the grid has ' + cc + ' columns');
+      for (const e of o.page.errs) fail(tag + ': ' + e);
+      await o.ctx.close();
+    }
+  });
+
+  await check('NETRUN effects: net speed, the strip with switches, damage with Armor consumed and undone, the NET Action marker, a destroyed program, in native and cyber at 390 and 1280', async fail => {
+    const axe = (() => { try { return fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; } })();
+    const base = { stats: { INT: 8, REF: 7, DEX: 6, TECH: 6, COOL: 6, WILL: 6, LUCK: 6, MOVE: 6, BODY: 6, EMP: 6 }, skills: {}, hp: 35, humanity: 60, head: 0, bodyArmor: 0 };
+    const E = (id, cat, name, kind = 'program', slots = 1, on = false) => ({ id, catalogId: cat, name: { ru: name, en: name }, kind, slots, ...(on ? { active: true } : {}) });
+    const runner = id => ({ id, name: 'Nova', role: 'netrunner', rank: 4, ...base, extra: { roleTools: { netrunner: { team: [], values: { jackedIn: true } } }, cyberdecks: { version: 1, decks: [{ id: 'd1', name: 'Deck', slots: 9, hardwareOnly: 0, entries: [E('e1', 'extra-program-worm', 'Worm', 'program', 1, true), E('e2', 'extra-program-speedy-gonzalvez', 'Speedy Gonzalvez', 'program', 1, true), E('e3', 'extra-program-armor', 'Armor', 'program', 1, true), E('e4', 'extra-program-sword', 'Sword')] }] } } });
+    const seed = async (page, c) => {
+      await page.goto(BASE + '#/characters'); await wait(300);
+      await page.evaluate(ch => { window.App.getState().characters.push(ch); window.App.save(); }, c);
+      await page.goto(BASE + '#/sheet/' + c.id); await wait(500);
+      await page.evaluate(() => { try { localStorage.setItem('nightcity-red-sheet-tab-v1', 'netrun'); } catch {} });
+      const tab = page.locator('[data-sheet-tab="netrun"]'); if (await tab.count()) await tab.first().click(); await wait(300);
+    };
+    const ch = (page, id) => page.evaluate(i => JSON.parse(JSON.stringify(window.App.getState().characters.find(x => x.id === i))), id);
+    const hist = page => page.evaluate(() => window.App.getState().history.map(h => h.label));
+    const sideways = async (page, where) => { const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]); if (sw > iw) fail(where + ': the page scrolls sideways (' + sw + ' > ' + iw + ')'); };
+    // Buttons, selects and text fields must be 44 px; a checkbox is measured through its whole label (the label is the target).
+    const small = async (page, where) => {
+      const bad = await page.evaluate(() => [...document.querySelectorAll('[data-nc-root] button, [data-nc-root] select, [data-nc-root] input:not([type="checkbox"]), [data-nc-root] label.nx-check, [data-nd-root] .nd-btn')].map(b => [b, b.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.width < 44 || r.height < 44)).map(([b, r]) => (b.dataset.nxAct || b.dataset.ncAct || b.dataset.ndAct || b.className || b.tagName) + ' ' + r.width.toFixed(1) + 'x' + r.height.toFixed(1)));
+      if (bad.length) fail(where + ': targets under 44px: ' + bad.slice(0, 4).join(', '));
+    };
+    const axeFor = async (page, where) => {
+      if (!axe) return;
+      await page.mouse.move(0, 0); await wait(100); await page.evaluate(axe);
+      const found = await page.evaluate(() => window.axe.run(document.querySelector('[data-nc-root]'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => v.id + ' (' + v.nodes.length + ')')));
+      for (const v of found) fail(where + ': ' + v);
+    };
+
+    const d = await device({ width: 390 }), page = d.page; let dialogs = 0;
+    page.on('dialog', () => { dialogs++; });
+    await seed(page, runner('fx1'));
+    if (!(await page.locator('[data-nx-strip]').count()) || !(await page.locator('[data-nx-speed]').count()) || !(await page.locator('[data-nx-dmg]').count())) { fail('the effects strip, the speed line or the damage form is missing'); await d.ctx.close(); return; }
+    const chips = await page.$$eval('[data-nx-strip] [data-nx-act="skip"]', els => els.map(e => e.dataset.nxKey + ':' + e.getAttribute('aria-checked')));
+    if (chips.join() !== 'extra-program-worm:true,extra-program-speedy-gonzalvez:true') fail('the strip switches are not Worm and Speedy Gonzalvez, on: ' + chips.join());
+    // Net speed: Interface 4 + 2, no NET Action.
+    await page.click('[data-nx-act="speed-roll"]'); await wait(250);
+    if (!(await hist(page)).some(l => l === 'Speed (Interface 4 + Speedy Gonzalvez 2)')) fail('the speed roll is not in the history with its label: ' + JSON.stringify((await hist(page)).slice(0, 3)));
+    if (((await ch(page, 'fx1')).extra.roleTools.netrunner.values.used || 0) !== 0) fail('the speed roll spent a NET Action');
+    // A booster off for one roll: named in the label, spent by that roll.
+    await page.click('[data-nx-key="extra-program-worm"]'); await wait(150);
+    if (await page.getAttribute('[data-nx-key="extra-program-worm"]', 'aria-checked') !== 'false') fail('the Worm switch did not go off');
+    if (await page.evaluate(() => document.activeElement?.dataset?.nxFocus) !== 'sk-extra-program-worm') fail('the focus was lost after a switch');
+    await page.click('[data-netrun-roll="Backdoor"]'); await wait(250);
+    if (!(await hist(page)).some(l => /^Backdoor \(Interface 4; Worm (off|выкл\.)\)$/.test(l))) fail('the roll with Worm off is not labelled: ' + JSON.stringify((await hist(page)).slice(0, 3)));
+    if (await page.getAttribute('[data-nx-key="extra-program-worm"]', 'aria-checked') !== 'true') fail('the switch was not spent by the roll');
+    // Incoming damage: Armor ticked in advance, used up, undone.
+    await page.click('[data-nx-dmg] summary'); await wait(100);
+    if (/от 1 до 999|from 1 to 999/.test(await page.innerText('[data-nx-preview]'))) fail('the empty damage form opens with an error-style message');
+    await page.evaluate(() => { window.__nxLive = document.querySelector('[data-nx-preview]'); });
+    await page.fill('[data-nx-f="amount"]', '9'); await wait(100);
+    if (!(await page.evaluate(() => window.__nxLive === document.querySelector('[data-nx-preview]')))) fail('the preview live region is replaced on every keystroke');
+    const line = await page.innerText('[data-nx-preview]');
+    if (!/Armor/.test(line) || !/30/.test(line)) fail('the preview does not show Armor and the new HP: ' + line);
+    if (!(await page.isChecked('[data-nx-def="extra-program-armor"]'))) fail('Armor is not ticked in advance');
+    await small(page, 'native 390 open form'); await sideways(page, 'native 390 open form');
+    await page.click('[data-nx-act="apply"]'); await wait(300);
+    let c = await ch(page, 'fx1');
+    if (c.hp !== 30 || c.extra.cyberdecks.decks[0].entries[2].spent !== true) fail('Armor did not take 4 and get used up: hp ' + c.hp);
+    if (!(await page.locator('#app-notice .notice-action').count())) fail('no «Отменить» after applying damage');
+    else { await page.click('#app-notice .notice-action'); await wait(250); c = await ch(page, 'fx1'); if (c.hp !== 35 || c.extra.cyberdecks.decks[0].entries[2].spent) fail('«Отменить» did not return the damage and the Armor'); 
+      const ae = await page.evaluate(() => document.activeElement && document.activeElement !== document.body && !!document.activeElement.closest('[data-nc-root]'));
+      if (!ae) fail('the focus fell to the body after «Отменить»');
+    }
+    // The NET Action marker: set, New turn applies it once.
+    await page.click('[data-nx-act="pending"]'); await wait(150);
+    if (!((await ch(page, 'fx1')).extra.roleTools.netrunner.values.netPenalty)) fail('the marker was not set');
+    await page.click('[data-nc-act="turn"]'); await wait(200);
+    const v = (await ch(page, 'fx1')).extra.roleTools.netrunner.values;
+    if (v.cut !== 1 || v.netPenalty !== undefined || v.used !== 0) fail('New turn did not move the marker onto the turn: ' + JSON.stringify(v));
+    if ((await page.locator('.nc-pips .nc-pip').count()) !== 2) fail('the pips do not show 2 NET Actions after the marker');
+    await page.click('[data-nc-act="turn"]'); await wait(200);
+    if ((await ch(page, 'fx1')).extra.roleTools.netrunner.values.cut !== undefined) fail('the cut did not end with the next turn');
+    // A destroyed program: stays in the rack, no Activate, restored by hand.
+    await page.click('[data-nd-entry="e4"]'); await wait(150);
+    await page.click('[data-nd-act="destroy"]'); await wait(250);
+    if (!(await page.locator('[data-nd-entry="e4"].is-gone').count())) fail('the destroyed program is not marked in the rack');
+    if ((await page.locator('#nd-detail [data-rp-deck="toggle"]').count()) || !(await page.locator('#nd-detail [data-nd-act="restore"]').count())) fail('a destroyed program can still be activated or cannot be restored');
+    if (!(await ch(page, 'fx1')).extra.cyberdecks.decks[0].entries[3].destroyed) fail('destroyed is not stored');
+    await page.click('[data-nd-act="restore"]'); await wait(250);
+    if ((await ch(page, 'fx1')).extra.cyberdecks.decks[0].entries[3].destroyed) fail('restore did not clear destroyed');
+    if (dialogs) fail('a native dialog was shown (' + dialogs + ')');
+    await small(page, 'native 390'); await sideways(page, 'native 390'); await axeFor(page, 'native 390');
+    for (const e of page.errs) fail(e);
+    await d.ctx.close();
+
+    for (const [look, theme, width] of [['cyber', 'dark', 390], ['cyber', 'dark', 1280], ['native', 'light', 1280], ['board', 'dark', 390]]) {
+      const o = await device({ look, theme, width }), p = o.page, tag = `fx ${look} ${theme} ${width}`;
+      await seed(p, runner('fx2'));
+      if (!(await p.locator('[data-nx-strip]').count())) { fail(tag + ': no strip'); await o.ctx.close(); continue; }
+      await p.click('[data-nx-dmg] summary'); await wait(100); await p.fill('[data-nx-f="amount"]', '3'); await wait(100);
+      await small(p, tag); await sideways(p, tag); await axeFor(p, tag);
+      for (const e of o.page.errs) fail(tag + ': ' + e);
+      await o.ctx.close();
+    }
+  });
+
+  await check('role switch: chooser on a fresh profile, player menu, a GM screen by link with a notice, GM group and phone bar, kept after reload', async fail => {
+    const { ctx, page } = await device({ data: false, width: 1280 });
+    await page.goto(BASE); await page.waitForSelector('#app-sidebar .nav-item', { state: 'attached' });
+    const nav = () => page.$$eval('#app-sidebar .nav-item', els => els.map(e => e.dataset.view));
+    const bar = () => page.$$eval('.bottom-nav button[data-view]', els => els.map(e => e.dataset.view));
+    const cards = () => page.$$eval('.quick-grid .quick-card', els => els.map(e => e.dataset.view));
+    const role = () => page.evaluate(() => localStorage.getItem('nc-role'));
+    if (!(await page.locator('.role-chooser').count())) fail('a fresh profile does not get the chooser on the home page');
+    if ((await page.locator('.role-chooser [data-role-set]').count()) !== 2) fail('the chooser does not have its two buttons');
+    let n = await nav();
+    if (!n.includes('gm') || !n.includes('campaigns') || (await role()) !== null) fail('not chosen: the menu changed or a role was written without a choice');
+    // The switch is a labelled group of two buttons of at least 44 px.
+    const sw = await page.$$eval('.role-switch button', els => els.map(e => { const r = e.getBoundingClientRect(); return [e.getAttribute('aria-pressed'), Math.round(r.width), Math.round(r.height)]; }));
+    if (sw.length !== 2 || sw.some(([p, w, h]) => p !== 'false' || w < 44 || h < 44)) fail('the menu switch is not two unpressed buttons of 44 px: ' + JSON.stringify(sw));
+    await page.click('.role-chooser [data-role-set="player"]'); await wait(200);
+    n = await nav();
+    if (n.includes('gm') || n.includes('campaigns') || !n.includes('room') || !n.includes('net')) fail('player menu is wrong: ' + n);
+    const c = await cards();
+    if (c.includes('gm') || c.includes('campaigns') || !c.includes('rules')) fail('player home cards are wrong: ' + c);
+    if (await page.locator('.role-chooser').count()) fail('the chooser stays after a choice');
+    if ((await role()) !== 'player') fail('the choice was not stored');
+    if ((await page.$eval('.role-switch [data-role-set="player"]', e => e.getAttribute('aria-pressed'))) !== 'true') fail('the switch does not show the player');
+    // A GM screen by link opens in full, with the notice, and the notice button switches.
+    await page.goto(BASE + '#/gm'); await wait(400);
+    if (!(await page.locator('.role-notice').count())) fail('no notice on a GM screen for a player');
+    if ((await page.locator('.content .card, .content section').count()) < 2) fail('the GM screen did not open in full');
+    if (!/Это экран ведущего/.test(await page.locator('.role-notice').innerText())) fail('the notice text is wrong');
+    await page.click('.role-notice [data-role-set="gm"]'); await wait(300);
+    if (await page.locator('.role-notice').count()) fail('the notice stays after switching');
+    if (!(await page.url()).endsWith('#/gm')) fail('switching moved away from the screen: ' + page.url());
+    if ((await role()) !== 'gm') fail('the notice button did not choose the GM');
+    const first = await page.$$eval('#app-sidebar .nav-group-label', els => els[0].textContent);
+    n = await nav();
+    if (first !== 'Ведущему' || n.slice(0, 3).join() !== 'campaigns,gm,room' || n.length !== new Set(n).size) fail('GM menu is wrong: ' + first + ' ' + n);
+    // The phone: the GM bottom bar, the switch in the drawer, no sideways scroll.
+    await page.setViewportSize({ width: 390, height: 844 }); await wait(300);
+    if ((await bar()).join() !== 'campaigns,room,dice,gm') fail('GM phone bar is wrong: ' + await bar());
+    await page.click('.bottom-nav [data-shell="menu"]'); await wait(500);
+    const box = await page.locator('.role-switch [data-role-set="player"]').boundingBox();
+    if (!box || box.width < 44 || box.height < 44) fail('the drawer switch is missing or too small: ' + JSON.stringify(box));
+    await page.click('.role-switch [data-role-set="player"]'); await wait(300);
+    if ((await bar()).join() !== 'characters,combat,dice,room') fail('player phone bar is wrong: ' + await bar());
+    if ((await page.locator('.role-notice').count()) !== 1) fail('the notice is not shown after switching back on the GM screen');
+    if (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) > 0) fail('sideways scroll at 390 px');
+    await page.click('.role-switch [data-role-set="gm"]'); await wait(300);
+    // The choice survives a reload.
+    await page.reload(); await page.waitForSelector('#app-sidebar .nav-item', { state: 'attached' }); await wait(300);
+    if ((await role()) !== 'gm' || (await bar()).join() !== 'campaigns,room,dice,gm') fail('the role did not survive a reload');
+    await page.setViewportSize({ width: 1280, height: 844 }); await wait(200);
+    if ((await page.$$eval('#app-sidebar .nav-group-label', els => els[0].textContent)) !== 'Ведущему') fail('the GM group is gone after the reload');
+    for (const e of page.errs) fail(e);
+    await ctx.close();
+  });
+
+  if (!brokerUrl) skip('«Показать нетраннеру»', 'aedes and ws are not installed');
+  else await check('«Показать нетраннеру»: the Game Master shows a run to one player; the runner rolls on a target, the Game Master answers, a proposal is accepted, a third member sees nothing, stopping takes it away', async fail => {
+    const axeFile = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })(), axeSource = axeFile ? fs.readFileSync(axeFile, 'utf8') : null;
+    const SECRETS = ['ТАЙНА-ИМЯ', 'ТАЙНА-ЗАМЕТКА', 'ТАЙНА-ЗАПИСЬ', 'ТАЙНА-ЭТАЖ', 'Sabertooth', 'ТАЙНА-ГЛУБЬ'];
+    const base = { stats: { INT: 8, REF: 7, DEX: 6, TECH: 6, COOL: 6, WILL: 6, LUCK: 6, MOVE: 6, BODY: 6, EMP: 6 }, skills: {}, hp: 35, humanity: 60, head: 0, bodyArmor: 0 };
+    const E = (id, cat, name) => ({ id, catalogId: cat, name: { ru: name, en: name }, kind: 'program', slots: 1 });
+    const nova = { id: 'nova', name: 'Nova', role: 'netrunner', rank: 4, ...base, extra: { cyberdecks: { version: 1, decks: [{ id: 'd1', name: 'Deck', slots: 7, hardwareOnly: 0, entries: [E('w1', 'extra-program-worm', 'Worm')] }] } } };
+    const ent = (id, type, name, over = {}) => ({ id, type, name, dv: 0, state: type === 'ice' ? 'waiting' : 'closed', preset: '', rez: 0, maxRez: 0, per: 0, spd: 0, atk: 0, def: 0, notes: '', ...over });
+    const arch = { id: 'a1', name: 'ТАЙНА-ИМЯ-АРХИТЕКТУРЫ', access: '', notes: 'ТАЙНА-ЗАМЕТКА', rank: 6, modifier: 0, dv: 8, remaining: 3, current: '1', runAt: 'f1', seen: ['f1'], floors: [
+      { id: 'f1', label: '1', branch: '', parent: '', entries: [ent('p1', 'password', 'ТАЙНА-ЗАПИСЬ-1', { dv: 6, rv: true, rl: 'Дверь' }), ent('fl', 'file', 'ТАЙНА-ЗАПИСЬ-2', { dv: 9, rv: true }), ent('i1', 'ice', 'Sabertooth', { preset: 'Sabertooth', rez: 25, maxRez: 25 })] },
+      { id: 'f2', label: 'ТАЙНА-ЭТАЖ', branch: '', parent: 'f1', entries: [ent('deep', 'file', 'ТАЙНА-ГЛУБЬ', { dv: 15, rv: true, rl: 'Сейф' })] }] };
+    const gm = await device(), runner = await device({ width: 390, look: 'cyber', theme: 'dark' }), third = await device({ width: 390 });
+    const G = gm.page, P = runner.page, T = third.page;
+    const sideways = (page, where) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth).then(over => { if (over > 0) fail(`${where}: the page scrolls sideways by ${over}px`); });
+    const axe = async (page, selector, where) => {
+      if (!axeSource) return;
+      await page.evaluate(axeSource);
+      const found = await page.evaluate(sel => window.axe.run(document.querySelector(sel), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => `${v.id} (${v.nodes.length}): ${v.nodes[0].target.join(' ').slice(0, 80)}`)), selector);
+      for (const v of found) fail(`${where}: ${v}`);
+    };
+    await P.goto(BASE + '#/characters'); await wait(300);
+    await P.evaluate(c => { window.App.getState().characters.push(c); window.App.save(); }, nova);
+    await G.goto(BASE + '#/room'); await wait(400);
+    await G.fill('#room-gm-name', 'Мастер'); await G.selectOption('#room-campaign', 'k1'); await G.click('[data-room-action="create"]');
+    const link = await until(() => G.evaluate(() => { const s = window.Room._test.session(); return s?.code && s.gmFp ? window.Room._test.roomLink(s.code) : null; }));
+    if (!link) { fail('the room was not created'); return; }
+    await P.goto(link); await wait(600);
+    await P.fill('#room-player-name', 'Аня'); await P.selectOption('#room-character', 'nova'); await P.click('[data-room-action="join"]');
+    await T.goto(link); await wait(600);
+    await T.fill('#room-player-name', 'Ева'); await T.selectOption('#room-character', 'v1'); await T.click('[data-room-action="join"]');
+    if (!(await until(() => G.evaluate(() => { const m = [...window.Room._test.members().values()]; return ['Аня', 'Ева'].every(n => m.some(x => x.name === n && x.box)); })))) { fail('the Game Master does not see both players'); return; }
+    // The Game Master opens the run mode of an architecture.
+    await G.evaluate(a => { window.App.getState().netArchitectures.push(a); window.App.save(); }, arch);
+    await G.goto(BASE + '#/net'); await wait(400);
+    await G.click('[data-net="open"][data-id="a1"]'); await G.click('[data-net="run-mode-on"]'); await wait(200);
+    if (!(await G.locator('[data-rn-box]').count())) { fail('no «Показать нетраннеру» card in the run mode'); return; }
+    const fpOf = name => G.evaluate(n => [...window.Room._test.members().values()].find(m => m.name === n)?.fp, name);
+    // Nothing is shown until the Game Master presses the button.
+    await wait(600);
+    if (await P.evaluate(() => !!window.RoomNetrun._test.shown())) fail('the run was shown before the Game Master pressed the button');
+    await G.selectOption('[data-net-rn="peer"]', await fpOf('Аня')); await G.click('[data-net="run-rn-share"]'); await wait(300);
+    if (await G.locator('[data-rn-preview] pre').count()) { const raw = await G.evaluate(() => document.querySelector('[data-rn-preview] pre').textContent); for (const x of SECRETS) if (raw.includes(x)) fail('the preview on the Game Master’s card shows «' + x + '»'); }
+    // The runner opens the NETRUN tab.
+    await P.goto(BASE + '#/sheet/nova'); await wait(500);
+    await P.evaluate(() => { try { localStorage.setItem('nightcity-red-sheet-tab-v1', 'netrun'); } catch {} });
+    const tab = P.locator('[data-sheet-tab="netrun"]'); if (await tab.count()) await tab.first().click(); await wait(300);
+    if (!(await until(() => P.evaluate(() => !!document.querySelector('[data-rn-panel]'))))) { fail('the runner sees no «Архитектура» panel: ' + JSON.stringify(await P.evaluate(() => ({ shown: !!window.RoomNetrun._test.shown(), hash: location.hash, tab: !!document.querySelector('[data-sheet-tab="netrun"]'), who: window.Room.netrunLink.who(), members: [...window.Room._test.members().values()].map(m => m.name + ':' + m.role) }))) + ' gm: ' + JSON.stringify(await G.evaluate(() => ({ share: !!window.RoomNetrun._test.share(), st: window.RoomNetrun._test.share()?.state, peers: window.Room.netrunLink.peers().length })))); return; }
+    const panelText = await P.evaluate(() => document.querySelector('[data-rn-panel]').innerText);
+    if (!/Дверь/.test(panelText) || !/неизвестно/i.test(panelText) || !/Этаж 1/.test(panelText)) fail('the panel does not show the revealed label, the unknown record and the floor: ' + panelText.replace(/\s+/g, ' ').slice(0, 160));
+    for (const x of SECRETS) if (panelText.includes(x)) fail('the runner’s panel shows «' + x + '»');
+    if ((await P.locator('[data-rn-target]').count()) !== 3) fail('the floor has three records: the panel has ' + await P.locator('[data-rn-target]').count());
+    if (await P.locator('[data-rn-target]').evaluateAll(els => els.some(e => e.getBoundingClientRect().height < 44))) fail('a target is lower than 44px');
+    if (await P.locator('[data-rn-roll]').evaluateAll(els => els.some(e => e.getBoundingClientRect().height < 44))) fail('an ability is lower than 44px');
+    await sideways(P, 'the runner’s NETRUN tab, cyber 390'); await axe(P, '[data-rn-panel]', 'the runner’s panel, cyber dark 390');
+    // The third member sees nothing, and cannot open what was on the wire.
+    await T.goto(BASE + '#/room'); await wait(500);
+    if (await T.evaluate(() => !!window.RoomNetrun._test.shown() || !!document.querySelector('[data-rn-panel]'))) fail('a third member sees the run');
+    if (!runBytes.length) fail('the broker saw no message on the subtopic of the run');
+    for (const b of runBytes) for (const x of SECRETS.concat(['Дверь', 'password'])) if (b.includes(Buffer.from(x))) fail('the bytes on the wire contain «' + x + '»');
+    const wire = runBytes.at(-1).toString('base64');
+    const opened = await T.evaluate(async b64 => { try { const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), got = await window.Room._test.gate.openAny(bytes), msg = JSON.parse(got.outer.b); if (msg.t !== 'netrun') return 'type ' + msg.t; try { await window.Room._test.openFromPeer(msg.d); return 'OPENED'; } catch { return 'sealed'; } } catch (e) { return 'unreadable'; } }, wire);
+    if (opened === 'OPENED') fail('the third member opened the sealed view'); else if (opened !== 'sealed') fail('the third member’s check of the wire gave: ' + opened);
+    // The runner jacks in, picks the door and rolls Backdoor.
+    await P.click('[data-nc-act="jack-in"]'); await wait(150);
+    await P.click('[data-rn-target="p1"]'); await P.click('[data-rn-roll="Backdoor"]'); await wait(500);
+    // The roll redraws the page: the keyboard focus must not fall to the top of the page.
+    if (await P.evaluate(() => document.activeElement === document.body)) fail('the focus fell to the page top after the runner’s roll');
+    if ((await P.evaluate(() => document.querySelector('[data-rn-panel] .card-heading').innerText.match(/Архитектура/gi) || [])).length > 1) fail('the runner’s panel heading repeats its title');
+    const hist = await P.evaluate(() => window.App.getState().history[0] || {});
+    if (!/^Backdoor \(Interface 4\) → цель 1 на этаже 1$/.test(hist.label || '')) fail('the roll label does not name the target by its place: ' + hist.label);
+    // The roll is in the open feed: the label the Game Master typed for the runner must not reach a third member.
+    await wait(600);
+    if (await T.evaluate(() => /Дверь/.test(document.body.innerText) || Object.keys(localStorage).some(k => /Дверь/.test(localStorage.getItem(k) || '')))) fail('the label typed for the runner reached a third member through the roll feed');
+    if (/DV 6/.test(String(hist.detail || '')) || /DV 6/.test(String(hist.label || ''))) fail('the DV of the record reached the runner’s roll: ' + hist.detail);
+    // The Game Master sees the roll next to the record and presses «it worked».
+    if (!(await until(() => G.evaluate(() => !!document.querySelector('.net-rn-roll'))))) { fail('the Game Master does not see the incoming roll next to the record'); return; }
+    const gmLine = await G.evaluate(() => document.querySelector('.net-rn-roll').innerText);
+    if (!/Backdoor/.test(gmLine) || !/DV 6/.test(gmLine)) fail('the Game Master’s line lacks the ability or the comparison with the DV: ' + gmLine.replace(/\s+/g, ' '));
+    await G.click('.net-rn-roll [data-net="run-rn-ok"]'); await wait(300);
+    if ((await G.evaluate(() => window.App.getState().netArchitectures[0].floors[0].entries[0].state)) !== 'open') fail('«it worked» did not open the record');
+    if (!(await until(() => P.evaluate(() => /Ведущий: получилось/.test(document.querySelector('[data-rn-panel]')?.innerText || ''))))) fail('the runner does not hear the answer');
+    if (!(await until(() => P.evaluate(() => window.RoomNetrun._test.shown()?.view.floors[0].e[0].s === 'o')))) fail('the record is not open in the runner’s view');
+    // A proposal: program damage, accepted with one tap on the runner’s own sheet.
+    await G.evaluate(() => window.RoomNetrun.propose('rez', { c: 'extra-program-worm', n: 3 }));
+    if (!(await until(() => P.evaluate(() => /Программа Worm: REZ −3/.test(document.querySelector('[data-rn-panel]')?.innerText || ''))))) { fail('the runner does not see the proposal'); return; }
+    const rezBefore = await P.evaluate(() => window.App.getState().characters.find(c => c.id === 'nova').extra.cyberdecks.decks[0].entries[0].rez);
+    if (rezBefore !== undefined) fail('the proposal changed the sheet before it was accepted');
+    await P.click('[data-rn-accept]'); await wait(300);
+    if (await P.evaluate(() => document.activeElement === document.body)) fail('the focus fell to the page top after accepting a proposal');
+    const rez = await P.evaluate(() => window.App.getState().characters.find(c => c.id === 'nova').extra.cyberdecks.decks[0].entries[0].rez);
+    if (rez !== 4) fail('accepting did not take 3 REZ off the Worm: ' + rez);
+    if (!(await until(() => G.evaluate(() => window.RoomNetrun._test.share().prop.length === 0)))) fail('the Game Master still holds an accepted proposal');
+    // Stopping takes the run away from the runner.
+    await G.click('[data-net="run-rn-stop"]'); await wait(300);
+    if (!(await until(() => P.evaluate(() => !document.querySelector('[data-rn-panel]') && !window.RoomNetrun._test.shown())))) fail('the runner still sees the run after the Game Master stopped it');
+    if (await T.evaluate(() => !!window.RoomNetrun._test.shown())) fail('a third member sees the run after it stopped');
+    // The Game Master’s card at 1280, with the rules of the accessibility check.
+    await axe(G, '[data-rn-box]', 'the Game Master’s card, native dark 1280');
+    for (const e of [...G.errs, ...P.errs, ...T.errs]) fail(e);
+    await gm.ctx.close(); await runner.ctx.close(); await third.ctx.close();
   });
 
   const axePath = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();

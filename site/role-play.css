@@ -31,7 +31,7 @@ html:not(.ui-board) .rp-summary { display:none; }
 .rp-netbar { margin:12px 0 8px; }
 .rp-dv { display:inline-flex; align-items:center; gap:8px; margin-left:auto; font-size:13px; }
 .rp-dv input { width:76px; min-height:36px; padding:4px 8px; font:inherit; }
-.rp-prog-row .rt-button { min-height:32px; padding:4px 10px; }
+.rp-prog-row .rt-button { min-height:44px; min-width:44px; padding:4px 12px; }
 .rp-prog-row .rt-button[disabled] { opacity:.4; }
 
 html.ui-native .rp-list li, html.ui-native .rp-round { border-color:var(--line); border-radius:10px; background:var(--panel-2); }

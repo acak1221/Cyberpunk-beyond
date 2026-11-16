@@ -1,0 +1,62 @@
+/* Program effects of the NETRUN tab (netrun-effects.js): the speed line, the strip of active effects, the incoming-damage form,
+   and the «destroyed» / «used» looks of a cell in the deck rack. Colour comes from the theme variables only; every target is 44 px.
+   The chips reuse the look of the named-modifier switches (named-modifiers.css). */
+.nx-speed { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 10px 0 0; }
+.nx-speed-text { display: grid; gap: 2px; min-width: 0; font-size: 13px; }
+.nx-speed-text b { font-size: 14px; }
+.nx-speed-text em { font-style: normal; font-size: 22px; line-height: 1; font-weight: 800; color: var(--yellow); }
+.nx-speed-text small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.nx-speed .nc-btn { flex: 0 0 auto; }
+.nx-hint { margin: 6px 0 8px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+.nx-strip { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--border); }
+.nx-label { margin: 0 0 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.nx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.nx-chip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; max-width: 100%; min-height: 44px; padding: 6px 12px; color: var(--text); background: var(--panel); border: 1px solid var(--border); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.nx-chip.nx-static { cursor: default; border-style: dotted; }
+.nx-chip .nx-name { min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.nx-chip b { flex: none; font: 800 17px/1 var(--display, inherit); }
+.nx-chip small { flex: 0 1 auto; min-width: 0; max-width: 100%; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+button.nx-chip .nx-name::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -2px; border: 2px solid currentColor; border-radius: 50%; }
+button.nx-chip[aria-checked="true"] .nx-name::before { background: currentColor; }
+button.nx-chip[aria-checked="true"] { color: #131010; background: var(--yellow); border-color: var(--yellow); }
+button.nx-chip[aria-checked="true"] small { color: inherit; }
+button.nx-chip[aria-checked="false"] { border-style: dashed; }
+button.nx-chip:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+.nx-dmg { margin: 10px 0 0; border-top: 1px solid var(--border); }
+.nx-dmg > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.nx-form { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 8px; }
+.nx-form .nc-field { flex: 1 1 140px; }
+html .nx-dmg .nc-field input, html .nx-dmg .nc-field select { width: 100%; min-height: 44px; padding: 6px 10px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 0; font: inherit; }
+.nx-defs { margin: 0 0 8px; padding: 6px 10px 8px; border: 1px solid var(--border); }
+.nx-defs legend { padding: 0 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.nx-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 13px; line-height: 1.35; cursor: pointer; }
+.nx-check input { flex: none; width: 22px; height: 22px; margin: 0; }
+.nx-check span { min-width: 0; overflow-wrap: anywhere; }
+.nx-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }
+.nx-line { flex: 1 1 200px; margin: 0; padding: 8px 10px; background: var(--panel-2); border-left: 3px solid var(--yellow); font-size: 13px; line-height: 1.4; }
+.nx-preview .nc-btn { flex: 0 0 auto; }
+.nx-preview .nc-btn[aria-disabled="true"] { border-style: dashed; opacity: 1; background: var(--panel); color: var(--text); border-color: var(--border); cursor: not-allowed; }
+.nx-done { margin: 0 0 8px; padding: 8px 10px; border-left: 3px solid var(--green); background: var(--panel-2); font-size: 13px; font-weight: 700; }
+
+/* the deck rack: a destroyed program stays in its slot, hatched and struck; a used one has a dashed edge */
+.nd-cell.is-gone { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(127, 127, 127, .22) 6px 8px); border-style: dotted; }
+.nd-cell.is-gone .nd-cname { text-decoration: line-through; }
+.nd-filled.is-gone .nd-dot { background: transparent; border: 2px solid var(--muted); }
+.nd-cell.is-spent { border-style: dashed; }
+@media print { .nx-dmg, .nx-speed .nc-btn, .nx-chip { display: none; } }
+
+/* the looks: the same switch as the named modifiers wears in the plain and the «Досье» looks */
+html.ui-native .nx-chip { border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--border); }
+html.ui-native .nx-chip.nx-static { box-shadow: inset 0 0 0 1px var(--border); }
+html.ui-native button.nx-chip[aria-checked="true"] { color: var(--text); background: color-mix(in srgb, var(--red) 24%, var(--panel)); box-shadow: inset 0 0 0 2px var(--red); }
+html.ui-native button.nx-chip[aria-checked="true"] small { color: var(--text); }
+html.ui-native button.nx-chip[aria-checked="true"] .nx-name::before { color: var(--red); }
+html.ui-native button.nx-chip[aria-checked="false"] { box-shadow: none; border: 1px dashed var(--border); }
+html.ui-native button.nx-chip:focus-visible { outline-color: var(--red); }
+html.ui-native.ui-board .nx-chip { border-radius: 4px; }
+html.ui-native.ui-board button.nx-chip[aria-checked="true"] { color: #fff; background: var(--board-accent); box-shadow: none; }
+html.ui-native.ui-board button.nx-chip[aria-checked="true"] small { color: inherit; }
+html.ui-native.ui-board button.nx-chip[aria-checked="true"] .nx-name::before { color: inherit; }
+.nx-line.nx-idle { border-left-color: var(--border); color: var(--muted); }

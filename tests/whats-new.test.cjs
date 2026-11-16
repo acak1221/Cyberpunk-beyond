@@ -57,7 +57,7 @@ test('every feature that shipped after release 10 was written up is on the page,
  const readme=fs.readFileSync(path.join(SITE,'..','README.md'),'utf8');
  for(const name of ['Папки и метки персонажей','Именованные модификаторы','Группы предметов','Свои таблицы бросков','NPC по шагам','Часы с триггерами','Редактор NET-архитектуры','Видимость участников боя в комнате','«Агент»','Карта города'])assert.ok(readme.includes('\n- **'+name+':** '),'README: '+name);
  // A player who had read release 10 gets the mark again.
- const back=load({store:{'nightcity-red-v1':'{}','nc-news-seen':'10'}});assert.equal(back.W.unread(),1);assert.notEqual(back.W.dot(),'');
+ const back=load({store:{'nightcity-red-v1':'{}','nc-news-seen':'10'}});assert.equal(back.W.unread(),back.W.latest()-10);assert.notEqual(back.W.dot(),'');
 });
 
 test('release 10 names what it added: the waiting room, inventory cards, dice sound and shaking, names, this page',()=>{
@@ -324,4 +324,13 @@ test('the stylesheet: 44px controls on a phone in the «Досье» look too, a
  for(const sel of ['html.ui-native.ui-board .wn-report-card .btn','html.ui-native.ui-board .page-header [data-wn-report]','html.ui-native.ui-board .wn-actions .btn'])assert.ok(phone.includes(sel),sel);
  assert.match(phone,/\.wn-actions \.btn \{ min-height: 44px; \}/);
  assert.match(css,/html\.ui-native\.ui-board\.ui-light :is\(\.sidebar, \.bottom-nav\) \.wn-dot \{ background: #f2635a; \}/);
+});
+
+test('release 13 names the Netrunner interface, and the README carries a bullet for each part',()=>{
+ const {W}=load(),r=W.RELEASES.find(x=>x.n===13),ru=r.items.map(i=>i.ru).join(' '),en=r.items.map(i=>i.en).join(' ');
+ for(const re of [/Дека как стойка слотов/,/Пульт рана/,/Атака программой/,/Эффекты программ/,/Связь с архитектурой/])assert.match(ru,re);
+ for(const re of [/rack of slots/,/run console/,/Attacking with a program/,/Program effects/,/Link to the architecture/])assert.match(en,re);
+ assert.ok(r.date>=W.RELEASES.find(x=>x.n===12).date);
+ const readme=fs.readFileSync(path.join(SITE,'..','README.md'),'utf8');
+ for(const name of ['Дека как стойка слотов','Пульт рана','Эффекты программ','Забег для нетраннера'])assert.ok(readme.includes('- **'+name+':**'),name);
 });

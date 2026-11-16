@@ -24,6 +24,18 @@ const KEY='nc-news-seen',ARCHIVE_KEY='nightcity-red-v1';
 const BODY_MAX=800,URL_MAX=2000;
 
 const RELEASES=[
+ // Release 12 is the role switch; the Netrunner interface is a release of its own.
+ {n:13,date:'2026-11-16',title:{ru:'Нетраннеру: дека, пульт, забег',en:'For netrunners: deck, console, run'},items:[
+  {ru:'Дека как стойка слотов: ячейка на слот, выбор программы по классам, а установка и снятие отменяются кнопкой «Отменить».',en:'The cyberdeck as a rack of slots: a cell per slot, programs picked by class, and installing or removing can be undone with one button.'},
+  {ru:'Пульт рана: «Войти в сеть» и «Выйти из сети», счётчик NET-действий и девять способностей, на каждой кнопке готовый итог броска.',en:'A run console: Jack In and Jack Out, the NET Action counter and nine abilities, each button showing the total it will roll.'},
+  {ru:'Атака программой с уроном и «Входящий урон» для мозга и программ: до применения видно, что изменится, и всё отменяется.',en:'Attacking with a program and incoming damage for the brain and for programs: you see what will change before it is applied, and it can be undone.'},
+  {ru:'Эффекты программ: скорость в сети, строка «Что сейчас меняет числа», метка −1 NET-действие и состояние «Уничтожена».',en:'Program effects: net speed, a “What changes the numbers now” strip, a −1 NET Action marker and a “Destroyed” state.'},
+  {ru:'Связь с архитектурой: ведущий привязывает нетраннера на столе #/net, а в комнате показывает ему только открытые этажи, зашифровав для него одного.',en:'Link to the architecture: the GM ties a netrunner to the #/net desk, and in a room shows them only the revealed floors, encrypted for that one person.'}
+ ]},
+ // Release 11 already holds the most lines a release may (eight), so the role switch is a release of its own.
+ {n:12,date:'2026-11-16',title:{ru:'Роль: игрок или ведущий',en:'Role: player or Game Master'},items:[
+  {ru:'Роль «Игрок / Ведущий»: переключатель в меню убирает инструменты ведущего из меню игрока, а ведущему ставит их первыми. Экраны ведущего открываются по прямой ссылке в любой роли; данные не меняются.',en:'Player / Game Master role: a menu switch hides the GM tools from the player menu and puts them first for a GM. GM screens still open from a direct link in either role, and your data does not change.'}
+ ]},
  // Release 10 went out with only five of its lines written. Its number was already stored as «seen» in browsers by then,
  // so the rest is a release of its own: the dot comes back for those who had read the short list.
  {n:11,date:'2026-11-15',title:{ru:'Папки, свои таблицы, карта города',en:'Folders, your own tables, a city map'},items:[

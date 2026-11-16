@@ -169,6 +169,8 @@ function undoReset(a){
 }
 function reset(){runId=null;moving=null;rollNote=null;resetUndo=null}
 const running=a=>!!a&&runId!==null&&a.id===runId;
+// The floors the Netrunner has stood on (architecture.seen): what is shown to a player in a room by default.
+function remember(a,id){if(!Array.isArray(a.seen))a.seen=[];if(!a.seen.includes(id)){a.seen.push(id);if(a.seen.length>100)a.seen.shift()}}
 const at=(a,t)=>t.nodes.get(a.runAt)||t.roots[0]||null;
 const entriesOf=f=>Array.isArray(f?.entries)?f.entries.filter(e=>e&&typeof e==='object'):[];
 // After a move, a step, a successful roll, an undo or a removal the button that was pressed is gone, so focus is
@@ -213,7 +215,7 @@ function editHtml(a,l,floorBody){
  };
  return `<p class="net-note">${esc(z.treeHelp)}</p><ul class="net-ed-tree${picked?' is-picking':''}">${nest(t.roots,z,card)}</ul>`;
 }
-function runEntry(e,j,n,z){
+function runEntry(e,j,n,z,a){
  const f=n.floor,ids=`data-floor="${esc(f.id)}" data-entry="${esc(e.id)}"`,ice=e.type==='ice',state=z.states[e.state]||z.states.other,name=e.name||(ice?'Black ICE':z.types[e.type]||z.types.other),lock=LOCKS.includes(e.type);
  let h=`<li class="net-run-entry"><div class="net-run-entry-head"><span class="net-run-type">${esc(z.types[e.type]||z.types.other)}</span><strong>${esc(name)}</strong>${lock?`<span class="net-run-dv">DV ${clamp(e.dv,0,999)}</span>`:''}<span class="net-ed-chip" data-state="${esc(e.state)}">${esc(state)}</span></div>`;
  if(e.notes)h+=`<p class="net-note net-run-notes">${esc(e.notes)}</p>`;
@@ -225,17 +227,18 @@ function runEntry(e,j,n,z){
   h+=`<div class="net-actions">${lock&&e.state!=='open'?`<button type="button" class="btn" data-net="run-roll" ${ids} aria-label="${esc(z.roll(clamp(e.dv,0,999))+': '+name)}">${esc(z.roll(clamp(e.dv,0,999)))}</button>`:''}<button type="button" class="btn ghost" data-net="run-toggle" ${ids} aria-label="${esc((e.state==='open'?z.markClosed:z.markOpen)+': '+name)}">${esc(e.state==='open'?z.markClosed:z.markOpen)}</button></div>`;
  }
  if(rollNote&&rollNote.entryId===e.id&&rollNote.floorId===f.id)h+=`<div class="net-result" role="status">${esc(rollNote.text)}</div>`;
+ h+=window.RoomNetrun?.entryHtml?.(a,f,e,j,n.index,z===T.ru?'ru':'en')||'';
  return h+'</li>';
 }
 function runHtml(a,l,info={}){
  const z=T[lang(l)],t=tree(a),n=at(a,t);
- let h=`<section class="card net-run"><div class="card-heading"><span>${esc(z.runTitle)}</span><span>${t.list.length}</span></div><p class="net-run-status"><strong>${esc(a.name||z.unnamed)}</strong> · Interface ${clamp(a.rank,1,10)} · ${esc(z.modifier)} ${clamp(a.modifier,-99,99)}</p><p class="net-run-status"><strong>${esc(z.actions)}: ${clamp(info.remaining,0,99)} / ${clamp(info.actions,0,99)}</strong></p><div class="net-actions"><button type="button" class="btn ghost" data-net="reset">${esc(z.newTurn)}</button><button type="button" class="btn ghost" data-net="spend">${esc(z.spend)}</button><button type="button" class="btn ghost" data-net="refund">${esc(z.refund)}</button></div>`;
+ let h=`${info.linkHtml||''}${info.roomHtml||''}<section class="card net-run"><div class="card-heading"><span>${esc(z.runTitle)}</span><span>${t.list.length}</span></div><p class="net-run-status"><strong>${esc(a.name||z.unnamed)}</strong> · Interface ${clamp(info.rank??a.rank,1,10)} · ${esc(z.modifier)} ${clamp(info.modifier??a.modifier,-99,99)}${info.runner?` · ${esc(info.runner)}`:''}</p><p class="net-run-status"><strong>${esc(z.actions)}: ${clamp(info.remaining,0,99)} / ${clamp(info.actions,0,99)}</strong></p><div class="net-actions"><button type="button" class="btn ghost" data-net="reset">${esc(z.newTurn)}</button><button type="button" class="btn ghost" data-net="spend">${esc(z.spend)}</button><button type="button" class="btn ghost" data-net="refund">${esc(z.refund)}</button></div>`;
  if(!n)return h+`<p class="net-note">${esc(z.empty)}</p></section>`;
  const trail=[];for(let x=n;x;x=x.parent)trail.unshift(x);
  h+=`<nav class="net-run-nav" aria-label="${esc(z.path)}"><p class="net-note" aria-hidden="true">${esc(z.path)}</p><ol class="net-run-path">${trail.map(x=>`<li><button type="button" class="btn ghost" data-net="run-go" data-floor="${esc(x.floor.id)}"${x===n?' aria-current="step"':''}>${esc(z.floor)} ${x.depth}</button></li>`).join('')}</ol></nav></section>`;
  const f=n.floor,label=String(f.label??''),list=entriesOf(f),real=Array.isArray(f.entries)?f.entries:[];
- h+=`<div class="net-run-cols"><section class="card net-run-floor" tabindex="-1" data-net-run-floor aria-label="${esc(`${z.floor} ${n.depth}`)}"><div class="card-heading"><span>${esc(z.here2)}</span><span>${n.depth} / ${t.list.reduce((m,x)=>Math.max(m,x.depth),1)}</span></div><h2 class="net-run-name">${esc(z.floor)} ${n.depth}${label&&label!==String(n.depth)?` · ${esc(label)}`:''}</h2>${f.branch?`<p class="net-ed-branch-note">${esc(f.branch)}</p>`:''}`;
- h+=list.length?`<ul class="net-run-entries">${list.map(e=>runEntry(e,real.indexOf(e),n,z)).join('')}</ul>`:`<p class="net-note">${esc(z.emptyFloor)}</p>`;
+ h+=`<div class="net-run-cols"><section class="card net-run-floor" tabindex="-1" data-net-run-floor aria-label="${esc(`${z.floor} ${n.depth}`)}"><div class="card-heading"><span>${esc(z.here2)}</span><span>${n.depth} / ${t.list.reduce((m,x)=>Math.max(m,x.depth),1)}</span></div><h2 class="net-run-name">${esc(z.floor)} ${n.depth}${label&&label!==String(n.depth)?` · ${esc(label)}`:''}</h2>${f.branch?`<p class="net-ed-branch-note">${esc(f.branch)}</p>`:''}${window.RoomNetrun?.floorHtml?.(a,f,n.index,z===T.ru?'ru':'en')||''}`;
+ h+=list.length?`<ul class="net-run-entries">${list.map(e=>runEntry(e,real.indexOf(e),n,z,a)).join('')}</ul>`:`<p class="net-note">${esc(z.emptyFloor)}</p>`;
  if(n.children.length&&list.some(e=>e.type==='password'&&e.state!=='open'))h+=`<p class="net-note net-run-locked">${esc(z.locked)}</p>`;
  h+=`<div class="net-run-move" role="group" aria-label="${esc(z.move2)}">${n.parent?`<button type="button" class="btn ghost" data-net="run-go" data-floor="${esc(n.parent.floor.id)}">${esc(z.goUp(n.parent.depth))}</button>`:''}${n.children.map(c=>`<button type="button" class="btn" data-net="run-go" data-floor="${esc(c.floor.id)}">${esc(z.goDown(c.depth)+(c.floor.branch?' · '+c.floor.branch:c.floor.label&&c.floor.label!==String(c.depth)?' · '+c.floor.label:''))}</button>`).join('')}${n.parent?`<button type="button" class="btn ghost" data-net="run-start">${esc(z.toStart)}</button>`:''}</div>${n.children.length?'':`<p class="net-note">${esc(z.deepest)}</p>`}</section>`;
  const line=x=>{const lab=String(x.floor.label??'');return `<button type="button" class="net-run-line" data-net="run-go" data-floor="${esc(x.floor.id)}"${x===n?' aria-current="location"':''}><span class="net-run-line-name">${x===n?'<span aria-hidden="true">▶ </span>':''}${esc(z.floor)} ${x.depth}${lab&&lab!==String(x.depth)?' · '+esc(lab):''}${x.floor.branch?' · '+esc(x.floor.branch):''}</span></button>${chips(x.floor,z)}`};
@@ -245,7 +248,7 @@ function runHtml(a,l,info={}){
 // Returns what NetTools should pass on to app.js, or null when the press means nothing (unknown floor, a move
 // that is not possible, a button marked aria-disabled). Such buttons stay focusable on purpose, so the keyboard
 // does not lose its place; they are simply ignored here.
-function handle(op,b,a,l){
+function handle(op,b,a,l,ctx){
  if(!a||typeof a!=='object'||!Array.isArray(a.floors)||typeof op!=='string')return null;
  if(b?.getAttribute?.('aria-disabled')==='true')return null;
  const z=T[lang(l)],id=b?.dataset?.floor,done={dirty:true,rerender:true};
@@ -261,6 +264,8 @@ function handle(op,b,a,l){
   moving=mine?null:{archId:a.id,floorId:id};focusLater(`[data-net="ed-move"][data-floor="${attr(id)}"]`,!mine);return {rerender:true};
  }
  if(op==='ed-move-here'){if(!moving||moving.archId!==a.id)return null;const from=moving.floorId;if(!reparent(a,from,id))return null;moving=null;focusLater(`[data-net="ed-move"][data-floor="${attr(from)}"]`);return {...done,notify:z.moved}}
+ // «Показать нетраннеру» (room-netrun.js): sharing, stopping and the proposals under the calculator's damage.
+ if(op==='run-rn-share'||op==='run-rn-stop'||op==='run-rn-prop'||op==='run-rn-net')return window.RoomNetrun?.act?.(op,b,a,l)||null;
  const t=tree(a);
  if(op==='run-go'||op==='run-start'){
   const n=op==='run-start'?t.roots[0]:t.nodes.get(id);if(!n)return null;
@@ -269,7 +274,7 @@ function handle(op,b,a,l){
   // Netrunner was on). Anything else is the GM's own wording and is left as it is.
   const was=at(a,t),own=typeof a.current==='string'?a.current:'';
   if(own===''||(was&&(own===String(was.floor.label||was.depth)||own===String(was.depth))))a.current=String(n.floor.label||n.depth).slice(0,200);
-  a.runAt=n.floor.id;rollNote=null;focusLater('[data-net-run-floor]');return done;
+  if(op==='run-start')a.seen=[];a.runAt=n.floor.id;remember(a,n.floor.id);rollNote=null;focusLater('[data-net-run-floor]');return done;
  }
  if(op==='run-reset'){const count=resetDefenses(a);rollNote=null;return count?{...done,notify:z.resetDone}:{rerender:true,notify:z.resetNone}}
  if(op==='run-reset-undo'){
@@ -278,9 +283,16 @@ function handle(op,b,a,l){
   focusLater('[data-net="run-reset"]');return {...done,notify:z.undone};
  }
  const n=t.nodes.get(id),e=n&&entriesOf(n.floor).find(x=>x.id===b?.dataset?.entry);if(!e)return null;
+ if(op==='run-rn-ok'||op==='run-rn-no')return window.RoomNetrun?.verdict?.(op==='run-rn-ok',a,n.floor,e,b?.dataset?.roll)||null;
  if(op==='run-toggle'){if(e.type==='ice')return null;e.state=e.state==='open'?'closed':'open';rollNote=null;return done}
  if(op==='run-roll'){
   if(!LOCKS.includes(e.type)||e.state==='open'||typeof window.NetTools?.check!=='function')return null;
+  const lk=window.NetLink?.roll?.(a,e,ctx?.characters,l,`${z.types[e.type].toLowerCase()} · ${z.floor.toLowerCase()} ${n.depth}`);
+  if(lk){
+   if(!lk.ok)return {rerender:true,notify:lk.message};
+   if(lk.beat){e.state='open';focusLater(`[data-net="run-toggle"][data-floor="${attr(n.floor.id)}"][data-entry="${attr(e.id)}"]`)}
+   rollNote={floorId:n.floor.id,entryId:e.id,text:z.rolled({total:lk.total,dv:lk.dv},lk.beat)};return {dirty:true,rerender:true};
+  }
   const r=window.NetTools.check(a.rank,a.modifier,e.dv);
   // The roll goes to the shared feed when a room is open, so its label is made of fixed words and numbers only:
   // the GM's names and notes for the architecture must not reach the players this way.

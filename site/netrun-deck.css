@@ -1,0 +1,98 @@
+/* The deck as a rack of slots on the NETRUN tab (netrun-deck.js). Only theme variables are used for colour, so every look and
+   theme (cyber, native, dossier, light, dark) follows its own palette. Every target is at least 44 px. */
+.nd-card { margin-top: 12px; }
+.nd-card p { margin: 0 0 10px; }
+.nd-note { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.nd-warning { padding: 10px 12px; border: 1px solid var(--red); color: var(--text); }
+.nd-sub { margin: 4px 0 8px; font-size: 14px; }
+
+.nd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.nd-name { flex: 1 1 140px; min-width: 0; margin: 0; font-size: 18px; line-height: 1.2; letter-spacing: 0; text-transform: none; text-shadow: none; -webkit-text-stroke: 0; overflow-wrap: anywhere; }
+.nd-count { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--border); background: var(--panel-2); font-size: 14px; color: var(--muted); white-space: nowrap; }
+.nd-count b { color: var(--yellow); font-size: 18px; }
+.nd-pick { display: flex; flex-direction: column; flex: 1 1 160px; min-width: 0; gap: 2px; font-size: 11px; color: var(--muted); }
+html .nd-card .nd-pick select { width: 100%; min-height: 44px; padding: 6px 8px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; font-size: 16px; }
+
+.nd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 8px 14px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-weight: 600; line-height: 1.2; text-align: center; }
+.nd-btn:hover:not(:disabled) { background: var(--panel-hover); border-color: var(--yellow); }
+.nd-btn:disabled { opacity: .45; }
+.nd-btn[aria-disabled="true"] { opacity: .6; }
+.nd-primary { color: #fff; background: var(--red-dark); border-color: var(--red); }
+.nd-primary:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
+.nd-danger { border-color: var(--red); }
+.nd-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+
+.nd-region-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 10px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.nd-region-label b { color: var(--text); font-size: 13px; }
+.nd-cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.nd-cell { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 64px; min-width: 44px; padding: 8px 6px 6px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; text-align: left; overflow: hidden; }
+.nd-cell[data-span="2"] { grid-column: span 2; }
+.nd-cell[data-span="3"] { grid-column: span 3; }
+.nd-cname { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.nd-cell small { color: var(--muted); font-size: 11px; line-height: 1.2; }
+.nd-filled { border-top: 3px solid var(--yellow); }
+.nd-filled.nd-k-ice { border-top-color: var(--red); }
+.nd-filled.nd-k-hardware { border-top-color: var(--green); }
+.nd-filled:hover { border-color: var(--yellow); background: var(--panel-hover); }
+.nd-filled[aria-expanded="true"] { outline: 2px solid var(--yellow); outline-offset: -2px; }
+.nd-filled.is-part { border-style: dashed; }
+.nd-dot { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.nd-filled.is-on .nd-dot { background: var(--green); box-shadow: 0 0 0 2px var(--panel-2); }
+.nd-filled.is-down .nd-dot { background: var(--red); }
+.nd-empty { align-items: center; color: var(--muted); background: transparent; border-style: solid; font-size: 26px; font-weight: 300; line-height: 1; }
+.nd-empty:hover { color: var(--text); border-color: var(--yellow); background: var(--panel-hover); }
+.nd-hw { border-style: dashed; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border) 6px 7px); }
+.nd-cells-hw .nd-filled { border-style: dashed; }
+
+.nd-detail { margin: 12px 0 4px; padding: 12px; border: 1px solid var(--border); border-left: 3px solid var(--yellow); background: var(--panel-2); }
+.nd-detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 6px; }
+.nd-detail-head span { color: var(--muted); font-size: 13px; }
+.nd-text { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.nd-run { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 8px 0; }
+.nd-rez { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.nd-rez b { min-width: 2ch; text-align: center; font-size: 17px; }
+
+.nd-create { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--border); background: var(--panel-2); }
+.nd-owned { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.nd-owned li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); background: var(--panel); }
+.nd-owned li > div { flex: 1 1 160px; min-width: 0; }
+.nd-owned small { display: block; color: var(--muted); font-size: 12px; }
+.nd-free summary, .nd-settings summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 700; font-size: 14px; }
+.nd-free summary::after, .nd-settings summary::after { content: ''; width: 7px; height: 7px; margin: -3px 0 0 10px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.nd-settings { margin-top: 10px; border-top: 1px solid var(--border); }
+.nd-form { display: grid; gap: 10px; padding-bottom: 6px; }
+.nd-form label, .nd-search { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+html .nd-card .nd-form input, html .nd-dialog .nd-search input { width: 100%; min-height: 44px; padding: 8px 10px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 4px; font-size: 16px; }
+
+/* the picker */
+html.nd-open { overflow: hidden; }
+.nd-overlay { position: fixed; inset: 0; z-index: 420; display: flex; align-items: flex-end; justify-content: center; }
+.nd-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .62); }
+.nd-dialog { position: relative; width: min(560px, 100%); max-height: 90vh; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 20px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .5); }
+.nd-dialog h2 { margin: 0 0 4px; font-size: 18px; letter-spacing: 0; text-shadow: none; -webkit-text-stroke: 0; outline: none; }
+.nd-dialog p { margin: 0 0 8px; }
+.nd-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.nd-chip { min-height: 44px; padding: 8px 12px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 22px; font-size: 13px; font-weight: 600; }
+.nd-chip small { color: var(--muted); font-size: 11px; }
+.nd-chip[aria-pressed="true"] { color: #111; background: var(--yellow); border-color: var(--yellow); }
+.nd-chip[aria-pressed="true"] small { color: inherit; }
+.nd-list { display: grid; gap: 6px; margin: 10px 0; padding: 0; list-style: none; }
+.nd-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; width: 100%; min-height: 56px; padding: 8px 12px; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; text-align: left; }
+.nd-row:hover { border-color: var(--yellow); }
+.nd-row-main { display: grid; min-width: 0; }
+.nd-row-main strong { font-size: 14px; overflow-wrap: anywhere; }
+.nd-row-main small, .nd-row-side { color: var(--muted); font-size: 12px; }
+.nd-row-side { text-align: right; }
+.nd-row.is-off { opacity: .6; border-style: dashed; }
+.nd-row.is-off:hover { border-color: var(--border); }
+.nd-why { grid-column: 1 / -1; color: var(--red); font-size: 12px; font-weight: 600; }
+.nd-none { padding: 12px; color: var(--muted); font-size: 13px; }
+
+@media (min-width: 640px) {
+ .nd-overlay { align-items: center; padding: 16px; }
+ .nd-dialog { border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+}
+@media print { .nd-card .nd-btn, .nd-overlay { display: none; } }
+
+/* Light looks: the yellow is the dark one there, so the selected chip takes white text (checked with axe). */
+html.ui-light .nd-chip[aria-pressed="true"] { color: #fff; }

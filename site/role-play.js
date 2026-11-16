@@ -158,13 +158,35 @@ function catalogProgram(id){const all=Array.isArray(global.CATALOG)?global.CATAL
 function progState(e){
  const max=Number(catalogProgram(e?.catalogId)?.stats?.rez),top=int(max,1,999)?max:0;
  if(!top||!obj(e)||e.kind==='hardware')return null;
- const down=e.down===true;
- return {max:top,active:e.active===true&&!down,down,rez:down?0:int(e.rez,0,top)?e.rez:top};
+ const down=e.down===true,gone=e.destroyed===true;
+ return {max:top,active:e.active===true&&!down&&!gone,down,rez:down?0:int(e.rez,0,top)?e.rez:top,...(gone?{destroyed:true}:{})};
+}
+/* The state of a program during a run for the NETRUN tab: progState, and for an attacker program (REZ 0 in the catalog) only
+   «activated or not» (it has no REZ to keep). progState itself stays as it was. */
+function runState(e){
+ const s=progState(e);if(s)return s;
+ if(!obj(e)||e.kind!=='program')return null;
+ const p=catalogProgram(e.catalogId),t=p?.stats?.type;
+ if(t!=='anti-program'&&t!=='anti-personnel')return null;
+ const gone=e.destroyed===true;
+ return {max:0,active:e.active===true&&!gone,down:false,rez:0,attacker:true,...(gone?{destroyed:true}:{})};
+}
+// The player's own modifier for Interface checks (the field of the Role tools, -100..100) and the «jacked in» flag (absent = not in).
+function netMod(c){const n=Number(c?.extra?.roleTools?.netrunner?.values?.modifier);return Number.isFinite(n)?Math.max(-100,Math.min(100,Math.trunc(n))):0}
+const jackedIn=c=>c?.extra?.roleTools?.netrunner?.values?.jackedIn===true;
+// extra with some keys of the netrunner values set (undefined removes a key); nothing else is touched.
+function withRun(extra,patch){
+ const x=obj(extra)?extra:{},rt=obj(x.roleTools)?x.roleTools:{},nr=obj(rt.netrunner)?rt.netrunner:{},v={...(obj(nr.values)?nr.values:{})};
+ for(const [k,val] of Object.entries(patch)){if(val===undefined)delete v[k];else v[k]=val}
+ return {...x,roleTools:{...rt,netrunner:{team:[],...nr,values:v}}};
 }
 function netLeft(c,rank){
  let max=0;try{max=Number(global.RoleTools?.netActions?.(rank))||0}catch{}
  if(!max){const r=Math.max(1,Math.min(10,Math.trunc(Number(rank)||1)));max=r<=3?2:r<=6?3:r<=9?4:5}
  const used=Math.max(0,Math.min(100,Math.trunc(Number(c?.extra?.roleTools?.netrunner?.values?.used)||0)));
+ // `cut`: the «−1 NET Action» of a Wisp or Vrizzbolt that «New turn» moved from the pending marker onto this turn; never below 2 (or the whole count when it is lower).
+ const cut=Math.max(0,Math.min(5,Math.trunc(Number(c?.extra?.roleTools?.netrunner?.values?.cut)||0)));
+ if(cut){const full=max;max=Math.max(Math.min(full,2),full-cut);return {max,used,left:Math.max(0,max-used),cut:full-max,full}}
  return {max,used,left:Math.max(0,max-used)};
 }
 // extra with the NET Action counter set to `used`; nothing else is touched.
@@ -173,15 +195,25 @@ function withUsed(extra,used){
  return {...x,roleTools:{...rt,netrunner:{team:[],...nr,values:{...v,used}}}};
 }
 // +2 from a rezzed booster to its ability (Worm — Backdoor, Eraser — Cloak, See Ya — Pathfinder); the same program does not stack.
-function netBonus(c,ability){
- const decks=c?.extra?.cyberdecks?.decks,names=[];if(!Array.isArray(decks))return {value:0,names};
- for(const d of decks)for(const e of Array.isArray(d?.entries)?d.entries:[])if(obj(e)&&BOOST[e.catalogId]===ability&&progState(e)?.active){const n=String(e.name?.en||e.catalogId);if(!names.includes(n))names.push(n)}
- return {value:names.length*2,names};
+function netBonus(c,ability,skip){
+ const decks=c?.extra?.cyberdecks?.decks,names=[],off=[],offNames=[],skipped=Array.isArray(skip)?skip:[];if(!Array.isArray(decks))return {value:0,names};
+ for(const d of decks)for(const e of Array.isArray(d?.entries)?d.entries:[])if(obj(e)&&BOOST[e.catalogId]===ability&&progState(e)?.active){
+  const n=String(e.name?.en||e.catalogId);
+  if(skipped.includes(e.catalogId)){if(!off.includes(e.catalogId)){off.push(e.catalogId);offNames.push(n)}continue}
+  if(!names.includes(n))names.push(n);
+ }
+ // `off`: boosters that are rezzed but switched off for this one roll (only present when there are some).
+ return off.length?{value:names.length*2,names,off,offNames}:{value:names.length*2,names};
+}
+// «New turn»: the counter is refilled, and a pending «−1 NET Action» marker (values.netPenalty) moves onto this turn (values.cut) and is cleared.
+function turnExtra(extra){
+ const x=obj(extra)?extra:{},v=x.roleTools?.netrunner?.values,pend=Number(v?.netPenalty)>0;
+ return withRun(extra,{used:0,cut:pend?1:undefined,netPenalty:undefined});
 }
 function deckEntryHtml(c,deck,e,lang){
  const s=progState(e);if(!s)return '';
  const ru=lng(lang)==='ru',id=esc(e.id),btn=(op,label,off,title)=>`<button type="button" class="rt-button" data-rp-deck="${op}" data-deck-entry="${id}"${off?' disabled':''}${title?` aria-label="${esc(title)}"`:''}>${esc(label)}</button>`;
- return `<div class="rp-prog-row"><span class="rp-badge ${s.down?'off':s.active?'on':''}">${s.down?'Derezzed':s.active?(ru?'Активна':'Rezzed'):(ru?'Не активна':'Not rezzed')}</span>${btn('toggle',s.active||s.down?(ru?'Деактивировать':'Deactivate'):(ru?'Активировать':'Activate'))}<span>REZ</span>${btn('rez-','−',s.rez<=0,'REZ −1')}<b>${s.rez}</b>${btn('rez+','+',s.rez>=s.max||s.down,'REZ +1')}<span>/ ${s.max}</span></div>`;
+ return `<div class="rp-prog-row"><span class="rp-badge ${s.down||s.destroyed?'off':s.active?'on':''}">${s.destroyed?(ru?'Уничтожена':'Destroyed'):s.down?'Derezzed':s.active?(ru?'Активна':'Rezzed'):(ru?'Не активна':'Not rezzed')}</span>${btn('toggle',s.active||s.down?(ru?'Деактивировать':'Deactivate'):(ru?'Активировать':'Activate'),s.destroyed)}<span>REZ</span>${btn('rez-','−',s.rez<=0||s.destroyed,'REZ −1')}<b>${s.rez}</b>${btn('rez+','+',s.rez>=s.max||s.down||s.destroyed,'REZ +1')}<span>/ ${s.max}</span></div>`;
 }
 function deckFootHtml(c,deck,lang){
  const ru=lng(lang)==='ru';
@@ -204,15 +236,16 @@ function deckAct(c,deckId,entryId,op,rank,lang){
  const deck=decks.decks.find(d=>obj(d)&&d.id===deckId);if(!deck||!Array.isArray(deck.entries))return stale;
  let extra={...c.extra,cyberdecks:decks};
  if(op==='jackout'){
-  for(const e of deck.entries)if(obj(e)){delete e.active;delete e.rez;delete e.down}
-  return {ok:true,extra:withUsed(extra,0),message:ru?'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.'};
+  for(const e of deck.entries)if(obj(e)){delete e.active;delete e.rez;delete e.down;delete e.spent}
+  return {ok:true,extra:withRun(extra,{used:0,jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:ru?'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.'};
  }
- const e=deck.entries.find(x=>obj(x)&&x.id===entryId),s=progState(e);if(!s)return stale;
+ const e=deck.entries.find(x=>obj(x)&&x.id===entryId),s=runState(e);if(!s)return stale;
+ if(s.destroyed&&(op==='toggle'||op==='rez-'||op==='rez+'))return {ok:false,message:ru?'Программа уничтожена: сначала восстановите её.':'The program is destroyed: restore it first.'};
  if(op==='toggle'){
   const n=netLeft(c,rank);
   if(n.left<1)return {ok:false,message:ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.'};
   if(s.active||s.down){delete e.active;delete e.down;delete e.rez}
-  else{e.active=true;delete e.down;e.rez=s.max}
+  else{e.active=true;delete e.down;if(s.attacker)delete e.rez;else e.rez=s.max}
   return {ok:true,extra:withUsed(extra,n.used+1)};
  }
  if(op==='rez-'||op==='rez+'){
@@ -229,14 +262,56 @@ function netrunBar(c,rank,lang){
  const ru=lng(lang)==='ru',n=netLeft(c,rank);
  return `<div class="rp-round rp-netbar" data-rp-netbar><span>${ru?'NET-действия':'NET Actions'}: <b>${n.left}</b> ${ru?'из':'of'} ${n.max}</span><button type="button" class="rt-button" data-rp-net-turn>${ru?'Новый ход':'New turn'}</button><label class="rp-dv">${ru?'DV проверки':'Check DV'} <input type="number" min="0" max="99" inputmode="numeric" data-rp-net-dv value="${netDv||''}" placeholder="${ru?'нет':'none'}"></label></div><p class="netrun-lead">${ru?'Кнопка способности бросает проверку и тратит одно NET-действие (Scanner — физическое действие, не тратит). Активные Worm, Eraser и See Ya дают +2 к своей способности.':'An ability button rolls the check and spends one NET Action (Scanner is a Meat Action and spends none). Rezzed Worm, Eraser and See Ya give +2 to their ability.'}</p>`;
 }
-/* One press on an ability of the NETRUN tab. -> {ok:true, base, label, dv, extra|null} | {ok:false, message}. */
-function netrunPlan(c,rank,ability,dv,lang){
+/* One press on an ability of the NETRUN tab. -> {ok:true, base, mod, parts, label, dv, extra|null} | {ok:false, message}.
+   `mod` is the player's own modifier (values.modifier); `base` and `label` do not contain it (it goes into the check as its own part).
+   opts.requireJack: a NET ability pressed while the character is not jacked in explains itself instead of rolling (Scanner is a Meat Action). */
+function netrunPlan(c,rank,ability,dv,lang,opts){
  const ru=lng(lang)==='ru',meat=ability==='Scanner',n=netLeft(c,rank);
- if(!meat&&n.left<1)return {ok:false,message:ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.'};
- const b=netBonus(c,ability),free=['Scanner','Pathfinder','Cloak'].includes(ability),target=free?0:Math.max(0,Math.min(99,Math.trunc(Number(dv)||0)));
- return {ok:true,base:rank+b.value,dv:target,label:`${ability} (Interface ${rank}${b.value?` + ${b.names.join(', ')} ${b.value}`:''})`,extra:meat?null:withUsed(c.extra,n.used+1)};
+ if(opts?.requireJack===true&&!meat&&!jackedIn(c))return {ok:false,reason:'jack',message:ru?'Вы не в сети. Нажмите «Войти в сеть», чтобы пользоваться этой способностью.':'You are not jacked in. Press “Jack In” to use this ability.'};
+ if(!meat&&n.left<1)return {ok:false,reason:'actions',message:ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.'};
+ const skip=Array.isArray(opts?.skip)?opts.skip:[],b=netBonus(c,ability,skip),free=['Scanner','Pathfinder','Cloak'].includes(ability),target=free?0:Math.max(0,Math.min(99,Math.trunc(Number(dv)||0))),mod=netMod(c);
+ return {ok:true,base:rank+b.value,mod,parts:mod?[{k:'sheet',v:mod}]:[],dv:target,label:`${ability} (Interface ${rank}${b.value?` + ${b.names.join(', ')} ${b.value}`:''}${b.off?`; ${b.offNames.join(', ')} ${ru?'выкл.':'off'}`:''})`,skipped:b.off||[],extra:meat?null:withUsed(c.extra,n.used+1)};
 }
-
+/* The «Атака» of an attacker program. -> {ok:true, base, mod, parts, label, dv, program} | {ok:false, message}.
+   Interface rank + ATK of the program (from the catalog); the program has to be active and the character jacked in.
+   No NET Action is taken by the attack itself: the repo data does not say the attack costs one, so the player marks it. */
+function netrunAttackPlan(c,rank,deckId,entryId,dv,lang){
+ const ru=lng(lang)==='ru',decks=c?.extra?.cyberdecks?.decks,deck=Array.isArray(decks)?decks.find(d=>obj(d)&&d.id===deckId):null,e=Array.isArray(deck?.entries)?deck.entries.find(x=>obj(x)&&x.id===entryId):null,s=runState(e);
+ if(!s||!s.attacker)return {ok:false,reason:'stale',message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ if(!jackedIn(c))return {ok:false,reason:'jack',message:ru?'Вы не в сети. Нажмите «Войти в сеть», чтобы атаковать.':'You are not jacked in. Press “Jack In” to attack.'};
+ if(!s.active)return {ok:false,reason:'idle',message:ru?'Программа не активна. Сначала активируйте её.':'The program is not rezzed. Activate it first.'};
+ const p=catalogProgram(e.catalogId),atk=Number(p?.stats?.atk),name=String(e.name?.[ru?'ru':'en']||e.name?.en||p?.name?.en||''),mod=netMod(c);
+ if(!Number.isSafeInteger(atk))return {ok:false,reason:'stale',message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ return {ok:true,base:rank+atk,mod,parts:mod?[{k:'sheet',v:mod}]:[],dv:Math.max(0,Math.min(99,Math.trunc(Number(dv)||0))),label:`${String(e.name?.en||p?.name?.en||'')} (Interface ${rank} + ATK ${atk})`,program:{catalogId:e.catalogId,name,atk}};
+}
+/* What the damage of an attacker program is, from the data of the tool (NET_DMG): {fixed:true, plan, to, dice, vsIce?} when the number of dice is
+   known, {fixed:false} for a program whose effect is only described in text (the player picks the dice). `vsIce` is for programs whose dice
+   depend on the target (Sword, Banhammer). */
+function attackDamage(catalogId,vsBlackIce){
+ const d=NET_DMG[catalogId];if(!d)return {fixed:false};
+ const person=d[1]==='brain',plan=netDamagePlan('program',catalogId,person?'person':'program',vsBlackIce===true);
+ return plan?{fixed:true,plan,dice:plan.dice,to:plan.to,byTarget:d.length===3}:{fixed:false};
+}
+// jack in (starts a turn) or out (the same as the Jack Out of the deck, plus the flag). -> {ok, extra, message}
+function jackAct(c,op,deckId,rank,lang){
+ const ru=lng(lang)==='ru';
+ if(!obj(c))return {ok:false,message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ if(op==='in'){
+  if(jackedIn(c))return {ok:false,message:ru?'Вы уже в сети.':'You are already jacked in.'};
+  // A counter already spent (an old save mid-run, or actions spent while out) is the player's turn in progress: it is kept, not refilled.
+  if(netLeft(c,rank).used>0)return {ok:true,extra:withRun(c.extra,{jackedIn:true}),message:ru?'Вы в сети. Счётчик NET-действий оставлен как был; нажмите «Новый ход», чтобы восстановить его.':'You are jacked in. The NET Action counter is left as it was; press “New turn” to restore it.'};
+  return {ok:true,extra:withRun(c.extra,{used:0,jackedIn:true}),message:ru?'Вы в сети. Новый ход: NET-действия восстановлены.':'You are jacked in. New turn: NET Actions restored.'};
+ }
+ if(op!=='out')return {ok:false,message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ const decks=c.extra?.cyberdecks?.decks;
+ // Leaving the net leaves it for every deck of the character: a booster of a second deck must not stay rezzed and counted.
+ if(Array.isArray(decks)&&decks.some(d=>obj(d)&&d.id===deckId)){
+  let extra=c.extra,done=false;
+  for(const d of decks){if(!obj(d)||typeof d.id!=='string')continue;const r=deckAct({...c,extra},d.id,'','jackout',rank,lang);if(r.ok){extra=r.extra;done=true}}
+  if(done){const many=decks.filter(d=>obj(d)).length>1;return {ok:true,extra,message:ru?(many?'Вы вышли из сети: программы всех дек деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.'):(many?'You jacked out: programs on all decks deactivated, REZ restored, NET Actions reset.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.')}}
+ }
+ return {ok:true,extra:withRun(c.extra,{used:0,jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:ru?'Вы вышли из сети. NET-действия сброшены.':'You jacked out. NET Actions reset.'};
+}
 // ---------- Solo: the round of the fight ----------
 /* Spot Weakness and Damage Deflection work once a round and keep a journal by «fight + round». The sheet keeps the current
    fight and round (`extra.soloRound = {version:1, battle, round, n}`), fills both forms from it, and moves on with one button. */
@@ -304,7 +379,7 @@ function netDamageRoll(plan,rng=Math.random){
 // An active, not derezzed Armor on any deck of the character takes 4 off brain damage.
 function armorUp(c){
  const decks=c?.extra?.cyberdecks?.decks;if(!Array.isArray(decks))return false;
- return decks.some(d=>Array.isArray(d?.entries)&&d.entries.some(e=>obj(e)&&e.catalogId==='extra-program-armor'&&e.active===true&&e.down!==true));
+ return decks.some(d=>Array.isArray(d?.entries)&&d.entries.some(e=>obj(e)&&e.catalogId==='extra-program-armor'&&e.active===true&&e.down!==true&&e.destroyed!==true&&e.spent!==true));
 }
 function netRezAfter(entry,total){const before=Math.max(0,Math.trunc(Number(entry?.rez)||0)),after=Math.max(0,before-Math.max(0,Math.trunc(Number(total)||0)));return {before,after,state:after===0&&before>0?'derezzed':entry?.state}}
 function netBrainAfter(c,total,armor){const before=Math.trunc(Number(c?.hp)||0),taken=Math.max(0,Math.trunc(Number(total)||0)-(armor?4:0));return {before,after:Math.max(0,before-taken),taken}}
@@ -342,7 +417,7 @@ function netDamageHtml(r,info){
  if(dm.to==='rez'){
   const e=info.ice;
   if(e&&dm.iceKey){const n=netRezAfter(e,dm.total);h+=`<div>REZ ${esc(e.name||'Black ICE')}: ${n.before} → <strong>${n.after}</strong>${n.after===0&&n.before>0?' · '+(ru?'Derezzed':'Derezzed'):''}</div><div class="rp-actions"><button type="button" class="btn primary" data-net="combat-apply">${ru?'Применить к ICE':'Apply to the ICE'}</button></div>`}
-  else h+=`<p class="rp-note">${dm.vsIce?'':ru?(info.mode==='ice'?'Снизьте REZ программы на листе нетраннера: вкладка NETRUN, кибердека.':'Цель не выбрана из архитектуры: урон посчитан как по не-Black ICE. Снизьте REZ цели вручную.'):(info.mode==='ice'?'Lower the REZ of the program on the Netrunner’s sheet: NETRUN tab, cyberdeck.':'The target is not picked from the architecture: damage is rolled as against non-Black ICE. Lower the target’s REZ by hand.')}</p>`;
+  else if(!info.programPick)h+=`<p class="rp-note">${dm.vsIce?'':ru?(info.mode==='ice'?'Снизьте REZ программы на листе нетраннера: вкладка NETRUN, кибердека.':'Цель не выбрана из архитектуры: урон посчитан как по не-Black ICE. Снизьте REZ цели вручную.'):(info.mode==='ice'?'Lower the REZ of the program on the Netrunner’s sheet: NETRUN tab, cyberdeck.':'The target is not picked from the architecture: damage is rolled as against non-Black ICE. Lower the target’s REZ by hand.')}</p>`;
  }else{
   const list=Array.isArray(info.runners)?info.runners:[],v=list.find(c=>c.id===d.victim);
   h+=`<label class="field">${ru?'Кто получает урон':'Who takes the damage'}<select data-net-combat="victim"><option value="">${ru?'Не выбран':'Not selected'}</option>${list.map(c=>`<option value="${esc(c.id)}"${c.id===d.victim?' selected':''}>${esc(c.name||'—')} · HP ${esc(c.hp)}</option>`).join('')}</select></label><label class="rp-check"><input type="checkbox" data-net-combat="armor"${d.armor?' checked':''}> ${ru?'Активна программа Armor: −4 к урону':'An Armor program is active: −4 damage'}</label>`;
@@ -407,20 +482,36 @@ function holdButton(e){
   if(line&&room>0){const over=line.getBoundingClientRect().bottom-room;if(over>0)try{global.scrollBy(0,over)}catch{}}
  },0);
 }
-// A press on an ability of the NETRUN tab: the check with the DV and the boosters, then one NET Action is spent.
-function netrunRoll(c,rank,ability){
+/* The DV field of the NETRUN tab (not stored in the sheet): read from the field when it is on the page, else the last value.
+   An ability press of the tab: the check with the DV, the boosters, the wound penalty and the own modifier, then one NET Action is spent.
+   -> {ok:true, plan, out} | {ok:false, message} (the message is shown and the console may explain it); false without the app. */
+function readDv(){const field=doc?.querySelector?.('[data-rp-net-dv]');if(field)netDv=Math.max(0,Math.min(99,Math.trunc(Number(field.value)||0)));return netDv}
+function netrunRoll(c,rank,ability,opts){
  const A=global.App;if(!A||!c)return false;
- const field=doc.querySelector('[data-rp-net-dv]');if(field)netDv=Math.max(0,Math.min(99,Math.trunc(Number(field.value)||0)));
- const p=netrunPlan(c,rank,ability,netDv,A.lang?.());
- if(!p.ok){A.notify?.(p.message);return true}
- A.check(p.base,p.label,{dv:p.dv});
- if(p.dv)netDv=0;
+ const dv=opts&&Number.isInteger(opts.dv)?Math.max(0,Math.min(99,opts.dv)):readDv(),p=netrunPlan(c,rank,ability,dv,A.lang?.(),{requireJack:!!global.NetrunConsole,skip:global.NetrunEffects?.skipList?.(c)});
+ if(!p.ok){A.notify?.(p.message);redrawNet(c,rank);return {ok:false,message:p.message,reason:p.reason}}
+ // opts.suffix: a target named by the caller (a record of a net architecture shown by the Game Master), appended to the label.
+ const out=A.check(p.base,opts&&typeof opts.suffix==='string'&&opts.suffix?p.label+' → '+opts.suffix:p.label,{dv:p.dv,mod:p.mod,parts:p.parts.length?p.parts:undefined});
  if(p.extra){c.extra=p.extra;try{A.save?.()}catch{}}
- // The toast stays; only the counter and the DV field are redrawn.
- const bar=doc.querySelector('[data-rp-netbar]');
- if(bar){const t=doc.createElement('div');t.innerHTML=netrunBar(c,rank,A.lang?.());const next=t.querySelector('[data-rp-netbar]');if(next)bar.innerHTML=next.innerHTML}
- try{global.RoleTools?.refresh?.(doc.querySelector('[data-rt-root]'),c,A.lang?.())}catch{}
- return true;
+ if(p.skipped?.length)try{global.NetrunEffects?.consume?.(c,p.skipped)}catch{}
+ redrawNet(c,rank);
+ return {ok:true,plan:p,out,ability};
+}
+// The toast stays; only the console (or the old counter bar) is redrawn.
+function redrawNet(c,rank){
+ const A=global.App;
+ if(global.NetrunConsole?.refresh){try{global.NetrunConsole.refresh()}catch{}}
+ else{const bar=doc?.querySelector?.('[data-rp-netbar]');if(bar){const t=doc.createElement('div');t.innerHTML=netrunBar(c,rank,A?.lang?.());const next=t.querySelector('[data-rp-netbar]');if(next)bar.innerHTML=next.innerHTML}}
+ try{global.RoleTools?.refresh?.(doc?.querySelector?.('[data-rt-root]'),c,A?.lang?.())}catch{}
+}
+/* «Атака» of an attacker program: the same check path (App.check), Interface rank + ATK + modifiers, against the DV field.
+   -> {ok:true, plan, out, deckId, entryId} | {ok:false, message} | false. */
+function netrunAttack(c,rank,deckId,entryId){
+ const A=global.App;if(!A||!c)return false;
+ const dv=readDv(),p=netrunAttackPlan(c,rank,deckId,entryId,dv,A.lang?.());
+ if(!p.ok){A.notify?.(p.message);return {ok:false,message:p.message,reason:p.reason}}
+ const out=A.check(p.base,p.label,{dv:p.dv,mod:p.mod,parts:p.parts.length?p.parts:undefined});
+ return {ok:true,plan:p,out,deckId,entryId};
 }
 if(doc?.addEventListener){
  doc.addEventListener('input',e=>{const f=e.target?.closest?.('[data-rp-net-dv]');if(f)netDv=Math.max(0,Math.min(99,Math.trunc(Number(f.value)||0)))});
@@ -430,6 +521,7 @@ if(doc?.addEventListener){
   const open=t.closest('[data-rp-open]');if(open){e.preventDefault?.();openTools(open.dataset.rpOpen);return}
   const deckButton=t.closest('[data-rp-deck]');if(deckButton){
    const A=global.App,c=A?.active?.(),rank=global.NetrunTab?.interfaceRank?.(c)||Number(c?.rank)||1;if(!c)return;
+   if(deckButton.dataset.rpDeck==='jackout'&&global.NetrunConsole?.jack?.('out',deckButton.closest('[data-deck-id]')?.dataset.deckId))return;
    const r=deckAct(c,deckButton.closest('[data-deck-id]')?.dataset.deckId,deckButton.dataset.deckEntry,deckButton.dataset.rpDeck,rank,A.lang?.());
    if(r.ok){c.extra=r.extra;try{A.save?.();A.render?.()}catch{}}
    if(r.message)try{A.notify?.(r.message)}catch{}
@@ -437,7 +529,7 @@ if(doc?.addEventListener){
   }
   if(t.closest('[data-rp-net-turn]')){
    const A=global.App,c=A?.active?.();if(!c)return;
-   c.extra=withUsed(c.extra,0);try{A.save?.();A.render?.()}catch{}
+   c.extra=turnExtra(c.extra);try{A.save?.();A.render?.()}catch{}
    return;
   }
   const markBtn=t.closest('[data-rp-solo-mark]');if(markBtn){
@@ -467,5 +559,5 @@ if(doc?.addEventListener){
 global.RolePlay={placeLast,summary,ledger,doses,makerCandidates,makerTargets,makerForm,makerDeliver,makerDeliveredLine,firstWithRole,openTools,
  netDamagePlan,netDamageRoll,netRezAfter,netBrainAfter,netAfterRoll,netDamageHtml,netApply,armorUp,
  soloRound,soloAdvance,soloUsed,soloLogged,soloBar,soloFill,
- progState,netLeft,netBonus,deckEntryHtml,deckFootHtml,ownedFree,ownedMark,deckAct,netrunBar,netrunPlan,netrunRoll};
+ BOOST,progState,runState,netMod,jackedIn,withRun,turnExtra,netLeft,netBonus,deckEntryHtml,deckFootHtml,ownedFree,ownedMark,deckAct,jackAct,netrunBar,netrunPlan,netrunRoll,netrunAttackPlan,netrunAttack,attackDamage,getDv:()=>netDv};
 })(window);
