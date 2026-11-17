@@ -1,4 +1,4 @@
-/* Fonts are linked from index.html (non-blocking). */
+/* The fonts of the cyberpunk look are served from fonts/ (see fonts.css); the other looks use the fonts of the device. */
 :root {
   color-scheme: dark;
   --bg: #101012;
@@ -13,8 +13,8 @@
   --yellow: #e9c66d;
   --green: #84b799;
   --sidebar-width: 240px;
-  --display: 'Barlow Condensed', Impact, sans-serif;
-  --body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --display: 'Rajdhani', 'Barlow Condensed', Impact, sans-serif;
+  --body: 'Tomorrow', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 * { box-sizing: border-box; }
 html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }

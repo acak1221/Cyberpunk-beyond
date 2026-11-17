@@ -1,3 +1,4 @@
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -6,9 +7,9 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 function load({state=null,link=null}={}){
  const store=new Map(),notices=[],listeners={};
  const document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[]};
- const sess=new Map(),window={document,sessionStorage:{getItem:k=>sess.has(k)?sess.get(k):null,setItem:(k,v)=>sess.set(k,String(v)),removeItem:k=>sess.delete(k)},localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,navigator:{},confirm:()=>true,addEventListener(){}};
+ const sess=new Map(),window={document,sessionStorage:{getItem:k=>sess.has(k)?sess.get(k):null,setItem:(k,v)=>sess.set(k,String(v)),removeItem:k=>sess.delete(k)},localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,navigator:{},confirm:()=>true,addEventListener(){}};
  window.window=window;
- const ctx={window,document,globalThis:window,crypto:globalThis.crypto,console,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,Uint8Array,setTimeout,clearTimeout};
+ const ctx={window,document,globalThis:window,crypto:Idle.crypto,console,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,Uint8Array,setTimeout,clearTimeout};
  vm.createContext(ctx);
  for(const f of ['wallet.js','combat-tools.js','equipment-tools.js','damage-apply.js','room-grants.js'])vm.runInContext(read(f),ctx,{filename:f});
  let saves=0;
@@ -124,9 +125,9 @@ test('both languages have the same texts',()=>{
 /* ---------- room.js: who may send a grant ---------- */
 function loadRoom(){
  const store=new Map(),document={addEventListener(){},querySelector:()=>null,visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,sent=[],got=[],acks=[];
  R.setApp({getState:()=>({lang:'ru',characters:[],campaigns:[]}),notify(){}});
@@ -140,7 +141,7 @@ async function table(){
  for(const n of ['gm','ann','bob','eve']){const key=await maker.newIdentity();keys[n]={key,id:key.fp+'.0000000'+Object.keys(keys).length}}
  const page=(n,role)=>{const p=loadRoom();p.R.setKey(r.key);p.R.setIdentity(keys[n].key);p.R.setSession({code:CODE,role,name:n,memberId:keys[n].id,gmFp:keys.gm.key.fp,characterId:'v1'},r.topic);return p};
  const msg=(from,t,d,at=Date.now(),sub='e')=>maker.signedEnvelope(keys[from].key,keys[from].id,r.topic,r.key,sub,t,d,at,Math.random().toString(16).slice(2,14));
- const give=async(to,bytes,retain=false,sub='e')=>{await to.R.receive({topic:r.topic+'/'+sub,retain,payload:bytes});await new Promise(ok=>setTimeout(ok,10))};
+ const give=async(to,bytes,retain=false,sub='e')=>{await to.R.receive({topic:r.topic+'/'+sub,retain,payload:bytes});await Idle.settle()};
  return {r,keys,page,msg,give};
 }
 

@@ -1,0 +1,47 @@
+/* «Из чего складывается число» in every look (stat-detail.js). The markup is DossierPanel's; here it gets a dialog of its own:
+   a bottom sheet on a phone, a card in the middle of a wide screen. */
+.detail-backdrop, .detail-pop { display: none; }
+.detail-backdrop:not([hidden]) { display: block; position: fixed; z-index: 990; inset: 0; background: rgba(0, 0, 0, .55); }
+.detail-pop:not([hidden]) {
+  display: flex; flex-direction: column; position: fixed; z-index: 991; left: 50%; top: 50%; width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  transform: translate(-50%, -50%); color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); overscroll-behavior: contain;
+}
+.detail-pop:focus { outline: none; }
+.detail-pop .dossier-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+.detail-pop .dossier-head > div { min-width: 0; }
+.detail-pop .dossier-head small { display: block; color: var(--muted); font: 700 12px/1.3 var(--display, inherit); letter-spacing: .08em; text-transform: uppercase; }
+.detail-pop .dossier-head h2 { margin: 2px 0 0; font: 700 22px/1.15 var(--display, inherit); overflow-wrap: anywhere; }
+.detail-pop .dossier-close { flex: 0 0 auto; width: 44px; height: 44px; margin: -6px -6px 0 0; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; }
+.detail-pop .dossier-close:hover { background: var(--panel-2, var(--panel-hover)); }
+.detail-pop .dossier-body { flex: 1 1 auto; min-height: 0; padding: 14px 16px 16px; overflow-y: auto; }
+.detail-pop .dossier-total { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.detail-pop .dossier-total b { flex: 0 0 auto; min-width: 64px; padding: 10px 8px; text-align: center; color: var(--text); background: var(--panel-2, var(--panel-hover)); border: 1px solid var(--border); border-radius: 10px; font: 700 28px/1 var(--display, inherit); }
+.detail-pop .dossier-total span { min-width: 0; color: var(--muted); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.detail-pop .dossier-summary { margin: 0 0 12px; font-size: 14px; line-height: 1.45; }
+.detail-pop .dossier-body h3 { margin: 14px 0 6px; color: var(--muted); font: 700 12px/1.3 var(--display, inherit); letter-spacing: .08em; text-transform: uppercase; }
+.detail-pop .dossier-parts { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2, var(--panel-hover)); }
+.detail-pop .dossier-parts li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.detail-pop .dossier-parts li:last-child { border-bottom: 0; }
+.detail-pop .dossier-parts span { min-width: 0; font-weight: 600; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.detail-pop .dossier-parts small { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.detail-pop .dossier-parts b { flex: 0 0 auto; font: 700 17px/1 var(--display, inherit); white-space: nowrap; }
+.detail-pop .dossier-parts b.neg { color: var(--red); }
+.detail-pop .dossier-parts .dossier-sum { background: var(--panel); }
+.detail-pop .dossier-parts .dossier-sum span { font: 700 12px/1.3 var(--display, inherit); letter-spacing: .08em; text-transform: uppercase; }
+.detail-pop .dossier-facts { display: grid; gap: 6px; margin: 12px 0 0; }
+.detail-pop .dossier-facts div { display: flex; justify-content: space-between; gap: 12px; }
+.detail-pop .dossier-facts dt { flex: 0 0 auto; max-width: 50%; color: var(--muted); font-size: 13px; }
+.detail-pop .dossier-facts dd { margin: 0; min-width: 0; font-size: 13px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.detail-pop .dossier-notes { margin: 0; padding: 0 0 0 18px; font-size: 13px; line-height: 1.45; }
+.detail-pop .dossier-notes li + li { margin-top: 4px; }
+.detail-pop .dossier-pages { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.45; }
+.detail-pop .dossier-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--panel); border-radius: 0 0 14px 14px; }
+.detail-pop .dossier-actions .btn { flex: 1 1 150px; min-height: 44px; }
+.detail-pop .dossier-actions .btn[disabled] { opacity: .55; cursor: not-allowed; }
+@media (prefers-reduced-motion: no-preference) { .detail-pop:not([hidden]) { animation: detail-in .14s ease-out; } }
+@keyframes detail-in { from { opacity: 0; } }
+@media (max-width: 820px) {
+  .detail-pop:not([hidden]) { top: auto; bottom: 0; left: 0; width: auto; max-height: 86dvh; transform: none; border-radius: 14px 14px 0 0; }
+  .detail-pop .dossier-actions { border-radius: 0; }
+}
+@media print { .detail-backdrop, .detail-pop { display: none !important; } }

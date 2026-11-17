@@ -7,7 +7,7 @@ function page(files,{face=0.5,extra={}}={}){
  const math=Object.create(Math);math.random=()=>face;
  const rolls=[],window={confirm:()=>true,Rolls:{check:(label,r)=>{rolls.push({label,total:r.total,success:r.success});return true},opposed:(label,a,b,won)=>{rolls.push({label,total:a.total,success:won});return true},sum:()=>true},...extra};
  const ctx={window,document:{addEventListener(){}},Math:math,addEventListener(){}};vm.createContext(ctx);
- for(const f of ['combat-tools.js','effects.js','tool-effects.js',...files])vm.runInContext(source(f),ctx,{filename:f});
+ for(const f of ['crit-injuries.js','combat-tools.js','effects.js','tool-effects.js',...files])vm.runInContext(source(f),ctx,{filename:f});
  return {window,rolls,T:window.ToolEffects,E:window.Effects};
 }
 const injuries=(...rows)=>({version:1,entries:rows.map(([location,score,status='active'],i)=>({id:'i'+i,location,score,status,detail:''}))});

@@ -1,0 +1,26 @@
+/* Your martial arts moves (site/martial-arts.js): forms, learned moves, requirement badges. */
+.ma-mine { margin-top: 24px; }
+.ma-lead { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.ma-form { margin: 0 0 10px; padding: 6px 10px 8px; border: 1px solid var(--border); background: var(--panel); min-width: 0; }
+.ma-form legend { padding: 0 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ma-form legend small { color: var(--muted); }
+.ma-check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-weight: 600; }
+.ma-check input { width: 24px; height: 24px; flex: 0 0 auto; margin: 0; accent-color: var(--red, #c8102e); }
+.ma-moves, .ma-list { list-style: none; margin: 0; padding: 0; }
+.ma-move, .ma-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; border-top: 1px solid var(--border); }
+.ma-move .ma-check { flex: 1 1 220px; font-weight: 500; }
+.ma-badge { display: inline-block; padding: 2px 8px; border: 1px solid var(--border); font-size: 12px; line-height: 1.4; color: var(--text); }
+.ma-badge.ma-st-met { border-color: #2e8b57; }
+.ma-badge.ma-st-check { border-color: #c9892b; }
+.ma-badge.ma-st-unmet { border-color: #c8102e; }
+.ma-known { margin-top: 14px; }
+.ma-known h3 { margin: 0 0 6px; font-size: 14px; }
+.ma-row { padding: 8px 0; }
+.ma-name { flex: 1 1 200px; min-width: 0; }
+.ma-name small { color: var(--muted); }
+.ma-req { flex: 1 0 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.ma-roll { min-height: 44px; }
+.ma-empty { margin: 0; color: var(--muted); }
+@media (max-width: 480px) { .ma-form { padding-left: 6px; padding-right: 6px; } }
+.ma-pick { display: block; margin: 0 0 10px; }
+.ma-pick select { min-height: 44px; width: 100%; max-width: 100%; }

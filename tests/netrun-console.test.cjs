@@ -87,7 +87,7 @@ test('a roll without any own modifier passes no extra parts, and the DV of a res
   x.w.NetrunConsole.rollAbility('Pathfinder');
   assert.equal(x.checks[0].o.dv, 0); assert.equal(x.checks[0].o.mod, 0); assert.equal(x.checks[0].o.parts, undefined);
   assert.equal(x.checks[0].label, 'Pathfinder (Interface 4)');
-  assert.equal(values(c).used, 1);
+  assert.equal(values(c).used, 2, 'Jack In took one NET Action and Pathfinder another');
 });
 
 test('jacked out (also an old save with no flag): abilities explain themselves, Scanner still rolls', () => {
@@ -103,12 +103,13 @@ test('jacked out (also an old save with no flag): abilities explain themselves, 
   assert.match(ru.message, /Вы не в сети/);
 });
 
-test('Jack In starts a turn; with no actions left an ability explains that instead of rolling', () => {
+test('Jack In is a NET Action and no refill; with no actions left an ability explains that instead of rolling', () => {
   const x = load(), c = x.use(runner({ roleTools: { netrunner: { team: [], values: { used: 0 } } } }));
   jackIn(x);
-  assert.equal(values(c).jackedIn, true); assert.equal(values(c).used, 0);
+  assert.equal(values(c).jackedIn, true); assert.equal(values(c).used, 1, 'the app reference says Jack In is a NET Action');
+  assert.match(x.notes.at(-1), /Jack In is a NET Action: 2 of 3 left/);
   assert.equal(x.w.NetrunConsole.rollAbility('Virus').ok, true);
-  x.w.NetrunConsole.rollAbility('Virus'); x.w.NetrunConsole.rollAbility('Virus');
+  x.w.NetrunConsole.rollAbility('Virus');
   const r = x.w.NetrunConsole.rollAbility('Virus');
   assert.equal(r.ok, false); assert.equal(r.reason, 'actions'); assert.match(r.message, /No NET Actions remain/);
   x.click('[data-nc-act]', { ncAct: 'turn' }); assert.equal(values(c).used, 0);
@@ -121,16 +122,16 @@ test('Jack Out asks nothing, does what it did before, clears the flag and offers
   const x = load(), c = x.use(runner());
   jackIn(x);
   x.click('[data-rp-deck]', { rpDeck: 'toggle', deckEntry: 'e1' }, { '[data-deck-id]': { dataset: { deckId: 'd1' } } });
-  assert.equal(c.extra.cyberdecks.decks[0].entries[0].active, true); assert.equal(values(c).used, 1);
+  assert.equal(c.extra.cyberdecks.decks[0].entries[0].active, true); assert.equal(values(c).used, 2);
   x.w.NetrunConsole.setMod(2);
   x.click('[data-nc-act]', { ncAct: 'jack-out' });
   const e = c.extra.cyberdecks.decks[0].entries[0];
   assert.ok(e.active === undefined && e.rez === undefined && e.down === undefined);
-  assert.equal(values(c).used, 0); assert.equal(values(c).jackedIn, undefined); assert.equal(values(c).modifier, 2, 'the modifier is kept');
+  assert.equal(values(c).used, 3, 'Jack In 1 + Sword toggle 1 + the safe Jack Out 1: leaving the net does not refill the counter'); assert.equal(values(c).jackedIn, undefined); assert.equal(values(c).modifier, 2, 'the modifier is kept');
   assert.equal(x.actions.length, 1); assert.equal(x.actions[0].label, 'Undo'); assert.match(x.actions[0].message, /Jack Out/);
   assert.equal(x.w.RoleTools.deckState(c).kind, 'ok');
   x.actions[0].fn();
-  assert.equal(c.extra.cyberdecks.decks[0].entries[0].active, true); assert.equal(values(c).jackedIn, true); assert.equal(values(c).used, 1);
+  assert.equal(c.extra.cyberdecks.decks[0].entries[0].active, true); assert.equal(values(c).jackedIn, true); assert.equal(values(c).used, 2);
   assert.equal(x.w.RoleTools.deckState(c).kind, 'ok');
 });
 
@@ -306,23 +307,30 @@ test('an attacker whose effect has dice only in its text gets a neutral dice pic
   assert.equal(N.attackDamageRoll('dmg', 'd1', 'e2'), false);
 });
 
-test('Jack Out leaves the net on every deck, and Jack In keeps a counter that is already spent (old save mid-run)', () => {
+test('Jack Out leaves the net on every deck, and Jack In spends one action of a counter that is already running (old save mid-run)', () => {
   const x = load(), c = x.use(runner({ roleTools: { netrunner: { team: [], values: { jackedIn: true, used: 1 } } } })), R = x.w.RolePlay;
   c.extra.cyberdecks.decks.push({ id: 'd2', name: 'Deck 2', slots: 7, hardwareOnly: 0, entries: [E('f1', 'extra-program-worm', 'Worm2')] });
   c.extra.cyberdecks.decks[1].entries[0].active = true; c.extra.cyberdecks.decks[1].entries[0].rez = 7;
   assert.equal(R.netBonus(c, 'Backdoor').value, 2);
   x.click('[data-nc-act]', { ncAct: 'jack-out' });
   assert.equal(R.netBonus(c, 'Backdoor').value, 0, 'no stale booster of the other deck');
-  assert.equal(c.extra.cyberdecks.decks[1].entries[0].active, undefined); assert.equal(values(c).jackedIn, undefined); assert.equal(values(c).used, 0);
+  assert.equal(c.extra.cyberdecks.decks[1].entries[0].active, undefined); assert.equal(values(c).jackedIn, undefined); assert.equal(values(c).used, 2, 'the safe Jack Out cost one action and refilled nothing');
   assert.match(x.actions[0].message, /all decks/);
   assert.equal(x.w.NetrunConsole.abilityInfo(c, 4, 'Backdoor').total, 4);
   x.actions[0].fn(); assert.equal(c.extra.cyberdecks.decks[1].entries[0].active, true, 'the undo brings both decks back');
   // an old save: counter spent, no flag
-  const y = load(), o = y.use(runner({ roleTools: { netrunner: { team: [], values: { used: 3 } } } }));
+  const y = load(), o = y.use(runner({ roleTools: { netrunner: { team: [], values: { used: 2 } } } }));
   jackIn(y);
-  assert.equal(values(o).jackedIn, true); assert.equal(values(o).used, 3, 'the turn in progress is not refilled'); assert.match(y.notes.at(-1), /left as it was/);
+  assert.equal(values(o).jackedIn, true); assert.equal(values(o).used, 3, 'the turn in progress is not refilled: one more action is spent');
   assert.equal(y.w.NetrunConsole.rollAbility('Virus').reason, 'actions');
   y.click('[data-nc-act]', { ncAct: 'turn' }); assert.equal(values(o).used, 0);
+  // no action left: Jack In and a safe Jack Out both explain themselves and change nothing
+  const z = load(), p = z.use(runner({ roleTools: { netrunner: { team: [], values: { used: 3 } } } }));
+  const snap = JSON.stringify(p); jackIn(z);
+  assert.match(z.notes.at(-1), /No NET Actions remain/); assert.equal(JSON.stringify(p), snap);
+  const q = load(), s = q.use(runner({ roleTools: { netrunner: { team: [], values: { used: 3, jackedIn: true } } } })), snap2 = JSON.stringify(s);
+  q.click('[data-nc-act]', { ncAct: 'jack-out' });
+  assert.match(q.notes.at(-1), /safe Jack Out needs a NET Action/); assert.equal(JSON.stringify(s), snap2); assert.equal(q.actions.length, 0);
 });
 
 test('focus follows a replaced control, the message is not announced twice, attackers get no REZ hint, no dimming by opacity', () => {
@@ -337,7 +345,7 @@ test('focus follows a replaced control, the message is not announced twice, atta
   assert.doesNotMatch(N.attackHtml(c, c.extra.cyberdecks.decks[0].entries[1], 'en'), /role="status"><p class="nc-msg"/);
   const d = x.w.NetrunDeck;
   const only = runner(); only.extra.cyberdecks.decks[0].entries = [E('e2', 'extra-program-hellbolt', 'Hellbolt')];
-  assert.doesNotMatch(d.render(only, 'en'), /Derezzed: deactivate/); assert.match(d.render(only, 'en'), /Activating and deactivating cost a NET Action\./);
+  assert.doesNotMatch(d.render(only, 'en'), /Derezzed: deactivate/); assert.match(d.render(only, 'en'), /Activating, deactivating and Jack Out cost a NET Action\./);
   assert.match(d.render(c, 'en'), /At REZ 0 a program is Derezzed/);
   assert.doesNotMatch(x.w.RoleTools.derived(c, 'en'), /Remaining this turn/, 'the read-only counter is not repeated in the role panel');
 });

@@ -12,7 +12,7 @@
 const doc=global.document;
 const T={
  ru:{title:'NETRUN',kicker:'INTERFACE',rank:'Interface',
-  jackIn:'Войти в сеть',jackOut:'Выйти из сети',inNet:'В сети',outNet:'Не в сети',
+  jackIn:'Войти в сеть',jackOut:'Выйти из сети',jackCost:'Тратит одно NET-действие.',inNet:'В сети',outNet:'Не в сети',
   actions:'NET-действия',of:'из',spend:'Потратить',spendAria:'Потратить NET-действие',turn:'Новый ход',pips:(l,m)=>`NET-действий осталось ${l} из ${m}`,
   dv:'DV проверки',dvNone:'нет',mod:'Свой модификатор',dvHint:'Scanner, Pathfinder и Cloak DV не используют.',
   group:'Способности Interface',meat:'без действия',what:'Что делает каждая способность',
@@ -29,9 +29,9 @@ const T={
   stale:'Данные изменились. Повторите действие.',undo:'Отменить',restored:'Возвращено.',
   noSpend:'NET-действия этого хода исчерпаны. Нажмите «Новый ход».',spent:(l,m)=>`NET-действие потрачено: осталось ${l} из ${m}.`,newTurn:'Новый ход: NET-действия восстановлены.',turnCut:(m,f)=>`В этом ходу их ${m} из ${f}: сработала метка «−1 NET-действие».`,
   openRole:'Проверки Interface, NET-действия, модификатор и кибердека теперь на вкладке NETRUN.',openRoleBtn:'Открыть вкладку NETRUN',
-  lead:'Кнопка способности бросает 1d10 + ранг Interface + активный бустер + свой модификатор − штраф от ранений против DV из поля. Все способности, кроме Scanner, работают, только когда вы в сети.'},
+  lead:'Кнопка способности бросает 1d10 + ранг Interface + активный бустер + свой модификатор − штраф от ранений против DV из поля. Все способности, кроме Scanner, работают, только когда вы в сети. Вход в сеть и безопасный выход тоже тратят по одному NET-действию.'},
  en:{title:'NETRUN',kicker:'INTERFACE',rank:'Interface',
-  jackIn:'Jack In',jackOut:'Jack Out',inNet:'Jacked in',outNet:'Not jacked in',
+  jackIn:'Jack In',jackOut:'Jack Out',jackCost:'Spends one NET Action.',inNet:'Jacked in',outNet:'Not jacked in',
   actions:'NET Actions',of:'of',spend:'Spend',spendAria:'Spend a NET Action',turn:'New turn',pips:(l,m)=>`${l} of ${m} NET Actions left`,
   dv:'Check DV',dvNone:'none',mod:'Own modifier',dvHint:'Scanner, Pathfinder and Cloak do not use the DV.',
   group:'Interface abilities',meat:'no action',what:'What each ability does',
@@ -48,7 +48,7 @@ const T={
   stale:'Data changed. Try again.',undo:'Undo',restored:'Restored.',
   noSpend:'No NET Actions remain this turn. Press “New turn”.',spent:(l,m)=>`NET Action spent: ${l} of ${m} left.`,newTurn:'New turn: NET Actions restored.',turnCut:(m,f)=>`This turn you have ${m} of ${f}: the “−1 NET Action” marker applied.`,
   openRole:'Interface checks, NET Actions, the modifier and the cyberdeck are now on the NETRUN tab.',openRoleBtn:'Open the NETRUN tab',
-  lead:'An ability button rolls 1d10 + Interface rank + a rezzed booster + your own modifier − the wound penalty against the DV in the field. Every ability but Scanner works only while you are jacked in.'}
+  lead:'An ability button rolls 1d10 + Interface rank + a rezzed booster + your own modifier − the wound penalty against the DV in the field. Every ability but Scanner works only while you are jacked in. Jacking in and a safe Jack Out each spend one NET Action too.'}
 };
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const obj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
@@ -99,7 +99,7 @@ function zapHtml(t,u){
 function render(c,lang){
  const rank=rankOf(c);if(!rank||!obj(c))return '';
  const l=lng(lang),t=T[l],u=uiFor(c),rp=RP(),n=rp?.netLeft?.(c,rank)||{max:0,used:0,left:0},jacked=rp?.jackedIn?.(c)===true,mod=rp?.netMod?.(c)??0,dv=rp?.getDv?.()||0;
- const jackBtn=jacked?`<button type="button" class="nc-btn nc-jack is-in" data-nc-act="jack-out">${esc(t.jackOut)}</button>`:`<button type="button" class="nc-btn nc-jack nc-primary" data-nc-act="jack-in">${esc(t.jackIn)}</button>`;
+ const jackBtn=jacked?`<button type="button" class="nc-btn nc-jack is-in" data-nc-act="jack-out" aria-label="${esc(t.jackOut+'. '+t.jackCost)}" title="${esc(t.jackCost)}">${esc(t.jackOut)}</button>`:`<button type="button" class="nc-btn nc-jack nc-primary" data-nc-act="jack-in" aria-label="${esc(t.jackIn+'. '+t.jackCost)}" title="${esc(t.jackCost)}">${esc(t.jackIn)}</button>`;
  const status=`<div class="nc-row nc-status" data-nc-status role="status"><span class="nc-state${jacked?' is-in':''}"><i aria-hidden="true"></i>${esc(jacked?t.inNet:t.outNet)}</span><span class="nc-rank">${esc(t.rank)} <b>${rank}</b></span><span class="nc-count"><span class="nc-pips" aria-hidden="true">${pipsHtml(n.left,n.max)}</span><span class="nc-sr">${esc(t.pips(n.left,n.max))}</span><span aria-hidden="true"><b>${n.left}</b> ${esc(t.of)} ${n.max}</span></span></div>`;
  const row=`<div class="nc-row nc-buttons">${jackBtn}<button type="button" class="nc-btn" data-nc-act="spend" aria-label="${esc(t.spendAria)}">${esc(t.spend)}</button><button type="button" class="nc-btn" data-nc-act="turn">${esc(t.turn)}</button></div>`;
  const fields=`<div class="nc-row nc-fields"><label class="nc-field">${esc(t.dv)}<input type="number" inputmode="numeric" min="0" max="99" data-rp-net-dv value="${dv||''}" placeholder="${esc(t.dvNone)}" aria-describedby="nc-dvhint"></label><label class="nc-field">${esc(t.mod)}<input type="number" inputmode="numeric" min="-100" max="100" data-nc-mod value="${mod}"></label></div><p class="nc-hint" id="nc-dvhint">${esc(t.dvHint)}</p>`;

@@ -277,7 +277,7 @@ test('more folders than fit: the picked one and the biggest keep their chips',()
  const h=load(),list=Array.from({length:60},(_,i)=>who('c'+i,'N'+i,{folder:'F'+String(i).padStart(2,'0')}));list.push(who('x','X',{folder:'F59'}));
  h.C.toolbar(list,'ru','me');h.C._test.press(h.button('folder','f58'));
  const html=h.C.toolbar(list,'ru','me'),n=(html.match(/data-char-tags="folder"/g)||[]).length;
- assert.equal(n,h.C.LIMITS.CHIPS_MAX);assert.match(html,/value="f58" aria-pressed="true"/);assert.match(html,/value="f59"/);assert.equal((html.match(/<option /g)||[]).length,60,'the editor still offers every folder');
+ assert.equal(n,h.C.LIMITS.CHIPS_MAX);assert.match(html,/value="f58" aria-pressed="true"/);assert.match(html,/value="f59"/);assert.equal((html.match(/<datalist[^>]*>.*?<\/datalist>/)[0].match(/<option /g)||[]).length,60,'the editor still offers every folder');
 });
 test('strings: both languages have the same set, Russian is formal, and the module loads without a page',()=>{
  assert.deepEqual(Object.keys(C.T.ru).sort(),Object.keys(C.T.en).sort());

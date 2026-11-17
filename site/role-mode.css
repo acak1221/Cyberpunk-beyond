@@ -27,3 +27,14 @@ html.ui-native.ui-board .role-chooser .btn,html.ui-native.ui-board .role-notice 
  .role-chooser h2{font-size:18px}
  .role-notice .btn{flex:1 1 100%}
 }
+
+/* The role is asked once, in a small dialog over the home page. */
+.role-first-run{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.62)}
+.role-first-box{width:min(100%,440px);padding:20px;color:var(--text);background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:4px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+html.ui-native .role-first-box{border-radius:16px}
+.role-first-box h2{margin:0 0 8px;font-size:22px;line-height:1.2;text-transform:none;letter-spacing:0}
+.role-first-box p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}
+.role-first-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role-first-actions .btn,.role-first-later{min-height:48px}
+.role-first-later{width:100%;margin-top:8px}
+@media (min-width:821px){.role-first-run{align-items:center}}

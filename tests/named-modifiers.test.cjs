@@ -9,7 +9,7 @@ const LABELS={Handgun:{ru:'Пистолеты',en:'Handgun'},Stealth:{ru:'Скр
 function load({effects=true,labels=LABELS,tools=false}={}){
  const window={};if(labels)window.SKILL_LABELS=labels;
  const ctx=vm.createContext({window});
- if(effects)vm.runInContext(read('effects.js'),ctx);
+ if(effects){vm.runInContext(read('crit-injuries.js'),ctx);vm.runInContext(read('effects.js'),ctx)}
  vm.runInContext(read('named-modifiers.js'),ctx);
  if(tools)vm.runInContext(read('tool-effects.js'),ctx);
  return {window,N:window.NamedModifiers,E:window.Effects,TE:window.ToolEffects};

@@ -1,7 +1,7 @@
 // The Game Master's table (site/gm-table.js): attacks from a tracker row, damage through armor, the party reward, giving loot.
 const { test } = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
 const src = f => fs.readFileSync(__dirname + '/../site/' + f, 'utf8');
-function load(files = ['wallet.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'gm-table.js']) {
+function load(files = ['wallet.js', 'crit-injuries.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'gm-table.js']) {
   const w = {}, ctx = { window: w, console, document: undefined, navigator: {} };
   vm.createContext(ctx);
   for (const f of files) vm.runInContext(src(f), ctx);
@@ -131,7 +131,7 @@ test('giving an item: free or sold through the wallet, never half done', () => {
 });
 
 test('the tracker renders compact rows, a row attack box and the party reward; old campaigns still render', () => {
-  const w = load(['wallet.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'campaigns.js', 'gm-table.js']);
+  const w = load(['wallet.js', 'crit-injuries.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'campaigns.js', 'gm-table.js']);
   const chars = [pc('v', { cash: 500 })], c = { id: 'c', name: 'Job', round: 1, turnIndex: 1, roster: [{ id: 'r1', kind: 'pc', characterId: 'v', initiative: 9, order: 1 }, { id: 'n1', kind: 'npc', name: 'Boosterganger', ref: 6, hp: 20, initiative: 5, order: 2, sourceTemplate: 'boosterganger' }, { id: 'n2', kind: 'npc', name: 'Old', ref: 6, hp: 20, initiative: 1, order: 3 }] };
   w.Campaigns.setScope('s');
   const ctx = { lang: 'ru', campaigns: [c], characters: chars, scope: 's', isCurrent: () => true, save() {}, render() {}, notify() {} };
@@ -160,7 +160,7 @@ test('online: tracker hits and rewards for a player in the room are sent as gran
 });
 
 test('a player added from the room is offered the party reward and shows no stale balance', () => {
-  const w = load(['wallet.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'campaigns.js', 'gm-table.js']);
+  const w = load(['wallet.js', 'crit-injuries.js', 'combat-tools.js', 'equipment-tools.js', 'damage-apply.js', 'gm-tools.js', 'campaigns.js', 'gm-table.js']);
   const chars = [pc('v', { cash: 700 })], c = { id: 'c', name: 'Job', round: 1, turnIndex: 0, roster: [{ id: 'r1', kind: 'pc', characterId: 'v', initiative: 9, order: 1 }, { id: 'o1', kind: 'npc', name: 'Джонни', own: 'a'.repeat(16), hp: 30, initiative: 5, order: 2 }] };
   w.Campaigns.setScope('s');
   const sent = [];

@@ -18,6 +18,8 @@ const T={ru:{nav:'Игра онлайн',over:'05 / ONLINE ROOM',title:'ИГРА
 
 let app=null,session=null,transport=null,key=null,base='',members=new Map(),combat=null,clocks=[],lastClocks='',combatAt=0,clocksAt=0,outbox=[],connectedAt=0,deferredRepaint=false,selectHold=0,holdTimer=null,feed=[],netStatus={total:0,online:0},heartbeat=null,changeTimer=null,lastMember='',lastCombat='',pendingCode=null,joining=false,gmKeys=null,gmPub=null,incoming=[],qrFor='',qrMarkup='',sheetState=null,sheetTimer=null,device='',combatBy='',clocksBy='',gmSeenAt=0,combatGot=0,clocksGot=0,combatSig='',clocksSig='';
 const combatSeen=new Map(),clocksSeen=new Map(),rivals=new Map();
+// The room code and link can be hidden on this screen (kept in memory only: a reload shows them again). A member can bring up to MAX_CHARS characters.
+let codeHidden=false;const MAX_CHARS=4;
 /* The waiting room (room-gate.js). roomKey: the key of a room that has one, held by the Game Master and by the pages let in.
    waiting: requests to enter, as the Game Master sees them. gateSeenAt: the time, by the Game Master's clock, of its last
    word about the waiting room that this page took. A player's first status waits for that word for a moment (gateSettled). */
@@ -31,6 +33,8 @@ Object.assign(T.ru,{noCampHint:'На этом устройстве нет кам
 Object.assign(T.ru,{woundSerious:'тяжело ранен',woundMortal:'при смерти',clockMoved:'Счётчик'});
 Object.assign(T.en,{woundSerious:'Seriously Wounded',woundMortal:'Mortally Wounded',clockMoved:'Clock'});
 Object.assign(T.ru,{clockFull:'Счётчик заполнен'});Object.assign(T.en,{clockFull:'Clock is full'});
+Object.assign(T.ru,{hideCode:'Скрыть код и ссылку',showCode:'Показать код и ссылку',codeHiddenWord:'Код скрыт',codeNowHidden:'Код и ссылка скрыты на этом экране. Копирование и QR работают.',codeNowShown:'Код и ссылка показаны',moreTitle:'Ещё персонажи в комнате',moreHelp:'В комнату можно взять до {n} персонажей, считая выбранного выше. Ведущий увидит их вместе, под вашим именем. Добавлять и убирать можно в любой момент.',moreFull:'Это предел: ещё {n} кроме основного.',moreCount:'Персонажи: {n}'});
+Object.assign(T.en,{hideCode:'Hide the code and link',showCode:'Show the code and link',codeHiddenWord:'Code hidden',codeNowHidden:'The code and link are hidden on this screen. Copy and QR still work.',codeNowShown:'The code and link are shown',moreTitle:'More characters in the room',moreHelp:'You can bring up to {n} characters into the room, counting the one chosen above. The Game Master sees them together, under your name. You can add and remove them at any time.',moreFull:'That is the limit: {n} more besides the main one.',moreCount:'Characters: {n}'});
 Object.assign(T.ru,{initAdded:'Добавлен в трекер из комнаты',initNoCampaign:'Игрок бросил инициативу, но для комнаты не выбрана кампания. Выберите её на странице «Игра онлайн» — и броски игроков будут попадать в трекер.',initNotShown:'Бросок виден в ленте комнаты, но вашего персонажа пока нет в трекере ведущего: он не выбрал кампанию для комнаты. Назовите результат голосом.',initPickChar:'Чтобы инициатива попала в трекер ведущего, выберите этого персонажа на странице «Игра онлайн».',fromRoom:'Игроки в комнате',fromRoomHelp:'Игрок попадает в трекер и получает сигнал «Ваш ход», даже если ещё не прислал лист. Его бросок инициативы запишется сам.',fromRoomAdd:'В трекер',fromRoomAll:'Все игроки комнаты уже в трекере.',fromRoomNone:'В комнате пока нет игроков с персонажем.',fromRoomAdded:'Добавлен в трекер',liveTitle:'HP ведёт сам игрок на своём листе. Чтобы изменить — нажмите «Выдать».',liveOff:'не в сети',fromRoomTag:'из комнаты'});
 Object.assign(T.en,{initAdded:'Added to the tracker from the room',initNoCampaign:'A player rolled initiative, but no campaign is chosen for the room. Choose one on the “Online play” page and players’ rolls will go to the tracker.',initNotShown:'The roll is in the room feed, but your character is not in the GM’s tracker yet: no campaign is chosen for the room. Say the result out loud.',initPickChar:'To send initiative to the GM’s tracker, choose this character on the “Online play” page.',fromRoom:'Players in the room',fromRoomHelp:'A player joins the tracker and gets the “Your turn” signal even before sending a sheet. Their initiative roll is written by itself.',fromRoomAdd:'To tracker',fromRoomAll:'Every player in the room is already in the tracker.',fromRoomNone:'No players with a character are in the room yet.',fromRoomAdded:'Added to the tracker',liveTitle:'The player keeps HP on their own sheet. To change it, press “Give”.',liveOff:'offline',fromRoomTag:'from the room'});
 const lang=()=>{try{return app?.getState?.().lang==='en'?'en':'ru'}catch{return 'ru'}};
@@ -206,7 +210,9 @@ function loadIncoming(){
 }
 function loadSession(){try{const s=JSON.parse(global.localStorage.getItem(SESSION_KEY)||'null');if(s&&normalizeCode(s.code)&&['gm','player'].includes(s.role)&&typeof s.memberId==='string')return s}catch{}return null}
 function saveSession(){try{session?global.localStorage.setItem(SESSION_KEY,JSON.stringify(session)):global.localStorage.removeItem(SESSION_KEY)}catch{}}
-function brokers(){try{const b=JSON.parse(global.localStorage.getItem(BROKERS_KEY)||'null');if(Array.isArray(b)&&b.length&&b.every(x=>x&&typeof x.url==='string'&&/^wss?:\/\//.test(x.url)))return b}catch{}return null}
+function brokers(){try{if(global.RoomServers)return global.RoomServers.brokers(global.localStorage)}catch{}try{const b=JSON.parse(global.localStorage.getItem(BROKERS_KEY)||'null');if(Array.isArray(b)&&b.length&&b.every(x=>x&&typeof x.url==='string'&&/^wss?:\/\//.test(x.url)))return b}catch{}return null}
+// The «Серверы» card (room-servers.js): the relays with their live state, a field for one of the person's own, and a test for each.
+function serversCard(){try{return global.RoomServers?.card({lang:lang(),storage:global.localStorage,states:netStatus.states||null,connected:!!transport})||''}catch{return ''}}
 
 /* ---------- What we share ---------- */
 function characterSummary(c){
@@ -220,52 +226,62 @@ function cleanSummary(x){
  if(!x||typeof x!=='object'||Array.isArray(x))return null;
  return {name:clip(x.name,60),role:clip(x.role,20),rank:int(x.rank,0,10),hp:int(x.hp),max:Math.max(1,int(x.max,1,999)),humanity:int(x.humanity,-99,200),luck:int(x.luck,0,20),luckMax:int(x.luckMax,0,20),head:int(x.head,0,99),body:int(x.body,0,99),ref:int(x.ref,0,20),dex:int(x.dex,0,20),rep:int(x.rep,0,10)};
 }
+// Ids of the other characters this page brings into the room (not the main one), at most MAX_CHARS-1, each of them once.
+function moreIdsOf(){const out=[];for(const id of Array.isArray(session?.moreIds)?session.moreIds:[])if(typeof id==='string'&&id&&id.length<=60&&id!==session.characterId&&!out.includes(id))out.push(id);return out.slice(0,MAX_CHARS-1)}
+function moreChars(st){const chars=st?.characters||[],out=[];for(const id of moreIdsOf()){const c=chars.find(x=>x?.id===id);const sum=c?characterSummary(c):null;if(sum)out.push({cid:clip(c.id,60),character:sum})}return out}
+// From another device: the same short list, rebuilt from known fields, without repeats and without the main character.
+function cleanMore(list,primary){const out=[],seen=new Set([primary]);for(const x of Array.isArray(list)?list.slice(0,8):[]){if(!x||typeof x!=='object'||Array.isArray(x))continue;const cid=clip(x.cid,60),c=cleanSummary(x.character);if(!cid||seen.has(cid)||!c)continue;seen.add(cid);out.push({cid,character:c});if(out.length>=MAX_CHARS-1)break}return out}
+// Every character a member has in the room: the main one first.
+function entriesOf(m){const out=[];if(m&&m.cid&&m.character)out.push({cid:m.cid,character:m.character});for(const e of Array.isArray(m?.more)?m.more:[])out.push(e);return out}
 function memberPayload(){
  const st=app?.getState?.();const c=session.characterId?st?.characters?.find(x=>x.id===session.characterId):null;
- const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(thumb?{portrait:thumb}:{}),...(gmPub?{box:gmPub}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{}),...(session.role==='gm'&&heldSince()?{since:heldSince()}:{})};
+ const thumb=session.sharePortrait!==false?(global.Portrait?.thumb?.(c)||''):'';const more=moreChars(st);return {name:clip(session.name,40),role:session.role,dev:deviceId(),cid:clip(c?c.id:'',60),character:characterSummary(c),...(more.length?{more}:{}),...(thumb?{portrait:thumb}:{}),...(gmPub?{box:gmPub}:{}),...(session.role==='gm'&&gmPub?{pub:gmPub,sheets:readsSheets()}:{}),...(session.role==='gm'&&session.gmChain?.length?{proof:session.gmChain}:{}),...(session.role==='gm'&&deputyFp()?{deputy:deputyFp()}:{}),...(session.role==='gm'&&heldSince()?{since:heldSince()}:{})};
 }
 // «device:character» for a sheet that came to the GM through the room: it lets that player's page know which row is theirs.
 const OWN=/^[0-9a-f]{16}:.{1,60}$/;
 function ownerOf(c){const m=/^room-dev:([0-9a-f]{16}):(.{1,60})$/.exec(typeof c?.extra?.sourceKey==='string'?c.extra.sourceKey:'');return m?m[1]+':'+m[2]:''}
 function isMine(r){
- if(!r||!r.pc||!session?.characterId)return false;
- if(r.own)return r.own===deviceId()+':'+session.characterId;
- const mine=app?.getState?.()?.characters?.find(c=>c.id===session.characterId)?.name;return !!mine&&!!r.name&&r.name.trim().toLowerCase()===String(mine).trim().toLowerCase();
+ if(!r||!r.pc||!session)return false;
+ const ids=[session.characterId,...moreIdsOf()].filter(Boolean);if(!ids.length)return false;
+ if(r.own)return ids.some(id=>r.own===deviceId()+':'+id);
+ const names=(app?.getState?.()?.characters||[]).filter(c=>ids.includes(c.id)).map(c=>String(c.name||'').trim().toLowerCase()).filter(Boolean);return !!r.name&&names.includes(r.name.trim().toLowerCase());
 }
 const myTurn=state=>!!state&&state.order.some(r=>r.current&&isMine(r));
 // The player whose sheet a GM-side character is, if they are in the room now: their live HP for the tracker.
 function liveFor(c){
  if(!session||session.role!=='gm')return null;const own=ownerOf(c);if(!own)return null;
- for(const m of members.values())if(!m.me&&m.dev&&m.cid&&own===m.dev+':'+m.cid&&m.character&&isOnline(m))return {hp:m.character.hp,max:m.character.max};
+ for(const m of members.values())if(!m.me&&m.dev&&isOnline(m))for(const e of entriesOf(m))if(own===m.dev+':'+e.cid)return {hp:e.character.hp,max:e.character.max};
  return null;
 }
 /* A player in the room is in the tracker without a sheet: a row that carries «device:character» (own) instead of a saved character.
    The player's page knows the row is theirs (so «Ваш ход» works), their initiative roll lands on it, and its HP follows their status.
    When the sheet arrives later, the row becomes that character's row (see acceptSheet). */
 const rowOwn=r=>r&&r.kind==='npc'&&typeof r.own==='string'&&OWN.test(r.own)?r.own:'';
-const memberOwning=own=>{if(!own)return null;for(const [id,m] of members)if(!m.me&&m.dev&&m.cid&&own===m.dev+':'+m.cid&&m.character&&isOnline(m))return [id,m];return null};
+const memberOwning=own=>{if(!own)return null;for(const [id,m] of members)if(!m.me&&m.dev&&isOnline(m))for(const e of entriesOf(m))if(own===m.dev+':'+e.cid)return [id,m,e];return null};
 const linkedCampaign=()=>{if(session?.role!=='gm'||!session.campaignId)return null;const camp=app?.getState?.()?.campaigns?.find(x=>x.id===session.campaignId);return camp&&Array.isArray(camp.roster)?camp:null};
 const inRoster=(camp,own)=>{const chars=app?.getState?.()?.characters||[];return camp.roster.some(r=>rowOwn(r)===own||(r.kind==='pc'&&ownerOf(chars.find(c=>c?.id===r.characterId))===own))};
 const sameOrder=list=>[...list].sort((a,b)=>(Number(b.initiative)||0)-(Number(a.initiative)||0)||(Number(a.order)||0)-(Number(b.order)||0));
 // Adding a row must not move the turn away from whoever has it.
 function keepTurn(camp,change){const active=sameOrder(camp.roster)[int(camp.turnIndex,0,500)];change();if(active){const i=sameOrder(camp.roster).indexOf(active);if(i>=0)camp.turnIndex=i}}
-function rowFromRoom(camp,m){
- const own=m.dev+':'+m.cid;if(!OWN.test(own)||!m.character||inRoster(camp,own)||camp.roster.filter(r=>rowOwn(r)).length>=MAX_MEMBERS)return null;
- const row={id:'r'+hex(rand(6)),kind:'npc',own,name:clip(m.character.name,60)||clip(m.name,40)||'?',ref:m.character.ref,hp:m.character.hp,maxHp:m.character.max,initiative:0,order:Date.now()};
+function rowFromRoom(camp,m,e){
+ e=e||{cid:m.cid,character:m.character};
+ const own=m.dev+':'+e.cid;if(!OWN.test(own)||!e.character||inRoster(camp,own)||camp.roster.filter(r=>rowOwn(r)).length>=MAX_MEMBERS)return null;
+ const row={id:'r'+hex(rand(6)),kind:'npc',own,name:clip(e.character.name,60)||clip(m.name,40)||'?',ref:e.character.ref,hp:e.character.hp,maxHp:e.character.max,initiative:0,order:Date.now()};
  camp.roster.push(row);return row;
 }
 // The Game Master presses «В трекер» next to a player in the room.
-function addFromRoom(id){
- const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev||!m.cid||!isOnline(m))return false;
- let row=null;keepTurn(camp,()=>{row=rowFromRoom(camp,m)});if(!row)return false;
+function addFromRoom(id,cid){
+ const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev||!isOnline(m))return false;
+ const e=entriesOf(m).find(x=>!cid||x.cid===cid);if(!e)return false;
+ let row=null;keepTurn(camp,()=>{row=rowFromRoom(camp,m,e)});if(!row)return false;
  try{global.App?.save?.();global.App?.render?.()}catch{}
  app?.notify?.(`${t('fromRoomAdded')}: ${row.name}`);publishCombat();return true;
 }
 // A row added from the room follows its player's status.
 function syncRows(id){
- const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev||!m.cid||!m.character)return;
- const own=m.dev+':'+m.cid,s=m.character;let changed=false;
- for(const r of camp.roster)if(rowOwn(r)===own){const name=clip(s.name,60)||r.name;if(r.hp!==s.hp||r.maxHp!==s.max||r.name!==name||r.ref!==s.ref){Object.assign(r,{hp:s.hp,maxHp:s.max,name,ref:s.ref});changed=true}}
+ const camp=linkedCampaign(),m=members.get(id);if(!camp||!m||m.me||!m.dev)return;let changed=false;
+ for(const e of entriesOf(m)){const own=m.dev+':'+e.cid,s=e.character;
+  for(const r of camp.roster)if(rowOwn(r)===own){const name=clip(s.name,60)||r.name;if(r.hp!==s.hp||r.maxHp!==s.max||r.name!==name||r.ref!==s.ref){Object.assign(r,{hp:s.hp,maxHp:s.max,name,ref:s.ref});changed=true}}}
  if(changed){try{global.App?.save?.()}catch{}publishCombat()}
 }
 let noCampaignAt=0;
@@ -278,7 +294,7 @@ function applyInitiative(from,cid,total){
  let row=(pc&&camp.roster.find(r=>r.kind==='pc'&&r.characterId===pc.id))||camp.roster.find(r=>rowOwn(r)===own),added=false;
  keepTurn(camp,()=>{
   // No sheet at the Game Master's yet: the player gets a row from the room, for the character they are in the room with.
-  if(!row&&m.cid===cid){row=rowFromRoom(camp,m);added=!!row}
+  const entry=entriesOf(m).find(x=>x.cid===cid);if(!row&&entry){row=rowFromRoom(camp,m,entry);added=!!row}
   if(row){row.initiative=int(total,-99,999);row.ties=[]}
  });
  if(!row)return;
@@ -291,12 +307,12 @@ function applyInitiative(from,cid,total){
 function liveRow(r,c){
  if(session?.role!=='gm')return null;
  if(c){const live=liveFor(c);return live?{...live,title:t('liveTitle')}:null}
- const hit=memberOwning(rowOwn(r));return hit?{hp:hit[1].character.hp,max:hit[1].character.max,title:t('liveTitle')}:null;
+ const hit=memberOwning(rowOwn(r));return hit?{hp:hit[2].character.hp,max:hit[2].character.max,title:t('liveTitle')}:null;
 }
 function rosterCard(camp){
  if(session?.role!=='gm'||!camp||camp.id!==session.campaignId||!Array.isArray(camp.roster))return '';
- const here=[...members.entries()].filter(([,m])=>!m.me&&m.role!=='gm'&&m.dev&&m.cid&&m.character&&isOnline(m)),free=here.filter(([,m])=>!inRoster(camp,m.dev+':'+m.cid));
- return `<section class="card room-roster" data-room-roster="${esc(camp.id)}"><div class="card-heading"><span>${esc(t('fromRoom'))}</span><span>${here.length}</span></div><p class="muted">${esc(t('fromRoomHelp'))}</p>${free.length?`<ul class="room-roster-list">${free.map(([id,m])=>`<li><div><b>${esc(m.character.name||'—')}</b><small>${esc(m.name)} · REF ${m.character.ref} · HP ${m.character.hp}/${m.character.max}</small></div><button type="button" class="btn ghost" data-room-action="roster-add" data-id="${esc(id)}">＋ ${esc(t('fromRoomAdd'))}</button></li>`).join('')}</ul>`:`<p class="muted">${esc(t(here.length?'fromRoomAll':'fromRoomNone'))}</p>`}</section>`;
+ const here=[...members.entries()].filter(([,m])=>!m.me&&m.role!=='gm'&&m.dev&&isOnline(m)).flatMap(([id,m])=>entriesOf(m).map(e=>[id,m,e])),free=here.filter(([,m,e])=>!inRoster(camp,m.dev+':'+e.cid));
+ return `<section class="card room-roster" data-room-roster="${esc(camp.id)}"><div class="card-heading"><span>${esc(t('fromRoom'))}</span><span>${here.length}</span></div><p class="muted">${esc(t('fromRoomHelp'))}</p>${free.length?`<ul class="room-roster-list">${free.map(([id,m,e])=>`<li><div><b>${esc(e.character.name||'—')}</b><small>${esc(m.name)} · REF ${e.character.ref} · HP ${e.character.hp}/${e.character.max}</small></div><button type="button" class="btn ghost" data-room-action="roster-add" data-id="${esc(id)}" data-cid="${esc(e.cid)}">＋ ${esc(t('fromRoomAdd'))}</button></li>`).join('')}</ul>`:`<p class="muted">${esc(t(here.length?'fromRoomAll':'fromRoomNone'))}</p>`}</section>`;
 }
 // Live parts of the open tracker, without redrawing it under the Game Master's hands: the «в комнате» labels, the HP of
 // participants whose players are online, and the list of players who can be added from the room.
@@ -722,7 +738,7 @@ async function receive(p){
   if(!prev&&members.size>=MAX_MEMBERS&&!evictOne())return;
   if(outbox.length&&!p.retain)flushOutbox(); // someone (re)connected: give them the rolls made while offline
   if(session.role==='gm')setTimeout(()=>{syncRows(m.from);paintLive();if(lastCombat&&lastCombat!=='null')publishCombat()},0); // a player's HP changed: rows that show a state or HP follow at once (nothing is sent when the list is the same)
-  members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',box:isCoord(d.box?.x)&&isCoord(d.box?.y)?{x:d.box.x,y:d.box.y}:null,at:when});
+  members.set(m.from,{sentAt:at,fp,pk:{x:m.pk.x,y:m.pk.y},goneMark:prev?.goneMark||0,name:clip(d.name,40)||'?',role,impostor:claims&&role!=='gm',dev:typeof d.dev==='string'&&/^[0-9a-f]{16}$/.test(d.dev)?d.dev:'',cid:clip(d.cid,60),character:cleanSummary(d.character),more:cleanMore(d.more,clip(d.cid,60)),portrait:global.Portrait?.valid?.(d.portrait,16000)?d.portrait:'',pub:role==='gm'&&isCoord(d.pub?.x)&&isCoord(d.pub?.y)?{x:d.pub.x,y:d.pub.y}:null,sheets:role==='gm'&&typeof d.sheets==='string'?d.sheets.replace(/[^zj]/g,'').slice(0,4):'',box:isCoord(d.box?.x)&&isCoord(d.box?.y)?{x:d.box.x,y:d.box.y}:null,at:when});
   // A member who (re)appears may carry a new box: whispers waiting for them go out now.
   if(!p.retain)setTimeout(()=>{global.RoomWhispers?.flush?.(m.from.slice(0,24));global.RoomNetrun?.publish?.(false)},0);
   repaint();
@@ -862,12 +878,17 @@ function clockSvg(size,filled){
 function roleName(id){const r=global.ROLES?.find?.(x=>x.id===id);return r?.name?.[lang()]||id||''}
 function woundOf(c){return c.hp<1?'mortal':c.hp<Math.ceil(c.max/2)?'serious':c.hp<c.max?'light':'full'}
 function presence(m){if(m.me)return `<span class="room-dot on"></span>${esc(t('you'))}`;const age=Date.now()-m.at;return isOnline(m)?`<span class="room-dot on"></span>${esc(t('online'))}`:`<span class="room-dot"></span>${esc(t('offline'))} · ${Math.max(1,Math.round(age/60000))} ${esc(t('ago'))}`}
+// The other characters a member brought: one short line each, grouped under the member.
+function moreBlock(m){
+ const list=Array.isArray(m.more)?m.more:[];if(!list.length)return '';
+ return `<div class="room-more-chars"><b class="room-more-title">${esc(t('moreCount').replace('{n}',list.length+(m.character?1:0)))}</b><ul>${list.map(e=>{const c=e.character,pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100)));return `<li data-wound="${woundOf(c)}"><span class="room-more-name"><b>${esc(c.name||'—')}</b><small>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</small></span><span class="room-hp-bar" aria-hidden="true"><i style="width:${pct}%"></i></span><span class="room-more-hp">${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}</span></li>`}).join('')}</ul></div>`;
+}
 function memberCard(id,m){
  const c=m.character;
  const head=`<div class="room-member-head">${m.portrait&&global.Portrait?.valid?.(m.portrait,16000)?`<img class="room-avatar" src="${m.portrait}" alt="">`:''}<strong>${esc(m.name)}</strong>${m.role==='gm'?`<span class="room-badge">${esc(t('gmBadge'))}</span>`:''}${m.role!=='gm'&&m.fp&&m.fp===deputyFp()?AUTH()?.coBadge(lang())||'':''}${m.impostor?`<span class="room-badge warn">${esc(t('impostor'))}</span>`:''}<small>${presence(m)}</small>${!m.me&&m.role!=='gm'&&FP.test(m.fp||'')?`<button type="button" class="room-mute" data-room-action="mute" data-fp="${esc(m.fp)}" title="${esc(t('muteTitle'))}">${esc(t('mute'))}</button>`:''}</div>${AUTH()?.memberTools(m,{lang:lang(),gm:session?.role==='gm',deputy:deputyFp(),pending:!!session?.handoverTo})||''}${GATE()?.memberTool(m,{lang:lang(),gm:session?.role==='gm',on:gateOn()})||''}${session?.role==='gm'&&!m.me?global.RoomGrants?.memberButton?.(id)||'':''}${!m.me?global.RoomWhispers?.memberButton?.(id)||'':''}`;
- if(!c)return `<article class="room-member ${m.me?'me':''}">${head}<p class="room-muted">${esc(t('noChar'))}</p></article>`;
+ if(!c)return `<article class="room-member ${m.me?'me':''}">${head}${m.more?.length?moreBlock(m):`<p class="room-muted">${esc(t('noChar'))}</p>`}</article>`;
  const pct=Math.max(0,Math.min(100,Math.round(c.hp/Math.max(1,c.max)*100))),w=woundOf(c);
- return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}${w==='serious'||w==='mortal'?` · <em class="room-wound ${w}">${esc(t(w==='mortal'?'woundMortal':'woundSerious'))}</em>`:''}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div>${c.rep?`<div><dt>REP</dt><dd>${c.rep}</dd></div>`:''}</dl></article>`;
+ return `<article class="room-member ${m.me?'me':''}" data-wound="${w}">${head}<div class="room-char"><b>${esc(c.name||'—')}</b><span>${esc(roleName(c.role))}${c.rank?` · ${c.rank}`:''}</span></div><div class="room-hp"><div class="room-hp-bar"><i style="width:${pct}%"></i></div><span>${esc(t('hp'))} <b>${c.hp}</b> / ${c.max}${w==='serious'||w==='mortal'?` · <em class="room-wound ${w}">${esc(t(w==='mortal'?'woundMortal':'woundSerious'))}</em>`:''}</span></div><dl class="room-stats"><div><dt>${esc(t('hum'))}</dt><dd>${c.humanity}</dd></div><div><dt>${esc(t('luck'))}</dt><dd>${c.luck}/${c.luckMax}</dd></div><div><dt>${esc(t('sp'))}</dt><dd>${c.head} / ${c.body}</dd></div><div><dt>REF</dt><dd>${c.ref}</dd></div>${c.rep?`<div><dt>REP</dt><dd>${c.rep}</dd></div>`:''}</dl>${moreBlock(m)}</article>`;
 }
 function joinForms(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[],prev=session||loadSession()||{},code=pendingCode?formatCode(pendingCode):'';
@@ -876,6 +897,13 @@ function joinForms(){
  const gmCard=code?'':`<section class="card room-join"><div class="card-heading"><span>${esc(t('gm'))}</span><span>GM</span></div><p>${esc(t('gmLead'))}</p><label class="field">${esc(t('name'))}<input id="room-gm-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('campaign'))}<select id="room-campaign"><option value="">${esc(t('noCampaign'))}</option>${camps.map(c=>`<option value="${esc(c.id)}">${esc(c.name||'—')}</option>`).join('')}</select></label><label class="field">${esc(t('character'))}${charSelect.replace('id="room-character"','id="room-gm-character"')}</label>${GATE()?.createField(lang())||''}<button type="button" class="btn primary wide" data-room-action="create">＋ ${esc(t('create'))}</button></section>`;const joinCard=`<section class="card room-join"><div class="card-heading"><span>${esc(t('player'))}</span><span>JOIN</span></div><p>${esc(t('playerLead'))}</p><label class="field">${esc(t('code'))}<input id="room-code" maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${esc(t('codePh'))}" value="${esc(code)}"></label>${code&&pendingPin?`<p class="room-muted">${esc(t('pinNote'))}: <b>${esc(keyLabel(pendingPin))}</b></p>`:''}<label class="field">${esc(t('name'))}<input id="room-player-name" maxlength="40" placeholder="${esc(t('namePh'))}" value="${nameVal}"></label><label class="field">${esc(t('character'))}${charSelect}</label><button type="button" class="btn primary wide" data-room-action="join">→ ${esc(t('join'))}</button></section>`;
  // The role only decides which card comes first (a player joins, a Game Master creates); both stay on the page.
  return `<div class="room-join-grid">${global.RoleMode?.get?.()==='player'?joinCard+gmCard:gmCard+joinCard}${code?'':AUTH()?.importCard({lang:lang(),name:prev.name})||''}</div>`;
+}
+// «Ещё персонажи»: the other sheets this page brings into the room, at most MAX_CHARS-1 besides the main one.
+function morePicker(chars){
+ if(!session)return '';
+ const others=chars.filter(c=>c&&c.id&&c.id!==session.characterId);if(!others.length)return '';
+ const sel=new Set(moreIdsOf()),full=sel.size>=MAX_CHARS-1;
+ return `<fieldset class="room-more"><legend>${esc(t('moreTitle'))}</legend><p class="room-muted">${esc(t('moreHelp').replace('{n}',MAX_CHARS))}</p>${others.map((c,i)=>{const on=sel.has(c.id);return `<label class="room-check"><input type="checkbox" id="room-more-${i}" data-room-field="more" value="${esc(c.id)}" ${on?'checked':''} ${!on&&full?'disabled':''}> ${esc(c.name||'—')} · ${esc(roleName(c.role))}</label>`}).join('')}${full?`<p class="room-muted">${esc(t('moreFull').replace('{n}',MAX_CHARS-1))}</p>`:''}</fieldset>`;
 }
 function roomView(){
  const st=app?.getState?.()||{},chars=st.characters||[],camps=st.campaigns||[];
@@ -889,14 +917,14 @@ function roomView(){
  const gateCard=G&&(queue.length||refused)?G.waitingCard({lang:lang(),waiting:queue,denied:refused,keyLabel}):'';
  const lobbyCard=lobby?G?.lobby({lang:lang(),state:knockState,gm:gateName,gmOnline:gateHeard?Date.now()-gateHeard<ONLINE_FOR:Date.now()-connectedAt>HEARTBEAT+15000?false:null,myKey:keyLabel(myFp())})||'':'';
  const notes=`${pendingCode&&pendingCode!==session.code?`<div class="room-alert"><p>${esc(t('otherRoom'))}: <b>${esc(formatCode(pendingCode))}</b></p><div><button type="button" class="btn primary" data-room-action="switch">${esc(t('switchRoom'))}</button><button type="button" class="btn ghost" data-room-action="stay">${esc(t('stayRoom'))}</button></div></div>`:''}${session.role==='player'&&!lobby&&!hasOtherGM&&netStatus.online&&Date.now()-connectedAt>NO_GM_HINT?`<p class="room-alert soft">${esc(t('noGM'))}</p>`:''}${gms>1?`<p class="room-alert soft">${esc(t('twoGM'))}</p>`:''}${list.some(([,m])=>m.impostor)?`<p class="room-alert soft">${esc(t('impostorNote'))}</p>`:''}${Date.now()-oldSeen<120000?`<p class="room-alert soft">${esc(t('oldVersion'))}</p>`:''}`;
- return notes+`<div class="room-banner ${netStatus.online?'ok':'bad'}"><div><small>${esc(t('room'))}</small><strong class="room-code">${esc(formatCode(session.code))}</strong></div><div class="room-banner-actions"><button type="button" class="btn primary" data-room-action="copy">⧉ ${esc(t('copy'))}</button>${global.navigator?.share?`<button type="button" class="btn ghost" data-room-action="share">↗ ${esc(t('share'))}</button>`:''}<button type="button" class="btn ghost" data-room-action="qr" aria-expanded="${qrFor===session.code}">▦ QR</button><button type="button" class="btn ghost" data-room-action="leave">✕ ${esc(t('leave'))}</button></div>${qrFor===session.code&&qrMarkup?`<div class="room-qr">${qrMarkup}<small>${esc(lang()==='ru'?'Наведите камеру телефона, чтобы открыть комнату':'Point a phone camera here to open the room')}</small></div>`:''}${FP.test(session.gmFp||'')?`<p class="room-key">${esc(session.gmPin==='handover'?ta('keyMoved'):t(session.role==='gm'?'keyMine':session.gmPin==='link'?'keyLink':'keyFirst'))}: <b>${esc(keyLabel(session.gmFp))}</b></p>`:''}${session.role!=='gm'&&AUTH()?`<p class="room-key">${esc(ta('myKey'))}: <b>${esc(keyLabel(myFp()))}</b></p>`:''}${muted.size?`<p class="room-key">${esc(t('mutedCount'))}: ${muted.size} <button type="button" class="room-mute" data-room-action="unmute-all">${esc(t('unmute'))}</button></p>`:''}${G&&gateOn()&&!lobby?G.lockNote({lang:lang(),gm:isGM}):''}<p class="room-net"><span class="room-dot ${netStatus.online?'on':''}"></span>${esc(t('servers'))}: ${net}${netStatus.total&&!netStatus.online?` — ${esc(t('noNetwork'))}`:''}</p></div>
- ${gateCard}${lobby?lobbyCard:''}<section class="card room-me"><div class="card-heading"><span>${esc(t('you'))}: ${esc(session.name)} · ${esc(t(session.role==='gm'?'asGM':'asPlayer'))}${amDeputy()?' · '+esc(ta('coBadge')):''}</span><span>SETTINGS</span></div><div class="room-me-grid"><label class="field">${esc(t('character'))}${charSelect}</label>${campSelect}</div><label class="room-check"><input type="checkbox" data-room-field="broadcast" ${session.broadcastRolls!==false?'checked':''}> ${esc(t('broadcast'))}</label><label class="room-check"><input type="checkbox" data-room-field="toasts" ${session.toasts!==false?'checked':''}> ${esc(t('toasts'))}</label><label class="room-check"><input type="checkbox" data-room-field="portrait" ${session.sharePortrait!==false?'checked':''}> ${esc(t('sharePortrait'))}</label>${isGM&&G?G.toggle({lang:lang(),on:gateOn()}):''}${AUTH()?.panel({lang:lang(),gm:session.role==='gm',co:amDeputy(),deputy:deputyFp(),pending:session.handoverTo,keyLabel})||''}${session.role==='player'&&!lobby&&session.characterId&&chars.some(c=>c.id===session.characterId)?`<div class="room-send"><button type="button" class="btn ghost" data-room-action="send-sheet" ${hasOtherGM?'':'disabled'}>📤 ${esc(t('sendSheet'))}</button><small>${esc(hasOtherGM?t('sendSheetHelp'):t('noGMKey'))}</small>${sheetState&&sheetState.char===session.characterId?`<p class="room-send-status" data-state="${sheetState.state}"><span aria-hidden="true">${SHEET_ICON[sheetState.state]||''}</span> ${esc(sheetText(sheetState))}</p>`:''}</div>`:''}</section>${session.role==='gm'&&incoming.length?`<section class="card room-incoming"><div class="card-heading"><span>${esc(t('incoming'))}</span><span data-nx>${incoming.length}</span></div><ul>${incoming.map((x,i)=>`<li><div><b>${esc(clip(x.character.name,60)||'—')}</b><small>${esc(t('fromPlayer'))} ${esc(x.who)}${x.character.role?` · ${esc(roleName(clip(x.character.role,20)))}`:''}</small></div><div>${x.saved&&chars.some(c=>c?.id===x.saved)?`<button type="button" class="btn ghost" data-room-action="open-sheet" data-id="${esc(x.saved)}">${esc(t('openSheet'))}</button>`:`<button type="button" class="btn primary" data-room-action="accept-sheet" data-index="${i}">${esc(t(sheetKnown(x,chars)?'update':'accept'))}</button><button type="button" class="btn ghost" data-room-action="decline-sheet" data-index="${i}">${esc(t('decline'))}</button>`}</div></li>`).join('')}</ul></section>`:''}
+ return notes+`<div class="room-banner ${netStatus.online?'ok':'bad'}"><div><small>${esc(t('room'))}</small><strong class="room-code${codeHidden?' hidden':''}"${codeHidden?` aria-label="${esc(t('codeHiddenWord'))}"`:''}>${codeHidden?'•••• •••• ••••':esc(formatCode(session.code))}</strong></div><div class="room-banner-actions"><button type="button" class="btn ghost room-eye" data-room-action="hide-code" data-room-field="hide-code" aria-pressed="${codeHidden}" aria-label="${esc(t('hideCode'))}" title="${esc(t(codeHidden?'showCode':'hideCode'))}"><span aria-hidden="true">${codeHidden?'🙈':'👁'}</span></button><button type="button" class="btn primary" data-room-action="copy">⧉ ${esc(t('copy'))}</button>${global.navigator?.share?`<button type="button" class="btn ghost" data-room-action="share">↗ ${esc(t('share'))}</button>`:''}<button type="button" class="btn ghost" data-room-action="qr" aria-expanded="${qrFor===session.code}">▦ QR</button><button type="button" class="btn ghost" data-room-action="leave">✕ ${esc(t('leave'))}</button></div>${qrFor===session.code&&qrMarkup?`<div class="room-qr">${qrMarkup}<small>${esc(lang()==='ru'?'Наведите камеру телефона, чтобы открыть комнату':'Point a phone camera here to open the room')}</small></div>`:''}${FP.test(session.gmFp||'')?`<p class="room-key">${esc(session.gmPin==='handover'?ta('keyMoved'):t(session.role==='gm'?'keyMine':session.gmPin==='link'?'keyLink':'keyFirst'))}: <b>${esc(keyLabel(session.gmFp))}</b></p>`:''}${session.role!=='gm'&&AUTH()?`<p class="room-key">${esc(ta('myKey'))}: <b>${esc(keyLabel(myFp()))}</b></p>`:''}${muted.size?`<p class="room-key">${esc(t('mutedCount'))}: ${muted.size} <button type="button" class="room-mute" data-room-action="unmute-all">${esc(t('unmute'))}</button></p>`:''}${G&&gateOn()&&!lobby?G.lockNote({lang:lang(),gm:isGM}):''}<p class="room-net"><span class="room-dot ${netStatus.online?'on':''}"></span>${esc(t('servers'))}: ${net}${netStatus.total&&!netStatus.online?` — ${esc(t('noNetwork'))}`:''}</p></div>
+ ${gateCard}${lobby?lobbyCard:''}<section class="card room-me"><div class="card-heading"><span>${esc(t('you'))}: ${esc(session.name)} · ${esc(t(session.role==='gm'?'asGM':'asPlayer'))}${amDeputy()?' · '+esc(ta('coBadge')):''}</span><span>SETTINGS</span></div><div class="room-me-grid"><label class="field">${esc(t('character'))}${charSelect}</label>${campSelect}</div>${morePicker(chars)}<label class="room-check"><input type="checkbox" data-room-field="broadcast" ${session.broadcastRolls!==false?'checked':''}> ${esc(t('broadcast'))}</label><label class="room-check"><input type="checkbox" data-room-field="toasts" ${session.toasts!==false?'checked':''}> ${esc(t('toasts'))}</label><label class="room-check"><input type="checkbox" data-room-field="portrait" ${session.sharePortrait!==false?'checked':''}> ${esc(t('sharePortrait'))}</label>${isGM&&G?G.toggle({lang:lang(),on:gateOn()}):''}${AUTH()?.panel({lang:lang(),gm:session.role==='gm',co:amDeputy(),deputy:deputyFp(),pending:session.handoverTo,keyLabel})||''}${session.role==='player'&&!lobby&&session.characterId&&chars.some(c=>c.id===session.characterId)?`<div class="room-send"><button type="button" class="btn ghost" data-room-action="send-sheet" ${hasOtherGM?'':'disabled'}>📤 ${esc(t('sendSheet'))}</button><small>${esc(hasOtherGM?t('sendSheetHelp'):t('noGMKey'))}</small>${sheetState&&sheetState.char===session.characterId?`<p class="room-send-status" data-state="${sheetState.state}"><span aria-hidden="true">${SHEET_ICON[sheetState.state]||''}</span> ${esc(sheetText(sheetState))}</p>`:''}</div>`:''}</section>${session.role==='gm'&&incoming.length?`<section class="card room-incoming"><div class="card-heading"><span>${esc(t('incoming'))}</span><span data-nx>${incoming.length}</span></div><ul>${incoming.map((x,i)=>`<li><div><b>${esc(clip(x.character.name,60)||'—')}</b><small>${esc(t('fromPlayer'))} ${esc(x.who)}${x.character.role?` · ${esc(roleName(clip(x.character.role,20)))}`:''}</small></div><div>${x.saved&&chars.some(c=>c?.id===x.saved)?`<button type="button" class="btn ghost" data-room-action="open-sheet" data-id="${esc(x.saved)}">${esc(t('openSheet'))}</button>`:`<button type="button" class="btn primary" data-room-action="accept-sheet" data-index="${i}">${esc(t(sheetKnown(x,chars)?'update':'accept'))}</button><button type="button" class="btn ghost" data-room-action="decline-sheet" data-index="${i}">${esc(t('decline'))}</button>`}</div></li>`).join('')}</ul></section>`:''}
  ${lobby?'':`<div class="room-columns"><section class="card room-team"><div class="card-heading"><span>${esc(t('team'))}</span><span data-nx>${list.length}</span></div>${session.role==='gm'?global.RoomGrants?.teamButton?.()||'':''}${list.length>1?'':`<p class="room-muted">${esc(t('noTeam'))}</p>`}<div class="room-members">${list.map(([id,m])=>memberCard(id,m)).join('')}</div></section>
  <div class="room-side">${clocks.length?`<section class="card room-clocks"><div class="card-heading"><span>${esc(t('clocks'))}</span><span data-nx>${clocks.length}</span></div><div class="room-clock-list">${clocks.map(k=>`<div class="room-clock${k.filled>=k.size?' full':''}">${clockSvg(k.size,k.filled)}<div><b>${esc(k.name)}</b><small>${k.filled} / ${k.size}${k.filled>=k.size?' · '+esc(t('clockFull')):''}</small></div></div>`).join('')}</div></section>`:''}<section class="card room-combat"><div class="card-heading"><span>${esc(t('initiative'))}</span><span>${combat?`${esc(t('round'))} ${combat.round}`:'—'}</span></div>${combat?`<p class="room-muted">${esc(combat.campaign)}</p>${combat.veiled?`<p class="room-alert soft">${esc(t('veiled'))}</p>`:''}<ol class="room-order">${combat.order.map(r=>`<li class="${r.current?'current':''} ${r.pc?'pc':'npc'}${isMine(r)?' mine':''}${global.RoomVisibility?.chips?.(r,lang())?' rv-has':''}"><b>${r.init}</b>${r.pc&&(r.none||!r.name)?`<span class="room-none">${esc(t('noChar'))}</span>`:`<span>${esc(r.name)}</span>`}${global.RoomVisibility?.chips?.(r,lang())||''}${r.current?`<em>${esc(isMine(r)?t('yourTurn'):t('turn'))}</em>`:''}</li>`).join('')}</ol>${session.role==='gm'?global.RoomVisibility?.gmNote?.(lang())||'':''}${global.BattleMap?.sharedHTML?.(combat,lang())||''}`:`<p class="room-muted">${esc(t('noCombat'))}</p>`}</section>${global.RoomAgent?.card?.()||''}${global.RoomJournal?.card?.()||''}${global.CityMap?.roomCard?.()||''}
  <section class="card room-feed"><div class="card-heading"><span>${esc(t('rolls'))}</span><span data-nx>${feed.length}</span></div>${feed.length?`<ol class="room-rolls">${feed.map(r=>`<li class="${r.crit} ${r.mine?'mine':''}"><b class="room-roll-total">${esc(r.total)}</b><div><strong>${esc(r.who)}${r.character?` · ${esc(r.character)}`:''}</strong><span>${esc(r.label)}${r.crit?` · <em>${esc(t(r.crit))}</em>`:''}</span><small>${esc(r.detail)} · ${new Date(r.at).toLocaleTimeString(lang()==='ru'?'ru-RU':'en-GB',{hour:'2-digit',minute:'2-digit'})}${r.pending?` · <span class="room-pending">⏳ ${esc(t('notSent'))}</span>`:''}</small></div></li>`).join('')}</ol>`:`<p class="room-muted">${esc(t('noRolls'))}</p>`}</section></div></div>`}`;
 }
 function inner(){
- return `<div class="page-header"><div><div class="overline">${esc(t('over'))}</div><h1>${esc(t('title'))}</h1><p>${esc(t('lead'))}</p></div></div>${session?roomView():joinForms()}<div class="source-strip room-how"><div class="source-symbol">⌬</div><div><strong>${lang()==='ru'?'КАК ЭТО РАБОТАЕТ':'HOW IT WORKS'}</strong><p>${esc(t('how'))} ${esc(t('tip'))}</p></div></div>`;
+ return `<div class="page-header"><div><div class="overline">${esc(t('over'))}</div><h1>${esc(t('title'))}</h1><p>${esc(t('lead'))}</p></div></div>${session?roomView():joinForms()}${serversCard()}<div class="source-strip room-how"><div class="source-symbol">⌬</div><div><strong>${lang()==='ru'?'КАК ЭТО РАБОТАЕТ':'HOW IT WORKS'}</strong><p>${esc(t('how'))} ${esc(t('tip'))}</p></div></div>`;
 }
 function render(){return `<div id="room-root">${inner()}</div>`}
 // Only text the user changed is carried over a repaint, and only while the page still offers the same value
@@ -954,6 +982,32 @@ async function startSession(next){
  }finally{joining=false}
 }
 function value(sel){return doc.querySelector(sel)?.value?.trim()||''}
+// A changed server list reaches the room at once: inside a room the connection is made again with the new list.
+function serversChanged(){if(session&&transport)connect()}
+// The buttons of the «Серверы» card (room-servers.js). The result is said in the card's own status line.
+async function serversAction(a,b){
+ const S=global.RoomServers;if(!S)return;
+ const L=lang(),ls=global.localStorage,cfg=S.load(ls),say=(kind,key,vars)=>{S.note(kind,S.tx(L,key,vars));refresh()},inputBack=()=>doc.querySelector('#room-server-url')?.focus?.();
+ if(a==='srv-add'){
+  const input=doc.querySelector('#room-server-url'),r=S.addCustom(cfg,input?.value||'');
+  if(!r.ok){say('bad','e_'+r.reason,{n:S.MAX_CUSTOM});inputBack();return}
+  if(!S.save(ls,r.cfg)){say('bad','e_invalid');return}
+  if(input)input.value='';serversChanged();say('ok','added');inputBack();
+ }else if(a==='srv-remove'){
+  S.save(ls,S.removeCustom(cfg,b.dataset.url).cfg);serversChanged();say('ok','removed');inputBack();
+ }else if(a==='srv-default'){
+  const on=b.dataset.on==='1',r=S.setDefault(cfg,b.dataset.url,on);
+  if(!r.ok){say('bad','e_'+r.reason);return}
+  S.save(ls,r.cfg);serversChanged();say('ok',on?'switchedOn':'switchedOff');
+ }else if(a==='srv-reset'){
+  const was=cfg.custom.length||cfg.off.length||cfg.old;S.reset(ls);if(was)serversChanged();say('ok',was?'resetDone':'already');
+ }else if(a==='srv-test'){
+  const url=b.dataset.url;if(S.isRunning(url))return;
+  const broker=[...(global.RoomTransport?.DEFAULT_BROKERS||[]),...cfg.custom].find(x=>x.url===url)||{url};
+  S.startTest(url);S.note('ok',S.tx(L,'testing'));refresh();
+  const r=await S.test(broker);S.setResult(url,r);S.note(r.ok?'ok':'bad',S.hostLabel(url)+': '+S.resultText(L,r));refresh();
+ }
+}
 doc.addEventListener('click',async e=>{
  const b=e.target.closest?.('[data-room-action]');if(!b)return;
  const a=b.dataset.roomAction;
@@ -968,7 +1022,7 @@ doc.addEventListener('click',async e=>{
  else if(a==='accept-sheet'){await acceptSheet(Number(b.dataset.index));refresh()}
  else if(a==='decline-sheet'){incoming.splice(Number(b.dataset.index),1);keepIncoming();refresh()}
  else if(a==='open-sheet'){if(app?.getState?.()?.characters?.some(c=>c?.id===b.dataset.id))global.App?.open?.(b.dataset.id);else refresh()}
- else if(a==='roster-add'){addFromRoom(b.dataset.id)}
+ else if(a==='roster-add'){addFromRoom(b.dataset.id,b.dataset.cid)}
  else if(a==='co-grant'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('grantConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;setDeputy(fp)}
  else if(a==='co-revoke'){setDeputy('')}
  else if(a==='handover'){const fp=b.dataset.fp,m=[...members.values()].find(x=>!x.me&&x.fp===fp);if(!session||session.role!=='gm'||!m)return;if(!global.confirm(ta('handoverConfirm').replace('{name}',m.name).replace('{key}',keyLabel(fp))))return;b.disabled=true;await startHandover(fp)}
@@ -982,12 +1036,15 @@ doc.addEventListener('click',async e=>{
  else if(a==='gm-file'){b.disabled=true;await saveGMFile();refresh()}
  else if(a==='gm-file-open'){const name=value('#room-file-name'),text=await AUTH()?.pickFile();if(!text)return;if(await openGMFile(text,name))global.scrollTo?.(0,0)}
  else if(a==='leave'){if(!global.confirm(t('leaveConfirm')))return;global.RoomWhispers?.forget?.();disconnect(true);session=null;members=new Map();combat=null;feed=[];incoming=[];keepFeed();keepIncoming();clearTimeout(sheetTimer);sheetState=null;saveSession();refresh()}
+ else if(a==='hide-code'){codeHidden=!codeHidden;if(codeHidden)qrFor='';refresh();app?.notify?.(t(codeHidden?'codeNowHidden':'codeNowShown'))}
+ else if(typeof a==='string'&&a.startsWith('srv-')){await serversAction(a,b)}
  else if(a==='copy'){const link=roomLink(session.code);try{await global.navigator.clipboard.writeText(link);app?.notify?.(t('copied'))}catch{global.prompt?.(t('copy'),link)}}
  else if(a==='share'){try{await global.navigator.share({title:'Night City // RED',text:(lang()==='ru'?'Комната для игры: ':'Game room: ')+formatCode(session.code),url:roomLink(session.code)})}catch{}}
 });
 doc.addEventListener('change',e=>{
  const f=e.target.dataset?.roomField;if(!f||!session)return;
- if(f==='character'){session.characterId=e.target.value;saveSession();publishMember()}
+ if(f==='character'){session.characterId=e.target.value;session.moreIds=moreIdsOf();saveSession();publishMember();refresh()}
+ else if(f==='more'){session.moreIds=[...doc.querySelectorAll('[data-room-field="more"]')].filter(x=>x.checked).map(x=>x.value).filter(id=>id&&id!==session.characterId).slice(0,MAX_CHARS-1);saveSession();publishMember();refresh()}
  else if(f==='campaign'){session.campaignId=e.target.value;saveSession();publishCombat()}
  else if(f==='broadcast'){session.broadcastRolls=e.target.checked;saveSession()}
  else if(f==='toasts'){session.toasts=e.target.checked;saveSession()}
@@ -1019,6 +1076,8 @@ global.addEventListener?.('online',()=>transport?.wake());
 const holdSelect=e=>{if(e.target.closest?.('#room-root select'))selectHold=Date.now()+8000};
 doc.addEventListener('pointerdown',holdSelect,true);
 doc.addEventListener('keydown',holdSelect,true);
+// Enter in the «own server» field adds the server, like the button next to it.
+doc.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target?.id==='room-server-url'){e.preventDefault();serversAction('srv-add',e.target)}});
 doc.addEventListener('change',e=>{if(e.target.closest?.('#room-root select'))selectHold=0},true);
 doc.addEventListener('focusout',e=>{if(!e.target.closest?.('#room-root'))return;selectHold=0;if(deferredRepaint)setTimeout(refresh,0)});
 doc.addEventListener?.('visibilitychange',()=>{if(doc.visibilityState==='visible'&&session){transport?.wake();publishMember(true)}});
@@ -1030,7 +1089,7 @@ global.Room={
  roll({label,detail,total,character,initiative,characterId}){
   if(!session)return;
   const text=String(detail||''),crit=/Критический успех|Critical Success/i.test(text)?'crit':/Критический провал|Critical Failure/i.test(text)?'fumble':'';
-  const item={who:clip(session.name,40),character:clip(character,60),label:clip(label,80),detail:clip(text,200),total:int(total,-999,9999),crit,...(initiative===true&&characterId&&characterId===session.characterId?{init:true,cid:clip(characterId,60)}:{})};
+  const item={who:clip(session.name,40),character:clip(character,60),label:clip(label,80),detail:clip(text,200),total:int(total,-999,9999),crit,...(initiative===true&&characterId&&(characterId===session.characterId||moreIdsOf().includes(characterId))?{init:true,cid:clip(characterId,60)}:{})};
   const entry={...item,at:Date.now(),mine:true};feed.unshift(entry);feed=feed.slice(0,MAX_FEED);
   keepFeed();
   if(initiative===true&&session.role==='player'){
@@ -1082,6 +1141,6 @@ global.Room={
  liveText(c){try{const row=rowOwn(c),live=row?liveRow(c,null):liveFor(c);return live?`♥ ${live.hp}/${live.max} ${t('liveHp')}`:row?`${t('fromRoomTag')} · ${t('liveOff')}`:''}catch{return ''}},
  liveRow(r,c){try{return liveRow(r,c)}catch{return null}},
  rosterCard(camp){try{return rosterCard(camp)}catch{return ''}},
- _test:{receive:p=>receive(p),disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,restore:()=>{feed=loadFeed();incoming=loadIncoming()},addFromRoom,syncRows,rosterCard,liveRow,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),gate:{setGate,admitWaiting,denyWaiting,removeMember,publishGate,layerKey,openAny,inRoom,gateOn,waiting:()=>waiting,roomKey:()=>roomKey,state:()=>({knockState,gateSeenAt,gateSettled,gateHeard}),hold:()=>{gateSettled=false},settle:()=>{settleGate();publishMember(true)}},auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
+ _test:{receive:p=>receive(p),cleanMore,moreIdsOf,moreChars,entriesOf,serversCard,serversAction,codeHidden:()=>codeHidden,morePicker,moreBlock,disconnect,setApp:a=>{app=a},setTransport:x=>{transport=x},sendSheet,acceptSheet,sheetState:()=>sheetState,sheetSource,deviceId,sheetPacket,packSheet,readSheet,combatPayload,memberCard,roomView,typedInputs,restoreTyped,ensureGMKeys,gmPub:()=>gmPub,resetGMKeys:()=>{gmKeys=null;gmPub=null},sealFor,openFromPeer,sheetCopy,incoming:()=>incoming,setSession:(s,b)=>{session=s;base=b},members:()=>members,state:()=>({combat,clocks,combatAt,clocksAt,outbox,feed}),cleanClocks,clockSvg,normalizeCode,formatCode,newCode,deriveRoom,characterSummary,cleanSummary,setKey:k=>{key=k},seal,open,ownerOf,isMine,liveFor,applyInitiative,restore:()=>{feed=loadFeed();incoming=loadIncoming()},addFromRoom,syncRows,rosterCard,liveRow,ensureIdentity,newIdentity,fingerprint,signedEnvelope,parseInvite,roomLink,keyLabel,isOnline,padded,session:()=>session,muted:()=>muted,buckets:()=>buckets,flood:()=>flood,setIdentity:x=>{identity=x},room:()=>({base,key}),gate:{setGate,admitWaiting,denyWaiting,removeMember,publishGate,layerKey,openAny,inRoom,gateOn,waiting:()=>waiting,roomKey:()=>roomKey,state:()=>({knockState,gateSeenAt,gateSettled,gateHeard}),hold:()=>{gateSettled=false},settle:()=>{settleGate();publishMember(true)}},auth:{adoptProof,takeOver,adoptPin,cancelHandover,heldSince,age:ms=>{combatGot-=ms;clocksGot-=ms},setDeputy,startHandover,sendHandover,saveGMFile,openGMFile,deputyFp,amDeputy,drives,noteDeputy,publishMember,publishCombat,publishClocks,memberPayload,by:()=>({combatBy,clocksBy,gmSeenAt})}},
 };
 })(window);

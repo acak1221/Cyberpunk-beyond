@@ -1,0 +1,6 @@
+/* Fonts of the «Киберпанк» look, served from this site (fonts/OFL.txt). Latin only: Cyrillic falls back to the system fonts. */
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/rajdhani-600.woff2) format('woff2')}
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:700 800;font-display:swap;src:url(fonts/rajdhani-700.woff2) format('woff2')}
+@font-face{font-family:'Tomorrow';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/tomorrow-400.woff2) format('woff2')}
+@font-face{font-family:'Tomorrow';font-style:normal;font-weight:500 600;font-display:swap;src:url(fonts/tomorrow-500.woff2) format('woff2')}
+@font-face{font-family:'Tomorrow';font-style:normal;font-weight:700 800;font-display:swap;src:url(fonts/tomorrow-700.woff2) format('woff2')}

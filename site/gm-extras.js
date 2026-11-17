@@ -14,7 +14,9 @@ const MAX_CLOCKS=30,MAX_NAME=60,MAX_SHARED=12,LOG_SIZE=6;
 function cleanName(v){return typeof v==='string'?v.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,MAX_NAME):''}
 function cleanClock(c){
  if(!c||typeof c!=='object'||Array.isArray(c))return null;
- const size=Number(c.size);if(!SIZES.includes(size))return null;
+ // A pool of dice (clock-triggers.js) holds 2..12 dice; every other clock keeps the fixed list of sizes.
+ const size=Number(c.size),pool=window.ClockTriggers?.cleanPool?.(c.pool);
+ if(!SIZES.includes(size)&&!(pool&&Number.isInteger(size)&&size>=2&&size<=12))return null;
  const id=typeof c.id==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(c.id)?c.id:null;if(!id)return null;
  const f=Number(c.filled),filled=Number.isFinite(f)?Math.min(size,Math.max(0,Math.trunc(f))):0;
  // Reminders, the die and the combat link (clock-triggers.js) are rebuilt by their own module and merged here, because every
@@ -40,8 +42,11 @@ function sharedClocks(state){return readClocks(state).filter(c=>c.shared).slice(
 let idSeq=0;
 function newId(){return 'clk-'+Date.now().toString(36)+'-'+(idSeq++).toString(36)+Math.floor(Math.random()*1296).toString(36)}
 // Pure clock operations on a sanitized list; each returns {clocks, ok}.
-function addClock(list,name,size,id=newId()){
+function addClock(list,name,size,id=newId(),opts){
  if(list.length>=MAX_CLOCKS)return {clocks:list,ok:false};
+ // opts.pool makes a pool of dice: size is then the number of dice (2..12) and opts.pool the die and the face.
+ const pool=opts&&window.ClockTriggers?.cleanPool?.(opts.pool),n=Math.trunc(Number(size));
+ if(pool){const dice=Number.isFinite(n)?Math.min(12,Math.max(2,n)):6;return {clocks:[...list,cleanClock({id,name:cleanName(name),size:dice,filled:0,shared:false,pool})],ok:true}}
  const s=SIZES.includes(Number(size))?Number(size):6;
  return {clocks:[...list,{id,name:cleanName(name),size:s,filled:0,shared:false}],ok:true};
 }
@@ -228,17 +233,17 @@ function genWeather(season,rng=Math.random,date){
 
 // ---------- UI text ----------
 const T={
- ru:{group:'ИНСТРУМЕНТЫ ВЕДУЩЕГО',clocks:'ЧАСЫ ПРОГРЕССА',clocksSub:'СОХРАНЯЮТСЯ',clocksIntro:'Отмечайте угрозы, погони и долгие планы: сегменты заполняются по ходу игры. Щёлкните сегмент, чтобы заполнить часы до него (повторный щелчок снимает его).',newName:'Название',newPlaceholder:'Напр. «Банда идёт по следу»',segments:'Сегментов',create:'Создать часы',none:'Часов пока нет.',limit:'Достигнут предел — 30 часов.',shared:'Показывать игрокам',reset:'Сбросить',del:'Удалить',confirm:'Точно удалить?',minus:'Убрать сегмент',plus:'Добавить сегмент',seg:'Сегмент',full:'Заполнено!',rename:'Название часов',untitled:'Без названия',
+ ru:{group:'ИНСТРУМЕНТЫ ВЕДУЩЕГО',clocks:'ЧАСЫ ПРОГРЕССА',clocksSub:'СОХРАНЯЮТСЯ',clocksIntro:'Отмечайте угрозы, погони и долгие планы: сегменты заполняются по ходу игры. Щёлкните сегмент, чтобы заполнить часы до него (повторный щелчок снимает его).',newName:'Название',newPlaceholder:'Напр. «Банда идёт по следу»',segments:'Сегментов',create:'Создать часы',none:'Часов пока нет.',kind:'Вид часов',kindSeg:'Сегменты',kindPool:'Пул костей',dice:'Кубиков в пуле',poolDie:'Кость пула',poolCap:'осталось',poolPlus:'Убрать кубик',poolMinus:'Вернуть кубик',poolOf:(l,n)=>`Осталось ${l} из ${n}`,limit:'Достигнут предел — 30 часов.',shared:'Показывать игрокам',reset:'Сбросить',del:'Удалить',confirm:'Точно удалить?',minus:'Убрать сегмент',plus:'Добавить сегмент',seg:'Сегмент',full:'Заполнено!',rename:'Название часов',untitled:'Без названия',
   tables:'СЛУЧАЙНЫЕ ТАБЛИЦЫ',tablesSub:'ОРИГИНАЛЬНЫЕ',tablesIntro:'Быстрые подсказки для импровизации. Таблицы написаны для этого приложения, а не взяты из книги. Последние результаты хранятся на этом устройстве; нужное запишите в журнал кампании.',names:'Имена и клички',one:'1 имя',five:'5 имён',handle:'Кличка',gigs:'Заказы',gig:'Заказ',loot:'Добыча',pockets:'Карманы',stash:'Тайник',oracle:'Оракул «да/нет»',likely:'Вероятность',ask:'Спросить',history:'Последние результаты',book:'Из книги',bookHeadline:'Заголовок новостей',bookVendit:'Вендит',bookBodega:'Бодега',toJournal:'В журнал',journalFor:'Журнал кампании',journalNone:'Чтобы сохранять результаты в журнал, создайте кампанию.',journalDone:name=>`Записано в журнал кампании «${name}».`,journalFail:'Не удалось записать в журнал.',weatherWord:'Погода',empty:'Пока пусто — нажмите любую кнопку.',clear:'Очистить',client:'Заказчик',job:'Работа',where:'Где',twist:'Осложнение',pay:'Оплата',payNote:'на команду, торг уместен',cash:'Наличные',die:'d10',
   weather:'ПОГОДА В НАЙТ-СИТИ',weatherSub:'1D10',weatherIntro:'Погода на сегодняшнюю ночь. Подсказки — лишь идеи для сцены, а не правила.',season:'Сезон',auto:'Авто (по дате)',roll:'Бросить погоду',again:'Бросить ещё',temp:'Температура',earlier:'Раньше'},
- en:{group:'GM TOOLS',clocks:'PROGRESS CLOCKS',clocksSub:'SAVED',clocksIntro:'Track threats, chases and long plans: segments fill as the game goes on. Click a segment to fill the clock up to it (click it again to clear it).',newName:'Name',newPlaceholder:'E.g. "The gang is on our trail"',segments:'Segments',create:'Create clock',none:'No clocks yet.',limit:'Limit reached — 30 clocks.',shared:'Show to players',reset:'Reset',del:'Delete',confirm:'Really delete?',minus:'Remove a segment',plus:'Add a segment',seg:'Segment',full:'Full!',rename:'Clock name',untitled:'Untitled',
+ en:{group:'GM TOOLS',clocks:'PROGRESS CLOCKS',clocksSub:'SAVED',clocksIntro:'Track threats, chases and long plans: segments fill as the game goes on. Click a segment to fill the clock up to it (click it again to clear it).',newName:'Name',newPlaceholder:'E.g. "The gang is on our trail"',segments:'Segments',create:'Create clock',none:'No clocks yet.',kind:'Kind of clock',kindSeg:'Segments',kindPool:'Dice pool',dice:'Dice in the pool',poolDie:'Pool die',poolCap:'left',poolPlus:'Take a die out',poolMinus:'Put a die back',poolOf:(l,n)=>`${l} of ${n} left`,limit:'Limit reached — 30 clocks.',shared:'Show to players',reset:'Reset',del:'Delete',confirm:'Really delete?',minus:'Remove a segment',plus:'Add a segment',seg:'Segment',full:'Full!',rename:'Clock name',untitled:'Untitled',
   tables:'RANDOM TABLES',tablesSub:'ORIGINAL',tablesIntro:'Quick prompts for improvising. These tables were written for this app, not taken from the book. Recent results stay below until the page reloads.',names:'Names & handles',one:'1 name',five:'5 names',handle:'Handle',gigs:'Gigs',gig:'Gig',loot:'Loot',pockets:'Pockets',stash:'Stash',oracle:'Yes/No oracle',likely:'Likelihood',ask:'Ask',history:'Recent results',book:'From the book',bookHeadline:'News headline',bookVendit:'Vendit',bookBodega:'Bodega',toJournal:'To journal',journalFor:'Campaign journal',journalNone:'Create a campaign to keep results in its journal.',journalDone:name=>`Written to the journal of “${name}”.`,journalFail:'Could not write to the journal.',weatherWord:'Weather',empty:'Nothing yet — press any button.',clear:'Clear',client:'Client',job:'Job',where:'Where',twist:'Complication',pay:'Pay',payNote:'per crew, haggling expected',cash:'Cash',die:'d10',
   weather:'NIGHT CITY WEATHER',weatherSub:'1D10',weatherIntro:'Tonight’s weather. Hints are scene ideas, not rules.',season:'Season',auto:'Auto (from date)',roll:'Roll weather',again:'Roll again',temp:'Temperature',earlier:'Earlier'}
 };
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ---------- in-memory UI state ----------
-let log=[],weatherLog=[],ui={size:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};
+let log=[],weatherLog=[],ui={size:6,kind:'segments',dice:6,poolSides:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};
 // Session prep stays on this device between reloads. Anything that no longer renders is dropped on load.
 const PREP_KEY='nc-gm-prep-v1';
 function storePrep(){try{window.localStorage?.setItem(PREP_KEY,JSON.stringify({v:1,log,weatherLog}))}catch(_){}}
@@ -255,7 +260,7 @@ function pushLog(entry){log.unshift(entry);log=log.slice(0,LOG_SIZE);storePrep()
 // A result made by another module (the user's own roll tables). It is taken only if it can be drawn.
 function push(entry){if(!usable(x=>entryHtml(x,'ru',T.ru),entry))return false;pushLog(entry);const r=typeof document!=='undefined'?document.querySelector?.('[data-gx-root]'):null;if(r)rerender(r);return true}
 // Plain text of a result for the campaign journal, made from the same markup the GM sees.
-function plainText(html){return String(html).replace(/<button[^>]*>.*?<\/button>/g,'').replace(/<\/dt>/g,': ').replace(/<\/(dd|li|strong|h4)>/g,'; ').replace(/<\/span>/g,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').replace(/(; )+/g,'; ').replace(/ ;/g,';').replace(/[;:\s]+$/,'').trim()}
+function plainText(html){return String(html).replace(/<button[^>]*>.*?<\/button>/g,'').replace(/<\/dt>/g,': ').replace(/<\/(dd|li|strong|h3|h4)>/g,'; ').replace(/<\/span>/g,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').replace(/(; )+/g,'; ').replace(/ ;/g,';').replace(/[;:\s]+$/,'').trim()}
 function prepCampaigns(){const st=appState();return (Array.isArray(st?.campaigns)?st.campaigns:[]).filter(c=>c&&typeof c.id==='string')}
 function journalTarget(){const list=prepCampaigns();return list.find(c=>c.id===ui.campaign)||list[0]||null}
 function journalPicker(t){const list=prepCampaigns();if(!list.length)return `<p class="gx-note">${esc(t.journalNone)}</p>`;const target=journalTarget();return `<label class="field gx-journal-pick">${esc(t.journalFor)}<select data-gx-field="campaign">${list.map(c=>`<option value="${esc(c.id)}"${c===target?' selected':''}>${esc(c.name||'—')}</option>`).join('')}</select></label>`}
@@ -275,10 +280,11 @@ function clockSvg(c,t){
 function renderClocks(l,t){
  const st=appState(),clocks=readClocks(st);
  let h=`<section class="card gx-card gx-clocks" data-gx-section="clocks"><div class="card-heading"><span>${esc(t.clocks)}</span><span>${esc(t.clocksSub)}</span></div><p class="gx-note">${esc(t.clocksIntro)}</p>`;
- h+=`<div class="gx-new"><label class="field">${esc(t.newName)}<input type="text" maxlength="${MAX_NAME}" data-gx-field="draft" placeholder="${esc(t.newPlaceholder)}" value="${esc(ui.draft)}"></label><label class="field">${esc(t.segments)}<select data-gx-field="size">${SIZES.map(s=>`<option value="${s}"${s===ui.size?' selected':''}>${s}</option>`).join('')}</select></label><button type="button" class="btn primary" data-gx-action="add"${clocks.length>=MAX_CLOCKS?' disabled':''}>+ ${esc(t.create)}</button></div>`;
+ h+=`<div class="gx-new"><label class="field">${esc(t.newName)}<input type="text" maxlength="${MAX_NAME}" data-gx-field="draft" placeholder="${esc(t.newPlaceholder)}" value="${esc(ui.draft)}"></label><label class="field">${esc(t.kind)}<select data-gx-field="kind"><option value="segments"${ui.kind==='segments'?' selected':''}>${esc(t.kindSeg)}</option><option value="pool"${ui.kind==='pool'?' selected':''}>${esc(t.kindPool)}</option></select></label>${ui.kind==='pool'?`<label class="field">${esc(t.dice)}<select data-gx-field="dice">${Array.from({length:11},(_,i)=>i+2).map(n=>`<option value="${n}"${n===ui.dice?' selected':''}>${n}</option>`).join('')}</select></label><label class="field">${esc(t.poolDie)}<select data-gx-field="poolSides">${SIZES.map(s=>`<option value="${s}"${s===ui.poolSides?' selected':''}>d${s}</option>`).join('')}</select></label>`:`<label class="field">${esc(t.segments)}<select data-gx-field="size">${SIZES.map(s=>`<option value="${s}"${s===ui.size?' selected':''}>${s}</option>`).join('')}</select></label>`}<button type="button" class="btn primary" data-gx-action="add"${clocks.length>=MAX_CLOCKS?' disabled':''}>+ ${esc(t.create)}</button></div>`;
+ h+=window.ClockFile?.toolbar?.(l)||'';
  if(clocks.length>=MAX_CLOCKS)h+=`<p class="gx-note">${esc(t.limit)}</p>`;
  if(!clocks.length)h+=`<p class="gx-note" role="status">${esc(t.none)}</p>`;
- else h+=`<div class="gx-clock-grid">${clocks.map(c=>`<div class="gx-clock${c.filled===c.size?' full':''}" data-gx-clock="${esc(c.id)}">${clockSvg(c,t)}<input type="text" class="gx-clock-name" maxlength="${MAX_NAME}" data-gx-field="name" data-gx-id="${esc(c.id)}" value="${esc(c.name)}" placeholder="${esc(t.untitled)}" aria-label="${esc(t.rename)}"><div class="gx-count"><button type="button" class="btn ghost gx-step" data-gx-action="minus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.minus)}">−</button><strong>${c.filled}/${c.size}</strong><button type="button" class="btn ghost gx-step" data-gx-action="plus" data-gx-id="${esc(c.id)}" aria-label="${esc(t.plus)}">+</button></div>${c.filled===c.size?`<p class="gx-full">${esc(t.full)}</p>`:''}${window.ClockTriggers?.cardHTML?.(c,l)||''}<label class="gx-share"><input type="checkbox" data-gx-field="shared" data-gx-id="${esc(c.id)}"${c.shared?' checked':''}> ${esc(t.shared)}</label><div class="gx-clock-actions"><button type="button" class="btn ghost" data-gx-action="reset" data-gx-id="${esc(c.id)}">↺ ${esc(t.reset)}</button><button type="button" class="btn ghost gx-del${ui.armed===c.id?' armed':''}" data-gx-action="del" data-gx-id="${esc(c.id)}">✕ ${esc(ui.armed===c.id?t.confirm:t.del)}</button></div></div>`).join('')}</div>`;
+ else h+=`<div class="gx-clock-grid">${clocks.map(c=>`<div class="gx-clock${c.filled===c.size?' full':''}" data-gx-clock="${esc(c.id)}">${c.pool&&window.ClockTriggers?.poolHTML?window.ClockTriggers.poolHTML(c,l):clockSvg(c,t)}<input type="text" class="gx-clock-name" maxlength="${MAX_NAME}" data-gx-field="name" data-gx-id="${esc(c.id)}" value="${esc(c.name)}" placeholder="${esc(t.untitled)}" aria-label="${esc(t.rename)}"><div class="gx-count"><button type="button" class="btn ghost gx-step" data-gx-action="${c.pool?'plus':'minus'}" data-gx-id="${esc(c.id)}" aria-label="${esc(c.pool?t.poolPlus:t.minus)}">−</button><strong${c.pool?` aria-label="${esc(t.poolOf(c.size-c.filled,c.size))}"`:''}>${c.pool?`${c.size-c.filled}/${c.size}<small class="gx-cap"> ${esc(t.poolCap)}</small>`:`${c.filled}/${c.size}`}</strong><button type="button" class="btn ghost gx-step" data-gx-action="${c.pool?'minus':'plus'}" data-gx-id="${esc(c.id)}" aria-label="${esc(c.pool?t.poolMinus:t.plus)}">+</button></div>${c.filled===c.size?`<p class="gx-full">${esc(t.full)}</p>`:''}${window.ClockTriggers?.cardHTML?.(c,l)||''}<label class="gx-share"><input type="checkbox" data-gx-field="shared" data-gx-id="${esc(c.id)}"${c.shared?' checked':''}> ${esc(t.shared)}</label><div class="gx-clock-actions"><button type="button" class="btn ghost" data-gx-action="reset" data-gx-id="${esc(c.id)}">↺ ${esc(t.reset)}</button><button type="button" class="btn ghost gx-del${ui.armed===c.id?' armed':''}" data-gx-action="del" data-gx-id="${esc(c.id)}">✕ ${esc(ui.armed===c.id?t.confirm:t.del)}</button></div></div>`).join('')}</div>`;
  return h+'</section>';
 }
 function entryHtml(e,l,t){
@@ -293,11 +299,11 @@ function entryHtml(e,l,t){
 function renderTables(l,t){
  const btn=(a,label,extra='')=>`<button type="button" class="btn ghost" data-gx-action="${a}"${extra}>${esc(label)}</button>`;
  let h=`<section class="card gx-card gx-tables" data-gx-section="tables"><div class="card-heading"><span>${esc(t.tables)}</span><span>${esc(t.tablesSub)}</span></div><p class="gx-note">${esc(t.tablesIntro)}</p><div class="gx-table-grid">`;
- h+=`<div class="gx-tool"><h4>${esc(t.names)}</h4><div class="gx-actions">${btn('name1',t.one)}${btn('name5',t.five)}${btn('handle',t.handle)}</div></div>`;
- h+=`<div class="gx-tool"><h4>${esc(t.gigs)}</h4><div class="gx-actions">${btn('gig',t.gig)}</div></div>`;
- h+=`<div class="gx-tool"><h4>${esc(t.loot)}</h4><div class="gx-actions">${btn('loot-pockets',t.pockets)}${btn('loot-stash',t.stash)}</div></div>`;
- h+=`<div class="gx-tool"><h4>${esc(t.oracle)}</h4><label class="field">${esc(t.likely)}<select data-gx-field="likelihood">${LIKELIHOOD.map(x=>`<option value="${x.id}"${x.id===ui.likelihood?' selected':''}>${esc(x[l])}</option>`).join('')}</select></label><div class="gx-actions">${btn('oracle',t.ask)}</div></div>`;
- if(window.BookTables)h+=`<div class="gx-tool"><h4>${esc(t.book)}</h4><div class="gx-actions">${btn('book-headline',t.bookHeadline)}${btn('book-vendit',t.bookVendit)}${btn('book-bodega',t.bookBodega)}</div></div>`;
+ h+=`<div class="gx-tool"><h3>${esc(t.names)}</h3><div class="gx-actions">${btn('name1',t.one)}${btn('name5',t.five)}${btn('handle',t.handle)}</div></div>`;
+ h+=`<div class="gx-tool"><h3>${esc(t.gigs)}</h3><div class="gx-actions">${btn('gig',t.gig)}</div></div>`;
+ h+=`<div class="gx-tool"><h3>${esc(t.loot)}</h3><div class="gx-actions">${btn('loot-pockets',t.pockets)}${btn('loot-stash',t.stash)}</div></div>`;
+ h+=`<div class="gx-tool"><h3>${esc(t.oracle)}</h3><label class="field">${esc(t.likely)}<select data-gx-field="likelihood">${LIKELIHOOD.map(x=>`<option value="${x.id}"${x.id===ui.likelihood?' selected':''}>${esc(x[l])}</option>`).join('')}</select></label><div class="gx-actions">${btn('oracle',t.ask)}</div></div>`;
+ if(window.BookTables)h+=`<div class="gx-tool"><h3>${esc(t.book)}</h3><div class="gx-actions">${btn('book-headline',t.bookHeadline)}${btn('book-vendit',t.bookVendit)}${btn('book-bodega',t.bookBodega)}</div></div>`;
  const canJournal=prepCampaigns().length>0;
  h+=`</div><div class="gx-log-head"><strong>${esc(t.history)}</strong>${log.length?btn('clear-log',t.clear):''}</div>${journalPicker(t)}<div class="gx-log" role="status" aria-live="polite">${log.length?log.map((e,i)=>entryHtml(e,l,t)+(canJournal?`<div class="gx-entry-actions">${btn('journal',t.toJournal,` data-gx-index="${i}"`)}</div>`:'')).join(''):`<p class="gx-note">${esc(t.empty)}</p>`}</div>`;
  return h+'</section>';
@@ -314,7 +320,7 @@ function render(lang){
  // On boot app.js renders the first view before it defines window.App, so saved clocks are not
  // readable yet: re-render this group once the bridge exists.
  if(!appState()&&!lateRender&&typeof setTimeout==='function'&&typeof document!=='undefined'){lateRender=true;setTimeout(()=>{lateRender=false;const r=document.querySelector?.('[data-gx-root]');if(r&&appState())rerender(r)},0)}
- return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p>${renderClocks(l,t)}${renderTables(l,t)}${window.RollTables?.render?.(l)||''}${renderWeather(l,t)}${window.NpcBuilder?.render?.(l)||''}${window.NpcLibrary?.render?.(l)||''}</div>`;
+ return `<div class="gm-extras" data-gx-root data-lang="${l}"><p class="overline gx-group">${esc(t.group)}</p><div data-gm-pane="clocks">${renderClocks(l,t)}</div><div data-gm-pane="tables">${renderTables(l,t)}${window.RollTables?.render?.(l)||''}</div><div data-gm-pane="world">${renderWeather(l,t)}${window.Factions?.render?.(l)||''}${window.Rumors?.render?.(l)||''}</div><div data-gm-pane="npc">${window.NpcBuilder?.render?.(l)||''}${window.NpcLibrary?.render?.(l)||''}</div></div>`;
 }
 
 // ---------- events ----------
@@ -326,11 +332,26 @@ function rerender(root,lang){
  root.outerHTML=render(l);
  if(key&&typeof document!=='undefined'){const [a,id,seg]=key.split('|');const el=[...document.querySelectorAll('[data-gx-root] [data-gx-action],[data-gx-root] [data-gx-field]')].find(e=>(e.dataset.gxAction||e.dataset.gxField)===a&&(e.dataset.gxId||'')===id&&(e.dataset.gxSeg||'')===seg);el?.focus?.()}
 }
+// A roll of these tools goes through GmRolls (open: history and room feed; hidden: only the GM's own list). Without it nothing changes.
+function gxRoll(kind,data,l){
+ try{
+  const R=typeof window!=='undefined'?window.GmRolls:null;if(!R||typeof R.emit!=='function'||!data)return null;
+  const ru=l!=='en';
+  if(kind==='oracle'){const lv=LIKELIHOOD.find(x=>x.id===data.likelihood)||LIKELIHOOD[2];return R.emit(ru?'Оракул да/нет':'Yes/No oracle',`d10 ${data.roll} (${ru?'нужно':'needs'} ≥ ${lv.min}) — ${ANSWERS[data.answer][l]}`,data.roll,[{v:data.roll,s:10}])}
+  if(kind==='weather'){const c=WEATHER[data.condition];return R.emit(ru?'Погода':'Weather',`d10 ${data.roll} — ${c[l]}, ${data.temp[0]}…${data.temp[1]} °C`,data.roll,[{v:data.roll,s:10}])}
+  if(kind==='loot'){const names=data.items.map(i=>L(i.name,l)).join(', ');return R.emit(ru?'Добыча':'Loot',(names?names+'; ':'')+`${data.cash}eb`,data.cash)}
+  if(kind==='book'){const dice=data.table==='headline'?[[data.category,6],[data.who,10],[data.does,10],[data.what,10]]:data.table==='vendit'?[[data.type,6],[data.item,10]]:[[data.owner,6],[data.first,6],[data.second,6]],text=window.BookTables?.text?.(data,l)||'';return R.emit(window.BookTables?.title?.(data,l)||'Book table',text.slice(0,300),dice.reduce((a,x)=>a+x[0],0),dice.map(x=>({v:x[0],s:x[1]})))}
+  if(kind==='gig'){return R.emit(ru?'Заказ (гиг)':'Gig',`${L(data.client,l)} · ${L(data.job,l)}`,Math.round((data.pay.min+data.pay.max)/2))}
+ }catch(_){}
+ return null;
+}
 function act(a,b,root,rng){
  const id=b?.dataset?.gxId;
  if(a!=='del')ui.armed=null;
  switch(a){
-  case 'add':{const name=root.querySelector?.('[data-gx-field="draft"]')?.value??ui.draft;const size=Number(root.querySelector?.('[data-gx-field="size"]')?.value)||ui.size;ui.size=SIZES.includes(size)?size:6;if(mutate(list=>addClock(list,name,ui.size)))ui.draft='';return true}
+  case 'add':{const name=root.querySelector?.('[data-gx-field="draft"]')?.value??ui.draft;const kindV=root.querySelector?.('[data-gx-field="kind"]')?.value;if(kindV==='pool'||kindV==='segments')ui.kind=kindV;
+   if(ui.kind==='pool'){const dice=Number(root.querySelector?.('[data-gx-field="dice"]')?.value)||ui.dice,sd=Number(root.querySelector?.('[data-gx-field="poolSides"]')?.value)||ui.poolSides;ui.dice=Number.isInteger(dice)&&dice>=2&&dice<=12?dice:6;ui.poolSides=SIZES.includes(sd)?sd:6;if(mutate(list=>addClock(list,name,ui.dice,undefined,{pool:{sides:ui.poolSides,face:1}})))ui.draft='';return true}
+   const size=Number(root.querySelector?.('[data-gx-field="size"]')?.value)||ui.size;ui.size=SIZES.includes(size)?size:6;if(mutate(list=>addClock(list,name,ui.size)))ui.draft='';return true}
   case 'seg':return mutate(list=>updateClock(list,id,c=>clickSegment(c,b.dataset.gxSeg)))||true;
   case 'plus':return mutate(list=>updateClock(list,id,c=>step(c,1)))||true;
   case 'minus':return mutate(list=>updateClock(list,id,c=>step(c,-1)))||true;
@@ -339,17 +360,17 @@ function act(a,b,root,rng){
   case 'name1':pushLog({kind:'names',names:[genName(rng)]});return true;
   case 'name5':pushLog({kind:'names',names:Array.from({length:5},()=>genName(rng,false))});return true;
   case 'handle':pushLog({kind:'names',handleOnly:true,names:pickDistinct(HANDLES,3,rng).map(h=>({handle:h}))});return true;
-  case 'gig':pushLog({kind:'gig',gig:genGig(rng)});return true;
-  case 'loot-pockets':pushLog({kind:'loot',loot:genLoot('pockets',rng)});return true;
-  case 'loot-stash':pushLog({kind:'loot',loot:genLoot('stash',rng)});return true;
-  case 'oracle':{const v=root.querySelector?.('[data-gx-field="likelihood"]')?.value;if(LIKELIHOOD.some(x=>x.id===v))ui.likelihood=v;pushLog({kind:'oracle',oracle:oracle(ui.likelihood,rng)});return true}
-  case 'book-headline':pushLog({kind:'book',book:window.BookTables.headline(rng)});return true;
-  case 'book-vendit':pushLog({kind:'book',book:window.BookTables.vendit(rng)});return true;
-  case 'book-bodega':pushLog({kind:'book',book:window.BookTables.bodega(rng)});return true;
+  case 'gig':{const g=genGig(rng);pushLog({kind:'gig',gig:g});gxRoll('gig',g,root?.dataset?.lang);return true}
+  case 'loot-pockets':{const o=genLoot('pockets',rng);pushLog({kind:'loot',loot:o});gxRoll('loot',o,root?.dataset?.lang);return true}
+  case 'loot-stash':{const o=genLoot('stash',rng);pushLog({kind:'loot',loot:o});gxRoll('loot',o,root?.dataset?.lang);return true}
+  case 'oracle':{const v=root.querySelector?.('[data-gx-field="likelihood"]')?.value;if(LIKELIHOOD.some(x=>x.id===v))ui.likelihood=v;const o=oracle(ui.likelihood,rng);pushLog({kind:'oracle',oracle:o});gxRoll('oracle',o,root?.dataset?.lang);return true}
+  case 'book-headline':pushLog({kind:'book',book:window.BookTables.headline(rng)});gxRoll('book',log[0]?.book,root?.dataset?.lang);return true;
+  case 'book-vendit':pushLog({kind:'book',book:window.BookTables.vendit(rng)});gxRoll('book',log[0]?.book,root?.dataset?.lang);return true;
+  case 'book-bodega':pushLog({kind:'book',book:window.BookTables.bodega(rng)});gxRoll('book',log[0]?.book,root?.dataset?.lang);return true;
   case 'journal':{const entry=log[Number(b.dataset.gxIndex)];if(!entry)return true;const l=root.dataset?.lang==='en'?'en':'ru',t=T[l];toJournal(entry.kind==='book'?window.BookTables?.text?.(entry.book,l)||'':plainText(entryHtml(entry,l,t)),t);return true}
   case 'journal-weather':{if(!weatherLog[0])return true;const l=root.dataset?.lang==='en'?'en':'ru',t=T[l];toJournal(t.weatherWord+': '+plainText(weatherHtml(weatherLog[0],l,t,true)),t);return true}
   case 'clear-log':log=[];storePrep();return true;
-  case 'weather':{const v=root.querySelector?.('[data-gx-field="season"]')?.value;if(v==='auto'||SEASONS.some(s=>s.id===v))ui.season=v;weatherLog.unshift(genWeather(ui.season==='auto'?null:ui.season,rng));weatherLog=weatherLog.slice(0,4);storePrep();return true}
+  case 'weather':{const v=root.querySelector?.('[data-gx-field="season"]')?.value;if(v==='auto'||SEASONS.some(s=>s.id===v))ui.season=v;const w=genWeather(ui.season==='auto'?null:ui.season,rng);weatherLog.unshift(w);weatherLog=weatherLog.slice(0,4);storePrep();gxRoll('weather',w,root?.dataset?.lang);return true}
  }
  return !!window.ClockTriggers?.act?.(a,b,root,rng);
 }
@@ -362,6 +383,9 @@ function handle(e,lang,rng=Math.random){
  if(e.type==='change'){
   if(f==='draft')return true;
   if(f==='size'){const s=Number(target.value);if(SIZES.includes(s))ui.size=s;return true}
+  if(f==='kind'){if(target.value==='pool'||target.value==='segments')ui.kind=target.value;rerender(root,lang);return true}
+  if(f==='dice'){const n=Number(target.value);if(Number.isInteger(n)&&n>=2&&n<=12)ui.dice=n;return true}
+  if(f==='poolSides'){const n=Number(target.value);if(SIZES.includes(n))ui.poolSides=n;return true}
   if(f==='campaign'){ui.campaign=String(target.value||'').slice(0,200);return true}
   if(f==='likelihood'){if(LIKELIHOOD.some(x=>x.id===target.value))ui.likelihood=target.value;return true}
   if(f==='season'){if(target.value==='auto'||SEASONS.some(s=>s.id===target.value))ui.season=target.value;return true}
@@ -380,7 +404,7 @@ function handle(e,lang,rng=Math.random){
 }
 // Draws the group again after a change made outside a click on it (an undo button in a notice).
 function refresh(){const r=typeof document!=='undefined'?document.querySelector?.('[data-gx-root]'):null;if(r)rerender(r)}
-function reset(){log=[];weatherLog=[];ui={size:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};storePrep()}
+function reset(){log=[];weatherLog=[];ui={size:6,kind:'segments',dice:6,poolSides:6,likelihood:'even',season:'auto',armed:null,draft:'',campaign:''};storePrep()}
 loadPrep();
 if(typeof document!=='undefined'&&document.addEventListener){for(const type of ['click','change','input','keydown'])document.addEventListener(type,e=>{handle(e)})}
 window.GMExtras={SIZES,MAX_CLOCKS,MAX_NAME,LIKELIHOOD,SEASONS,WEATHER,SEASON_TABLE,FIRST,LAST,HANDLES,CLIENTS,JOBS,PLACES,COMPLICATIONS,FLAVOR,

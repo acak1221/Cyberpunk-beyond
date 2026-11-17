@@ -1,0 +1,12 @@
+/* The generator controls of the architecture list and the empty state of #/net. Theme variables only. */
+.net-gen-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 8px 0; }
+.net-gen-bar .btn { min-height: 44px; }
+.net-gen-field { min-width: 220px; flex: 1 1 220px; }
+.net-gen-field select { min-height: 44px; }
+.net-gen-help { flex: 1 1 100%; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.net-empty { display: grid; gap: 8px; justify-items: start; padding: 20px 16px; border: 1px dashed var(--border); border-radius: 8px; background: var(--panel-2); }
+.net-empty { text-align: left; }
+.net-empty h2 { margin: 0; font-size: 18px; letter-spacing: 0; text-transform: none; color: var(--text); }
+.net-empty p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: left; }
+.net-empty .net-actions .btn { min-height: 44px; }
+@media (max-width: 480px) { .net-gen-field { min-width: 0; flex-basis: 100%; } .net-gen-bar .btn { flex: 1 1 100%; } }

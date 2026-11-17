@@ -1,0 +1,25 @@
+/* Option slots panel in the equipment tool (cyber-slots.js). Colours come from the surrounding text colour, so the panel follows every look and theme. */
+.cs-panel { display:grid; gap:10px; margin-top:6px; min-width:0; overflow-wrap:anywhere; }
+.cs-panel:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+.cs-panel h3 { margin:14px 0 0; font-size:19px; }
+.cs-panel h4 { margin:10px 0 0; font-size:13px; }
+.cs-host { display:grid; gap:8px; padding:12px; background:color-mix(in srgb, currentColor 7%, transparent); border:1px solid color-mix(in srgb, currentColor 28%, transparent); }
+.cs-host.full { border-color:color-mix(in srgb, #c0602a 70%, currentColor 10%); }
+.cs-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:6px 12px; }
+.cs-head strong { font-size:13px; }
+.cs-count { opacity:.8; font-size:12px; }
+.cs-dots { display:flex; gap:5px; flex-wrap:wrap; }
+.cs-dots i { width:14px; height:14px; border:1px solid currentColor; border-radius:2px; background:transparent; opacity:.7; }
+.cs-dots i.on { background:currentColor; opacity:1; }
+.cs-opts { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.cs-opt { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; min-height:44px; padding:4px 8px; background:color-mix(in srgb, currentColor 6%, transparent); border:1px solid color-mix(in srgb, currentColor 20%, transparent); }
+.cs-name { flex:1 1 140px; font-size:13px; }
+.cs-cost-text { opacity:.85; font-size:12px; }
+.cs-empty { margin:0; opacity:.75; font-size:12px; }
+.cs-note { opacity:.9; }
+.cs-warn { font-weight:700; opacity:1; }
+.cs-panel select, .et-root .cs-field select { min-height:44px; min-width:72px; padding:6px 8px; font-size:14px; }
+.cs-panel select:focus-visible, .et-root .cs-field select:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+.et-more.cs-settings > summary { display:flex; align-items:center; min-height:44px; cursor:pointer; }
+.cs-fields { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px 12px; margin:6px 0; }
+.cs-field { display:grid; gap:4px; font-size:12px; font-weight:700; }

@@ -1,14 +1,15 @@
 /* Online rooms: the Game Master changes device (a signed handover, live or through a file) and appoints a co-GM.
    The rule under test everywhere: nothing but a signature of the key a page already trusts moves that trust. */
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const CODE='K7RQM2XAPZ9E';
 // One browser tab with its own module state and its own signing key. Long timers are not allowed to keep node running.
 function loadRoom({auth=true,lang='ru',state}={}){
  const listeners={},store=new Map(),downloads=[],document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,scrollTo(){}};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval:every,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,scrollTo(){}};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval:every,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+(auth?read('room-auth.js')+'\n':'')+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[],app={lang,characters:[],campaigns:[],...(state||{})};
  R.setApp({getState:()=>app,notify:m=>notices.push(m)});
@@ -20,8 +21,8 @@ function loadRoom({auth=true,lang='ru',state}={}){
  const press=async(action,data={})=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action,...data},disabled:false}:null}})};
  return {window,R,A:window.RoomAuth,notices,sent,store,press,app,downloads};
 }
-const settle=(ms=40)=>new Promise(ok=>setTimeout(ok,ms));
-const until=async(f,what='condition')=>{for(let i=0;i<200;i++){if(await f())return;await settle(10)}assert.fail('timed out: '+what)};
+const settle=Idle.settle;
+const until=Idle.until;
 const id=(who,sid='000000a1')=>who.fp+'.'+sid;
 // A tab that is in the room. pin: the Game Master key it trusts (a player), or nothing for the Game Master itself.
 async function tab({role='player',pin='',name='V',state,lang}={}){

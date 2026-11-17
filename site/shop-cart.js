@@ -18,6 +18,8 @@
   const MAX_LINES = 50, MAX_QTY = 50;
   const MODES = ['cash', 'gearBudget', 'fashionBudget'];
   const RICH = Number.MAX_SAFE_INTEGER;
+  // A price typed on a line and the cart-wide percentage are the player's own numbers, not rules: both are clamped.
+  const MAX_PRICE = 100000000, ADJUST_MIN = -100, ADJUST_MAX = 300;
   const fmt = n => (window.Wallet && window.Wallet.format ? window.Wallet.format(n) : String(n));
 
   const S = {
@@ -52,7 +54,10 @@
       receipt: 'Покупка оформлена', bought: 'Куплено', openSheet: name => `Открыть лист: ${name}`, keepShopping: 'Продолжить покупки',
       cleared: 'Корзина очищена.', removed: name => `Убрано из корзины: ${name}`,
       payHere: 'Платить отсюда', setMoney: 'Указать деньги', addMoney: '＋ Добавить деньги',
-      switchTo: (name, n) => `Оплатить из «${name}» (${fmt(n)} eb)`, logNote: names => `Каталог: ${names}`
+      switchTo: (name, n) => `Оплатить из «${name}» (${fmt(n)} eb)`, logNote: names => `Каталог: ${names}`,
+      quality: 'Качество', ownPrice: 'Своя цена за шт., eb', badPrice: 'Своя цена: нужно целое число от 0. Взята цена из каталога.', adjust: 'Скидка или наценка, %',
+      adjustHint: 'Минус — скидка, плюс — наценка. Применяется ко всей корзине.',
+      adjustNote: (pct, list) => `${pct > 0 ? 'Наценка' : 'Скидка'} ${Math.abs(pct)}%: без неё ${fmt(list)} eb`
     },
     en: {
       cash: 'Cash', gearBudget: 'Starting gear', fashionBudget: 'Starting fashion',
@@ -85,7 +90,10 @@
       receipt: 'Purchase complete', bought: 'Bought', openSheet: name => `Open sheet: ${name}`, keepShopping: 'Keep shopping',
       cleared: 'Cart cleared.', removed: name => `Removed from cart: ${name}`,
       payHere: 'Pay from here', setMoney: 'Set money', addMoney: '＋ Add money',
-      switchTo: (name, n) => `Pay from “${name}” (${fmt(n)} eb)`, logNote: names => `Catalog: ${names}`
+      switchTo: (name, n) => `Pay from “${name}” (${fmt(n)} eb)`, logNote: names => `Catalog: ${names}`,
+      quality: 'Quality', ownPrice: 'Own price each, eb', badPrice: 'Own price: a whole number from 0 is needed. The catalog price is used.', adjust: 'Discount or markup, %',
+      adjustHint: 'Minus is a discount, plus is a markup. Applies to the whole cart.',
+      adjustNote: (pct, list) => `${pct > 0 ? 'Markup' : 'Discount'} ${Math.abs(pct)}%: ${fmt(list)} eb without it`
     }
   };
   const L = lang => (lang === 'en' ? 'en' : 'ru');
@@ -99,11 +107,15 @@
   // ---------- 1. Pure cart logic ----------
 
   const emptyCart = () => ({ mode: 'cash', lines: [] });
-  const lineKey = line => [line.itemId, line.ammoType || '', line.skillChipType || ''].join('|');
+  const lineKey = line => [line.itemId, line.ammoType || '', line.skillChipType || ''].join('|') + (line.quality && line.quality !== 'standard' ? '|' + line.quality : '');
   const minQty = item => (item?.priceUnit?.en === 'per room' && Number.isSafeInteger(item?.stats?.minRooms) ? Math.max(1, Math.min(MAX_QTY, item.stats.minRooms)) : 1);
   const clampQty = (n, item) => { n = Math.floor(Number(n)); return Math.max(minQty(item), Math.min(MAX_QTY, Number.isFinite(n) ? n : 1)); };
   const ammoOptions = (item, lang) => (item?.category === 'ammo' ? tools()?.ammoTypeOptions?.(item, lang) || [] : []);
   const chipOptions = (item, lang) => (item?.id === 'cyberware-skill-chip' ? tools()?.skillChipOptions?.(item, lang) || [] : []);
+  // Qualities of a weapon with their prices, from the reference table (weapon-attach.js); [] when the weapon has none.
+  const qualityOptions = (item, lang) => (item?.category === 'weapon' ? window.WeaponAttach?.qualityOptions?.(item, lang) || [] : []);
+  const adjustOf = cart => (Number.isSafeInteger(cart?.adjust) && cart.adjust >= ADJUST_MIN && cart.adjust <= ADJUST_MAX ? cart.adjust : 0);
+  const adjustTotal = (list, pct) => Math.max(0, Math.round(list * (100 + pct) / 100));
 
   // A richly funded, empty stand-in buyer: tells whether an item can be bought at all, funds aside.
   const richStage = (mode, items = 0, weapons = 0) => ({ extra: { [mode]: RICH, items: new Array(items), weapons: new Array(weapons) } });
@@ -121,6 +133,7 @@
     const cart = emptyCart();
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return cart;
     if (MODES.includes(raw.mode)) cart.mode = raw.mode;
+    if (Number.isSafeInteger(raw.adjust) && raw.adjust >= ADJUST_MIN && raw.adjust <= ADJUST_MAX && raw.adjust !== 0) cart.adjust = raw.adjust;
     const seen = new Set();
     for (const entry of Array.isArray(raw.lines) ? raw.lines : []) {
       if (cart.lines.length >= MAX_LINES) break;
@@ -130,13 +143,15 @@
       const line = { itemId: item.id, quantity: clampQty(entry.quantity, item) };
       if (typeof entry.ammoType === 'string' && ammoOptions(item, 'en').some(o => o.value === entry.ammoType)) line.ammoType = entry.ammoType;
       if (typeof entry.skillChipType === 'string' && chipOptions(item, 'en').some(o => o.value === entry.skillChipType)) line.skillChipType = entry.skillChipType;
+      if (typeof entry.quality === 'string' && entry.quality !== 'standard' && qualityOptions(item, 'en').some(o => o.value === entry.quality)) line.quality = entry.quality;
+      if (isMoney(entry.priceOverride) && entry.priceOverride <= MAX_PRICE) line.priceOverride = entry.priceOverride;
       const key = lineKey(line);
       if (seen.has(key)) continue;
       seen.add(key); cart.lines.push(line);
     }
     return cart;
   }
-  const serialize = cart => ({ v: 1, mode: MODES.includes(cart?.mode) ? cart.mode : 'cash', lines: (cart?.lines || []).map(l => ({ itemId: l.itemId, quantity: l.quantity, ...(l.ammoType ? { ammoType: l.ammoType } : {}), ...(l.skillChipType ? { skillChipType: l.skillChipType } : {}) })) });
+  const serialize = cart => ({ v: 1, mode: MODES.includes(cart?.mode) ? cart.mode : 'cash', lines: (cart?.lines || []).map(l => ({ itemId: l.itemId, quantity: l.quantity, ...(l.ammoType ? { ammoType: l.ammoType } : {}), ...(l.skillChipType ? { skillChipType: l.skillChipType } : {}), ...(l.quality ? { quality: l.quality } : {}), ...(isMoney(l.priceOverride) ? { priceOverride: l.priceOverride } : {}) })), ...(adjustOf(cart) ? { adjust: adjustOf(cart) } : {}) });
   function load(storage, catalog) {
     try { const text = storage?.getItem?.(KEY); return sanitize(text ? JSON.parse(text) : null, catalog); } catch { return emptyCart(); }
   }
@@ -156,6 +171,7 @@
     const chipType = options.skillChipType || (chip.length === 1 ? chip[0].value : '');
     if (ammoType && ammo.some(o => o.value === ammoType)) line.ammoType = ammoType;
     if (chipType && chip.some(o => o.value === chipType)) line.skillChipType = chipType;
+    if (options.quality && options.quality !== 'standard' && qualityOptions(item, lang).some(o => o.value === options.quality)) line.quality = options.quality;
     const key = lineKey(line), same = cart.lines.find(l => lineKey(l) === key);
     const needsOption = (ammo.length > 0 && !line.ammoType) || (chip.length > 0 && !line.skillChipType);
     if (same) {
@@ -177,11 +193,18 @@
   function setOption(cart, key, value, catalog) {
     const index = cart.lines.findIndex(l => lineKey(l) === key);
     if (index < 0) return '';
-    const line = cart.lines[index], item = findItem(catalog, line.itemId);
-    delete line.ammoType; delete line.skillChipType;
+    const line = cart.lines[index], item = findItem(catalog, line.itemId), old = { ammoType: line.ammoType, skillChipType: line.skillChipType, quality: line.quality };
+    delete line.ammoType; delete line.skillChipType; delete line.quality;
     if (ammoOptions(item, 'en').some(o => o.value === value)) line.ammoType = value;
     else if (chipOptions(item, 'en').some(o => o.value === value)) line.skillChipType = value;
+    else if (value !== 'standard' && qualityOptions(item, 'en').some(o => o.value === value)) line.quality = value;
     const next = lineKey(line), twin = cart.lines.find((l, i) => i !== index && lineKey(l) === next);
+    // Two lines with different own prices of their own do not merge: one of the prices would be lost without a word.
+    if (twin && twin.priceOverride !== line.priceOverride) {
+      delete line.ammoType; delete line.skillChipType; delete line.quality;
+      for (const k of Object.keys(old)) if (old[k] !== undefined) line[k] = old[k];
+      return lineKey(line);
+    }
     if (twin) { twin.quantity = Math.min(MAX_QTY, twin.quantity + line.quantity); cart.lines.splice(index, 1); }
     return next;
   }
@@ -190,7 +213,23 @@
     if (index < 0) return false;
     cart.lines.splice(index, 1); return true;
   }
-  function clear(cart) { cart.lines.length = 0; }
+  function clear(cart) { cart.lines.length = 0; delete cart.adjust; }
+  // A price of the player's own for one line (per unit); '' or anything unusable takes it back. False: no such line.
+  const priceUsable = value => { const n = typeof value === 'string' && value.trim() === '' ? NaN : Number(value); return Number.isFinite(n) && Math.floor(n) === n && n >= 0 && n <= MAX_PRICE; };
+  function setPrice(cart, key, value) {
+    const line = cart.lines.find(l => lineKey(l) === key);
+    if (!line) return false;
+    const n = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+    if (Number.isFinite(n) && Math.floor(n) === n && n >= 0 && n <= MAX_PRICE) line.priceOverride = n; else delete line.priceOverride;
+    return true;
+  }
+  // The cart-wide percentage: whole numbers from ADJUST_MIN to ADJUST_MAX; 0 (or nonsense) means none.
+  function setAdjust(cart, value) {
+    const n = typeof value === 'string' && value.trim() === '' ? 0 : Math.round(Number(value));
+    const pct = Number.isFinite(n) ? Math.max(ADJUST_MIN, Math.min(ADJUST_MAX, n)) : 0;
+    if (pct) cart.adjust = pct; else delete cart.adjust;
+    return true;
+  }
   function setMode(cart, mode) { if (!MODES.includes(mode)) return false; cart.mode = mode; return true; }
 
   // The three budgets of a character; null where the sheet holds no usable number.
@@ -207,11 +246,11 @@
     const x = c && c.extra && typeof c.extra === 'object' && !Array.isArray(c.extra) ? c.extra : null;
     const funds = x ? x[mode] : undefined, fundsOk = isMoney(funds);
     let items = Array.isArray(x?.items) ? x.items.length : 0, weapons = Array.isArray(x?.weapons) ? x.weapons.length : 0;
-    let total = 0, count = 0;
-    const blockers = [];
+    let total = 0, count = 0, listSum = 0;
+    const adjust = adjustOf(cart), blockers = [];
     const lines = (cart?.lines || []).map(line => {
       const key = lineKey(line), item = findItem(catalog, line.itemId);
-      const out = { key, itemId: line.itemId, item, name: itemName(item || { id: line.itemId }, lang), quantity: line.quantity, ammoType: line.ammoType || '', skillChipType: line.skillChipType || '', ok: false, reason: '', message: '', unitPrice: null, total: null, notes: [] };
+      const out = { key, itemId: line.itemId, item, name: itemName(item || { id: line.itemId }, lang), quantity: line.quantity, ammoType: line.ammoType || '', skillChipType: line.skillChipType || '', ok: false, reason: '', message: '', unitPrice: null, total: null, notes: [], quality: line.quality || '', priceOverride: isMoney(line.priceOverride) ? line.priceOverride : null, adjust };
       count += line.quantity;
       if (!item) { out.reason = 'gone'; out.message = t(lang, 'gone'); return out; }
       const q = ET?.quote ? ET.quote(richStage(mode, items, weapons), item, mode, lang, { quantity: line.quantity, ammoType: line.ammoType || undefined, skillChipType: line.skillChipType || undefined }) : { ok: false, reason: 'purchaseFail', message: t(lang, 'failed') };
@@ -220,7 +259,14 @@
         if (isMoney(item.price) && !['ammoManual', 'ammoUnsupported', 'skillChipManual', 'skillChipUnsupported'].includes(q.reason)) out.unitPrice = item.price;
         return out;
       }
-      out.unitPrice = q.unitPrice; out.total = q.total; total += q.total;
+      // The price of one unit: the catalog price, or the price of the chosen quality (the reference table), or the player's own.
+      let unit = q.unitPrice;
+      const qopt = line.quality ? qualityOptions(item, lang).find(o => o.value === line.quality) : null;
+      if (qopt) { unit = qopt.price; out.variant = qopt.label; } else out.quality = '';
+      out.listPrice = unit;
+      if (isMoney(line.priceOverride)) unit = line.priceOverride; else out.priceOverride = null;
+      out.baseTotal = q.total; out.listTotal = unit * q.quantity;
+      out.unitPrice = unit; out.total = adjustTotal(out.listTotal, adjust); total += out.total; listSum += out.listTotal;
       if (item.category === 'weapon' && item.stats?.damage && item.stats?.skill) weapons += q.quantity; else items += 1;
       if (q.ammoLabel) { out.variant = q.ammoLabel; out.ammoCount = q.ammoCount; out.notes.push(t(lang, 'ammoNote', q.ammoLabel, q.ammoCount)); }
       if (q.skillChipLabel) { out.variant = q.skillChipLabel; out.notes.push(t(lang, 'chipNote')); }
@@ -239,9 +285,9 @@
     // One sentence for the whole cart: a broken line is named; a shortage is given as the full missing sum.
     if (bad) blockers.push({ reason: bad.reason, message: bad.reason === 'noFunds' ? t(lang, 'shortBy', -remaining) : bad.name + ': ' + bad.message, key: bad.key });
     return {
-      ok: !blockers.length, mode, buyerId: c?.id ?? null, available: fundsOk ? funds : null, total, remaining, count, priced, lines, blockers,
+      ok: !blockers.length, mode, buyerId: c?.id ?? null, available: fundsOk ? funds : null, total, adjust, listTotal: listSum, remaining, count, priced, lines, blockers,
       // What the buyer was shown. Checkout refuses to pay if a fresh plan no longer matches it.
-      signature: JSON.stringify([c?.id ?? null, mode, fundsOk ? funds : null, total, lines.map(l => [l.key, l.quantity, l.unitPrice, l.total, l.ok])])
+      signature: JSON.stringify([c?.id ?? null, mode, fundsOk ? funds : null, total, lines.map(l => [l.key, l.quantity, l.unitPrice, l.total, l.ok]), adjust])
     };
   }
 
@@ -266,6 +312,19 @@
     return m !== cart.mode && covers(c, cart, catalog, m) ? m : '';
   }
 
+  // The records a line made: the chosen quality goes onto a weapon, and a price that is not the catalog price is what the record remembers.
+  function settleRecords(stage, made, line, expected) {
+    for (const m of made || []) {
+      const kind = m.kind === 'weapon' ? 'weapons' : 'items', rec = (Array.isArray(stage.extra[kind]) ? stage.extra[kind] : []).find(r => r && r.id === m.id);
+      if (!rec) continue;
+      if (kind === 'weapons' && expected.quality) rec.quality = expected.quality;
+      const p = rec.purchase;
+      if (!p || typeof p !== 'object') continue;
+      if (expected.quality) p.quality = expected.quality;
+      if (expected.total !== expected.baseTotal) { const each = Math.round(expected.total / Math.max(1, line.quantity)); p.unitPrice = each; p.total = kind === 'items' ? expected.total : each; }
+    }
+  }
+
   // Buys the whole cart or nothing. Everything is staged on a copy of `extra`; the character is changed
   // by one assignment at the very end, after every line and the final sum have been checked again.
   function checkout(c, cart, catalog, lang, options = {}) {
@@ -280,16 +339,22 @@
     // The copy keeps the rest of the character (stats above all): defaults such as the current LUCK are derived from it.
     try { stage = { ...c, extra: JSON.parse(JSON.stringify(c.extra)) }; } catch { return fail('purchaseFail'); }
     const created = [], bought = [];
+    // The lines are priced by the plan, not by the purchase: the staged money is only a stand-in and is settled once, below.
+    let baseSum = 0;
+    stage.extra[fresh.mode] = RICH;
     for (let i = 0; i < cart.lines.length; i++) {
       const line = cart.lines[i], expected = fresh.lines[i];
       let r;
       try { r = ET.purchase(stage, expected.item, fresh.mode, lang, { quantity: line.quantity, ammoType: line.ammoType || undefined, skillChipType: line.skillChipType || undefined, confirmed: true }); } catch { r = null; }
       if (!r?.ok) return fail(r?.reason || 'purchaseFail', expected.name + ': ' + (r?.message || t(lang, 'failed')), expected.key);
-      if (r.quote.total !== expected.total) return fail('stale', t(lang, 'stale'), expected.key);
+      if (r.quote.total !== expected.baseTotal) return fail('stale', t(lang, 'stale'), expected.key);
+      baseSum += r.quote.total;
+      settleRecords(stage, r.created, line, expected);
       created.push(...r.created);
       bought.push({ key: expected.key, itemId: expected.itemId, name: expected.name, variant: expected.variant || '', quantity: line.quantity, total: expected.total });
     }
-    if (stage.extra[fresh.mode] !== fresh.remaining) return fail('stale', t(lang, 'stale'));
+    if (stage.extra[fresh.mode] !== RICH - baseSum) return fail('stale', t(lang, 'stale'));
+    stage.extra[fresh.mode] = fresh.remaining;
     // Cash spent in the shop goes into the wallet ledger, so the sheet can show where the money went.
     if (fresh.mode === 'cash' && fresh.total > 0 && window.Wallet?.spend) {
       const logged = window.Wallet.spend({ extra: { ...stage.extra, cash: fresh.available } }, fresh.total, t(lang, 'logNote', bought.map(x => x.name + (x.quantity > 1 ? ' ×' + x.quantity : '')).join(', ')));
@@ -324,13 +389,16 @@
   const isPiece = item => item?.category === 'armor' && item.id !== 'armor-bodyweight-suit' && Number.isSafeInteger(item.stats?.sp);
   function lineHTML(lang, l) {
     const name = esc(l.name), key = esc(l.key), item = l.item;
-    const ammo = ammoOptions(item, lang), chip = chipOptions(item, lang), opts = ammo.length ? ammo : chip, chosen = l.ammoType || l.skillChipType;
-    const optionLabel = t(lang, ammo.length ? 'ammoType' : 'chipType');
-    const select = opts.length ? `<label class="shop-line-option"><span>${esc(optionLabel)}</span><select data-cart-option="${key}" aria-label="${esc(optionLabel)}: ${name}"${chosen ? '' : ' aria-invalid="true"'}><option value="">${esc(t(lang, 'chooseType'))}</option>${opts.map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}${o.price ? ' · ' + fmt(o.price) + ' eb' : ''}</option>`).join('')}</select></label>` : '';
+    const ammo = ammoOptions(item, lang), chip = chipOptions(item, lang), qual = qualityOptions(item, lang), opts = ammo.length ? ammo : chip.length ? chip : qual;
+    const chosen = l.ammoType || l.skillChipType || (qual.length ? l.quality || 'standard' : '');
+    const optionLabel = t(lang, ammo.length ? 'ammoType' : chip.length ? 'chipType' : 'quality');
+    const select = opts.length ? `<label class="shop-line-option"><span>${esc(optionLabel)}</span><select data-cart-option="${key}" aria-label="${esc(optionLabel)}: ${name}"${chosen ? '' : ' aria-invalid="true"'}>${qual.length && !ammo.length && !chip.length ? '' : `<option value="">${esc(t(lang, 'chooseType'))}</option>`}${opts.map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}${o.price ? ' · ' + fmt(o.price) + ' eb' : ''}</option>`).join('')}</select></label>` : '';
     const rooms = item?.priceUnit?.en === 'per room', unit = item?.priceUnit?.[L(lang)];
-    const price = l.unitPrice == null ? '' : `<span class="shop-line-price">${fmt(l.unitPrice)} eb${unit ? ' / ' + esc(unit) : ''} × ${l.quantity}${l.total != null ? ` = <b>${fmt(l.total)} eb</b>` : ''}</span>`;
+    const adj = l.total != null && l.listTotal != null && l.total !== l.listTotal ? ` <small>(${esc((l.adjust > 0 ? '+' : '−') + Math.abs(l.adjust) + '%')})</small>` : '';
+    const own = l.listPrice == null ? '' : `<label class="shop-line-option shop-line-own"><span>${esc(t(lang, 'ownPrice'))}</span><input type="number" inputmode="numeric" min="0" max="${MAX_PRICE}" step="1" data-cart-price="${key}" value="${l.priceOverride == null ? '' : l.priceOverride}" placeholder="${l.listPrice}" aria-label="${esc(t(lang, 'ownPrice'))}: ${name}"></label>`;
+    const price = l.unitPrice == null ? '' : `<span class="shop-line-price">${fmt(l.unitPrice)} eb${unit ? ' / ' + esc(unit) : ''} × ${l.quantity}${l.total != null ? ` = <b>${fmt(l.total)} eb</b>${adj}` : ''}</span>`;
     const qtyLabel = t(lang, rooms ? 'rooms' : 'qty');
-    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${isPiece(item) ? `<p class="shop-line-note" data-armor-note>${esc(t(lang, 'oneLocation'))}</p>` : ''}${select}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
+    return `<li class="shop-line${l.ok ? '' : ' is-bad'}" data-cart-line="${key}"><div class="shop-line-head"><strong>${name}</strong>${price}</div>${isPiece(item) ? `<p class="shop-line-note" data-armor-note>${esc(t(lang, 'oneLocation'))}</p>` : ''}${select}${own}<div class="shop-line-ctl"><span class="shop-step" role="group" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-dec" data-key="${key}" aria-label="${esc(t(lang, 'less'))}: ${name}"${l.quantity <= minQty(item) ? ' disabled' : ''}>−</button><input type="number" inputmode="numeric" min="${minQty(item)}" max="${MAX_QTY}" value="${l.quantity}" data-cart-qty="${key}" aria-label="${esc(qtyLabel)}: ${name}"><button type="button" class="btn ghost" data-action="cart-inc" data-key="${key}" aria-label="${esc(t(lang, 'more'))}: ${name}"${l.quantity >= MAX_QTY ? ' disabled' : ''}>+</button></span><button type="button" class="btn ghost shop-remove" data-action="cart-remove" data-key="${key}" aria-label="${esc(t(lang, 'remove'))}: ${name}">${esc(t(lang, 'remove'))}</button></div>${l.notes.map(n => `<p class="shop-line-note">${esc(n)}</p>`).join('')}${l.ok ? '' : `<p class="shop-line-error">${esc(l.message)}</p>`}</li>`;
   }
   function modeHTML(lang, c, p) {
     const b = budgets(c);
@@ -338,7 +406,9 @@
   }
   function totalsHTML(lang, p) {
     const left = p.remaining == null ? '' : `<span>${esc(t(lang, 'was'))}: <b>${fmt(p.available)} eb</b></span><span class="${p.remaining < 0 ? 'is-short' : ''}">${esc(t(lang, p.remaining < 0 ? 'short' : 'remains'))}: <b>${fmt(Math.abs(p.remaining))} eb</b></span>`;
-    return `<p class="shop-total"><span>${esc(t(lang, 'total'))}: <b>${fmt(p.total)} eb</b></span>${left}</p>`;
+    const note = p.adjust ? `<span class="shop-adjust-note" data-adjust-note>${esc(t(lang, 'adjustNote', p.adjust, p.listTotal))}</span>` : '';
+    const field = `<label class="field shop-adjust"><span>${esc(t(lang, 'adjust'))}</span><input type="number" inputmode="numeric" min="${ADJUST_MIN}" max="${ADJUST_MAX}" step="1" value="${p.adjust || 0}" data-cart-adjust aria-describedby="shop-adjust-hint"><small id="shop-adjust-hint">${esc(t(lang, 'adjustHint'))}</small></label>`;
+    return `<p class="shop-total"><span>${esc(t(lang, 'total'))}: <b>${fmt(p.total)} eb</b></span>${note}${left}</p>${field}`;
   }
 
   // Inner HTML of the cart panel: the receipt of the last purchase, the review step, or the editable cart.
@@ -351,7 +421,7 @@
     }
     if (!p.lines.length) return head(t(lang, 'cart')) + `<p class="shop-empty">${esc(t(lang, 'emptyHelp'))}</p>` + modeHTML(lang, c, p);
     if (view.review && p.ok) {
-      return head(t(lang, 'review')) + `<p class="shop-review-buyer">${esc(t(lang, 'reviewFor'))}: <b>${esc(buyerName)}</b></p><ol class="shop-review-list">${p.lines.map(l => `<li><span>${esc(l.name)}${l.variant ? ' · ' + esc(l.variant) : ''} × ${l.quantity}${l.notes.map(n => `<small>${esc(n)}</small>`).join('')}</span><b>${fmt(l.total)} eb</b></li>`).join('')}</ol><p class="shop-pay">${esc(t(lang, 'paySummary', p.total, t(lang, p.mode), p.available, p.remaining))}</p><p class="shop-line-note">${esc(t(lang, 'reviewNote'))}</p><div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-back">${esc(t(lang, 'back'))}</button><button type="button" class="btn primary" data-action="cart-pay">${esc(t(lang, 'pay', p.total))}</button></div>`;
+      return head(t(lang, 'review')) + `<p class="shop-review-buyer">${esc(t(lang, 'reviewFor'))}: <b>${esc(buyerName)}</b></p><ol class="shop-review-list">${p.lines.map(l => `<li><span>${esc(l.name)}${l.variant ? ' · ' + esc(l.variant) : ''} × ${l.quantity}${l.notes.map(n => `<small>${esc(n)}</small>`).join('')}</span><b>${fmt(l.total)} eb</b></li>`).join('')}</ol><p class="shop-pay">${esc(t(lang, 'paySummary', p.total, t(lang, p.mode), p.available, p.remaining))}</p>${p.adjust ? `<p class="shop-line-note">${esc(t(lang, 'adjustNote', p.adjust, p.listTotal))}</p>` : ''}<p class="shop-line-note">${esc(t(lang, 'reviewNote'))}</p><div class="shop-actions"><button type="button" class="btn ghost" data-action="cart-back">${esc(t(lang, 'back'))}</button><button type="button" class="btn primary" data-action="cart-pay">${esc(t(lang, 'pay', p.total))}</button></div>`;
     }
     const offer = view.alt && c ? `<button type="button" class="btn primary shop-switch" data-action="cart-mode" data-mode="${esc(view.alt)}">${esc(t(lang, 'switchTo', t(lang, view.alt), budgets(c)[view.alt]))}</button>` : '';
     const blocker = p.blockers[0] ? `<p class="shop-blocker" id="shop-blocker">${esc(t(lang, 'blocked'))}: ${esc(p.blockers[0].message)}</p>${offer}` : '';
@@ -379,6 +449,8 @@
     let seen = raw();
     const cart = load(storage, host.catalog());
     let open = false, review = null, receipt = null;
+    // Makes the live cart the same as another one (a parked cart, or what another tab stored).
+    function take(src) { cart.mode = src.mode; cart.lines.splice(0, cart.lines.length, ...src.lines); if (src.adjust) cart.adjust = src.adjust; else delete cart.adjust; }
     // shown: the panel was open at the last paint. pressing: a pointer is down. pending: the panel is waiting to be rebuilt.
     let shown = false, pressing = false, pending = false;
     const $ = sel => doc?.querySelector?.(sel) || null;
@@ -399,7 +471,7 @@
       const next = all[c.id] ? sanitize(all[c.id], host.catalog()) : emptyCart();
       delete all[c.id];
       const moved = !!(cart.lines.length || next.lines.length);
-      cart.mode = next.mode; cart.lines.splice(0, cart.lines.length, ...next.lines);
+      take(next);
       review = null; receipt = null; owner = c.id;
       put(PARK_KEY, Object.keys(all).length ? JSON.stringify(all) : null); put(OWNER_KEY, owner);
       persist();
@@ -427,7 +499,7 @@
       if (now === seen) return false;
       seen = now;
       const fresh = load(storage, host.catalog());
-      cart.mode = fresh.mode; cart.lines.splice(0, cart.lines.length, ...fresh.lines);
+      take(fresh);
       review = null;
       return true;
     }
@@ -440,6 +512,8 @@
       if (el.id) return '#' + el.id;
       if (d.cartQty !== undefined) return `[data-cart-qty="${attr(d.cartQty)}"]`;
       if (d.cartOption !== undefined) return `[data-cart-option="${attr(d.cartOption)}"]`;
+      if (d.cartPrice !== undefined) return `[data-cart-price="${attr(d.cartPrice)}"]`;
+      if (d.cartAdjust !== undefined) return '[data-cart-adjust]';
       if (d.action) return `[data-action="${d.action}"]` + (d.key !== undefined ? `[data-key="${attr(d.key)}"]` : '');
       return '';
     }
@@ -538,7 +612,7 @@
         const lang = host.lang(), key = button?.dataset?.key, catalog = host.catalog();
         if (sync()) paint({ keep: true });
         if (action === 'cart-add' || action === 'cart-add-set') {
-          const pair = action === 'cart-add-set', item = findItem(catalog, button?.dataset?.id), r = add(cart, item, lang, pair ? { quantity: 2 } : {});
+          const pair = action === 'cart-add-set', item = findItem(catalog, button?.dataset?.id), chosen = !pair && typeof button?.closest === 'function' ? button.closest('.catalog-card')?.querySelector?.('[data-catalog-quality]')?.value : '', r = add(cart, item, lang, pair ? { quantity: 2 } : chosen ? { quality: chosen } : {});
           if (!r.ok) { host.notify(r.message); return true; }
           review = null; receipt = null; persist();
           if (r.needsOption) { open = true; paint(); host.notify(t(lang, 'needOption')); focus(`[data-cart-option="${attr(r.key)}"]`); }
@@ -576,6 +650,8 @@
         if (sync()) paint({ keep: true });
         // No forced focus here: the change usually fires because the keyboard or the pointer is leaving the field.
         if (data.cartQty !== undefined) { if (setQuantity(cart, data.cartQty, el.value, catalog)) { review = null; receipt = null; persist(); paint({ barOnly: true }); soon(); } return true; }
+        if (data.cartPrice !== undefined) { const bad = String(el.value ?? '').trim() !== '' && !priceUsable(el.value); el.setAttribute?.('aria-invalid', bad ? 'true' : 'false'); if (bad) window.App?.notify?.(t(window.App?.lang?.() === 'en' ? 'en' : 'ru', 'badPrice')); if (setPrice(cart, data.cartPrice, el.value)) { review = null; receipt = null; persist(); paint({ barOnly: true }); soon(); } return true; }
+        if (data.cartAdjust !== undefined) { setAdjust(cart, el.value); review = null; receipt = null; persist(); paint({ barOnly: true }); soon(); return true; }
         if (data.cartOption !== undefined) { const next = setOption(cart, data.cartOption, el.value, catalog); if (next) edited(`[data-cart-option="${attr(next)}"]`) ; return true; }
         return false;
       },
@@ -592,6 +668,8 @@
     doc?.addEventListener?.('keydown', event => { if (event?.key === 'Tab') measure(); if (api.key(event)) event.preventDefault?.(); });
     for (const type of ['pointerdown', 'mousedown']) doc?.addEventListener?.(type, () => { pressing = true; }, true);
     for (const type of ['pointerup', 'pointercancel', 'mouseup']) doc?.addEventListener?.(type, () => { pressing = false; if (pending) later(flush); }, true);
+    // The price field and the percentage are not routed by app.js: they listen here.
+    doc?.addEventListener?.('change', event => { const d = event?.target?.dataset; if (d && (d.cartPrice !== undefined || d.cartAdjust !== undefined)) api.field(event.target); });
     // Runs after the app's own click handler, so an action pressed right after typing sees the panel it was pressed in.
     doc?.addEventListener?.('click', () => { pressing = false; flush(); });
     // The wallet (money.js) changed somebody's money while the shop is on screen.
@@ -601,5 +679,5 @@
     return api;
   }
 
-  window.ShopCart = { isPiece, KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
+  window.ShopCart = { isPiece, KEY, MAX_LINES, MAX_QTY, MODES, text: t, emptyCart, lineKey, buyable, refusal, sanitize, serialize, load, store, add, setQuantity, setOption, setPrice, priceUsable, setAdjust, qualityOptions, MAX_PRICE, ADJUST_MIN, ADJUST_MAX, remove, clear, setMode, budgets, covers, pickMode, alternative, plan, checkout, moneyHTML, panelHTML, shellHTML, toggleText, controller };
 })();

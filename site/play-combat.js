@@ -3,6 +3,8 @@
    Nothing here changes a character by itself: the app calls in, gets a plan and saves the way it always does. */
 (function(global){
 'use strict';
+const RAND=()=>(typeof window!=='undefined'&&window.Rolls?window.Rolls.rand:Math.random)();
+const rdie=n=>{const v=typeof window!=='undefined'?window.Rolls?.d?.(n):null;return Number.isInteger(v)?v:1+Math.floor(RAND()*n)};
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 const int=(v,lo,hi)=>Math.max(lo,Math.min(hi,Math.trunc(num(v))));
 
@@ -305,7 +307,7 @@ function loadedLine(w,l){let n='';try{n=global.ReloadTools?.loadedName?.(w,l)||'
    knew nothing about the character. Here they are rolls of the sheet: the same STAT after armor, wounds, effects, the
    modifier and LUCK set for the next roll, and the magazine or the inventory pays for them. */
 const sign=n=>(n<0?'−':'+')+Math.abs(n);
-const d6=()=>1+Math.floor(Math.random()*6);
+const d6=()=>rdie(6);
 const key=(c,w)=>`${c?.id}|${w?.id}`;
 const aims=new Map(),last=new Map(),AIMS=['head','item','leg'],MULT={smg:3,assault:4};
 const weaponOf=(c,id)=>(Array.isArray(c?.extra?.weapons)?c.extra.weapons:[]).find(z=>z&&typeof z==='object'&&z.id===id)||null;

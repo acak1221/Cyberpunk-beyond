@@ -21,7 +21,7 @@ function load({board=true,phone=false,character=null,app={},extra={}}={}){
  const window={document:doc,localStorage:{getItem:k=>stored[k]??null,setItem(k,v){stored[k]=v}},matchMedia:()=>({matches:phone}),setTimeout:()=>0,clearTimeout(){},
   SkillReference:{SKILLS:[['Handgun','ranged','REF',1,1,'Пистолеты','Стрельба из пистолетов.','Shooting handguns.'],['Perception','awareness','INT',1,1,'Восприятие','Заметить скрытое.','Notice hidden things.']]},
   App:{active:()=>character,lang:()=>doc.documentElement.lang,check:(base,label)=>checks.push([base,label]),...app},...extra};
- vm.runInNewContext(source('effects.js'),{window,globalThis:{window}});
+ vm.runInNewContext(source('crit-injuries.js'),{window,globalThis:{window}});vm.runInNewContext(source('effects.js'),{window,globalThis:{window}});
  vm.runInNewContext(source('dossier-panel.js'),{window});
  const opener=(kind,key)=>{const el=element();el.doc=doc;doc.found[`[data-dossier="${kind}"][data-dossier-key="${key}"]`]=el;return el};
  const target=selector=>{const el=element();el.click=()=>clicked.push(selector);doc.found['.sheet-layout '+selector]=el;return el};

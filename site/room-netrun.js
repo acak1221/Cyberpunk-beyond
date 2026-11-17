@@ -50,7 +50,8 @@ const T={
   rvFloor:'Этаж виден игроку',rvAuto:'по ходу прохода',rvShow:'показан',rvHide:'скрыт',rvEntry:'Для нетраннера',rvShown:'Показать запись игроку',rvLabel:'Подпись для игрока',rvLabelPh:'Что игрок видит вместо названия',rvDv:'Показывать DV игроку',
   incoming:'Бросок нетраннера',vsDv:(t,dv)=>`${t} против DV ${dv}: ${t>dv?'выше DV':'не выше DV'}`,noDv:t=>`${t} (у записи нет DV)`,ok:'Получилось',no:'Не получилось',
   rollSaid:(who,ab,t)=>`${who}: ${ab} → ${t}`,propose:'Предложить нетраннеру',proposeRez:n=>`Отправить игроку: REZ −${n}`,proposeNet:'Отправить игроку: −1 NET-действие',proposed:'Предложение отправлено.',propNoShare:'Сначала покажите забег игроку.',
-  pickProg:'Программа игрока',anyProg:'Не выбрана'},
+  pickProg:'Программа игрока',anyProg:'Не выбрана',
+  inboxTitle:n=>`Броски нетраннера: ${n}`,inboxLabel:'Броски нетраннера, ожидающие ответа',inboxOpen:'Открыть NET',inboxDrop:'Убрать',inboxDropAria:'Убрать бросок без ответа',inboxGone:'Этаж или запись больше не существуют: бросок убран.',inboxDone:'Ответ записан.',inboxUndone:'Ответ отменён.',inboxUndo:'Отменить',inboxWhere:(pos,d)=>`цель ${pos}, этаж ${d}`},
  en:{title:'ARCHITECTURE',gmTitle:'SHOW TO THE NETRUNNER',untitled:'Architecture',unknown:'unknown',target:n=>`Target ${n}`,floor:n=>`Floor ${n}`,onFloor:(n,d)=>`target ${n} on floor ${d}`,
   kinds:{password:'Password',file:'File',control:'Control node',ice:'Black ICE',other:'Other'},states:{o:'open',c:'closed',d:'Derezzed'},dv:'DV',
   path:'Path',here:'you are here',pickTarget:'Pick a target, then an ability. The roll carries no DV: the Game Master sees the result and says whether it worked.',
@@ -68,7 +69,8 @@ const T={
   rvFloor:'Floor visible to the player',rvAuto:'as the run goes',rvShow:'shown',rvHide:'hidden',rvEntry:'For the netrunner',rvShown:'Show this record to the player',rvLabel:'Label for the player',rvLabelPh:'What the player sees instead of the name',rvDv:'Show the DV to the player',
   incoming:'Netrunner roll',vsDv:(t,dv)=>`${t} against DV ${dv}: ${t>dv?'above the DV':'not above the DV'}`,noDv:t=>`${t} (the record has no DV)`,ok:'It worked',no:'It did not work',
   rollSaid:(who,ab,t)=>`${who}: ${ab} → ${t}`,propose:'Propose to the netrunner',proposeRez:n=>`Send to the player: REZ −${n}`,proposeNet:'Send to the player: −1 NET Action',proposed:'Proposal sent.',propNoShare:'Show the run to the player first.',
-  pickProg:'Program of the player',anyProg:'Not chosen'}
+  pickProg:'Program of the player',anyProg:'Not chosen',
+  inboxTitle:n=>`Netrunner rolls: ${n}`,inboxLabel:'Netrunner rolls waiting for an answer',inboxOpen:'Open NET',inboxDrop:'Dismiss',inboxDropAria:'Dismiss the roll without an answer',inboxGone:'The floor or the record no longer exists: the roll was removed.',inboxDone:'Answer saved.',inboxUndone:'Answer undone.',inboxUndo:'Undo',inboxWhere:(pos,d)=>`target ${pos}, floor ${d}`}
 };
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const obj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
@@ -184,10 +186,38 @@ const catName=(id,l)=>{const p=catalogProgram(id);return p&&obj(p)?String(p.name
 /* ---------- The Game Master's side ---------- */
 let share=null,chain=Promise.resolve(),roomKey='',timer=null,draft={fp:'',title:''},preview=false;
 const inbox=[],seenRolls=new Set();
+/* The inbox of the runner's rolls is kept for the session (sessionStorage, this tab only, never sent anywhere): a reload of the page, a move
+   of the runner to another floor or leaving #/net does not lose a roll that still waits for an answer. It belongs to one room and is dropped
+   when the Game Master leaves the room (forget) or enters a different one. Everything read back is rebuilt field by field. */
+const INBOX_KEY='nc-netrun-inbox';
+const inboxStore=()=>{try{return global.sessionStorage||null}catch{return null}};
+function persist(){
+ try{const s=inboxStore();if(!s)return;if(!roomKey||!inbox.length){s.removeItem(INBOX_KEY);return}
+  s.setItem(INBOX_KEY,JSON.stringify({v:1,room:roomKey,items:inbox.slice(-MAX_INBOX),seen:[...seenRolls].slice(-200)}))}catch{}
+}
+function cleanInbox(raw,room){
+ let o;try{o=JSON.parse(raw)}catch{return null}
+ if(!obj(o)||o.v!==1||o.room!==room||!Array.isArray(o.items))return null;
+ const tok=x=>typeof x==='string'&&x.length>0&&x.length<=160,items=[];
+ for(const r of o.items.slice(-MAX_INBOX)){
+  if(!obj(r)||typeof r.id!=='string'||!HEX.test(r.id)||!tok(r.arch)||!tok(r.floor)||!tok(r.entry)||!ABILITIES.includes(r.ab)||!int(r.total,-99,999)||!int(r.pos,1,999)||!int(r.depth,1,999)||typeof r.who!=='string'||!Number.isFinite(r.at))continue;
+  items.push({id:r.id,arch:r.arch,floor:r.floor,entry:r.entry,ab:r.ab,total:r.total,pos:r.pos,depth:r.depth,who:r.who.slice(0,40),at:r.at});
+ }
+ const seen=(Array.isArray(o.seen)?o.seen:[]).filter(x=>typeof x==='string'&&HEX.test(x)).slice(-200);
+ return {items,seen};
+}
+function restoreInbox(room){
+ try{const s=inboxStore(),raw=s?s.getItem(INBOX_KEY):null;if(!raw)return;
+  const got=cleanInbox(raw,room);
+  if(!got){s.removeItem(INBOX_KEY);return}
+  inbox.push(...got.items);for(const x of got.seen)seenRolls.add(x);
+ }catch{}
+}
 const archOf=(st,id)=>Array.isArray(st?.netArchitectures)?st.netArchitectures.find(x=>obj(x)&&x.id===id)||null:null;
 function peers(){try{const p=link()?.peers?.();return Array.isArray(p)?p.filter(x=>obj(x)&&FP.test(x.fp||'')&&x.role!=='gm'&&obj(x.box)):[]}catch{return []}}
 const peerByFp=fp=>peers().filter(p=>p.fp===fp).sort((a,b)=>(b.at||0)-(a.at||0))[0]||null;
-function sync(who){const k=who?String(who.room||''):'';if(k!==roomKey){roomKey=k;share=null;inbox.length=0;seenRolls.clear();shown=null;shownAt=0;draft={fp:'',title:''}}}
+// A moment without room information (k is empty) empties the memory only: the stored inbox waits for the room to come back.
+function sync(who){const k=who?String(who.room||''):'';if(k!==roomKey){roomKey=k;share=null;inbox.length=0;seenRolls.clear();shown=null;shownAt=0;draft={fp:'',title:''};if(k)restoreInbox(k);paintInbox()}}
 const clearOut=()=>{try{return Promise.resolve(link()?.send?.({clear:true},Date.now())).catch(()=>0)}catch{return Promise.resolve(0)}};
 async function run(force,now){
  const who=whoIs();sync(who);if(!who||who.role!=='gm'||!share)return false;
@@ -221,7 +251,7 @@ function start(archId,fp,now=Date.now()){
 function stop(){const had=share;share=null;clearTimeout(timer);return had?clearOut():Promise.resolve(0)}
 const sharing=()=>!!share;
 // The room was left: nothing is shown and nothing is kept; no message is sent (room.js sent the marker before).
-function forget(){share=null;clearTimeout(timer);clearTimeout(expTimer);shown=null;shownAt=0;sel='';last=null;inbox.length=0;seenRolls.clear();roomKey=''}
+function forget(){share=null;clearTimeout(timer);clearTimeout(expTimer);shown=null;shownAt=0;sel='';last=null;inbox.length=0;seenRolls.clear();roomKey='';try{inboxStore()?.removeItem(INBOX_KEY)}catch{}paintInbox()}
 // A roll or an answer from the runner (room.js passes the sealed box, who sent it, and this page's member id).
 async function receiveUp(d,from){
  const who=whoIs();sync(who);if(!who||who.role!=='gm'||!share||!obj(d)||!obj(from)||from.fp!==share.fp)return false;
@@ -236,6 +266,7 @@ async function receiveUp(d,from){
  seenRolls.add(o.rid);if(seenRolls.size>200)seenRolls.clear();
  inbox.push({id:o.rid,arch:a.id,floor:n.floor.id,entry:e.id,ab:o.ab,total:o.total,pos:idx+1,depth:n.depth,who:String(peerByFp(share.fp)?.name||'').slice(0,40),at:Date.now()});
  while(inbox.length>MAX_INBOX)inbox.shift();
+ persist();paintInbox();
  say(T[lang()].rollSaid(inbox[inbox.length-1].who||'—',o.ab,o.total));
  try{if(/^#\/net\b/.test(String(global.location?.hash||'')))global.App?.render?.()}catch{}
  return true;
@@ -243,7 +274,7 @@ async function receiveUp(d,from){
 // The Game Master presses «it worked» / «it did not work» next to a record.
 function verdict(ok,a,floor,e,rollId){
  const k=inbox.findIndex(x=>x.id===rollId&&x.arch===a?.id&&x.floor===floor?.id&&x.entry===e?.id);if(k<0)return null;
- inbox.splice(k,1);
+ inbox.splice(k,1);persist();paintInbox();
  if(share&&share.arch===a.id){share.res=[{e:wid(e.id,'e',Math.max(0,entriesOf(floor).indexOf(e))),rid:rollId,ok:!!ok},...share.res.filter(r=>r.e!==wid(e.id,'e',Math.max(0,entriesOf(floor).indexOf(e))))].slice(0,MAX_RES)}
  if(ok&&LOCKS.includes(e.type))e.state='open';
  changed();return {dirty:true,rerender:true};
@@ -338,6 +369,64 @@ function proposalHtml(a,res,chars,l){
   if(!programs.length)programs=(Array.isArray(global.CATALOG)?global.CATALOG:[]).filter(p=>obj(p)&&CAT.test(p.id||'')&&p.category==='programs'&&int(p.stats?.rez,1,999)).map(p=>[p.id,String(p.name?.[lg]||p.name?.en||p.id)]);
  }
  return `<div class="rp-result net-rn-prop" data-rn-prop><div class="card-heading"><span>${esc(z.propose)}</span><span></span></div>${rez?`<label class="field">${esc(z.pickProg)}<select data-rn-prog>${programs.map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('')}</select></label><div class="net-actions"><button type="button" class="btn" data-net="run-rn-prop" data-n="${dm.total}">${esc(z.proposeRez(dm.total))}</button></div>`:''}${netCut?`<div class="net-actions"><button type="button" class="btn" data-net="run-rn-net">${esc(z.proposeNet)}</button></div>`:''}</div>`;
+}
+
+/* ---------- The inbox as a panel of its own ---------- */
+// Not tied to a floor or to #/net: it stays on screen while the Game Master moves the runner or works elsewhere in the app.
+let inboxOpen=null,paintSig='';
+// Open by default only when one roll waits and the screen is wide; on a phone the panel starts as a one-line summary so it does not cover the page.
+const narrow=()=>{try{return !!global.matchMedia?.('(max-width: 640px)')?.matches}catch{return false}};
+function inboxRows(l){
+ const z=T[lng(l)],st=appState();
+ return inbox.map(r=>{
+  const a=archOf(st,r.arch),f=a&&Array.isArray(a.floors)?a.floors.find(x=>obj(x)&&x.id===r.floor):null,e=f?entriesOf(f).find(x=>x.id===r.entry):null;
+  const lock=!!e&&LOCKS.includes(e.type)&&int(e.dv,1,999);
+  return {r,arch:a?String(a.name||''):'',name:e?String(e.name||z.kinds[e.type]||''):'',cmp:lock?z.vsDv(r.total,e.dv):z.noDv(r.total),live:!!e};
+ });
+}
+function inboxHtml(l){
+ const who=whoIs();if(!who||who.role!=='gm'||!inbox.length)return '';
+ const z=T[lng(l)],rows=inboxRows(l);
+ return `<section class="rn-inbox" data-rn-inbox-box aria-label="${esc(z.inboxLabel)}"><details data-rn-inbox-details${(inboxOpen===null?(rows.length<2&&!narrow()):inboxOpen)?' open':''}><summary>${esc(z.inboxTitle(rows.length))}</summary><ul class="rn-inbox-list">${rows.map(({r,arch,name,cmp})=>`<li class="rn-inbox-roll" data-rn-inbox-roll="${esc(r.id)}"><p class="rn-inbox-what"><strong>${esc(r.who||'—')}</strong>: ${esc(r.ab)} · ${esc(z.inboxWhere(r.pos,r.depth))}${name?' · '+esc(name):''}${arch?' · '+esc(arch):''}<br>${esc(cmp)}</p><div class="rn-inbox-actions"><button type="button" class="btn" data-rn-inbox="ok" data-roll="${esc(r.id)}">${esc(z.ok)}</button><button type="button" class="btn ghost" data-rn-inbox="no" data-roll="${esc(r.id)}">${esc(z.no)}</button><button type="button" class="btn ghost" data-rn-inbox="drop" data-roll="${esc(r.id)}" aria-label="${esc(z.inboxDropAria)}">${esc(z.inboxDrop)}</button></div></li>`).join('')}</ul><div class="rn-inbox-actions"><button type="button" class="btn ghost" data-rn-inbox="open">${esc(z.inboxOpen)}</button></div></details></section>`;
+}
+const sigNow=()=>{let r='';try{r=whoIs()?.role||''}catch{}return lang()+'|'+r+'|'+inbox.length};
+function paintInbox(){
+ try{
+  if(!doc?.body||typeof doc.createElement!=='function')return;
+  let host=doc.getElementById?.('rn-inbox-host');
+  if(!host){if(!inbox.length)return;host=doc.createElement('div');host.id='rn-inbox-host';host.className='rn-inbox-host';doc.body.appendChild(host)}
+  paintSig=sigNow();host.innerHTML=inboxHtml(lang());
+ }catch{}
+}
+function focusInbox(){
+ try{
+  const f=doc.querySelector('[data-rn-inbox-roll] button');if(f){f.focus({preventScroll:true});return}
+  const m=doc.querySelector('main')||doc.getElementById('app');if(m){if(!m.hasAttribute('tabindex'))m.setAttribute('tabindex','-1');m.focus({preventScroll:true})}
+ }catch{}
+}
+// An answer given from the panel can be taken back: the roll returns to the inbox and the record gets its old state.
+function offerUndo(item,e,was,z){
+ try{global.App?.notifyAction?.(z.inboxDone,z.inboxUndo,()=>{
+  if(e&&e.state!==was)e.state=was;
+  // The player's view must lose the answer too: it is taken out of what is shown and the view goes out again.
+  if(e&&share&&Array.isArray(share.res)&&share.res.some(r=>r.rid===item.id)){share.res=share.res.filter(r=>r.rid!==item.id);publish(false)}
+  if(!inbox.some(x=>x.id===item.id)&&whoIs()?.role==='gm'){inbox.push(item);while(inbox.length>MAX_INBOX)inbox.shift();persist();paintInbox()}
+  try{global.App?.save?.()}catch{}try{if(/^#\/net\b/.test(String(global.location?.hash||'')))global.App?.render?.()}catch{}
+  say(z.inboxUndone);focusInbox();
+ })}catch{}
+}
+// The buttons of the panel. «It worked» / «It did not work» go through the same verdict as the buttons under a record.
+function inboxAct(op,id){
+ const z=T[lang()];
+ if(op==='open'){try{global.location.hash='#/net'}catch{}return true}
+ const k=inbox.findIndex(x=>x.id===id);if(k<0){paintInbox();focusInbox();return true}
+ if(op==='drop'){const item={...inbox[k]};inbox.splice(k,1);persist();paintInbox();offerUndo(item,null,undefined,z);focusInbox();return true}
+ if(op!=='ok'&&op!=='no')return false;
+ const it=inbox[k],a=archOf(appState(),it.arch),f=a&&Array.isArray(a.floors)?a.floors.find(x=>obj(x)&&x.id===it.floor):null,e=f?entriesOf(f).find(x=>x.id===it.entry):null;
+ if(!e){inbox.splice(k,1);persist();paintInbox();say(z.inboxGone);focusInbox();return true}
+ const item={...it},was=e.state,r=verdict(op==='ok',a,f,e,id);
+ if(r?.dirty){try{global.App?.save?.()}catch{}offerUndo(item,e,was,z);try{if(/^#\/net\b/.test(String(global.location?.hash||'')))global.App?.render?.()}catch{}}
+ focusInbox();return true;
 }
 
 /* ---------- The runner's side ---------- */
@@ -461,10 +550,12 @@ function decline(pid){
 function refocus(...sels){
  // Focus counts as lost when it is on the page body or on a control the redraw has already removed; checked a few times, as the redraw may come later.
  const go=()=>{try{const f=doc.activeElement;if(f&&f!==doc.body&&f.isConnected!==false)return true;for(const s of sels){const n=doc.querySelector(s);if(n){n.focus({preventScroll:true});return true}}}catch{}return false};
- try{[0,60,200,500].forEach(ms=>setTimeout(go,ms))}catch{}
+ try{[0,60,120,200,300,500,900].forEach(ms=>setTimeout(go,ms))}catch{}
 }
 function onClick(e){
  const t=e?.target;if(!t?.closest)return false;
+ const box=t.closest('[data-rn-inbox]');
+ if(box&&box.dataset)return inboxAct(box.dataset.rnInbox,box.dataset.roll||'');
  const target=t.closest('[data-rn-target]');
  if(target){const id=target.dataset.rnTarget;sel=sel===id?'':String(id).slice(0,64);redraw();try{doc.querySelector(`[data-rn-target="${sel||id}"]`)?.focus?.()}catch{}return true}
  const roll=t.closest('[data-rn-roll]');
@@ -475,10 +566,12 @@ function onClick(e){
  if(dec){decline(dec.dataset.rnDecline);refocus('[data-rn-panel] [data-rn-target]','[data-rn-panel]');return true}
  return false;
 }
+// The panel lives outside #app: repaint it when the language or the role changed, after the page was drawn.
+try{if(typeof global.MutationObserver==='function'&&doc?.documentElement){const f=()=>{if(doc.getElementById?.('rn-inbox-host')&&sigNow()!==paintSig)paintInbox()};new global.MutationObserver(f).observe(doc.documentElement,{attributes:true,attributeFilter:['lang']});const app=doc.getElementById?.('app');if(app)new global.MutationObserver(f).observe(app,{childList:true})}}catch{}
 if(doc?.addEventListener){
  doc.addEventListener('click',onClick);
- doc.addEventListener('toggle',e=>{if(e.target?.dataset?.rnPreview!==undefined)preview=e.target.open===true},true);
+ doc.addEventListener('toggle',e=>{if(e.target?.dataset?.rnPreview!==undefined)preview=e.target.open===true;if(e.target?.dataset?.rnInboxDetails!==undefined)inboxOpen=e.target.open===true},true);
 }
-global.RoomNetrun={T,ID,KINDS,ABILITIES,MAX_FLOORS,MAX_ENTRIES,MAX_BYTES,TTL,RESEND,build,clean,cleanUp,publish,changed,start,stop,sharing,forget,receive,receiveUp,verdict,propose,act,change,gmHtml,floorHtml,entryHtml,proposalHtml,panel,rollTarget,accept,decline,onClick,
- _test:{shown:()=>shown,share:()=>share,inbox:()=>inbox,select:id=>{sel=id},reset:()=>{roomKey='\u0000';sync(null);applied=new Map();last=null},last:()=>last,wid,shownFloors,treeOf}};
+global.RoomNetrun={T,ID,KINDS,ABILITIES,MAX_FLOORS,MAX_ENTRIES,MAX_BYTES,TTL,RESEND,build,clean,cleanUp,publish,changed,start,stop,sharing,forget,receive,receiveUp,verdict,propose,act,change,gmHtml,floorHtml,entryHtml,proposalHtml,panel,rollTarget,accept,decline,onClick,inboxHtml,inboxAct,paintInbox,
+ _test:{persist,shown:()=>shown,share:()=>share,inbox:()=>inbox,select:id=>{sel=id},reset:()=>{roomKey='\u0000';sync(null);applied=new Map();last=null},last:()=>last,wid,shownFloors,treeOf}};
 })(typeof window!=='undefined'?window:globalThis);

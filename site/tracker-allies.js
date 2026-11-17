@@ -6,6 +6,8 @@
    Everything new is stored inside the campaign: roster[i].ally, roster[i].lootTaken, campaign.lootPile. */
 (function(){
 'use strict';
+const RAND=()=>(typeof window!=='undefined'&&window.Rolls?window.Rolls.rand:Math.random)();
+const rdie=n=>{const v=typeof window!=='undefined'?window.Rolls?.d?.(n):null;return Number.isInteger(v)?v:1+Math.floor(RAND()*n)};
 const T={
  ru:{
   team:'КОМАНДА',backup:'ПОДКРЕПЛЕНИЕ',toFight:'В бой',allToFight:'Вся команда в бой',inFight:'в бою',
@@ -335,7 +337,7 @@ function handle(e,c,ctx){
   if(!deathButtonState(pc).show||!CE()?.deathSaveStart)return {rerender:true,notify:t.deathNone};
   try{PC()?.syncDeathBase?.(pc)}catch{}
   const s=CE().deathSaveStart(pc,'mortal',lang);if(!s.ok)return {rerender:true,notify:s.text};
-  const die=1+Math.floor(Math.random()*10),r=CE().deathSaveResolve(pc,s.q,die,lang),name=`${pc.name||'Edgerunner'} · ${s.q.label}`;
+  const die=rdie(10),r=CE().deathSaveResolve(pc,s.q,die,lang),name=`${pc.name||'Edgerunner'} · ${s.q.label}`;
   try{window.App?.report?.(name,r.detail,r.total,[{v:r.die,s:10}])}catch{}
   if(!r.success)row.out=true;
   journal(t.deathJournal(`${name} — ${r.detail}`));

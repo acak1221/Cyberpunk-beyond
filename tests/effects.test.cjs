@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=f=>fs.readFileSync(__dirname+'/../site/'+f,'utf8');
-function load(){const window={};const ctx={window,globalThis:{window},Math,Number,String,Set,Array,Object};ctx.globalThis.window=window;vm.runInNewContext(source('combat-tools.js'),{window,document:{addEventListener(){}},Math,Number});vm.runInNewContext(source('effects.js'),ctx);return {E:window.Effects,INJ:window.CombatTools.INJURIES}}
+function load(){const window={};const ctx={window,globalThis:{window},Math,Number,String,Set,Array,Object};ctx.globalThis.window=window;vm.runInNewContext(source('crit-injuries.js'),{window,document:{addEventListener(){}},Math,Number});vm.runInNewContext(source('combat-tools.js'),{window,document:{addEventListener(){}},Math,Number});vm.runInNewContext(source('effects.js'),ctx);return {E:window.Effects,INJ:window.CombatTools.INJURIES}}
 const hero=entries=>({stats:{MOVE:6,BODY:8},extra:{criticalInjuries:{version:1,entries:entries.map(([location,score,status='active'],i)=>({id:'i'+i,location,score,status,detail:''}))}}});
 const plain=x=>JSON.parse(JSON.stringify(x));
 
@@ -53,7 +53,7 @@ test('the sheet lists each effect with its name, and situational ones as reminde
 
 test('rolls, buttons, MOVE and the Death Save hint all read the same layer',()=>{
  const app=source('app.js'),sheet=source('character-extra.js');
- assert.match(source('index.html'),/<script src="combat-tools\.js"><\/script><script src="effects\.js">/);
+ assert.match(source('index.html'),/<script src="crit-injuries\.js"><\/script><script src="combat-tools\.js"><\/script><script src="effects\.js">/);
  assert.match(app,/return base\+\(Number\(level\)\|\|0\)\+woundPenalty\(c\)\+effectModifier\(c,kind,skill,stat\)\+/,'the number on a button');
  assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,'',s\[0\],s\[2\]\)\+modifier\+spent/,'a skill check');
  assert.match(app,/woundPenalty\(c\)\)\+effectModifier\(c,q\.attackKind,q\.skillKey,q\.statKey\)/,'checks and attacks from the sheet tools');

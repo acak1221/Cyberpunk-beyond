@@ -1,3 +1,4 @@
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -5,8 +6,8 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 function loadRoom(){
  const listeners={},store=new Map();
  const document={addEventListener(t,f){(listeners[t]||(listeners[t]=[])).push(f)},querySelector:()=>null,visibilityState:'visible'};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},navigator:{},btoa,atob};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout,clearTimeout,setInterval,clearInterval,console};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},navigator:{},btoa,atob};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  return window;
 }
@@ -48,7 +49,7 @@ function fakeNetwork(T){
  const subs=new Set(),retained=new Map();
  function deliver(sock,topic,payload,retain){if(sock.readyState===1)sock.onmessage?.({data:T.encode.publish(topic,payload,retain).buffer})}
  class FakeSocket{
-  constructor(url,proto){this.url=url;this.protocol=proto;this.readyState=0;this.filters=[];setTimeout(()=>{this.readyState=1;this.onopen?.()},0);
+  constructor(url,proto){this.url=url;this.protocol=proto;this.readyState=0;this.filters=[];Idle.timeout(()=>{this.readyState=1;this.onopen?.()},0);
    this.parse=T.createParser(p=>{
     if(p.type===1)this.onmessage?.({data:Uint8Array.of(0x20,2,0,0).buffer});
     else if(p.type===8){const len=(p.body[2]<<8)|p.body[3],filter=new TextDecoder().decode(p.body.subarray(4,4+len));this.filters.push(filter.replace(/\/#$/,''));subs.add(this);
@@ -60,7 +61,7 @@ function fakeNetwork(T){
  }
  return {FakeSocket,retained};
 }
-const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const wait=()=>Idle.settle();
 
 test('transport publishes, keeps retained state for late joiners and clears it',async()=>{
  const T=loadRoom().RoomTransport,net=fakeNetwork(T),got={a:[],b:[]};

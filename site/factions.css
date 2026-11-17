@@ -1,0 +1,23 @@
+/* Factions: the GM's list of groups. Theme variables only; fields stack on a phone; the attitude is told by a
+   number and a word, the colour of its edge is only an addition. */
+.fc-card{display:grid;gap:10px;min-width:0}
+.fc-card>*{min-width:0;margin:0}
+.fc-note,.fc-clock{font-size:.82rem;line-height:1.5;color:var(--muted)}
+.fc-new{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;align-items:end}
+.fc-card .field{display:grid;gap:4px;font-size:.82rem;min-width:0}
+.fc-card input[type=text],.fc-card select,.fc-card textarea{width:100%;box-sizing:border-box;min-width:0;min-height:44px}
+.fc-card textarea{resize:vertical;min-height:64px}
+.fc-card .btn{min-height:44px}
+.fc-card .btn[aria-disabled="true"]{opacity:.48;cursor:not-allowed}
+.fc-list{list-style:none;padding:0;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.fc-item{display:grid;gap:8px;border:1px solid var(--border);padding:10px;min-width:0}
+.fc-item>*{min-width:0;margin:0}
+.fc-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,40%);gap:6px}
+.fc-name{font-weight:700}
+.fc-att{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:6px;align-items:center;text-align:center;border-left:3px solid var(--border);padding-left:6px}
+.fc-att.fc-neg{border-left-color:var(--red)}
+.fc-att.fc-pos{border-left-color:var(--yellow)}
+.fc-step{min-width:44px;padding:4px}
+.fc-num{font-family:'IBM Plex Mono',monospace}
+.fc-actions{display:flex;justify-content:flex-end}
+.fc-del.armed{border-color:var(--red);font-weight:800}

@@ -1,18 +1,19 @@
 // The shared session journal: the Game Master marks entries, players read them, nobody else can write them,
 // and a page that does not know the new message type carries on as before.
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
 const eq=(a,b)=>assert.deepEqual(plain(a),plain(b));
 const CODE='K7RQM2XAPZ9E';
-const settle=(ms=40)=>new Promise(ok=>setTimeout(ok,ms));
+const settle=Idle.settle;
 const BRANCH=" }else if(m.t==='journal'&&sub==='j'){\n  if(fromGM&&global.RoomJournal?.receive?.(m.d,at,p.retain))repaint();\n";
 // One browser tab. `old` is a page from before the shared journal: no module and no branch for the new message type.
 function loadTab({old=false,state}={}){
  const listeners={},store=new Map(),document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console,URL,Blob};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console,URL,Blob};
  let room=read('room.js');
  if(old){assert.equal(room.split(BRANCH).length,2);room=room.replace(BRANCH,'')}
  vm.runInNewContext(read('room-transport.js')+'\n'+room+(old?'':'\n'+read('room-journal.js')),ctx);

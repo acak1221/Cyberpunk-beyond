@@ -1,0 +1,27 @@
+/* Saved Night Market stalls (GM data). Touch targets are 44px or more. */
+.night-market{position:relative}
+.night-market .nm-saved{margin-top:20px;padding-top:12px;border-top:1px solid var(--border,#373637)}
+.night-market .nm-saved-title{font-size:14px;letter-spacing:.08em;margin:0 0 8px}
+.night-market .nm-stall-tools{display:flex;flex-wrap:wrap;gap:8px}
+.night-market .nm-saved-stall{border:1px solid var(--border,#373637);background:var(--panel,#1b1b1d);padding:4px 14px 12px;margin:10px 0}
+.night-market .nm-saved-stall>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;overflow-wrap:anywhere}
+.night-market .nm-saved-items li{grid-template-columns:1fr auto auto auto auto}
+.night-market .nm-price-field{display:inline-flex;align-items:center;gap:4px}
+.night-market .nm-price-field input{width:9ch;min-height:44px;box-sizing:border-box}
+.night-market .nm-saved .btn,.night-market .nm-saved .nm-swap{min-height:44px;min-width:44px}
+.night-market .nm-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end;margin:12px 0}
+.night-market .nm-saved select,.night-market .nm-saved input[type=text]{min-height:44px;box-sizing:border-box;max-width:100%}
+.night-market .nm-preview{border:1px dashed var(--yellow,#e9c66d);padding:10px 14px;margin:12px 0}
+.night-market .nm-plan{list-style:none;margin:8px 0;padding:0;display:grid;gap:4px}
+.night-market .nm-tag{display:inline-block;min-width:9ch;font-size:.78rem;letter-spacing:.04em;color:var(--muted,#a19b96)}
+.night-market .nm-tag.nm-new,.night-market .nm-tag.nm-update{color:var(--yellow,#e9c66d)}
+.night-market .nm-error{color:#e07a6a}
+.night-market .nm-hidden{position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:560px){.night-market .nm-saved-items li{grid-template-columns:1fr auto auto}.night-market .nm-saved-items li .nm-name,.night-market .nm-saved-items li .nm-price-field{grid-column:1/-1}}
+html.ui-native.ui-light .night-market .nm-saved{border-color:#cbc8c3}
+html.ui-native.ui-light .night-market .nm-saved-stall{background:#fff;border-color:#cbc8c3}
+html.ui-native.ui-light .night-market .nm-tag{color:#5f594e}
+html.ui-native.ui-light .night-market .nm-tag.nm-new,html.ui-native.ui-light .night-market .nm-tag.nm-update{color:#856514}
+html.ui-native.ui-light .night-market .nm-error{color:#a3341f}
+.night-market .rule-source{min-height:44px;display:inline-flex;align-items:center}
+html .night-market .btn{min-height:44px}

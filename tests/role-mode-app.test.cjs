@@ -28,7 +28,7 @@ const home=html=>html.slice(html.indexOf('<div class="quick-grid">'),html.indexO
 test('not chosen: the menu, the bottom bar and the cards are the old ones, plus the chooser on the home page',()=>{
  const h=harness();
  eq(views(sidebar(h.app.innerHTML)),['overview','characters','dice','combat','room','campaigns','rules','catalog','lifepath','book','gm','net','medical','repair']);
- eq(views(bottom(h.app.innerHTML)),['characters','combat','dice','room']);
+ eq(views(bottom(h.app.innerHTML)),['overview','characters','combat','dice']);
  eq(views(home(h.app.innerHTML)),['rules','dice','combat','campaigns','catalog','gm','net','book']);
  assert.match(h.app.innerHTML,/class="role-chooser"/);assert.match(h.app.innerHTML,/Кто вы за столом\?/);
  assert.ok(h.app.innerHTML.indexOf('role-chooser')<h.app.innerHTML.indexOf('class="hero'),'at the top of the home page');
@@ -41,7 +41,7 @@ test('player: no Game Master entries in the menu, the home cards or the guide; t
  for(const lang of ['ru','en']){
   const h=harness({role:'player',lang}),html=h.app.innerHTML,menu=views(sidebar(html));
   assert.ok(!menu.includes('gm')&&!menu.includes('campaigns'));assert.ok(menu.includes('room')&&menu.includes('net')&&menu.includes('news')||menu.includes('room'));
-  eq(views(bottom(html)),['characters','combat','dice','room']);
+  eq(views(bottom(html)),['overview','characters','combat','dice']);
   eq(views(home(html)),['rules','dice','combat','catalog','net','book']);
   assert.doesNotMatch(html,/role-chooser/);assert.match(html,/data-role-set="player" aria-pressed="true"/);
   const guide=html.slice(html.indexOf('class="getting-started"'));
@@ -54,7 +54,7 @@ test('gm: the «Ведущему» group comes first, the bottom bar and the car
  const h=harness({role:'gm'}),html=h.app.innerHTML,menu=views(sidebar(html));
  eq(menu.slice(0,3),['campaigns','gm','room']);assert.equal(menu.length,new Set(menu).size);
  assert.ok(sidebar(html).indexOf('Ведущему')<sidebar(html).indexOf('Игра'));
- eq(views(bottom(html)),['campaigns','room','dice','gm']);
+ eq(views(bottom(html)),['overview','campaigns','room','gm']);
  eq(views(home(html)).slice(0,2),['campaigns','gm']);
  assert.doesNotMatch(html,/role-chooser/);assert.match(html,/data-role-set="gm" aria-pressed="true"/);
  const en=harness({role:'gm',lang:'en'}).app.innerHTML;assert.match(sidebar(en),/Game Master/);

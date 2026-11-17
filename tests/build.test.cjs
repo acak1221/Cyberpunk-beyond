@@ -10,16 +10,24 @@ test('the build bundles every script and stylesheet and precaches the bundles',(
  const out=build();
  try{
   const index=fs.readFileSync(path.join(out,'index.html'),'utf8');
-  assert.match(index,/<script src="nc-red\.js\?v=[0-9a-f]{12}"><\/script>/);
-  assert.match(index,/<link rel="stylesheet" href="nc-red\.css\?v=[0-9a-f]{12}">/);
+  // the script is deferred and the stylesheet is applied without holding the first paint back (the page has a skeleton)
+  assert.match(index,/<script src="nc-red\.js\?v=[0-9a-f]{12}" defer><\/script>/);
+  assert.match(index,/<link rel="preload" as="style" href="nc-red\.css\?v=[0-9a-f]{12}"/);
+  assert.match(index,/<noscript><link rel="stylesheet" href="nc-red\.css\?v=[0-9a-f]{12}"><\/noscript>/);
+  assert.ok(!/<link rel="stylesheet" href="(?!nc-red\.css)/.test(index));
   assert.equal((index.match(/<script src=/g)||[]).length,1);
+  assert.ok(index.includes('id="nc-boot-css"')&&index.includes('class="nc-skel"'),'the skeleton is in the page');
   new vm.Script(fs.readFileSync(path.join(out,'nc-red.js'),'utf8')); // parses as one classic script
   assert.ok(!/@import/.test(fs.readFileSync(path.join(out,'nc-red.css'),'utf8')));
   const sw=fs.readFileSync(path.join(out,'sw.js'),'utf8');
   const precache=JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]),version=index.match(/data-build="([0-9a-f]{12})"/)[1];
   // exactly the URLs the page loads, so the first install does not download the bundles a second time
   for(const f of ['./',`nc-red.js?v=${version}`,`nc-red.css?v=${version}`,'manifest.webmanifest'])assert.ok(precache.includes(f),f);
-  for(const f of ['index.html','nc-red.js','nc-red.css','vendor/pdfjs/pdf.min.mjs'])assert.ok(!precache.includes(f),f);
+  // the lazy chunks are stored for offline use, under the very URLs the loader asks for
+  const chunks=JSON.parse(index.match(/window\.NC_CHUNKS=(\{.*?\})<\/script>/)[1]);
+  assert.ok(Object.keys(chunks).length>=4);
+  for(const c of Object.values(chunks))assert.ok(precache.includes(c.u)&&fs.existsSync(path.join(out,c.u.split('?')[0])),c.u);
+  for(const f of ['index.html','nc-red.js','nc-red.css','nc-book.js','vendor/pdfjs/pdf.min.mjs'])assert.ok(!precache.includes(f),f);
   const loaded=[...index.matchAll(/<(?:script|link|img)\b[^>]*?\s(?:src|href)="(?![a-z]+:|#|\/)([^"]+)"/g)].map(m=>m[1]);
   assert.ok(loaded.length>=5&&loaded.includes(`nc-red.js?v=${version}`),loaded.join());
   for(const url of loaded)assert.ok(precache.includes(url),url);
@@ -43,12 +51,21 @@ test('the 404 page turns a deep path into the matching hash route under the same
  }finally{fs.rmSync(out,{recursive:true,force:true})}
 });
 
-test('every module in the bundle is isolated, so one that throws while loading stops neither the others nor app.js',()=>{
+test('every module in the bundle is isolated, so one that throws while loading stops neither the others nor app.js',async()=>{
+ const {stripJs}=await import('../scripts/strip.mjs');
  const out=build();
  try{
-  const bundle=fs.readFileSync(path.join(out,'nc-red.js'),'utf8'),scripts=[...fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8').matchAll(/<script src="([^":?]+\.js)"><\/script>/g)].map(m=>m[1]);
-  for(const f of scripts)assert.ok(bundle.includes(`/* ${f} */\n`+(f==='app.js'?';':'try{\n')),f);
-  assert.ok(bundle.trimEnd().endsWith(fs.readFileSync(path.join(__dirname,'..','site','app.js'),'utf8').trimEnd()),'app.js runs last');
+  const scripts=[...fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8').matchAll(/<script src="([^":?]+\.js)"><\/script>/g)].map(m=>m[1]);
+  const chunks=JSON.parse(fs.readFileSync(path.join(out,'index.html'),'utf8').match(/window\.NC_CHUNKS=(\{.*?\})<\/script>/)[1]);
+  const lazy=new Map();for(const [name,c] of Object.entries(chunks))lazy.set(name,fs.readFileSync(path.join(out,c.u.split('?')[0]),'utf8'));
+  const bundle=fs.readFileSync(path.join(out,'nc-red.js'),'utf8'),all=[bundle,...lazy.values()].join('\n');
+  for(const f of scripts)assert.ok(all.includes(`/* ${f} */\n`+(f==='app.js'?';':'try{\n')),f);
+  // each script is in exactly one file, and the lazy ones are not in the core file
+  for(const f of scripts)assert.equal(all.split(`/* ${f} */\n`).length-1,1,f);
+  for(const f of ['book.js','shop-cart.js','hazard-tools.js','repair-tools.js'])assert.ok(!bundle.includes(`/* ${f} */`),f);
+  // app.js runs last, and is the app.js of the sources apart from the comments, indentation and blank lines the build removes
+  assert.ok(bundle.trimEnd().endsWith(stripJs(fs.readFileSync(path.join(__dirname,'..','site','app.js'),'utf8')).trimEnd()),'app.js runs last');
+  for(const [name,js] of lazy)new vm.Script(js,{filename:'nc-'+name+'.js'}); // each chunk parses as a classic script
  }finally{fs.rmSync(out,{recursive:true,force:true})}
 });
 

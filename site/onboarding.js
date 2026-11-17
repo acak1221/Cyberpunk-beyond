@@ -17,6 +17,7 @@ const T={
   ],
   addSample:'Добавить готового персонажа',openSample:'Открыть лист готового персонажа',sampleAdded:name=>`${name} уже в вашем списке персонажей.`,createOwn:'Создать своего',
   startTrial:'Начать пробный бой',continueTrial:'Продолжить пробный бой',
+  bannerText:'Впервые здесь? Короткое знакомство займёт около минуты.',bannerStart:'Начать',bannerHide:'Скрыть',
   entryTitle:'Знакомство и пробный бой',entryText:'Короткое знакомство с приложением, готовый персонаж для пробы и бой с подсказками.',reopen:'Показать знакомство',
   sampleFail:{paused:'Сейчас данные нельзя менять. Проверьте сообщение о хранилище вверху страницы.',storage:'Не хватило места в хранилище браузера: персонаж не добавлен.',invalid:'Не удалось добавить готового персонажа.'},
   sampleName:'Вега',sampleNative:'Английский',
@@ -51,6 +52,7 @@ const T={
   ],
   addSample:'Add the ready-made character',openSample:'Open the ready-made character sheet',sampleAdded:name=>`${name} is already in your character list.`,createOwn:'Create your own',
   startTrial:'Start the trial fight',continueTrial:'Continue the trial fight',
+  bannerText:'New here? A short introduction takes about a minute.',bannerStart:'Start',bannerHide:'Hide',
   entryTitle:'Introduction and trial fight',entryText:'A short introduction to the app, a ready-made character to try, and a fight with hints.',reopen:'Show the introduction',
   sampleFail:{paused:'Data cannot be changed right now. Check the storage message at the top of the page.',storage:'Browser storage is full: the character was not added.',invalid:'Could not add the ready-made character.'},
   sampleName:'Vega',sampleNative:'English',
@@ -168,6 +170,14 @@ function intro(state){
   :i===2?`<div class="ob-actions"><button type="button" class="btn primary" data-ob="start-trial">⬡ ${trial?t.continueTrial:t.startTrial}</button></div>`:'';
  return `<section class="ob-card ob-intro" data-ob-intro aria-labelledby="ob-intro-title"><div class="ob-head"><span class="ob-count">${t.count(i+1,STEPS)}</span><button type="button" class="ob-link" data-ob="skip">${t.skip} ✕</button></div><h2 id="ob-intro-title" tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p>${actions}<div class="ob-nav">${i?`<button type="button" class="btn ghost" data-ob="back">← ${t.back}</button>`:'<span></span>'}<span class="ob-dots" aria-hidden="true">${t.steps.map((_,n)=>`<i${n===i?' class="on"':''}></i>`).join('')}</span>${i<STEPS-1?`<button type="button" class="btn ${i===1&&!sample||i===2?'ghost':'primary'}" data-ob="next">${t.next} →</button>`:`<button type="button" class="btn primary" data-ob="finish">${t.done}</button>`}</div></section>`;
 }
+/* The first-launch hint on the home page: one dismissable line. The introduction itself opens only when asked for. */
+function banner(state){
+ const lang=L(state?.lang),t=T[lang];
+ if(open===true||!shouldShow(state,{open,dismissed:dismissed()}))return '';
+ return `<div class="ob-banner" role="note" data-ob-banner><span>${esc(t.bannerText)}</span><button type="button" class="btn small primary" data-ob="reopen">${esc(t.bannerStart)}</button><button type="button" class="ob-link" data-ob="skip" aria-label="${esc(t.bannerHide)}">${esc(t.bannerHide)} ✕</button></div>`;
+}
+// What the home page shows: the full introduction once it was asked for, otherwise the one-line banner (or nothing).
+function tour(state){return open===true?intro(state):banner(state)}
 // The way back in from the overview, for everyone and at any time.
 function entry(state){
  const lang=L(state?.lang),t=T[lang];
@@ -277,6 +287,14 @@ function follow(){
 const d0=doc();
 if(d0?.addEventListener)d0.addEventListener('click',e=>{if(handle(e))return;if(e.target?.closest?.('[data-campaign-action]'))setTimeout(follow,0)});
 
-window.Onboarding={intro,entry,trialHint,handle,shouldShow,sampleCharacter,isSample,findSample,buildTrial,isTrial,trialStep,rollAttack,rollDamage,trialWeapon,TRIAL_DV,FLAG,
+// «Показать знакомство снова» on the settings page: the guide opens on the home page, from its first step.
+function showAgain(){
+ const A=app();if(!A)return false;
+ open=true;step=0;
+ A.setView?A.setView('overview'):A.render?.();
+ focusOn('#ob-intro-title');
+ return true;
+}
+window.Onboarding={showAgain,intro,banner,tour,entry,trialHint,handle,shouldShow,sampleCharacter,isSample,findSample,buildTrial,isTrial,trialStep,rollAttack,rollDamage,trialWeapon,TRIAL_DV,FLAG,
  _reset(){open=null;step=0;seen=null;lastStep=null}};
 })();

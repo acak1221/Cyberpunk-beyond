@@ -62,7 +62,17 @@ function counter(op,a,chars){
 function roll(a,e,chars,lang,label){
  const r=resolve(a,chars),A=global.App;if(!r||!A||!RP())return null;
  const ab=ABILITY[e?.type];if(!ab)return {ok:false,message:T[lng(lang)].noAbility};
- const dv=Math.max(0,Math.min(999,Math.trunc(Number(e.dv))||0));
+ return sheetRoll(r,ab,e.dv,lang,label);
+}
+// The plain «Interface against a DV» of the settings card of the desk goes the same way: the sheet of the linked runner (rank, boosters,
+// wound penalty, the sheet's NET Action counter). -> null (no link) | {ok:false,message} | {ok:true,total,beat,known,dv}
+function rollGeneric(a,dv,chars,lang,label){
+ const r=resolve(a,chars),A=global.App;if(!r||!A||!RP())return null;
+ return sheetRoll(r,'Interface',dv,lang,label);
+}
+function sheetRoll(r,ab,dvIn,lang,label){
+ const A=global.App;
+ const dv=Math.max(0,Math.min(999,Math.trunc(Number(dvIn))||0));
  let skip;try{skip=global.NetrunEffects?.skipList?.(r.c)}catch{}
  const p=RP().netrunPlan(r.c,r.rank,ab,dv,lang,{skip});if(!p.ok)return {ok:false,message:p.message};
  // This is the Game Master's page: the roll is not the active character's, so the wound penalty and the sheet effects of the runner are added by hand.
@@ -147,5 +157,5 @@ function damageHtml(a,res,chars,lang,draft){
  const z=T[lng(lang)],list=programs(a,chars,lang),pick=list.find(p=>p.id===draft?.victimProgram);
  return `<div class="rp-result net-link-damage" data-net-link-damage><label class="field">${esc(z.program)}<select data-net-combat="victimProgram"><option value="">${esc(z.noProgram)}</option>${list.map(p=>`<option value="${esc(p.id)}"${p===pick?' selected':''}>${esc(p.name)} · REZ ${p.rez}/${p.max}</option>`).join('')}</select></label>${pick?`<div>${esc(z.after(pick.name,pick.rez,Math.max(0,pick.rez-dm.total)))}</div><div class="rp-actions"><button type="button" class="btn primary" data-net="combat-apply">${esc(z.apply)}</button></div>`:''}</div>`;
 }
-global.NetLink={ABILITY,T,resolve,rank,runInfo,counter,roll,programs,applyProgram,undoProgram,cardHtml,change,prefill,damageHtml,options};
+global.NetLink={ABILITY,T,resolve,rank,runInfo,counter,roll,rollGeneric,programs,applyProgram,undoProgram,cardHtml,change,prefill,damageHtml,options};
 })(window);

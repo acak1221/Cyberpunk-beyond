@@ -1,0 +1,8 @@
+/* The «Помнить мою книгу» card of the book screen (book-memory.js). */
+.book-memory { margin: 12px 0; }
+.book-memory p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.book-keep { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; cursor: pointer; }
+.book-keep input { width: 24px; height: 24px; flex: none; }
+.book-memory .btn { min-height: 44px; margin-top: 10px; }
+.book-memory-size b { color: inherit; }
+.book-memory-note:empty { display: none; }

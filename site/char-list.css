@@ -1,0 +1,68 @@
+/* The list of characters (char-list.js): the card, the «⋯» menu, the sort and the selecting mode; and the folder manager (char-tags.js). */
+.cl-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 0 0 14px; }
+.cl-bar .cl-sort { flex: 1 1 150px; min-width: 0; }
+.cl-bar .cl-sort select, .cl-bar .btn { min-height: 44px; }
+.cl-select-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cl-count { min-width: 8ch; font-weight: 700; }
+.cl-hint { flex-basis: 100%; margin: 0; color: var(--muted, #a19a92); font-size: 13px; }
+.cl-bar .btn[data-cl="bin"] { color: #ff6b5e; background: transparent; border: 1px solid #a3261e; }
+html.ui-light .cl-bar .btn[data-cl="bin"], html.ui-native.ui-light .cl-bar .btn[data-cl="bin"] { color: #b3261e; }
+.cl-bar .btn[data-cl="bin"][disabled] { opacity: .45; cursor: not-allowed; }
+
+.cl-card { position: relative; display: flex; flex-direction: column; }
+.cl-card .char-body { display: flex; flex-direction: column; flex: 1 1 auto; }
+.cl-card.picked { outline: 2px solid var(--red, #e5483d); outline-offset: -2px; }
+.cl-pick { position: absolute; z-index: 3; top: 6px; left: 6px; display: grid; place-items: center; width: 44px; height: 44px; cursor: pointer; }
+.cl-pick input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.cl-pick span { width: 26px; height: 26px; background: rgba(0, 0, 0, .55); border: 2px solid #fff; border-radius: 6px; }
+.cl-pick input:checked + span { background: #b3261e; border-color: #fff; }
+.cl-pick input:checked + span::after { content: ""; display: block; width: 7px; height: 13px; margin: 2px auto 0; border: solid #fff; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+.cl-pick input:focus-visible + span { outline: 3px solid var(--yellow, #e9c66d); outline-offset: 2px; }
+
+.cl-hp { height: 6px; margin: -6px 0 10px; overflow: hidden; background: rgba(127, 127, 127, .25); border-radius: 3px; }
+.cl-hp i { display: block; height: 100%; background: #46b36b; transition: width .25s; }
+.cl-hp[data-wound="light"] i { background: #d9a441; }
+.cl-hp[data-wound="serious"] i, .cl-hp[data-wound="mortal"] i { background: #e5483d; }
+
+.cl-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.cl-actions .cl-open { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+.cl-menu { position: relative; flex: none; }
+.cl-more { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; list-style: none; color: var(--text); border: 1px solid var(--border, #444); cursor: pointer; font-size: 22px; line-height: 1; }
+.cl-more::-webkit-details-marker { display: none; }
+.cl-menu-panel { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 30; display: grid; min-width: 210px; padding: 4px; background: var(--panel, #1d1d1f); border: 1px solid var(--border, #444); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.cl-item { display: block; width: 100%; min-height: 44px; padding: 10px 12px; color: var(--text); background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.cl-item:hover, .cl-item:focus-visible { background: rgba(127, 127, 127, .18); }
+.cl-item.cl-danger { margin-top: 4px; color: #ff6b5e; border-top: 1px solid var(--border, #444); }
+html.ui-light .cl-item.cl-danger, html.ui-native.ui-light .cl-item.cl-danger { color: #b3261e; }
+
+/* The folder editor opens from the menu or from its own line under the actions; both reach the same fields. */
+.cl-card .char-tags-edit > summary { display: none; }
+.cl-card [data-cl-folder-done], .cl-card .char-tags-edit .btn { min-height: 44px; }
+/* Every look shows a portrait strip: the photo when there is one, otherwise the initial. */
+html.ui-native .cl-card .char-art:not(:has(.char-art-photo)) { display: block; height: 64px; }
+.cl-card .char-art-glyph { font-size: 84px; top: -6px; }
+.cl-card .char-art-photo ~ .char-art-glyph { display: none; }
+
+/* The manager of folders and tags. */
+.char-tags-manager { border: 1px solid var(--border, #444); }
+.char-tags-manager > summary { display: flex; align-items: center; min-height: 44px; padding: 0 12px; cursor: pointer; font-weight: 700; }
+.ctm-body { padding: 4px 12px 12px; }
+.ctm-body h4 { margin: 12px 0 6px; }
+.ctm-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ctm-row { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--border, #444); }
+.ctm-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.ctm-name > span { min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.ctm-name b { flex: none; min-width: 22px; padding: 1px 6px; background: rgba(127, 127, 127, .16); border-radius: 9px; font-size: 12px; text-align: center; }
+.ctm-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctm-controls .ctm-input { flex: 1 1 140px; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.ctm-controls .btn, .ctm-controls select { min-height: 44px; }
+.ctm-controls .ctm-delete { color: #ff6b5e; }
+html.ui-light .ctm-controls .ctm-delete, html.ui-native.ui-light .ctm-controls .ctm-delete { color: #b3261e; }
+
+@media (max-width: 560px) {
+  .cl-menu-panel { right: 0; left: auto; }
+}
+
+html:not(.ui-light) .cl-card .char-meta > span { color: #b9b2aa; }
+.cl-bar .btn[data-cl="bin"] { transition: none; }
+html:not(.ui-light) .cl-bar .btn.ghost[data-cl="bin"] { color: #ff8a80; }

@@ -1,0 +1,23 @@
+/* Rumors: a GM-only list per campaign. Theme variables only; nothing has a fixed width. The truth of a rumor is a
+   word in a chip, the colour of its edge is only an addition. */
+.ru-card{display:grid;gap:10px;min-width:0}
+.ru-card>*{min-width:0;margin:0}
+.ru-note{font-size:.82rem;line-height:1.5;color:var(--muted)}
+.ru-new{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;align-items:end}
+.ru-new .field:first-child{grid-column:1/-1}
+.ru-card .field{display:grid;gap:4px;font-size:.82rem;min-width:0}
+.ru-card input[type=text],.ru-card select,.ru-card textarea{width:100%;box-sizing:border-box;min-width:0;min-height:44px}
+.ru-card textarea{resize:vertical;min-height:64px}
+.ru-card .btn{min-height:44px}
+.ru-card .btn[aria-disabled="true"]{opacity:.48;cursor:not-allowed}
+.ru-list{list-style:none;padding:0;display:grid;gap:10px}
+.ru-item{display:grid;gap:8px;border:1px solid var(--border);border-left:3px solid var(--border);padding:10px;min-width:0}
+.ru-item>*{min-width:0;margin:0}
+.ru-item.ru-t-true{border-left-color:var(--yellow)}
+.ru-item.ru-t-false{border-left-color:var(--red)}
+.ru-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.ru-badge{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;font-size:.8rem;color:var(--muted)}
+.ru-chip{font-weight:800;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);padding:1px 6px;color:var(--text)}
+.ru-pub{font-weight:700;color:var(--text)}
+.ru-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+.ru-del.armed{border-color:var(--red);font-weight:800}

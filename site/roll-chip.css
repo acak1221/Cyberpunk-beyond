@@ -1,0 +1,22 @@
+/* The roll result as a compact chip at the top of the screen, just under the top bar so the menu and search stay reachable (it used to be a large sheet at the bottom). */
+.app-notice.roll-notice{top:calc(64px + env(safe-area-inset-top,0px));bottom:auto;left:50%;right:auto;z-index:1400;width:min(540px,calc(100vw - 24px));max-width:none;min-width:0;padding:8px 10px;gap:10px;transform:translate(-50%,-14px)}
+.app-notice.roll-notice.visible{transform:translate(-50%,0);pointer-events:auto;animation:roll-chip-in .2s ease-out}
+.app-notice.roll-notice.crit.visible,.app-notice.roll-notice.fumble.visible{animation:roll-chip-in .2s ease-out}
+.app-notice.roll-notice .roll-total{min-width:52px;padding:4px 8px;font-size:30px}
+.app-notice.roll-notice .roll-body{flex:1 1 auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:14px}
+.app-notice.roll-notice .roll-flag{flex:1 1 100%}
+.app-notice.roll-notice .roll-title{flex:1 1 100%;min-width:0;font-weight:700;overflow-wrap:anywhere}
+.app-notice.roll-notice .roll-verdict{margin-left:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.app-notice.roll-notice .roll-verdict.ok{color:var(--green)}
+.app-notice.roll-notice .roll-verdict.bad{color:var(--red)}
+.app-notice.roll-notice .roll-dice{flex:0 1 auto}
+.app-notice.roll-notice .roll-detail{flex:1 1 100%;margin:2px 0;color:inherit;opacity:.85;font-size:13px;overflow-wrap:anywhere}
+.app-notice.roll-notice .roll-detail[hidden]{display:none}
+.app-notice.roll-notice .roll-actions{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.app-notice.roll-notice .roll-actions:empty{display:none}
+.app-notice.roll-notice .roll-actions .btn,.app-notice.roll-notice .roll-again,.app-notice.roll-notice .roll-more{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0;padding:0 14px;pointer-events:auto}
+.app-notice.roll-notice .roll-more{font-weight:600}
+@keyframes roll-chip-in{from{opacity:0;transform:translate(-50%,-14px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){.app-notice.roll-notice.visible,.app-notice.roll-notice.crit.visible,.app-notice.roll-notice.fumble.visible{animation:none}}
+@media (max-width:820px){.app-notice.roll-notice{left:50%;right:auto}}
+@media print{.app-notice.roll-notice{display:none!important}}

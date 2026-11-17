@@ -4,7 +4,7 @@
 .lp-result { margin:0; color:#ece3d9; font-size:13px; line-height:1.65; overflow-wrap:anywhere; }
 .lp-card .lp-empty { color:#938a84; }
 .lp-card .lp-select { display:flex; flex-direction:column; gap:6px; margin:0; color:#bdb4ac; font-size:11px; }
-.lp-card .lp-select select,.lp-card .lp-select input { width:100%; min-width:0; }
+.lp-card .lp-select select,.lp-card .lp-select input { width:100%; min-width:0; min-height:44px; box-sizing:border-box; }
 .lp-card .lp-roll { align-self:flex-start; padding-left:0; min-height:34px; color:#e8c66d; }
 .lp-hint { color:#aaa09a; font-size:11px !important; line-height:1.5 !important; }
 .lp-banner { margin:0 0 22px; padding:20px 22px; border-left:3px solid #e3423c; background:#221b1b; }

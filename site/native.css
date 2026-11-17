@@ -265,3 +265,13 @@ html.ui-native .rule-top span:last-child { text-transform: lowercase; }
 @media (max-width: 960px) {
   html.ui-native .topbar, html.ui-native .main { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
 }
+
+/* Black theme (html.ui-black, set by theme-switch.js): true black for OLED screens. The cyberpunk look has its own palette. */
+@media screen {
+  html.ui-native.ui-black { color-scheme: dark; --bg: #000; --panel: #0a0a0b; --panel-2: #141416; --panel-hover: #1c1c1f; --border: rgba(255, 255, 255, .13); --muted: #a6a6ae; }
+  html.ui-native.ui-black body { background: #000; }
+  html.ui-native.ui-black .sidebar { background: #000; border-right-color: rgba(255, 255, 255, .1); }
+  html.ui-native.ui-black .topbar { background: rgba(0, 0, 0, .94); border-bottom-color: rgba(255, 255, 255, .1); }
+  html.ui-native.ui-black .bottom-nav { background: rgba(0, 0, 0, .96); border-top-color: rgba(255, 255, 255, .1); }
+  html.ui-native.ui-black .card { background: var(--panel); }
+}

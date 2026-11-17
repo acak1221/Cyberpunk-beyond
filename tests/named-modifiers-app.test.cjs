@@ -41,7 +41,7 @@ test('each hook is in its file exactly once, and the long files keep their line 
 function appHelpers({effects=true,module=true,lang='ru'}={}){
  const window={SKILL_LABELS:{Handgun:{ru:'Пистолеты',en:'Handgun'},Stealth:{ru:'Скрытность',en:'Stealth'}}};
  const ctx=vm.createContext({window});
- if(effects)vm.runInContext(read('effects.js'),ctx);
+ if(effects){vm.runInContext(read('crit-injuries.js'),ctx);vm.runInContext(read('effects.js'),ctx)}
  if(module)vm.runInContext(read('named-modifiers.js'),ctx);
  vm.runInContext(read('sheet-leftovers.js'),ctx);
  const lines=read('app.js').split('\n').filter(l=>/^(function (effectModifier|namedParts|effectSplit|namedTail|effectTail|effectParts)\(|const effectLabel=)/.test(l));
@@ -100,7 +100,7 @@ test('the «Досье» panel shows a named modifier as its own row, only for t
  const doc={documentElement:{lang:'ru',classList:{contains:()=>true}},body:el(),readyState:'complete',addEventListener(){},createElement:el,querySelector:()=>null,querySelectorAll:()=>[]};
  const window={document:doc,localStorage:{getItem:()=>null,setItem(){}},matchMedia:()=>({matches:false}),setTimeout:()=>0,clearTimeout(){},App:{lang:()=>'ru'}};
  const ctx=vm.createContext({window});
- vm.runInContext(read('effects.js'),ctx);vm.runInContext(read('named-modifiers.js'),ctx);vm.runInNewContext(read('dossier-panel.js'),{window});
+ vm.runInContext(read('crit-injuries.js'),ctx);vm.runInContext(read('effects.js'),ctx);vm.runInContext(read('named-modifiers.js'),ctx);vm.runInNewContext(read('dossier-panel.js'),{window});
  const D=window.DossierPanel,c=hero([entry('a',{scope:'ranged'}),entry('b',{name:'Темнота',value:-2}),entry('c',{name:'Допинг',scope:'stat',key:'REF',value:3}),entry('d',{name:'Тишина',scope:'skill',key:'Stealth',value:1})]);
  const rows=q=>plain(D.effectRows(c,q,'ru').rows??D.effectRows(c,q,'ru'));
  assert.deepEqual(rows({check:true,kind:'ranged',skill:'Handgun',stat:'REF'}),[{label:'Smartgun',source:'свой модификатор',value:1},{label:'Темнота',source:'свой модификатор',value:-2},{label:'Допинг',source:'свой модификатор',value:3}]);
@@ -143,7 +143,7 @@ function sheetApp(window,lang){
 }
 function combat({module=true,lang='ru',rollNamed=true}={}){
  const window={SKILL_LABELS:{Autofire:{ru:'Автоматический огонь',en:'Autofire'}}},ctx=vm.createContext({window});
- vm.runInContext(read('effects.js'),ctx);if(module)vm.runInContext(read('named-modifiers.js'),ctx);
+ vm.runInContext(read('crit-injuries.js'),ctx);vm.runInContext(read('effects.js'),ctx);if(module)vm.runInContext(read('named-modifiers.js'),ctx);
  vm.runInContext(read('sheet-leftovers.js'),ctx);vm.runInContext(read('play-combat.js'),ctx);
  const calls=sheetApp(window,lang);if(!rollNamed)delete window.App.rollNamed;
  return {P:window.PlayCombat,L:window.SheetLeftovers,calls,window};
@@ -181,7 +181,7 @@ test('a burst without a modifier, without the module or with an older app reads 
 
 test('a Role ability check names the modifiers after «эффекты», and the sum does not change',()=>{
  const window={SKILL_LABELS:{Trading:{ru:'Торговля',en:'Trading'}}},ctx=vm.createContext({window,document:{addEventListener(){},documentElement:{lang:'ru'}}});
- vm.runInContext(read('effects.js'),ctx);vm.runInContext(read('named-modifiers.js'),ctx);vm.runInContext(read('role-kit.js'),ctx);
+ vm.runInContext(read('crit-injuries.js'),ctx);vm.runInContext(read('effects.js'),ctx);vm.runInContext(read('named-modifiers.js'),ctx);vm.runInContext(read('role-kit.js'),ctx);
  sheetApp(window,'ru');
  const K=window.RoleKit,c=hero([entry('a'),entry('t',{name:'Связи',scope:'skill',key:'Trading',value:2}),entry('r',{scope:'ranged',value:5})],injury);
  const m=K.sheetMods(c,'Trading','COOL');

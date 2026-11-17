@@ -1,0 +1,5 @@
+{
+  "note": "Baseline of nc-red.js (the core file). scripts/build.mjs fails when it grows more than 10% over this; after a deliberate increase run: node scripts/build.mjs --update-budget",
+  "coreBytes": 3813213,
+  "coreGzip": 1157820
+}

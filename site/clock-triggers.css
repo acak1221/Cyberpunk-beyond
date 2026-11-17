@@ -23,7 +23,7 @@
 /* One reminder: the segment and the delete button on the first line, the text across the whole card below. */
 .gm-extras .ct-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
 .gm-extras .ct-row input{grid-column:1/-1}
-.gm-extras .ct-panel select,.gm-extras .ct-panel input[type=text]{width:100%;box-sizing:border-box;min-width:0;min-height:44px}
+.gm-extras .ct-panel select,.gm-extras .ct-panel input[type=text],.gm-extras .ct-panel input[type=number]{width:100%;box-sizing:border-box;min-width:0;min-height:44px}
 .gm-extras .ct-panel .field{display:grid;gap:4px;width:auto;min-width:0;font-size:.82rem}
 .gm-extras .ct-del{min-width:44px;padding:4px 10px}
 /* An open panel needs room for its fields: its card takes the whole row of the grid. */
@@ -43,3 +43,21 @@
 /* Players: a clock that has run out */
 .room-clock.full{outline:2px solid var(--red);outline-offset:-2px}
 .room-clock.full small{color:var(--text)}
+
+/* A pool of dice: a row of chips instead of the wheel (a hollow chip is a die that is out) */
+.gm-extras .ct-pool{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 10px;padding:6px 0;min-width:0}
+.gm-extras .ct-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.gm-extras .ct-chip{width:22px;height:22px;border:2px solid var(--text);background:var(--text);border-radius:4px;box-sizing:border-box}
+.gm-extras .ct-chip:not(.on){background:transparent;border-style:dashed;opacity:.55}
+.gm-extras .ct-pool small{font:700 .76rem/1.2 'IBM Plex Mono',monospace;color:var(--muted)}
+.gm-extras .ct-pool.empty .ct-chip{border-color:var(--red)}
+
+/* A real-time timer on a clock card */
+.gm-extras .ct-cd{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;border:1px solid var(--border);border-left:3px solid var(--yellow);padding:8px 10px}
+.gm-extras .ct-cd>*{min-width:0;margin:0}
+.gm-extras .ct-cd .btn{flex:1 1 130px;overflow-wrap:normal;word-break:normal;white-space:normal}
+.gm-extras .ct-time{font:700 1.5rem/1.1 'IBM Plex Mono',monospace;color:var(--text);font-variant-numeric:tabular-nums}
+.gm-extras .ct-cdword{white-space:nowrap;flex:none;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.gm-extras .ct-cd.done{border-color:var(--red);border-width:2px;border-left-width:3px}
+.gm-extras .ct-cd.done .ct-cdword{color:var(--text);font-weight:800}
+.gm-extras .ct-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

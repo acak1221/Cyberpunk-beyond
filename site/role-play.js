@@ -218,7 +218,7 @@ function deckEntryHtml(c,deck,e,lang){
 function deckFootHtml(c,deck,lang){
  const ru=lng(lang)==='ru';
  if(!Array.isArray(deck?.entries)||!deck.entries.some(e=>progState(e)))return '';
- return `<div class="rp-actions"><button type="button" class="rt-button" data-rp-deck="jackout">${ru?'Jack Out: сбросить активность и REZ':'Jack Out: reset activation and REZ'}</button></div><p class="rt-help">${ru?'Активация и деактивация тратят NET-действие. При REZ 0 программа Derezzed: деактивируйте и активируйте её снова, чтобы восстановить.':'Activating and deactivating cost a NET Action. At REZ 0 a program is Derezzed: deactivate and activate it again to restore it.'}</p>`;
+ return `<div class="rp-actions"><button type="button" class="rt-button" data-rp-deck="jackout">${ru?'Jack Out: сбросить активность и REZ':'Jack Out: reset activation and REZ'}</button></div><p class="rt-help">${ru?'Активация, деактивация и Jack Out тратят NET-действие. При REZ 0 программа Derezzed: деактивируйте и активируйте её снова, чтобы восстановить.':'Activating, deactivating and Jack Out cost a NET Action. At REZ 0 a program is Derezzed: deactivate and activate it again to restore it.'}</p>`;
 }
 // How many copies of a program the character owns and has not installed yet (bought in the catalog).
 function ownedFree(c,catalogId){
@@ -237,7 +237,8 @@ function deckAct(c,deckId,entryId,op,rank,lang){
  let extra={...c.extra,cyberdecks:decks};
  if(op==='jackout'){
   for(const e of deck.entries)if(obj(e)){delete e.active;delete e.rez;delete e.down;delete e.spent}
-  return {ok:true,extra:withRun(extra,{used:0,jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:ru?'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.'};
+  // The counter is kept as it is: leaving the net is no refill (the cost of a safe Jack Out is taken in jackAct).
+  return {ok:true,extra:withRun(extra,{jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:ru?'Jack Out: программы деактивированы, REZ восстановлен.':'Jack Out: programs deactivated, REZ restored.'};
  }
  const e=deck.entries.find(x=>obj(x)&&x.id===entryId),s=runState(e);if(!s)return stale;
  if(s.destroyed&&(op==='toggle'||op==='rez-'||op==='rez+'))return {ok:false,message:ru?'Программа уничтожена: сначала восстановите её.':'The program is destroyed: restore it first.'};
@@ -292,25 +293,30 @@ function attackDamage(catalogId,vsBlackIce){
  const person=d[1]==='brain',plan=netDamagePlan('program',catalogId,person?'person':'program',vsBlackIce===true);
  return plan?{fixed:true,plan,dice:plan.dice,to:plan.to,byTarget:d.length===3}:{fixed:false};
 }
-// jack in (starts a turn) or out (the same as the Jack Out of the deck, plus the flag). -> {ok, extra, message}
+/* jack in or out. -> {ok, extra, message}
+   The app's own reference says Jack In and a safe Jack Out are NET Actions, so each spends one from the counter of the turn and the counter
+   is never refilled by them (only «New turn» refills it). With none left the press explains that instead of acting. A Jack Out of a
+   character who is not jacked in only cleans the decks and costs nothing. */
 function jackAct(c,op,deckId,rank,lang){
- const ru=lng(lang)==='ru';
+ const ru=lng(lang)==='ru',none=ru?'NET-действия этого хода исчерпаны. Нажмите «Новый ход».':'No NET Actions remain this turn. Press “New turn”.';
  if(!obj(c))return {ok:false,message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
  if(op==='in'){
   if(jackedIn(c))return {ok:false,message:ru?'Вы уже в сети.':'You are already jacked in.'};
-  // A counter already spent (an old save mid-run, or actions spent while out) is the player's turn in progress: it is kept, not refilled.
-  if(netLeft(c,rank).used>0)return {ok:true,extra:withRun(c.extra,{jackedIn:true}),message:ru?'Вы в сети. Счётчик NET-действий оставлен как был; нажмите «Новый ход», чтобы восстановить его.':'You are jacked in. The NET Action counter is left as it was; press “New turn” to restore it.'};
-  return {ok:true,extra:withRun(c.extra,{used:0,jackedIn:true}),message:ru?'Вы в сети. Новый ход: NET-действия восстановлены.':'You are jacked in. New turn: NET Actions restored.'};
+  const n=netLeft(c,rank);if(n.left<1)return {ok:false,reason:'actions',message:none};
+  return {ok:true,extra:withRun(c.extra,{used:n.used+1,jackedIn:true}),message:ru?`Вы в сети. Jack In — NET-действие: осталось ${n.left-1} из ${n.max}.`:`You are jacked in. Jack In is a NET Action: ${n.left-1} of ${n.max} left.`};
  }
  if(op!=='out')return {ok:false,message:ru?'Данные изменились. Повторите действие.':'Data changed. Try again.'};
+ const was=jackedIn(c),nOut=netLeft(c,rank);
+ if(was&&nOut.left<1)return {ok:false,reason:'actions',message:ru?'Для безопасного Jack Out нужно NET-действие, а они исчерпаны. Нажмите «Новый ход».':'A safe Jack Out needs a NET Action and none remain. Press “New turn”.'};
+ const usedOut=nOut.used+(was?1:0),costRu=was?` Jack Out — NET-действие: осталось ${nOut.left-1} из ${nOut.max}.`:'',costEn=was?` Jack Out is a NET Action: ${nOut.left-1} of ${nOut.max} left.`:'';
  const decks=c.extra?.cyberdecks?.decks;
  // Leaving the net leaves it for every deck of the character: a booster of a second deck must not stay rezzed and counted.
  if(Array.isArray(decks)&&decks.some(d=>obj(d)&&d.id===deckId)){
   let extra=c.extra,done=false;
   for(const d of decks){if(!obj(d)||typeof d.id!=='string')continue;const r=deckAct({...c,extra},d.id,'','jackout',rank,lang);if(r.ok){extra=r.extra;done=true}}
-  if(done){const many=decks.filter(d=>obj(d)).length>1;return {ok:true,extra,message:ru?(many?'Вы вышли из сети: программы всех дек деактивированы, REZ восстановлен, NET-действия сброшены.':'Jack Out: программы деактивированы, REZ восстановлен, NET-действия сброшены.'):(many?'You jacked out: programs on all decks deactivated, REZ restored, NET Actions reset.':'Jack Out: programs deactivated, REZ restored, NET Actions reset.')}}
+  if(done){const many=decks.filter(d=>obj(d)).length>1;return {ok:true,extra:withRun(extra,{used:usedOut}),message:ru?(many?'Вы вышли из сети: программы всех дек деактивированы, REZ восстановлен.':'Jack Out: программы деактивированы, REZ восстановлен.')+costRu:(many?'You jacked out: programs on all decks deactivated, REZ restored.':'Jack Out: programs deactivated, REZ restored.')+costEn}}
  }
- return {ok:true,extra:withRun(c.extra,{used:0,jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:ru?'Вы вышли из сети. NET-действия сброшены.':'You jacked out. NET Actions reset.'};
+ return {ok:true,extra:withRun(c.extra,{used:usedOut,jackedIn:undefined,cut:undefined,netPenalty:undefined}),message:(ru?'Вы вышли из сети.'+costRu:'You jacked out.'+costEn)};
 }
 // ---------- Solo: the round of the fight ----------
 /* Spot Weakness and Damage Deflection work once a round and keep a journal by «fight + round». The sheet keeps the current
@@ -522,7 +528,7 @@ if(doc?.addEventListener){
   const deckButton=t.closest('[data-rp-deck]');if(deckButton){
    const A=global.App,c=A?.active?.(),rank=global.NetrunTab?.interfaceRank?.(c)||Number(c?.rank)||1;if(!c)return;
    if(deckButton.dataset.rpDeck==='jackout'&&global.NetrunConsole?.jack?.('out',deckButton.closest('[data-deck-id]')?.dataset.deckId))return;
-   const r=deckAct(c,deckButton.closest('[data-deck-id]')?.dataset.deckId,deckButton.dataset.deckEntry,deckButton.dataset.rpDeck,rank,A.lang?.());
+   const r=deckButton.dataset.rpDeck==='jackout'?jackAct(c,'out',deckButton.closest('[data-deck-id]')?.dataset.deckId,rank,A.lang?.()):deckAct(c,deckButton.closest('[data-deck-id]')?.dataset.deckId,deckButton.dataset.deckEntry,deckButton.dataset.rpDeck,rank,A.lang?.());
    if(r.ok){c.extra=r.extra;try{A.save?.();A.render?.()}catch{}}
    if(r.message)try{A.notify?.(r.message)}catch{}
    return;

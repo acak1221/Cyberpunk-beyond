@@ -234,3 +234,14 @@ html.ui-native.ui-board .condition-rows > div { border-bottom-color: var(--borde
   html.ui-native.ui-board .card-heading > span:first-child { color: #111; }
   html.ui-native.ui-board .sheet-stat-strip div { border: 1px solid #999; border-image: none; }
 }
+
+/* Black theme in the dossier look. */
+@media screen {
+  html.ui-native.ui-board.ui-black {
+    color-scheme: dark; --bg: #000; --panel: #080a0c; --panel-2: #11151a; --panel-hover: #1a2027; --border: rgba(255, 255, 255, .16);
+  --board-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23080a0c' stroke='%23454d55' stroke-width='1.5'/%3E%3C/svg%3E");
+  --board-frame-accent: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M10.75 .75h26.5l10 10v26.5l-10 10h-26.5l-10-10v-26.5z' fill='%23080a0c' stroke='%23c53131' stroke-width='1.5'/%3E%3C/svg%3E");
+  }
+  html.ui-native.ui-board.ui-black #app-sidebar { background: #000; }
+  html.ui-native.ui-board.ui-black .bottom-nav { background: #000; }
+}

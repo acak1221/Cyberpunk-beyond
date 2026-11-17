@@ -64,9 +64,11 @@ test('an unknown look falls back to the default one',()=>{
  assert.deepEqual(h.classes(),['ui-native']);assert.equal(h.stored['nc-ui-style'],'native');
 });
 
-test('the menu offers the three looks in both languages',()=>{
- const app=source('app.js');
- assert.match(app,/data-ui-style="native">\$\{state\.lang==='ru'\?'Обычное':'Clean'\}<\/button><button type="button" data-ui-style="board">\$\{state\.lang==='ru'\?'Досье':'Dossier'\}<\/button><button type="button" data-ui-style="cyber">/);
+test('the settings page offers the three looks in both languages',()=>{
+ const page=source('settings.js');
+ assert.ok(page.includes("looks:{native:'Обычное',board:'Досье',cyber:'Киберпанк'}"));
+ assert.ok(page.includes("looks:{native:'Clean',board:'Dossier',cyber:'Cyberpunk'}"));
+ assert.ok(page.includes("['native','board','cyber'].map(s=>`<button type=\"button\" data-ui-style=\"${s}\""));
 });
 
 // ---------- the sheet tabs ----------
@@ -92,7 +94,7 @@ test('on a wide board the «Навыки» tab shows «Действия»: the s
 test('the board has its own tabs: «Действия», «Особенности» and «Персонаж», without «Основное» and «Весь лист»',()=>{
  const h=tabs(),bar=h.inserted[0],ids=[...bar.matchAll(/data-sheet-tab="(\w+)"/g)].map(m=>m[1]);
  assert.deepEqual(ids,['combat','skills','gear','role','life']);assert.deepEqual([...h.T.boardTabs],['combat','skills','gear','role','life','netrun']);
- for(const label of ['Действия','Навыки','Снаряжение','Особенности','Персонаж'])assert.ok(bar.includes(`</span>${label}</button>`),label);
+ for(const label of ['Действия','Навыки','Снаряжение','Особенности','Персонаж'])assert.ok(bar.includes(`<i class="sheet-tab-label">${label}</i></button>`),label);
  for(const gone of ['Основное','Весь лист','>Бой<'])assert.ok(!bar.includes(gone),gone);
  const plain=tabs({board:false}).inserted[0];
  assert.deepEqual([...plain.matchAll(/data-sheet-tab="(\w+)"/g)].map(m=>m[1]),['main','skills','combat','gear','role','life','all']);assert.match(plain,/data-board="0"/);

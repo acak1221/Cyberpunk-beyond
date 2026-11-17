@@ -1,0 +1,9 @@
+/* Installed cyberware weapons in the combat dock (site/cyberweapons.js). */
+.cw-block { margin: 10px 0; }
+.cw-block h3 { margin: 0 0 6px; font-size: 14px; }
+.cw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cw-row { padding: 8px 10px; border: 1px solid var(--border); background: var(--panel); }
+.cw-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.cw-head small { color: var(--muted); }
+.cw-note { margin: 4px 0 6px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.cw-row .cx-button { min-height: 44px; }

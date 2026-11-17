@@ -1,0 +1,19 @@
+/* Starter clocks and the clocks file: the toolbar under the "new clock" form. Theme variables only; nothing has a
+   fixed width, so a 390px phone does not scroll sideways. A state is never told by colour alone. */
+.gm-extras .cf-bar{display:grid;gap:8px;margin:0 0 10px;min-width:0}
+.gm-extras .cf-bar>*{min-width:0;margin:0}
+.gm-extras .cf-row{display:flex;flex-wrap:wrap;gap:8px}
+.gm-extras .cf-bar .btn{min-height:44px}
+.gm-extras .cf-file{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.gm-extras .cf-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+.gm-extras .cf-file:focus-within{outline:2px solid var(--yellow);outline-offset:2px}
+.gm-extras .cf-menu{display:grid;gap:6px;border:1px solid var(--border);padding:10px}
+.gm-extras .cf-menu .btn{text-align:left;justify-content:flex-start;white-space:normal;height:auto}
+.gm-extras .cf-note{font-size:.82rem;line-height:1.5;color:var(--muted)}
+.gm-extras .cf-error{border-left:3px solid var(--red);padding:6px 10px;font-size:.88rem;color:var(--text)}
+.gm-extras .cf-warn{color:var(--text);font-weight:700}
+.gm-extras .cf-preview{display:grid;gap:8px;border:1px solid var(--border);border-left:3px solid var(--yellow);padding:10px}
+.gm-extras .cf-head{font-size:.8rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
+.gm-extras .cf-plan{list-style:none;padding:0;display:grid;gap:4px}
+.gm-extras .cf-plan li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:.9rem;color:var(--text);overflow-wrap:anywhere}
+.gm-extras .cf-plan small{color:var(--muted);font-weight:700}

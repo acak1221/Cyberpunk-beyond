@@ -56,6 +56,28 @@ function scaled(tpl,tier){
  const s=shiftOf(tpl,tier),st=tpl.stats;
  return {shift:s,ref:clamp(st.REF+STEP.stat*s,1,10),body:clamp(st.BODY+STEP.stat*s,1,15),will:clamp(st.WILL+STEP.stat*s,1,15),hp:Math.max(10,tpl.hp+STEP.hp*s),sp:ladderStep(Math.max(tpl.armor.headSP,tpl.armor.bodySP),s)};
 }
+/* A whole template at another threat level: the same shape as the book template (stats, hp, serious, death, armor,
+   skillBases), so every tool that reads a template can read the scaled copy. The rule is the app's own setting (see
+   the header), not a book rule: per step REF, BODY and WILL move by 1, HP by 5, every skill total by 2 and armor by one
+   rung of the ladder. The template's own level gives an exact copy; an unknown level or a malformed template gives null. */
+function scale(tpl,level){
+ if(!wellFormed(tpl))return null;
+ const out=JSON.parse(JSON.stringify(tpl));
+ if(!TIERS.includes(level)||level===tpl.tier)return out;
+ const s=shiftOf(tpl,level),sc=scaled(tpl,level),move=(v,lo,hi)=>clamp(v+STEP.stat*s,lo,hi);
+ out.tier=level;out.scaledFrom=tpl.tier;
+ out.stats.REF=sc.ref;out.stats.BODY=sc.body;out.stats.WILL=sc.will;
+ if(out.effectiveStats&&typeof out.effectiveStats==='object'){
+  for(const k of ['REF','BODY','WILL'])if(Number.isInteger(out.effectiveStats[k]))out.effectiveStats[k]=move(out.effectiveStats[k],0,k==='REF'?10:15);
+ }
+ out.hp=sc.hp;out.serious=Math.ceil(sc.hp/2);out.death=sc.body;
+ out.armor.headSP=ladderStep(tpl.armor.headSP,s);out.armor.bodySP=ladderStep(tpl.armor.bodySP,s);
+ // The book's armor name would contradict the new SP (a mook in «Kevlar» with boss SP), so a scaled copy shows numbers only.
+ if(out.armor.headSP!==tpl.armor.headSP||out.armor.bodySP!==tpl.armor.bodySP)out.armor.name='';
+ const add=v=>Number.isInteger(v)?clamp(v+STEP.total*s,0,40):v;
+ for(const k of Object.keys(out.skillBases)){const v=out.skillBases[k];out.skillBases[k]=v&&typeof v==='object'?{...v,base:add(v.base),armored:add(v.armored)}:add(v)}
+ return out;
+}
 // A template total is a number, or {base, armored} for an NPC whose armor slows it: the armored value is the one
 // it fights with (the tracker in gm-table.js makes the same choice). An unreadable value is null.
 function skillTotal(tpl,key,shift){
@@ -416,5 +438,5 @@ function handle(e,lang){
 }
 function reset(){ui=FRESH()}
 if(typeof document!=='undefined'&&document.addEventListener){for(const type of ['click','change','input'])document.addEventListener(type,e=>{handle(e)})}
-window.NpcBuilder={TIERS,ARMOR_LADDER,STEP,MAX_KIT,MAX_KIT_NAME,MAX_QTY,KIT_BUDGET,SKILL_PRIORITY,archetypes,shiftOf,ladderStep,scaled,skillTotal,defaultSkills,attackBase,defaultAttacks,catalogWeapons,splitKit,archetypeKit,kitStep,kitAdd,kitText,resolve,draftOf,save,receiptOf,undo,render,handle,reset,_state:()=>JSON.parse(JSON.stringify(ui))};
+window.NpcBuilder={TIERS,ARMOR_LADDER,STEP,scale,MAX_KIT,MAX_KIT_NAME,MAX_QTY,KIT_BUDGET,SKILL_PRIORITY,archetypes,shiftOf,ladderStep,scaled,skillTotal,defaultSkills,attackBase,defaultAttacks,catalogWeapons,splitKit,archetypeKit,kitStep,kitAdd,kitText,resolve,draftOf,save,receiptOf,undo,render,handle,reset,_state:()=>JSON.parse(JSON.stringify(ui))};
 })();

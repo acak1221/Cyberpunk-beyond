@@ -1,20 +1,21 @@
 // The city map in an online room: the Game Master shows chosen pins and the crew mark, players only look at them,
 // nobody else can write them, the picture and the notes never leave the device, and a page that does not know the
 // new message type carries on as before.
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
 const eq=(a,b)=>assert.deepEqual(plain(a),plain(b));
 const CODE='K7RQM2XAPZ9E';
-const settle=(ms=40)=>new Promise(ok=>setTimeout(ok,ms));
+const settle=Idle.settle;
 const BRANCH=" }else if(m.t==='citymap'&&sub==='p'){\n  if(fromGM&&global.CityMap?.receive?.(m.d,at,p.retain))repaint();\n";
 // One browser tab. `old` is a page from before the city map: no module and no branch for the new message type.
 // `gate` adds the waiting room modules.
 function loadTab({old=false,gate=false,state}={}){
  const listeners={},store=new Map(),document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[],visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=500)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,scrollTo(){}};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,RegExp,setTimeout:later,clearTimeout,setInterval:every,clearInterval,console,URL,Blob};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=500)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,scrollTo(){}};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,RegExp,setTimeout:later,clearTimeout:Idle.clear,setInterval:every,clearInterval,console,URL,Blob};
  let room=read('room.js');
  if(old){assert.equal(room.split(BRANCH).length,2,'the branch is in room.js exactly once');room=room.replace(BRANCH,'')}
  vm.runInNewContext(read('room-transport.js')+'\n'+(gate?read('room-auth.js')+'\n'+read('room-gate.js')+'\n':'')+room+(old?'':'\n'+read('city-map.js')),ctx);
@@ -35,8 +36,8 @@ async function scene({role='player',old=false,state,campaignId=''}={}){
 }
 const pin=(id,t,x,y,name,more={})=>({id,t,x,y,name,...more});
 const campaign=()=>({id:'c1',name:'Арасака',notes:'Секрет ведущего',roster:[],cityMap:{v:1,ratio:1.333,
- pins:[pin('a','bar',100,200,'Бар «Тихий час»',{note:'Хозяин — информатор',shown:true}),pin('b','safehouse',500,500,'Тайник группы',{note:'Код от двери 4471'}),pin('c','gang',900,800,'Стая <b>',{shown:true})],
- route:['a','b','c'],crew:'b',crewShown:true}});
+ pins:[pin('a','bar',100,200,'Бар «Тихий час»',{note:'Хозяин — информатор',shown:true,d:'dist-secret',npc:['npc-secret'],f:'fac-secret'}),pin('b','safehouse',500,500,'Тайник группы',{note:'Код от двери 4471',par:'a'}),pin('c','gang',900,800,'Стая <b>',{shown:true})],
+ route:['a','b','c'],crew:'b',crewShown:true,districts:[{id:'dist-secret',name:'Нижний Доктауне'}]}});
 const SHOWN={campaign:'Арасака',ratio:1.333,pins:[['bar',100,200,'Бар «Тихий час»'],['gang',900,800,'Стая <b>']],crew:[500,500]};
 
 test('what leaves the device: the chosen pins as type, place and name, and the place of the crew — nothing else',()=>{
@@ -44,7 +45,7 @@ test('what leaves the device: the chosen pins as type, place and name, and the p
  eq(p,{data:SHOWN,fit:2,total:2});
  eq(Object.keys(p.data).sort(),['campaign','crew','pins','ratio']);
  const wire=JSON.stringify(p.data);
- for(const secret of ['информатор','4471','Тайник','Секрет','route','note','"a"','"b"','"id"','data:','shown'])assert.equal(wire.includes(secret),false,secret);
+ for(const secret of ['информатор','4471','Тайник','Секрет','route','note','"a"','"b"','"id"','data:','shown','dist-secret','npc-secret','fac-secret','Доктауне','districts','par'])assert.equal(wire.includes(secret),false,secret);
  // The crew stands on a pin that is not shown: only the point is sent, not the pin.
  assert.equal(p.data.pins.some(x=>x[1]===500&&x[2]===500),false);
  delete c.cityMap.crewShown;eq(M.payload(c).data.crew,null);

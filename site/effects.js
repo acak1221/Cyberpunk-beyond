@@ -13,31 +13,7 @@
 'use strict';
 // By table and 2d6 score: all = every check, melee/ranged = attacks of that kind, move = MOVE, death = Base Death Save Penalty.
 // note = a situational effect to keep in mind, in both languages.
-const INJURY={
- body:{
-  2:{death:1},3:{death:1},4:{move:-2,death:1},
-  5:{note:['Более 4 м пешком за ход: снова 5 урона','Over 4 m on foot in a turn: 5 damage again']},
-  6:{note:['Рука не действует','The arm cannot be used']},
-  7:{note:['Более 4 м пешком за ход: снова 5 урона','Over 4 m on foot in a turn: 5 damage again']},
-  8:{move:-4},9:{melee:-2},
-  10:{death:1,note:['Следующий ход без Action','No Action next turn']},
-  11:{note:['−4 к действиям этой кистью','−4 to Actions with that hand']},
-  12:{move:-6,death:1,note:['Уклоняться нельзя','Cannot dodge']},
- },
- head:{
-  2:{ranged:-4,death:1,note:['−4 к зрительному Восприятию','−4 to Perception by sight']},
-  3:{all:-2,death:1},
-  4:{ranged:-2,note:['−2 к зрительному Восприятию','−2 to Perception by sight']},
-  5:{all:-2},
-  6:{note:['−4 к действиям, требующим речи','−4 to Actions that need speech']},
-  7:{note:['Более 4 м пешком за ход: снова 5 урона','Over 4 m on foot in a turn: 5 damage again']},
-  8:{death:1},
-  9:{death:1,note:['Прицельный урон в голову сквозь броню ×3','Aimed head damage through armor ×3']},
-  10:{note:['−2 к Восприятию на слух; после 4 м пешком — ход без движения','−2 to Perception by hearing; after 4 m on foot, no Move next turn']},
-  11:{death:1,note:['Говорить нельзя','Cannot speak']},
-  12:{death:1,note:['−4 к Восприятию на слух; после 4 м пешком — ход без движения','−4 to Perception by hearing; after 4 m on foot, no Move next turn']},
- },
-};
+const INJURY=globalThis.window?.CritInjuries?.effects?.()||{body:{},head:{}}; // the numbers live in crit-injuries.js, next to the names and the text
 // Installed cyberware by catalog id. initiative = added to Initiative; ignoreSerious = no Seriously Wounded penalty;
 // skills = bonus to checks of the named Skills; note = a reminder for effects that depend on the situation or change the sheet.
 const TECH_SKILLS=['Basic Tech','Cybertech','Land Vehicle Tech','Sea Vehicle Tech','Air Vehicle Tech','Electronics/Security Tech','Weaponstech'];

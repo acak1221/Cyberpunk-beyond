@@ -29,3 +29,9 @@ html.ui-native .ob-entry{border-radius:14px}
  .ob-entry summary{min-height:44px;display:flex;align-items:center}
 }
 @media(prefers-reduced-motion:reduce){.ob-card *{scroll-behavior:auto}}
+
+/* First-launch banner: one line, dismissable. */
+.ob-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 14px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-left:4px solid var(--yellow);border-radius:8px;font-size:14px;line-height:1.4}
+.ob-banner > span{flex:1 1 220px;min-width:0}
+.ob-banner .btn,.ob-banner .ob-link{min-height:44px}
+.ob-banner .ob-link{display:inline-flex;align-items:center;padding:0 8px}

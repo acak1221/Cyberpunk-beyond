@@ -1,27 +1,28 @@
 /* Online rooms: the waiting room. With it the room code opens only the door: the room itself is sealed with a second key that
    the Game Master gives, device by device, to those it lets in.
    The rule under test everywhere: a device that has the code but was not let in neither reads the room nor puts anything into it. */
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const CODE='K7RQM2XAPZ9E',SESSION='nightcity-red-room-v1';
 // One browser tab with its own module state and its own signing key. Long timers are not allowed to keep node running.
 function loadRoom({lang='ru',state,fields={},gate=true,confirm=()=>true}={}){
  const listeners={},store=new Map(),downloads=[],document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:sel=>fields[sel]||null,querySelectorAll:()=>[],visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=500)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:(...a)=>confirm(...a),navigator:{},btoa,atob,scrollTo(){}};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval:every,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=500)h.unref?.();return h},every=(f,ms)=>{const h=setInterval(f,ms);h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:(...a)=>confirm(...a),navigator:{},btoa,atob,scrollTo(){}};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date:Idle.Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval:every,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room-auth.js')+'\n'+(gate?read('room-gate.js')+'\n':'')+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[],resubscribed=[],app={lang,characters:[],campaigns:[],...(state||{})};
  const api={getState:()=>app,notify:m=>notices.push(m)};R.setApp(api);
- const wire={publish:(sub,bytes,retain)=>{sent.push({sub,bytes,retain});return 1},close(){},resubscribe(){resubscribed.push(Date.now())}};
+ const wire={publish:(sub,bytes,retain)=>{sent.push({sub,bytes,retain});return 1},close(){},resubscribe(){resubscribed.push(Idle.Date.now())}};
  R.setTransport(wire);window.RoomTransport={create:()=>wire};
  if(window.RoomAuth)window.RoomAuth.download=(name,text)=>downloads.push({name,text});
  const press=async(action,data={})=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action,...data},disabled:false}:null}})};
  const change=async(field,target={})=>{for(const f of listeners.change||[])await f({target:{dataset:{roomField:field},closest:()=>null,...target}})};
  return {window,R,G:window.RoomGate,A:window.RoomAuth,notices,sent,resubscribed,store,press,change,app,api,downloads,fields};
 }
-const settle=(ms=40)=>new Promise(ok=>setTimeout(ok,ms));
-const until=async(f,what='condition')=>{for(let i=0;i<200;i++){if(await f())return;await settle(10)}assert.fail('timed out: '+what)};
+const settle=Idle.settle;Idle.freeze(null,1);
+const until=Idle.until;
 let serial=0;
 // A tab that is in the room. pin: the Game Master key it trusts (a player), or nothing for the Game Master itself.
 // identity: the signing key of a device that was here before (a reloaded page keeps it).
@@ -251,7 +252,7 @@ test('a request to enter cannot be answered for somebody else, by somebody else,
  const g=gm.R.session().gate,sealed=await n.R.sealFor(n.R.gmPub(),{k:g.key,kid:g.kid});
  await give(n,await forge(n,gm.me,'e','admit',{to:n.memberId,...sealed},{from:gm.memberId}),'e',{kept:true});assert.equal(n.R.gate.inRoom(),false,'a kept copy');
  await give(n,await forge(n,eve,'e','admit',{to:n.memberId,...sealed}),'e');assert.equal(n.R.gate.inRoom(),false,'not from the Game Master');
- await give(n,await forge(n,gm.me,'e','admit',{to:n.memberId,...sealed},{at:Date.now()-3600000,from:gm.memberId}),'e');assert.equal(n.R.gate.inRoom(),false,'an hour old');
+ await give(n,await forge(n,gm.me,'e','admit',{to:n.memberId,...sealed},{at:Idle.Date.now()-3600000,from:gm.memberId}),'e');assert.equal(n.R.gate.inRoom(),false,'an hour old');
  await give(n,await forge(n,gm.me,'e','admit',{to:n.memberId,...await n.R.sealFor(n.R.gmPub(),{k:g.key,kid:'0'.repeat(16)})},{from:gm.memberId}),'e');assert.equal(n.R.gate.inRoom(),false,'a name that is not this key’s');
  // the real one, live
  await give(n,admit.bytes,admit.sub);assert.equal(n.R.gate.inRoom(),true);

@@ -97,6 +97,11 @@
       const n = p.rooms ? 1 : Number(p.ammoCount ?? p.quantity);
       return Number.isFinite(n) && n > 0 ? p.total / n : p.total;
     }
+    if (item && item.category === 'weapon' && (record?.quality === 'poor' || record?.quality === 'excellent')) {
+      // A weapon given a quality by hand sells at the price the table gives for that quality, when it gives one.
+      const q = global.WeaponAttach?.qualityOptions?.(item, 'en')?.find(o => o.value === record.quality);
+      if (q && Number.isFinite(q.price) && q.price >= 0) return q.price;
+    }
     if (item && Number.isFinite(item.price) && item.price >= 0) {
       if (item.category === 'ammo') return ['grenade', 'rocket'].includes(record?.ammoType) ? item.price : item.price / 10;
       return item.price;
@@ -110,6 +115,14 @@
   }
 
   const fail = (lang, reason, message) => ({ ok: false, reason, message: message || t(lang, reason) });
+  // Things of the inventory linked to a weapon or to another thing (record.linkedTo = the parent's id, weapon-attach.js).
+  const linkedTo = (c, id) => (typeof id === 'string' && id ? (list(c, 'items') || []).filter(r => isObject(r) && r.linkedTo === id && r.id !== id) : []);
+  // Removing a parent never removes what is linked to it: the link goes, the things stay. -> the records that were unlinked.
+  function unlinkChildren(c, id) {
+    const kids = linkedTo(c, id);
+    for (const r of kids) delete r.linkedTo;
+    return kids;
+  }
   // Takes `count` of the record out of the character. Worn armor and installed implants stay put (EquipmentTools says why).
   function takeOut(c, kind, id, count, lang) {
     const hit = find(c, kind, id);
@@ -120,7 +133,7 @@
     if (n === have) {
       const check = ET?.canRemove ? ET.canRemove(c, id, L(lang)) : { ok: true };
       if (!check.ok) return fail(lang, check.reason, check.message);
-      return { ok: true, record, index, count: n, whole: true, apply() { list(c, kind).splice(index, 1); } };
+      return { ok: true, record, index, count: n, whole: true, apply() { list(c, kind).splice(index, 1); unlinkChildren(c, record.id); } };
     }
     const check = ET?.canSetQuantity ? ET.canSetQuantity(c, id, have - n, L(lang)) : { ok: true };
     if (!check.ok) return fail(lang, check.reason, check.message);
@@ -157,6 +170,8 @@
     delete copy.humanityLossIncluded;
     // A group belongs to the sheet it was made on: its id means nothing on the receiver's sheet.
     delete copy.group;
+    // A link points at an id of the sheet it was made on.
+    delete copy.linkedTo;
     if (kind === 'items') copy.quantity = out.count;
     if (copy.starterArmor !== undefined && out.count !== 1) delete copy.starterArmor;
     if (global.CharacterExtra?.init) global.CharacterExtra.init(to);
@@ -175,13 +190,19 @@
     const check = tools()?.canRemove ? tools().canRemove(c, id, L(lang)) : { ok: true };
     if (!check.ok) return fail(lang, check.reason, check.message);
     list(c, kind).splice(hit.index, 1);
-    const name = displayName(hit.record, lang);
-    return { ok: true, dirty: true, name, message: t(lang, 'removed', name), undo: { characterId: c.id, kind, index: hit.index, record: hit.record } };
+    const unlinked = unlinkChildren(c, hit.record.id), name = displayName(hit.record, lang);
+    return { ok: true, dirty: true, name, message: t(lang, 'removed', name), undo: { characterId: c.id, kind, index: hit.index, record: hit.record, unlinked } };
   }
   function restore(c, undo, lang) {
     const rows = list(c, undo?.kind);
     if (!rows || !isObject(undo.record) || (c.id && undo.characterId !== c.id) || rows.some(r => r === undo.record || (isObject(r) && r.id === undo.record.id))) return fail(lang, 'stale');
     rows.splice(Math.max(0, Math.min(rows.length, whole(undo.index))), 0, undo.record);
+    // What was linked to it is linked again, unless the player linked it elsewhere meanwhile.
+    for (const old of Array.isArray(undo.unlinked) ? undo.unlinked : []) {
+      // Found by identity, or by id when the list was rebuilt (an import or a refresh gives new objects).
+      const r = isObject(old) ? (list(c, 'items') || []).find(x => x === old || (isObject(x) && typeof old.id === 'string' && old.id && x.id === old.id)) : null;
+      if (r && typeof undo.record.id === 'string' && !('linkedTo' in r)) r.linkedTo = undo.record.id;
+    }
     return { ok: true, dirty: true, message: t(lang, 'restored', displayName(undo.record, lang)) };
   }
 
@@ -375,7 +396,7 @@
   }
 
   global.GearFlow = {
-    unitPrice, sellQuote, sell, give, remove, restore, armorState, wearBought, receiptHTML, annotateCatalog, displayName,
+    linkedTo, unlinkChildren, unitPrice, sellQuote, sell, give, remove, restore, armorState, wearBought, receiptHTML, annotateCatalog, displayName,
     isOpen, rowMeta, rowActions, removeButton, weaponActions, armorStrip, panelHTML
   };
 })(window);

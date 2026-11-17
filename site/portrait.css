@@ -1,0 +1,18 @@
+/* Portrait buttons, crop dialog and avatar dialog. */
+.portrait-box .portrait-actions .portrait-button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; font-family: inherit; background: var(--panel-2, #26262a); border: 1px solid var(--border, #444); border-radius: 10px; cursor: pointer; }
+.portrait-box .portrait-actions .portrait-button:hover { background: var(--panel-hover, #303036); }
+.portrait-actions .portrait-button:focus-visible, .portrait-btn:focus-visible, .portrait-canvas:focus-visible { outline: 2px solid var(--yellow, #f5c542); outline-offset: 2px; }
+dialog.portrait-dialog { width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px; color: var(--text, #eee); background: var(--panel, #1c1c1f); border: 1px solid var(--border, #333); border-radius: 14px; }
+dialog.portrait-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.portrait-form h2 { margin: 0 0 6px; font-size: 20px; }
+.portrait-help { margin: 0 0 12px; color: var(--muted, #aaa); font-size: 13px; line-height: 1.4; }
+.portrait-canvas { display: block; width: 100%; max-width: 280px; aspect-ratio: 1; margin: 0 auto 12px; background: #1f1d1c; border-radius: 8px; touch-action: none; cursor: grab; }
+.portrait-zoom { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.portrait-zoom input[type=range] { flex: 1 1 auto; min-height: 44px; min-width: 0; }
+.portrait-dlg-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.portrait-btn { min-height: 44px; min-width: 44px; padding: 0 14px; color: inherit; background: var(--panel-2, #26262a); border: 1px solid var(--border, #444); border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
+.portrait-btn.primary { color: #fff; background: #b3261e; border-color: transparent; }
+.portrait-error { margin: 0 0 10px; padding: 8px 10px; color: var(--text, #eee); background: rgba(179, 38, 30, .25); border: 1px solid #b3261e; border-radius: 8px; font-size: 13px; }
+.portrait-error[hidden] { display: none; }
+.portrait-btn.subtle { background: none; }
+html.ui-light dialog.portrait-dialog { box-shadow: 0 20px 60px rgba(0, 0, 0, .2); }

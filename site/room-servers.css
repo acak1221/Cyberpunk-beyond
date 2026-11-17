@@ -1,0 +1,28 @@
+/* The «Серверы» card of the online room (room-servers.js). */
+.room-servers { margin-top: 16px; }
+.room-servers p { margin: 0 0 10px; }
+.rs-list { display: grid; gap: 8px; margin: 12px 0; padding: 0; list-style: none; }
+.rs-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 10px; background: transparent; color: inherit; border: 1px solid var(--border); border-radius: 4px; }
+.rs-row[data-state="off"] .room-dot { opacity: .6; }
+.rs-row[data-state="off"] .rs-name b { color: var(--muted); }
+.rs-row .room-dot { margin: 0; }
+.rs-row .room-dot.bad { background: var(--red, #d0453a); }
+.rs-name { min-width: 0; display: grid; }
+.rs-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.rs-name b { color: inherit; }
+.rs-name small { color: var(--muted); font-size: 12px; }
+.rs-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.rs-actions .btn, .rs-add .btn, .rs-foot .btn { min-height: 44px; }
+.rs-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.rs-add .field { margin: 0; }
+.rs-add input, .rs-add .field input { min-height: 44px; box-sizing: border-box; }
+.room-servers .rs-add #room-server-url { min-height: 44px; }
+.rs-msg { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; }
+.rs-msg.ok { color: var(--green, #84b799); }
+.rs-msg.bad { color: var(--red, #d0453a); }
+.rs-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; }
+@media (max-width: 560px) {
+  .rs-row { grid-template-columns: auto minmax(0, 1fr); }
+  .rs-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .rs-add { grid-template-columns: 1fr; }
+}

@@ -8,14 +8,18 @@
    (the same «Повторить бросок» the roll card offers). It is off until the player turns it on: a phone in a pocket must
    not roll, and iOS asks for permission to read motion, which can only be asked from a tap.
 
-   Both settings live in this browser only (localStorage), like the vibration switch next to them. */
+   Vibration. The pulses of a roll (a short buzz, a long one for a fumble, a rhythm for a critical success) are scaled by a
+   strength level from 0 (off) to 3 (strong). Level 0 is the same as the old «off» switch (nc-haptics), and the two are kept
+   in step. Nothing vibrates when the system asks for reduced motion.
+
+   These settings live in this browser only (localStorage), like the vibration switch next to them. */
 (function(global){
 'use strict';
 const doc=global.document;
-const SOUND='nc-dice-sound',VOLUME='nc-dice-volume',SHAKE='nc-dice-shake';
+const SOUND='nc-dice-sound',VOLUME='nc-dice-volume',SHAKE='nc-dice-shake',HAPTICS='nc-haptics',LEVEL='nc-haptics-level';
 const T={
- ru:{sound:'Звук кубиков',volume:'Громкость',shake:'Бросок встряхиванием',shakeHelp:'Встряхните телефон: на этой странице бросится проверка, на остальных повторится последний бросок.',denied:'Браузер не разрешил читать движение телефона: бросок встряхиванием выключен.',noMotion:'Это устройство не сообщает о движении.',test:'Проверить звук'},
- en:{sound:'Dice sound',volume:'Volume',shake:'Roll by shaking',shakeHelp:'Shake the phone: on this page it rolls the check, elsewhere it repeats the last roll.',denied:'The browser did not allow reading the phone’s motion: rolling by shaking is off.',noMotion:'This device does not report motion.',test:'Try the sound'},
+ ru:{sound:'Звук кубиков',volume:'Громкость',shake:'Бросок встряхиванием',shakeHelp:'Встряхните телефон: на этой странице бросится проверка, на остальных повторится последний бросок.',denied:'Браузер не разрешил читать движение телефона: бросок встряхиванием выключен.',noMotion:'Это устройство не сообщает о движении.',test:'Проверить звук',haptics:'Вибрация при бросках',hapticLevel:'Сила вибрации',levels:['Выкл.','Слабая','Обычная','Сильная']},
+ en:{sound:'Dice sound',volume:'Volume',shake:'Roll by shaking',shakeHelp:'Shake the phone: on this page it rolls the check, elsewhere it repeats the last roll.',denied:'The browser did not allow reading the phone’s motion: rolling by shaking is off.',noMotion:'This device does not report motion.',test:'Try the sound',haptics:'Vibrate on rolls',hapticLevel:'Vibration strength',levels:['Off','Light','Normal','Strong']},
 };
 const t=(lang,k)=>T[lang==='en'?'en':'ru'][k]??k;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,6 +27,33 @@ const read=k=>{try{return global.localStorage?.getItem(k)}catch{return null}};
 const write=(k,v)=>{try{global.localStorage?.setItem(k,v)}catch{}};
 const soundOn=()=>read(SOUND)!=='off';
 const shakeOn=()=>read(SHAKE)==='on';
+// 0..3: off, light, normal, strong. Normal (2) unless the player chose otherwise; the old off switch counts as 0.
+const LEVEL_SCALE=[0,0.5,1,1.7],DEFAULT_LEVEL=2;
+function hapticLevel(){
+ if(read(HAPTICS)==='off')return 0;
+ const raw=read(LEVEL);if(raw===null||raw==='')return DEFAULT_LEVEL;
+ const n=Math.round(Number(raw));return Number.isFinite(n)?Math.max(0,Math.min(3,n)):DEFAULT_LEVEL;
+}
+// The pattern (ms) for a kind of roll at a level: pulses are scaled, pauses stay. [] means nothing to play.
+function hapticPattern(kind,level){
+ const lv=Math.max(0,Math.min(3,Math.round(Number(level))||0)),k=LEVEL_SCALE[lv];if(!k)return [];
+ const base=kind==='crit'?[25,40,25,40,60]:kind==='fumble'?[120]:[15];
+ return base.map((ms,i)=>i%2===0?Math.max(5,Math.round(ms*k)):ms);
+}
+// True when something was sent to the vibration motor.
+function haptic(kind,{force=false}={}){
+ try{
+  if(global.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return false;
+  const level=hapticLevel();if(!level&&!force)return false;
+  const p=hapticPattern(kind,level||DEFAULT_LEVEL);if(!p.length||typeof global.navigator?.vibrate!=='function')return false;
+  global.navigator.vibrate(p.length===1?p[0]:p);return true;
+ }catch{return false}
+}
+const vibrates=()=>{try{return typeof global.navigator==='object'&&global.navigator!==null&&'vibrate' in global.navigator}catch{return false}};
+function setHapticLevel(n){
+ const lv=Math.max(0,Math.min(3,Math.round(Number(n))||0));
+ write(LEVEL,String(lv));write(HAPTICS,lv===0?'off':'on');return lv;
+}
 // 0..100, 60 unless the player chose otherwise.
 function volume(){const raw=read(VOLUME),n=raw===null||raw===''?60:Math.round(Number(raw));return Number.isFinite(n)?Math.max(0,Math.min(100,n)):60}
 
@@ -118,13 +149,31 @@ async function enableShake(){
 function disableShake(){write(SHAKE,'off');unlisten()}
 
 /* ---------- The switches on the «Кубики» page ---------- */
-function controls(lang){
+function hapticControls(lang,withSwitch){
+ if(!vibrates())return '';
+ const lv=hapticLevel(),names=T[lang==='en'?'en':'ru'].levels;
+ return (withSwitch?`<label class="haptics-toggle"><input type="checkbox" data-haptics ${lv>0?'checked':''}> ${esc(t(lang,'haptics'))}</label>`:'')+`<label class="dice-volume">${esc(t(lang,'hapticLevel'))}<input type="range" min="0" max="3" step="1" value="${lv}" data-haptic-level aria-valuetext="${esc(names[lv])}"></label>`;
+}
+// opts.haptics: also draw the on/off switch (the «Кубики» page has its own, drawn by the app).
+function controls(lang,opts){
  const v=volume();
- return `<div class="dice-feel" data-dice-feel><label class="haptics-toggle"><input type="checkbox" data-dice-sound ${soundOn()?'checked':''}> ${esc(t(lang,'sound'))}</label><label class="dice-volume">${esc(t(lang,'volume'))}<input type="range" min="0" max="100" step="5" value="${v}" data-dice-volume aria-valuetext="${v}%"></label>${supported()?`<label class="haptics-toggle"><input type="checkbox" data-dice-shake ${shakeOn()?'checked':''}> ${esc(t(lang,'shake'))}</label><small class="dice-feel-help">${esc(t(lang,'shakeHelp'))}</small>`:''}<p class="dice-feel-note" data-dice-feel-note role="status" hidden></p></div>`;
+ return `<div class="dice-feel" data-dice-feel><label class="haptics-toggle"><input type="checkbox" data-dice-sound ${soundOn()?'checked':''}> ${esc(t(lang,'sound'))}</label><label class="dice-volume">${esc(t(lang,'volume'))}<input type="range" min="0" max="100" step="5" value="${v}" data-dice-volume aria-valuetext="${v}%"></label>${supported()?`<label class="haptics-toggle"><input type="checkbox" data-dice-shake ${shakeOn()?'checked':''}> ${esc(t(lang,'shake'))}</label><small class="dice-feel-help">${esc(t(lang,'shakeHelp'))}</small>`:''}${hapticControls(lang,!!opts?.haptics)}<p class="dice-feel-note" data-dice-feel-note role="status" hidden></p></div>`;
 }
 const pageLang=()=>{try{return global.App?.lang?.()==='en'?'en':'ru'}catch{return 'ru'}};
+function paintHaptics(){
+ const lv=hapticLevel(),names=T[pageLang()==='en'?'en':'ru'].levels;
+ for(const r of doc?.querySelectorAll?.('[data-haptic-level]')||[]){r.value=String(lv);r.setAttribute('aria-valuetext',names[lv])}
+ for(const c of doc?.querySelectorAll?.('[data-haptics]')||[])c.checked=lv>0;
+}
 doc?.addEventListener?.('change',async e=>{
  const el=e.target;if(!el?.matches)return;
+ if(el.matches('[data-haptic-level]')){setHapticLevel(el.value);paintHaptics();haptic('',{force:false});return}
+ if(el.matches('[data-haptics]')){
+  // The app writes the on/off key itself; a switch turned on while the strength is 0 brings back the normal level.
+  if(el.checked){write(HAPTICS,'on');if(Math.round(Number(read(LEVEL)))===0)write(LEVEL,String(DEFAULT_LEVEL))}
+  else if(!el.checked)write(HAPTICS,'off');
+  paintHaptics();return;
+ }
  if(el.matches('[data-dice-sound]')){write(SOUND,el.checked?'on':'off');if(el.checked)play('',2)}
  else if(el.matches('[data-dice-volume]')){const n=Math.max(0,Math.min(100,Math.round(Number(el.value))||0));write(VOLUME,String(n));el.setAttribute('aria-valuetext',n+'%');if(soundOn())play('',1)}
  else if(el.matches('[data-dice-shake]')){
@@ -136,5 +185,5 @@ doc?.addEventListener?.('change',async e=>{
 // A choice made earlier holds after a reload wherever the browser does not ask for permission again.
 if(shakeOn()&&supported()&&typeof global.DeviceMotionEvent?.requestPermission!=='function')listen();
 
-global.DiceFeel={T,t,play,pattern,volume,soundOn,shakeOn,shakeDetector,target,enableShake,disableShake,controls,supported,KEYS:{SOUND,VOLUME,SHAKE},_test:{onMotion,listening:()=>listening,reset:()=>{feed=shakeDetector()}}};
+global.DiceFeel={T,t,haptic,hapticLevel,hapticPattern,setHapticLevel,hapticControls,play,pattern,volume,soundOn,shakeOn,shakeDetector,target,enableShake,disableShake,controls,supported,KEYS:{SOUND,VOLUME,SHAKE,HAPTICS,LEVEL},_test:{onMotion,listening:()=>listening,reset:()=>{feed=shakeDetector()}}};
 })(typeof window!=='undefined'?window:globalThis);

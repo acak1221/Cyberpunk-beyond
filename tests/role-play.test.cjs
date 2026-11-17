@@ -206,7 +206,7 @@ test('deck programs: an old save reads as not active with full REZ; activation c
   assert.equal(R.armorUp(c), true);
   r = R.deckAct(c, 'd1', '', 'jackout', 4, 'ru'); c.extra = r.extra;
   assert.deepEqual(plain(c.extra.cyberdecks.decks[0].entries.map(e => [e.active, e.rez, e.down])), [[null, null, null], [null, null, null], [null, null, null], [null, null, null]]);
-  assert.equal(R.netLeft(c, 4).left, 3); assert.equal(R.armorUp(c), false);
+  assert.equal(R.netLeft(c, 4).left, 0, 'leaving the net does not refill the counter either (only «New turn» does)'); assert.equal(R.armorUp(c), false);
   assert.equal(R.deckAct(c, 'nope', 'e2', 'toggle', 4, 'ru').ok, false);
   assert.equal(R.deckAct({ extra: {} }, 'd1', 'e2', 'toggle', 4, 'ru').ok, false);
   // The deck card shows the state and marks bought copies.

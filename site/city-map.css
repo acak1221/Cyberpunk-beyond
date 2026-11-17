@@ -103,3 +103,21 @@ button.cm-pin { cursor: pointer; touch-action: none; user-select: none; -webkit-
 .cm-crew-line { margin: 10px 0 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 
 @media print { .cm-toolbar, .cm-filters, .cm-editor, .cm-share, .cm-page .sheet-top { display: none; } }
+
+/* Search, district chips, rooms and NPCs at a pin */
+.cm-search { margin: 8px 0; }
+.cm-search input { width: 100%; min-height: 44px; }
+.cm-dfilters { margin-top: 0; }
+.cm-district, .cm-npc { display: flex; align-items: flex-end; gap: 8px; min-width: 0; list-style: none; }
+.cm-district .field { flex: 1 1 auto; margin: 0; min-width: 0; }
+.cm-npc { align-items: center; padding: 4px 0; }
+.cm-npc-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.cm-district .btn, .cm-npc .btn { min-height: 44px; min-width: 44px; }
+.cm-districts input[type=text], .cm-district input[type=text], .cm-npc input[type=text] { min-height: 44px; box-sizing: border-box; }
+.cm-dadd { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.cm-dadd .field { flex: 1 1 160px; margin: 0; }
+.cm-rooms, .cm-npcs { margin-top: 12px; }
+.cm-rooms .overline, .cm-npcs .overline { margin: 0 0 6px; }
+.cm-npcs .cm-rows, .cm-rooms .cm-rows, .cm-dlist { margin: 0 0 8px; padding: 0; list-style: none; }
+.cm-npc-name, .cm-search, .cm-district, .cm-npcs, .cm-rooms { letter-spacing: 0; text-transform: none; }
+#cm-par-hint { margin-bottom: 12px; }

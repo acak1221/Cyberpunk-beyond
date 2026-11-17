@@ -28,14 +28,15 @@ const T={
   damage:'Урон (кубики)',damagePh:'например, 3d6',rof:'Скорострельность (ROF)',hands:'Сколько рук',handsVaries:'по-разному',skill:'Навык',
   concealable:'Можно спрятать под одеждой',magazine:'Магазин, патронов',magazineHelp:'Пусто — оружие без боеприпасов.',ammo:'Тип боеприпасов',noAmmo:'не использует',
   sp:'Прочность брони (SP)',penalty:'Штраф брони',humanity:'Потеря Humanity',install:'Установка',
+  slotsHead:'Слоты опций (по желанию)',optionSlots:'Слотов для опций у этой основы',optionSlotsHelp:'Заполните, если импланту можно ставить опции: это ваша собственная основа (например, из книги, которая у вас есть). Пусто — слотов нет.',slotCost:'Сколько слотов занимает',slotCostHelp:'Заполните для опции. Пусто — возьмётся число по умолчанию из настроек слотов.',requires:'Требуется основа',noRequires:'не требуется',
   inst:{Mall:'Торговый центр',Clinic:'Клиника',Hospital:'Больница','N/A':'Не требуется'},
-  sum:{damage:'Урон',rof:'ROF',skill:'Навык',hands:'Руки',mag:'Магазин',sp:'SP',penalty:'Штраф',none:'Без штрафа',loss:'Потеря Humanity',install:'Установка',hidden:'Скрытное'},
+  sum:{damage:'Урон',rof:'ROF',skill:'Навык',hands:'Руки',mag:'Магазин',sp:'SP',penalty:'Штраф',none:'Без штрафа',loss:'Потеря Humanity',install:'Установка',hidden:'Скрытное',slots:'Слоты опций',cost:'Занимает слотов'},
   noPrice:'цена не указана',
   npcName:'Имя или название',npcNamePh:'Например, Уличный стрелок',ref:'REF',body:'BODY',will:'WILL',hp:'HP',head:'Броня головы (SP)',torso:'Броня тела (SP)',calc:'HP из BODY/WILL',
   weapons:'Оружие (текстом)',skills:'Навыки для бросков',skillsPh:'Пистолеты 10\nУклонение 7',skillsHelp:'По одному в строке: название и итог (характеристика + навык).',
   attacks:'Атаки',attacksPh:'Тяжёлый пистолет 10 3d6',attacksHelp:'По одной в строке: название, итог атаки и кубики урона (например, 3d6).',notes:'Заметки',
   npcWhere:'Чтобы добавить противника в бой, откройте «Мастер» → «Библиотека NPC».',
-  err:{name:'Укажите название хотя бы на одном языке.',category:'Выберите категорию.',price:'Цена — целое число от 0 до 9 999 999 или пусто.',damage:'Урон записывается кубиками: например, 2d6 или 1d10.',skill:'Выберите навык оружия.',sp:'Прочность брони — целое число от 0 до 30.',humanity:'Потеря Humanity: 0, 1d6/2 или от 1d6 до 9d6.',npcName:'Укажите имя противника.',full:'Достигнут предел записей. Удалите лишнее.',line:l=>`Не удалось прочитать строку: «${l}».`,storage:'Не удалось сохранить: в браузере не хватает места.',missing:'Запись не найдена.'},
+  err:{name:'Укажите название хотя бы на одном языке.',category:'Выберите категорию.',price:'Цена — целое число от 0 до 9 999 999 или пусто.',damage:'Урон записывается кубиками: например, 2d6 или 1d10.',skill:'Выберите навык оружия.',sp:'Прочность брони — целое число от 0 до 30.',humanity:'Потеря Humanity: 0, 1d6/2 или от 1d6 до 9d6.',slots:'Слоты опций — целое число от 0 до 20, стоимость в слотах — от 0 до 10.',npcName:'Укажите имя противника.',full:'Достигнут предел записей. Удалите лишнее.',line:l=>`Не удалось прочитать строку: «${l}».`,storage:'Не удалось сохранить: в браузере не хватает места.',missing:'Запись не найдена.'},
   saved:'Сохранено.',removed:'Удалено.',
   packIntro:'Набор — это файл со всеми вашими материалами. Отправьте его друзьям или перенесите на другое устройство. Перед загрузкой чужого набора вы увидите, что в нём, и сможете отказаться.',
   packTitle:'Название набора',packTitlePh:'Например, Арсенал Тихоокеанского района',export:'Скачать набор',exportEmpty:'Пока нечего выгружать: добавьте хотя бы одну запись.',
@@ -59,14 +60,15 @@ const T={
   damage:'Damage (dice)',damagePh:'e.g. 3d6',rof:'Rate of fire (ROF)',hands:'Hands needed',handsVaries:'varies',skill:'Skill',
   concealable:'Can be hidden under clothing',magazine:'Magazine, rounds',magazineHelp:'Empty — the weapon uses no ammunition.',ammo:'Ammunition type',noAmmo:'none',
   sp:'Stopping power (SP)',penalty:'Armor penalty',humanity:'Humanity loss',install:'Installation',
+  slotsHead:'Option slots (optional)',optionSlots:'Option slots this foundation has',optionSlotsHelp:'Fill this in if options can be installed into the implant: it is your own foundation (for example from a book you own). Empty means no slots.',slotCost:'Slots it takes',slotCostHelp:'Fill this in for an option. Empty uses the default from the slot settings.',requires:'Needs foundation',noRequires:'none needed',
   inst:{Mall:'Mall',Clinic:'Clinic',Hospital:'Hospital','N/A':'Not needed'},
-  sum:{damage:'Damage',rof:'ROF',skill:'Skill',hands:'Hands',mag:'Magazine',sp:'SP',penalty:'Penalty',none:'No penalty',loss:'Humanity loss',install:'Installation',hidden:'Concealable'},
+  sum:{damage:'Damage',rof:'ROF',skill:'Skill',hands:'Hands',mag:'Magazine',sp:'SP',penalty:'Penalty',none:'No penalty',loss:'Humanity loss',install:'Installation',hidden:'Concealable',slots:'Option slots',cost:'Slots taken'},
   noPrice:'price not specified',
   npcName:'Name',npcNamePh:'e.g. Street shooter',ref:'REF',body:'BODY',will:'WILL',hp:'HP',head:'Head armor (SP)',torso:'Body armor (SP)',calc:'HP from BODY/WILL',
   weapons:'Weapons (free text)',skills:'Skills to roll',skillsPh:'Handgun 10\nEvasion 7',skillsHelp:'One per line: the name and the total (STAT + Skill).',
   attacks:'Attacks',attacksPh:'Heavy Pistol 10 3d6',attacksHelp:'One per line: the name, the attack total and the damage dice (for example 3d6).',notes:'Notes',
   npcWhere:'To put an opponent into a fight, open GM → NPC library.',
-  err:{name:'Enter a name in at least one language.',category:'Choose a category.',price:'The price is a whole number from 0 to 9,999,999, or empty.',damage:'Damage is written as dice: for example 2d6 or 1d10.',skill:'Choose the weapon skill.',sp:'Stopping power is a whole number from 0 to 30.',humanity:'Humanity loss: 0, 1d6/2, or 1d6 to 9d6.',npcName:'Enter the opponent’s name.',full:'The entry limit is reached. Delete something first.',line:l=>`Could not read the line: “${l}”.`,storage:'Could not save: the browser is out of space.',missing:'The entry was not found.'},
+  err:{name:'Enter a name in at least one language.',category:'Choose a category.',price:'The price is a whole number from 0 to 9,999,999, or empty.',damage:'Damage is written as dice: for example 2d6 or 1d10.',skill:'Choose the weapon skill.',sp:'Stopping power is a whole number from 0 to 30.',humanity:'Humanity loss: 0, 1d6/2, or 1d6 to 9d6.',slots:'Option slots are a whole number from 0 to 20; the slot cost is from 0 to 10.',npcName:'Enter the opponent’s name.',full:'The entry limit is reached. Delete something first.',line:l=>`Could not read the line: “${l}”.`,storage:'Could not save: the browser is out of space.',missing:'The entry was not found.'},
   saved:'Saved.',removed:'Deleted.',
   packIntro:'A pack is a file with all of your content. Send it to friends or move it to another device. Before a pack from someone else is loaded you will see what is in it and can decline.',
   packTitle:'Pack title',packTitlePh:'e.g. Pacifica arsenal',export:'Download the pack',exportEmpty:'Nothing to export yet: add at least one entry.',
@@ -112,12 +114,24 @@ function checkItem(raw){
   const loss=blank(s.humanityLoss)?'0':typeof s.humanityLoss==='number'?String(s.humanityLoss):String(s.humanityLoss).trim().toLowerCase();
   if(typeof loss!=='string'||!HUMANITY.test(loss))return {ok:false,reason:'humanity'};
   Object.assign(stats,{humanityLoss:loss,humanityLossAtCreation:humanityAtCreation(loss),installation:INSTALL.includes(s.installation)?s.installation:'Clinic'});
+  const slots=cleanSlots(s);if(!slots)return {ok:false,reason:'slots'};Object.assign(stats,slots);
  }
  return {ok:true,item:{id,category,name,price,details:pair(raw.details,MAX_DESC),stats}};
 }
 const cleanItem=raw=>{const r=checkItem(raw);return r.ok?r.item:null};
 
 // Opponents use the NPC library's shape and limits, so an entry can be handed to it as is.
+// Optional cyberware slot fields: optionSlots (a foundation), slotCost and requires (an option). null when a number is unreadable.
+const SLOT_ID=/^[A-Za-z0-9_-]{1,64}$/;
+function cleanSlots(s){
+ const out={};
+ if(!blank(s.optionSlots)){const n=exact(s.optionSlots,0,20);if(n===null)return null;if(n>0)out.optionSlots=n}
+ if(!blank(s.slotCost)){const n=exact(s.slotCost,0,10);if(n===null)return null;out.slotCost=n}
+ const list=typeof s.requires==='string'?[s.requires]:Array.isArray(s.requires)?s.requires.slice(0,10):[];
+ const req=[];for(const x of list)if(typeof x==='string'&&SLOT_ID.test(x)&&!req.includes(x)&&req.length<3)req.push(x);
+ if(req.length)out.requires=req;
+ return out;
+}
 function cleanSkills(v){const out=[];for(const x of Array.isArray(v)?v.slice(0,MAX_SCAN):[]){const name=line(x?.name,NPC_ITEM),base=int(x?.base,0,40,NaN);if(name&&Number.isFinite(base))out.push({name,base});if(out.length>=NPC_SKILLS)break}return out}
 function cleanAttacks(v){const out=[];for(const x of Array.isArray(v)?v.slice(0,MAX_SCAN):[]){const name=line(x?.name,NPC_ITEM),base=int(x?.base,0,40,NaN),damage=typeof x?.damage==='string'?x.damage.trim().toLowerCase():'';if(name&&Number.isFinite(base)&&DICE.test(damage))out.push({name,base,damage});if(out.length>=NPC_ATTACKS)break}return out}
 function checkNpc(raw){
@@ -151,6 +165,7 @@ function statLine(item,lang){
  const t=T[L(lang)],s=item.stats||{},sum=t.sum;
  if(item.category==='weapon')return [`${sum.damage} ${s.damage}`,`${sum.rof} ${s.rof}`,`${sum.skill}: ${s.skill}`,`${sum.hands}: ${s.hands==='varies'?t.handsVaries:s.hands}`,s.ammo?`${sum.mag} ${s.magazine} (${s.ammo})`:'',s.concealable?sum.hidden:''].filter(Boolean).join(' · ');
  if(item.category==='armor')return `${sum.sp} ${s.sp} · ${s.penalty?`${sum.penalty} ${s.penalty}`:sum.none}`;
+ if(item.category==='cyberware')return [s.optionSlots!==undefined?`${sum.slots} ${s.optionSlots}`:'',s.slotCost!==undefined?`${sum.cost} ${s.slotCost}`:''].filter(Boolean).join(' · ');
  return '';
 }
 function toCatalogItem(item){
@@ -266,7 +281,7 @@ function restoreFromBackup(file,opts){
 }
 
 // ---------- UI ----------
-const EMPTY_ITEM=()=>({nameRu:'',nameEn:'',category:'gear',price:'',descRu:'',descEn:'',damage:'',rof:'1',hands:'1',concealable:false,skill:'Handgun',magazine:'',ammo:'',sp:'',penalty:'0',humanityLoss:'0',installation:'Clinic'});
+const EMPTY_ITEM=()=>({nameRu:'',nameEn:'',category:'gear',price:'',descRu:'',descEn:'',damage:'',rof:'1',hands:'1',concealable:false,skill:'Handgun',magazine:'',ammo:'',sp:'',penalty:'0',humanityLoss:'0',installation:'Clinic',optionSlots:'',slotCost:'',requires:''});
 const EMPTY_NPC=()=>({name:'',ref:6,body:'',will:'',hp:30,head:0,torso:0,weapons:'',notes:'',skillsText:'',attacksText:''});
 let ui={open:false,tab:'items',kind:null,editing:null,draft:null,error:'',armed:null,preview:null,packError:'',packTitle:''};
 function reset(){ui={open:false,tab:'items',kind:null,editing:null,draft:null,error:'',armed:null,preview:null,packError:'',packTitle:''}}
@@ -275,9 +290,9 @@ function notify(m){try{global.App.notify(m)}catch{}}
 function itemDraft(item){const s=item.stats||{};return {...EMPTY_ITEM(),nameRu:item.name.ru,nameEn:item.name.en,category:item.category,price:item.price===null?'':String(item.price),descRu:item.details.ru,descEn:item.details.en,
  ...(item.category==='weapon'?{damage:s.damage,rof:String(s.rof),hands:String(s.hands),concealable:!!s.concealable,skill:s.skill,magazine:s.magazine===null?'':String(s.magazine),ammo:s.ammo||''}:{}),
  ...(item.category==='armor'?{sp:String(s.sp),penalty:String(s.penalty)}:{}),
- ...(item.category==='cyberware'?{humanityLoss:s.humanityLoss,installation:s.installation}:{})}}
+ ...(item.category==='cyberware'?{humanityLoss:s.humanityLoss,installation:s.installation,optionSlots:s.optionSlots===undefined?'':String(s.optionSlots),slotCost:s.slotCost===undefined?'':String(s.slotCost),requires:Array.isArray(s.requires)?s.requires[0]||'':''}:{})}}
 function draftItem(d){
- const stats=d.category==='weapon'?{damage:d.damage,rof:d.rof,hands:d.hands,concealable:d.concealable===true,skill:d.skill,magazine:d.magazine,ammo:d.ammo}:d.category==='armor'?{sp:d.sp,penalty:d.penalty}:d.category==='cyberware'?{humanityLoss:d.humanityLoss,installation:d.installation}:{};
+ const stats=d.category==='weapon'?{damage:d.damage,rof:d.rof,hands:d.hands,concealable:d.concealable===true,skill:d.skill,magazine:d.magazine,ammo:d.ammo}:d.category==='armor'?{sp:d.sp,penalty:d.penalty}:d.category==='cyberware'?{humanityLoss:d.humanityLoss,installation:d.installation,optionSlots:d.optionSlots,slotCost:d.slotCost,requires:d.requires?[d.requires]:[]}:{};
  return {category:d.category,name:{ru:d.nameRu,en:d.nameEn},price:d.price,details:{ru:d.descRu,en:d.descEn},stats};
 }
 const skillsText=list=>cleanSkills(list).map(x=>`${x.name} ${x.base}`).join('\n'),attacksText=list=>cleanAttacks(list).map(x=>`${x.name} ${x.base} ${x.damage}`).join('\n');
@@ -290,11 +305,13 @@ const area=(label,key,value,max,rows,ph='',help='')=>`<label class="field">${esc
 // Errors are kept as keys and worded when drawn, so they follow the language switch.
 const errorText=(t,e)=>!e?'':e.bad?(t.bad[e.bad]||t.bad.format):e.key==='line'?t.err.line(e.arg):(t.err[e.key]||t.err.name);
 const formEnd=t=>`${ui.error?`<p class="cc-error" role="alert" tabindex="-1">${esc(errorText(t,ui.error))}</p>`:''}<div class="cc-row"><button type="button" class="btn primary" data-cc-action="save">${esc(t.save)}</button><button type="button" class="btn ghost" data-cc-action="cancel">${esc(t.cancel)}</button></div>`;
-function itemForm(t){
+// Foundations a custom option can name: catalog ones and the player's own, as [id, name] pairs.
+function foundationChoices(lang){try{return (global.CyberSlots?.foundations?.(lang)||[]).map(x=>[x.id,x.name])}catch{return []}}
+function itemForm(t,l){
  const d=ui.draft,c=d.category;
  const stats=c==='weapon'?`<div class="cc-grid">${text(t.damage,'damage',d.damage,6,` placeholder="${esc(t.damagePh)}" autocapitalize="off" spellcheck="false"`)}${select(t.rof,'rof',d.rof,[1,2,3,4].map(v=>[v,v]))}${select(t.hands,'hands',d.hands,[[1,'1'],[2,'2'],['varies',t.handsVaries]])}${select(t.skill,'skill',d.skill,WEAPON_SKILLS.map(v=>[v,v]))}${num(t.magazine,'magazine',d.magazine,1,999)}${select(t.ammo,'ammo',d.ammo,[['',t.noAmmo],...AMMO.map(v=>[v,v])])}</div><small class="cc-help">${esc(t.magazineHelp)}</small><label class="cc-check"><input type="checkbox" data-cc-field="concealable"${d.concealable?' checked':''}> <span>${esc(t.concealable)}</span></label>`
   :c==='armor'?`<div class="cc-grid">${num(t.sp,'sp',d.sp,0,30)}${select(t.penalty,'penalty',d.penalty,[0,-1,-2,-3,-4,-5,-6].map(v=>[v,v]))}</div>`
-  :c==='cyberware'?`<div class="cc-grid">${select(t.humanity,'humanityLoss',d.humanityLoss,['0','1d6/2','1d6','2d6','3d6','4d6','5d6','6d6','7d6','8d6','9d6'].map(v=>[v,v]))}${select(t.install,'installation',d.installation,INSTALL.map(v=>[v,t.inst[v]]))}</div>`:'';
+  :c==='cyberware'?`<div class="cc-grid">${select(t.humanity,'humanityLoss',d.humanityLoss,['0','1d6/2','1d6','2d6','3d6','4d6','5d6','6d6','7d6','8d6','9d6'].map(v=>[v,v]))}${select(t.install,'installation',d.installation,INSTALL.map(v=>[v,t.inst[v]]))}</div><p class="overline">${esc(t.slotsHead)}</p><div class="cc-grid">${num(t.optionSlots,'optionSlots',d.optionSlots,0,20)}${num(t.slotCost,'slotCost',d.slotCost,0,10)}${select(t.requires,'requires',d.requires,[['',t.noRequires],...foundationChoices(l)])}</div><small class="cc-help">${esc(t.optionSlotsHelp)} ${esc(t.slotCostHelp)}</small>`:'';
  return `<div class="cc-form" data-cc-form><p class="overline">${esc(ui.editing?t.editing:t.creating)}</p><div class="cc-grid cc-two">${text(t.nameRu,'nameRu',d.nameRu,MAX_NAME)}${text(t.nameEn,'nameEn',d.nameEn,MAX_NAME)}</div><small class="cc-help">${esc(t.nameHelp)}</small><div class="cc-grid cc-two">${select(t.category,'category',c,CATEGORIES.map(v=>[v,t.cat[v]]))}${num(t.price,'price',d.price,0,MAX_PRICE)}</div><small class="cc-help">${esc(t.priceHelp)}</small>${stats}${area(t.descRu,'descRu',d.descRu,MAX_DESC,2)}${area(t.descEn,'descEn',d.descEn,MAX_DESC,2)}${formEnd(t)}</div>`;
 }
 function npcForm(t){
@@ -334,7 +351,7 @@ function render(lang){
   const tab=ui.tab==='npcs'||ui.tab==='pack'?ui.tab:'items';
   const inner=tab==='pack'?packTab(t,l)
    :tab==='npcs'?`${data.npcs.length?`<ul class="cc-list">${data.npcs.map(n=>npcEntry(n,t)).join('')}</ul><p class="cc-lead">${esc(t.npcWhere)}</p>`:`<p class="cc-lead">${esc(t.noNpcs)}</p>`}${ui.draft&&ui.kind==='npc'?npcForm(t):`<button type="button" class="btn primary" data-cc-action="new" data-cc-kind="npc">＋ ${esc(t.newNpc)}</button>`}`
-   :`${data.items.length?`<ul class="cc-list">${data.items.map(i=>itemEntry(i,t,l)).join('')}</ul>`:`<p class="cc-lead">${esc(t.noItems)}</p>`}${ui.draft&&ui.kind==='item'?itemForm(t):`<button type="button" class="btn primary" data-cc-action="new" data-cc-kind="item">＋ ${esc(t.newItem)}</button>`}`;
+   :`${data.items.length?`<ul class="cc-list">${data.items.map(i=>itemEntry(i,t,l)).join('')}</ul>`:`<p class="cc-lead">${esc(t.noItems)}</p>`}${ui.draft&&ui.kind==='item'?itemForm(t,l):`<button type="button" class="btn primary" data-cc-action="new" data-cc-kind="item">＋ ${esc(t.newItem)}</button>`}`;
   body=`<div class="cc-body" id="cc-body"><p class="cc-lead">${esc(t.intro)}</p>${unreadable?`<div class="cc-unreadable" role="status"><p class="cc-text cc-warn">${esc(t.unreadable)}</p><div class="cc-row"><button type="button" class="btn ghost" data-cc-action="unreadable-get">${esc(t.unreadableGet)}</button><button type="button" class="btn ghost" data-cc-action="unreadable-drop">${esc(t.unreadableDrop)}</button></div></div>`:''}<div class="cc-tabs" role="group" aria-label="${esc(t.tabs)}">${tabs.map(([k,n,c])=>`<button type="button" class="btn ghost cc-tab${tab===k?' active':''}" data-cc-action="tab" data-cc-tab="${k}" aria-pressed="${tab===k}">${esc(n)}${c===null?'':` · ${c}`}</button>`).join('')}</div>${inner}</div>`;
  }
  return `<section class="card cc-card" data-cc-root data-lang="${l}"><div class="cc-top"><div><h2 class="cc-title">${esc(t.title)}</h2><p class="cc-count">${esc(t.count(data.items.length,data.npcs.length))}</p></div><button type="button" class="btn ghost" data-cc-action="toggle" aria-expanded="${ui.open}"${ui.open?' aria-controls="cc-body"':''}>${esc(ui.open?t.close:t.open)}</button></div>${body}</section>`;

@@ -1,0 +1,26 @@
+/* The «More» sheet: grouped icon tiles. Same variables as every look, so the themes follow. */
+.more-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55)}
+.more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:1110;display:flex;flex-direction:column;max-height:min(86vh,720px);padding:8px 16px calc(16px + env(safe-area-inset-bottom,0px));color:var(--text);background:var(--panel);border:1px solid var(--border);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -14px 40px rgba(0,0,0,.45);animation:more-up .22s ease-out}
+html:not(.ui-native) .more-sheet{border-radius:0;border-top:3px solid var(--red)}
+.more-handle{align-self:center;width:42px;height:4px;margin:2px 0 6px;background:var(--border);border-radius:2px}
+.more-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 8px}
+.more-head h2{margin:0;font-size:20px;line-height:1.2;letter-spacing:0;text-transform:none}
+.more-close{min-width:44px;min-height:44px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:10px;font-size:16px}
+.more-body{overflow-y:auto;overscroll-behavior:contain;padding-bottom:4px}
+.more-group h3{margin:12px 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.more-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 6px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:12px;font-size:13px;line-height:1.2;text-align:center}
+html:not(.ui-native) .more-tile{border-radius:2px}
+.more-tile:hover{background:var(--panel-hover)}
+.more-tile.active{border-color:var(--red);color:var(--text);box-shadow:inset 0 -3px 0 var(--red)}
+.more-tile.active .more-icon{color:var(--red)}
+.more-icon{display:flex;color:currentColor}
+.more-icon .ico{width:26px;height:26px}
+.more-label{max-width:100%;overflow-wrap:anywhere}
+.more-tile .wn-dot{position:absolute;top:8px;right:10px;margin:0}
+.more-sheet .role-switch{margin:14px 0 0}
+html.more-open{overflow:hidden}
+@keyframes more-up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.more-sheet{animation:none}}
+@media (min-width:821px){.more-sheet{left:50%;right:auto;bottom:auto;top:50%;width:min(560px,92vw);transform:translate(-50%,-50%);border:1px solid var(--border);border-radius:16px;animation:none}.more-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media print{.more-sheet,.more-backdrop{display:none!important}}

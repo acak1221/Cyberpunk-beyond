@@ -1,3 +1,4 @@
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -5,9 +6,9 @@ const CODE='K7RQM2XAPZ9E';
 // One browser tab with its own module state. Long timers are not allowed to keep node running.
 function loadRoom({hash=''}={}){
  const listeners={},store=new Map(),document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash,origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash,origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date:Idle.Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[];
  R.setApp({getState:()=>({lang:'ru',characters:[],campaigns:[]}),notify:m=>notices.push(m)});
@@ -15,7 +16,7 @@ function loadRoom({hash=''}={}){
  const press=async(action,data={})=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action,...data}}:null}})};
  return {window,R,notices,sent,store,press};
 }
-const settle=(ms=40)=>new Promise(ok=>setTimeout(ok,ms));
+const settle=Idle.settle;
 // A room seen by a player, plus other devices that can sign: the trusted Game Master, a second player and an outsider with the code.
 async function scene({role='player',pinned=true}={}){
  const tab=loadRoom(),R=tab.R,room=await R.deriveRoom(CODE);R.setKey(room.key);
@@ -113,8 +114,8 @@ test('old events and repeats are dropped; a leave marker cannot be older than th
 
 test('a flood from one sender is cut off without hurting the others',async()=>{
  const s=await scene(),roll={who:'x',label:'spam',detail:'',total:1};
- for(let i=0;i<60;i++)await s.R.receive({topic:s.room.topic+'/e',retain:false,payload:await s.bytes(s.eve,'e','roll',roll)});
- await settle();const got=s.R.state().feed.length;assert.ok(got>=25&&got<=35,`about thirty get through, got ${got}`);
+ Idle.freeze();for(let i=0;i<60;i++)await s.R.receive({topic:s.room.topic+'/e',retain:false,payload:await s.bytes(s.eve,'e','roll',roll)});
+ await settle();Idle.thaw();const got=s.R.state().feed.length;assert.ok(got>=25&&got<=35,`about thirty get through, got ${got}`);
  await s.give(s.bob,'e','roll',{...roll,label:'Bob'});assert.equal(s.R.state().feed[0].label,'Bob','another sender is still heard');
  // everything at once: a cap before any decryption
  s.R.flood().at=Date.now();s.R.flood().n=120;const before=s.R.state().feed.length;

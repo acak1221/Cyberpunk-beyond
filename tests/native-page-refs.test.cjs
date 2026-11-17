@@ -75,5 +75,5 @@ test('counters built from data are not marked as page references',()=>{
  assert.match(site('campaigns.js'),/<span>\$\{list\.length\} \/ \$\{JOURNAL_MAX\}<\/span>/,'the journal counter stays a plain counter');
 });
 test('quick builder shows a localised page marker',()=>{
- assert.match(site('quick-builder.js'),/04 \/ 05 · \$\{text\(ctx,'СТР\.','PP\.'\)\} 98, 103, 117/);
+ assert.match(site('quick-builder.js'),/02 \/ 03 · \$\{text\(ctx,'СТР\.','PP\.'\)\} 98, 103, 117/);
 });

@@ -1,0 +1,19 @@
+/* «Быстрые броски»: the rail above the tabs of the sheet, and the star on a Skill row (that one is in sheet-compact.css). */
+.quick-rail { display: flex; align-items: center; gap: 6px; padding: 2px 0 4px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.quick-rail::-webkit-scrollbar { display: none; }
+.quick-rail > * { flex: 0 0 auto; }
+.qr-title { display: none; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+@media (min-width: 821px) { .qr-title { display: inline; } }
+.qr-btn {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 6px 12px;
+  color: #fff6ec; background: var(--red-dark, #8e1f1c); border: 1px solid var(--red); font-size: 12px; font-weight: 700; text-align: left; white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.qr-btn:hover { background: #b83431; }
+.qr-btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.qr-btn b { color: #fff; font: 800 18px/1 var(--display, inherit); }
+.qr-btn .qr-warn { display: block; color: #fff; font-size: 11px; font-weight: 400; opacity: 1; }
+.qr-btn.qr-add { color: var(--muted); background: transparent; border: 1px dashed var(--border); clip-path: none; border-radius: 10px; font-weight: 600; }
+.qr-btn.qr-add:hover { color: var(--text); background: var(--panel-2, var(--panel-hover)); }
+html.ui-native .qr-btn { border-radius: 12px; clip-path: none; }
+html.ui-native.ui-light .qr-btn:not(.qr-add) { color: #fff; }

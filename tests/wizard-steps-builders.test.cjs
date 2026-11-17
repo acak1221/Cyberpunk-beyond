@@ -24,7 +24,7 @@ function fillSkills(w,c){
 test('Complete Package: Next on a fresh wizard stays on step 0 and focuses the handle',()=>{
  const w=setup(),c=cctx(w);let html=w.Builder.render(c);assert.doesNotMatch(html,/data-wizard-errors/);
  const r=bClick(w,c,'next');assert.equal(r.focus,'[data-builder-field="name"]');assert.equal(r.rerender,true);
- html=w.Builder.render(c);assert.match(html,/data-wizard-errors/);assert.match(html,/Enter a handle/);assert.match(html,/Enter your native language/);assert.match(html,/class="wz-error-link"/);assert.match(html,/data-builder-focus="\[data-builder-field=&quot;name&quot;\]"/);
+ html=w.Builder.render(c);assert.match(html,/data-wizard-errors/);assert.match(html,/Enter a handle/);assert.doesNotMatch(html,/Enter your native language/,'the native language is optional');assert.match(html,/class="wz-error-link"/);assert.match(html,/data-builder-focus="\[data-builder-field=&quot;name&quot;\]"/);
  assert.match(html,/wz-step wz-todo active/);assert.match(html,/wz-locked/);
 });
 test('Complete Package: finished steps unlock the next ones; the skills step blocks Next',()=>{
@@ -66,34 +66,33 @@ function qFinish(w,c,role,choice){const t=w.Archetypes.getTemplate(role);qEvent(
  for(const s of t.streetratSkills)if(s.needsSpecialty)qEvent(w,c,{'data-quick-specialty':s.name},'Test','input');
  for(const k of ['gear','outfit','cyberware'])t[k].forEach((it,i)=>{if(it.type==='choice')qEvent(w,c,{'data-quick-choice-section':k,'data-quick-choice-index':String(i)},String(choice?.[k]?.[i]??0))});
  qEvent(w,c,{'data-quick-confirm':'confirmGear'},'','change',true);qEvent(w,c,{'data-quick-confirm':'confirmCyber'},'','change',true)}
-test('Quick: Next on a fresh Streetrat stays on step 0, then step 1 without a roll focuses the roll',()=>{
+test('Quick: Next on a fresh Streetrat stays on step 0, then without a roll points at «Бросить всё»',()=>{
  const w=setup(),c=qctx(w,'solo','streetrat');w.QuickBuilder.render(c);
  assert.equal(qAction(w,c,'next').focus,'[data-quick-field="name"]');
- qEvent(w,c,{'data-quick-field':'name'},'Nova','input');qEvent(w,c,{'data-quick-field':'native'},'English','input');
- assert.equal(qAction(w,c,'next').focus,undefined);
- const r=qAction(w,c,'next');assert.equal(r.focus,'[data-quick-roll="0"]');
+ qEvent(w,c,{'data-quick-field':'name'},'Nova','input');
+ const r=qAction(w,c,'next');assert.equal(r.focus,'[data-quick-action="roll"]');
  const html=w.QuickBuilder.render(c);assert.match(html,/Check this step/);assert.match(html,/class="wz-error-link"/);assert.match(html,/wz-locked/);
 });
 test('Quick: Edgerunner points at the first missing roll',()=>{
- const w=setup(),c=qctx(w,'solo','edgerunner');w.QuickBuilder.render(c);qEvent(w,c,{'data-quick-field':'name'},'Nova','input');qEvent(w,c,{'data-quick-field':'native'},'English','input');
+ const w=setup(),c=qctx(w,'solo','edgerunner');w.QuickBuilder.render(c);qEvent(w,c,{'data-quick-field':'name'},'Nova','input');
  for(let i=0;i<4;i++)qEvent(w,c,{'data-quick-roll':String(i)},'3');
- qAction(w,c,'next');assert.equal(qAction(w,c,'next').focus,'[data-quick-roll="4"]');
+ assert.equal(qAction(w,c,'next').focus,'[data-quick-action="roll"]');
 });
 test('Quick: ammunition mismatch and missing confirmation point at the right controls',()=>{
  const w=setup(),c=qctx(w,'tech','streetrat');w.QuickBuilder.render(c);qFinish(w,c,'tech',{gear:{0:0,1:1}});
  const errs=w.QuickBuilder.analyze(c).errors;assert.equal(errs.find(e=>/matching/.test(e.en)).field,'[data-quick-choice-section="gear"][data-quick-choice-index="1"]');
  qEvent(w,c,{'data-quick-choice-section':'gear','data-quick-choice-index':'1'},'0');qEvent(w,c,{'data-quick-confirm':'confirmGear'},'','change',false);
- assert.equal(w.QuickBuilder.analyze(c).errors[0].field,'[data-quick-confirm="confirmGear"]');
+ assert.equal(w.QuickBuilder.analyze(c).errors[0].field,'[data-quick-confirm="confirmAll"]');
 });
 test('Quick: the review lists skills, loaded weapons, gear and cyberware and no error links',()=>{
  const w=setup(),c=qctx(w,'solo','streetrat');w.QuickBuilder.render(c);qFinish(w,c,'solo');
- qAction(w,c,'step',{'data-quick-step':'4'});const html=w.QuickBuilder.render(c);
- assert.match(html,/05 \/ 05/);assert.match(html,/<h3>Skills<\/h3>/);assert.match(html,/<h3>Weapons<\/h3>/);assert.match(html,/25\/25 loaded/);assert.match(html,/<h3>Gear and clothing<\/h3>/);assert.match(html,/<h3>Cyberware<\/h3>/);assert.doesNotMatch(html,/wz-error-link|quick-error-link/);
+ qAction(w,c,'step',{'data-quick-step':'2'});const html=w.QuickBuilder.render(c);
+ assert.match(html,/quick-review-line/);assert.match(html,/<h3>Skills<\/h3>/);assert.match(html,/<h3>Weapons<\/h3>/);assert.match(html,/25\/25 loaded/);assert.match(html,/<h3>Gear and clothing<\/h3>/);assert.match(html,/<h3>Cyberware<\/h3>/);assert.doesNotMatch(html,/wz-error-link|quick-error-link/);
  const ru=w.QuickBuilder.render({...c,lang:'ru'});assert.match(ru,/в магазине 25\/25/);
 });
 test('Quick: typing keeps the strip and the errors box current without replacing the field',()=>{
  const w=setup(),c=qctx(w,'solo','streetrat');w.QuickBuilder.render(c);qAction(w,c,'next');
  const nodes={};let strip={outerHTML:'old'},box={innerHTML:'old'};const root={querySelector:s=>s==='[data-quick-progress]'?strip:s==='[data-quick-errors]'?box:null,querySelectorAll:()=>[]};
  w.QuickBuilder.refresh(root,c);assert.match(strip.outerHTML,/data-quick-progress/);assert.match(box.innerHTML,/data-wizard-errors/);
- qEvent(w,c,{'data-quick-field':'name'},'Nova','input');qEvent(w,c,{'data-quick-field':'native'},'English','input');w.QuickBuilder.refresh(root,c);assert.equal(box.innerHTML,'');
+ qEvent(w,c,{'data-quick-field':'name'},'Nova','input');qEvent(w,c,{'data-quick-roll':'0'},'3');w.QuickBuilder.refresh(root,c);assert.equal(box.innerHTML,'');
 });

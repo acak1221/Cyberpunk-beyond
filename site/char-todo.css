@@ -1,0 +1,11 @@
+/* The «Дополнить» checklist at the top of a sheet made in the quick builder (char-todo.js). */
+.char-todo { margin: 0 0 16px; }
+.char-todo-lead { margin: 0 0 10px; color: var(--muted, #a19a92); }
+.char-todo-list { display: grid; gap: 12px; margin: 0 0 12px; padding: 0; list-style: none; }
+.char-todo-item { display: grid; gap: 4px; }
+.char-todo-item small { color: var(--muted, #a19a92); }
+.char-todo-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.char-todo-row input { flex: 1 1 200px; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.char-todo-row .btn, .char-todo > .btn { min-height: 44px; }
+.char-todo-more > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 700; }
+.char-todo-more { margin: 0 0 8px; }

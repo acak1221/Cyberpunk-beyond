@@ -1,0 +1,40 @@
+/* Weapon quality, attachments and links (weapon-attach.js), and the price controls of the cart (shop-cart.js).
+   Colours come from the look's variables. */
+
+/* --- the panel of a weapon card --- */
+.wa-panel { margin: 0 12px 12px; border: 1px solid var(--border); background: var(--panel-2); }
+.wa-panel > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 44px; padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.wa-panel > summary small { color: var(--muted); font-weight: 400; font-size: 12px; }
+.wa-panel[open] > summary { border-bottom: 1px solid var(--border); }
+.wa-body { display: grid; gap: 10px; padding: 12px; }
+.wa-field { max-width: 420px; }
+.wa-field select { min-height: 44px; width: 100%; }
+.wa-hint, .wa-title, .wa-status { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.wa-title { color: var(--text); font-weight: 700; }
+.wa-status:empty { display: none; }
+.wa-status { padding: 8px 10px; border-left: 3px solid var(--red); color: var(--text); background: var(--panel); }
+.wa-installed, .wa-notes { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wa-installed li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 4px 0 4px 10px; border-left: 3px solid var(--border); }
+.wa-installed small { color: var(--muted); }
+.wa-notes li { padding-left: 10px; border-left: 3px solid var(--border); font-size: 12px; line-height: 1.5; color: var(--muted); }
+.wa-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.wa-add .wa-field { flex: 1 1 220px; }
+.wa-detach, .wa-attach { min-height: 44px; min-width: 44px; }
+
+/* --- link of a thing --- */
+.wa-chip { display: inline-block; padding: 2px 8px; border: 1px solid var(--border); border-radius: 3px; color: var(--muted); font-size: 11px; }
+.wa-link { display: grid; gap: 4px; min-width: 160px; max-width: 280px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.wa-link select { min-height: 44px; width: 100%; }
+
+/* --- cart: own price of a line and the cart-wide percentage --- */
+.shop-line-own input, .shop-adjust input { min-height: 44px; width: 100%; max-width: 200px; }
+.shop-adjust { display: grid; gap: 4px; max-width: 280px; margin: 8px 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+.shop-adjust small { font-weight: 400; }
+.shop-adjust-note { color: var(--text); font-size: 12px; }
+
+/* quality choice on a catalog card */
+.catalog-quality { display: grid; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.catalog-quality select { min-height: 44px; }
+/* cart inputs: the 44 px floor wins over the theme's field rules */
+.shop-line-own input, .shop-adjust input { box-sizing: border-box; min-height: 44px !important; }
+.shop-line-own input[aria-invalid="true"] { outline: 2px solid var(--danger, #c0392b); }

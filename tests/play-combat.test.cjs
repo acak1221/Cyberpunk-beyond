@@ -55,7 +55,7 @@ test('keeping the place: a new screen is navigation and is left alone; the same 
 });
 
 // ---------- wounds, death, Death Save ----------
-const withEffects = () => { const w = {}, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); vm.runInContext(read('effects.js'), ctx); vm.runInContext(read('play-combat.js'), ctx); return w; };
+const withEffects = () => { const w = {}, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); vm.runInContext(read('crit-injuries.js'), ctx); vm.runInContext(read('effects.js'), ctx); vm.runInContext(read('play-combat.js'), ctx); return w; };
 const solo = (extra = {}, hp = 45) => ({ id: 'v', stats: { BODY: 8, WILL: 6 }, hp, extra });
 const lung = () => ({ version: 1, entries: [{ id: 'a', location: 'body', score: 4, status: 'active', detail: '' }] });
 
@@ -106,7 +106,7 @@ test('the condition line: wound, death and unconsciousness in both languages', (
 });
 
 // ---------- a hit taken ----------
-const withDamage = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['combat-tools.js', 'equipment-tools.js', 'effects.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); return w; };
+const withDamage = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['crit-injuries.js', 'combat-tools.js', 'equipment-tools.js', 'effects.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); return w; };
 const target = (over = {}) => ({ id: 'v', stats: { BODY: 8, WILL: 6 }, hp: 40, head: 10, bodyArmor: 8, extra: {}, ...over });
 const blow = (over = {}) => ({ raw: '20', location: 'body', melee: false, ap: false, crit: false, ...over });
 
@@ -149,7 +149,9 @@ test('a hit: the form is offered in the HP panel and the full form switches its 
   assert.match(P.hitForm(target(), 'en'), /Armor-piercing.*Crit\. Injury \+5.*Apply.*Full calculation/);
   assert.equal(PC.hitForm(target(), 'ru'), null, 'without the damage rules the old row stays');
   const tabs = read('sheet-tabs.js');
-  assert.ok(tabs.includes("const hit=global.PlayCombat?.hitForm?.(c,lang())||'';")); assert.ok(tabs.includes("${hit?'':`<div class=\"hud-hp-row\"><label>${ru?'Урон':'Damage'}"));
+  // The pad is HpPad's: it draws PlayCombat's form when the sheet has one and its own plain damage row when it does not.
+  assert.ok(tabs.includes("global.HpPad?.html?.(global.HpPad.forCharacter(c),lang(),'sheet')"));
+  const pad = read('hp-pad.js'); assert.ok(pad.includes("global.PlayCombat?.hitForm?.(c, l)")); assert.ok(pad.includes("form || simpleForm(l, target, st)"));
   assert.ok(read('damage-apply.js').includes("d.pending=null;d.ammo='standard';d.critical=false;c.hp=Math.max(0,q.hpAfter);"));
   assert.doesNotMatch(read('play-combat.js'), /\b(confirm|alert|prompt)\(/);
 });
@@ -263,7 +265,7 @@ test('the unarmed block: Brawling and Martial Arts damage by BODY, a grenade onl
 test('App.check and App.report took what the sheet rolls need', () => {
   const app = read('app.js');
   assert.ok(app.includes("check(base,label,{wounds=true,dv=0,skill=0,mod:more=0,ignoreFumble=false,parts}={})"));
-  assert.ok(app.includes("report(label,detail,total,faces,show){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
+  assert.ok(app.includes("report(label,detail,total,faces,show,secret){")); assert.ok(app.includes("if(show!==true)pendingRoll=null;"));
 });
 
 test('Role Ability checks take the wound penalty of the character', () => {
@@ -294,7 +296,7 @@ test('undo of a hit never puts old equipment or medical data over newer changes'
 });
 
 // ---------- Damage Deflection in the HUD hit form ----------
-const withSolo = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['combat-tools.js', 'equipment-tools.js', 'effects.js', 'role-tools.js', 'role-play.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); w.App = { lang: () => 'en' }; return w; };
+const withSolo = () => { const w = { confirm: () => { throw new Error('no browser dialogs here'); } }, ctx = { window: w, globalThis: {}, console, Math, JSON, Set, Map, Number, String, Array, Object, Date }; ctx.globalThis.window = w; vm.createContext(ctx); for (const f of ['crit-injuries.js', 'combat-tools.js', 'equipment-tools.js', 'effects.js', 'role-tools.js', 'role-play.js', 'damage-apply.js', 'play-combat.js']) vm.runInContext(read(f), ctx); w.App = { lang: () => 'en' }; return w; };
 const soloTarget = (over = {}) => ({ id: 'v', role: 'solo', rank: 4, stats: { BODY: 8, WILL: 6 }, hp: 40, head: 10, bodyArmor: 4, extra: { soloRollAutomation: { version: 1, enabled: true }, roleTools: { solo: { values: { deflect: 2 } } }, ...over } });
 
 test('a hit: Damage Deflection is on by default when ready, shows as a chip, and goes into the arguments', () => {

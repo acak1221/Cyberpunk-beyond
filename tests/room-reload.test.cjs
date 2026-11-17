@@ -1,4 +1,5 @@
 // What a reload of the page keeps: the roll feed of the room, and the sheets the Game Master has not answered yet.
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -8,9 +9,9 @@ const storage=m=>({getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,Stri
 function loadRoom({local=new Map(),tab=new Map(),toasts=[]}={}){
  const listeners={},box={children:[],prepend(el){toasts.push(el.innerHTML)},lastChild:{remove(){}}};
  const document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:sel=>sel==='.room-toasts'?box:null,querySelectorAll:()=>[],createElement:()=>({classList:{add(){}},remove(){}}),visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:storage(local),sessionStorage:storage(tab),crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,ROLES:[]};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:storage(local),sessionStorage:storage(tab),crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,ROLES:[]};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,notices=[];
  R.setApp({getState:()=>({lang:'ru',characters:[],campaigns:[]}),notify:m=>notices.push(m)});
@@ -18,7 +19,7 @@ function loadRoom({local=new Map(),tab=new Map(),toasts=[]}={}){
  const press=async(action,data={})=>{for(const f of listeners.click||[])await f({target:{closest:sel=>sel==='[data-room-action]'?{dataset:{roomAction:action,...data}}:null}})};
  return {window,R,notices,toasts,press,local,tab};
 }
-const CODE='K7RQM2XAPZ9E',settle=()=>new Promise(ok=>setTimeout(ok,30));
+const CODE='K7RQM2XAPZ9E',settle=Idle.settle;
 async function table(){
  const maker=loadRoom().R,r=await maker.deriveRoom(CODE),keys={};
  for(const n of ['gm','ann']){const key=await maker.newIdentity();keys[n]={key,id:key.fp+'.0000000'+Object.keys(keys).length}}

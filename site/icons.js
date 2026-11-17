@@ -19,6 +19,11 @@ const I={
  book:svg('<path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z"/><path d="M5 18a3 3 0 0 1 3-3h11"/><path d="M9 7h6"/>'),
  news:svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.6 10.4 15.5 12l-1.9 1.6L12 15.5l-1.6-1.9L8.5 12l1.9-1.6z"/>'),
  menu:svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+ search:svg('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
+ more:svg('<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>'),
+ back:svg('<path d="M19 12H5"/><path d="m11 18-6-6 6-6"/>'),
+ next:svg('<path d="M5 5.5 15 12 5 18.5z"/><path d="M19 5v14"/>'),
+ settings:svg('<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/>'),
 };
 global.Icons=I;
 })(window);

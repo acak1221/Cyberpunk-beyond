@@ -5,10 +5,15 @@
 'use strict';
 const int=v=>{const n=Number(v);return v!==null&&v!==''&&Number.isFinite(n)?Math.trunc(n):null};
 const face=(v,s)=>({v,s});
+// The one source of randomness of the app's tools. Tests (and a seeded session) may put their own source here with setRng(fn);
+// setRng(null) goes back to Math.random, which is read on every call so a stubbed Math.random still takes effect.
+let source=null;
+function rand(){return source?source():Math.random()}
+function setRng(fn){source=typeof fn==='function'?fn:null;return source!==null}
 // One die. A random source that misbehaves gives null instead of a wrong face.
-function d(sides,rng=Math.random){const n=rng();return typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<1?1+Math.floor(n*sides):null}
+function d(sides,rng=rand){const n=rng();return typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<1?1+Math.floor(n*sides):null}
 // 1d10 with the critical rule (p. 130): a 10 adds one more d10, a 1 subtracts one. The second die never explodes again.
-function d10(rng=Math.random){
+function d10(rng=rand){
  const first=d(10,rng);if(first===null)return null;
  const extra=first===1||first===10?d(10,rng):0;if(extra===null)return null;
  return {first,extra,value:first+(first===10?extra:first===1?-extra:0)};
@@ -17,9 +22,10 @@ const dieText=(first,extra)=>`1d10 ${first}${extra?(first===10?' + ':' − ')+ex
 // A tool that has no language at hand gets the language of the app.
 function language(lang){if(lang==='ru'||lang==='en')return lang;try{return global.App?.lang?.()==='en'?'en':'ru'}catch{return 'ru'}}
 const valueOf=(first,extra)=>first+(first===10?extra:first===1?-extra:0);
-function report(label,detail,total,faces){
+// secret: the roll goes to the history of this device only, not to the online room (a Game Master's hidden opponents).
+function report(label,detail,total,faces,secret){
  label=String(label??'').replace(/\s+/g,' ').trim();if(!label||int(total)===null)return false;
- try{return global.App?.report?.(label,String(detail??''),int(total),faces)===true}catch{return false}
+ try{return global.App?.report?.(label,String(detail??''),int(total),faces,undefined,secret===true)===true}catch{return false}
 }
 /* A d10 check a tool has made. `r` is the tool's own result: the first die under `die`, `first` or `one`, the second under
    `extra`, the sum under `total`, and optionally `dv` and `success`. */
@@ -34,11 +40,11 @@ function check(label,r,lang){
  return report(label,detail,total,[face(first,10),...(extra?[face(extra,10)]:[])]);
 }
 // Dice that are simply added up: damage, a table, a loss of Humanity. `bonus` is added to the sum of the dice.
-function sum(label,dice,sides,{bonus=0,total,note=''}={}){
+function sum(label,dice,sides,{bonus=0,total,note='',secret=false}={}){
  if(!Array.isArray(dice)||!dice.length||dice.length>40||dice.some(v=>int(v)===null||v<1||v>sides))return false;
  const add=int(bonus)||0,all=int(total)??dice.reduce((a,b)=>a+b,0)+add;
  const detail=`${dice.length}d${sides}: ${dice.join(' + ')}${add?(add<0?' − ':' + ')+Math.abs(add):''}${dice.length>1||add?' = '+all:''}${note?' · '+note:''}`;
- return report(label,detail,all,dice.slice(0,12).map(v=>face(v,sides)));
+ return report(label,detail,all,dice.slice(0,12).map(v=>face(v,sides)),secret);
 }
 /* Two sides roll against each other; the first wins only with the higher total. Each side is {first, extra, total}.
    A side that does not roll (a fixed DV) is given as a number, and the roll becomes an ordinary check against it. */
@@ -50,5 +56,18 @@ function opposed(label,a,b,won,lang){
  const ru=lang!=='en',win=typeof won==='boolean'?won:x.total>y.total;
  return report(label,`${x.text} ${ru?'против':'vs'} ${y.text} — ${win?(ru?'успех':'success'):(ru?'провал':'failure')}`,x.total,[face(x.first,10),...(x.extra?[face(x.extra,10)]:[])]);
 }
-global.Rolls={d,d10,dieText,check,opposed,sum,report};
+/* The quick-dice sheet rolls through here. The numbers are checked and clamped; the roll itself is made by the app's own engine
+   (the same critical rule, history, repeat recipe and room feed as every check on a sheet). Returns the total, or null. */
+const clamp=(v,lo,hi)=>{const n=int(v);return n===null?null:Math.max(lo,Math.min(hi,n))};
+function quickCheck({stat,skill,mod,label}={}){
+ const s=clamp(stat??0,0,20),k=clamp(skill??0,0,20),m=clamp(mod??0,-100,100);
+ if(s===null||k===null||m===null||typeof global.App?.check!=='function')return null;
+ try{return global.App.check(s,String(label||'').slice(0,100)||(language()==='en'?'d10 check':'Проверка d10'),{wounds:false,skill:k,mod:m}).total}catch{return null}
+}
+function quickDice(n,sides,label){
+ const c=clamp(n,1,20),f=clamp(sides,2,100);
+ if(c===null||f===null||typeof global.App?.dice!=='function')return null;
+ try{return global.App.dice(c,f,String(label||'').slice(0,100))}catch{return null}
+}
+global.Rolls={rand,setRng,d,d10,dieText,check,opposed,sum,report,quickCheck,quickDice};
 })(window);

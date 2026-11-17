@@ -1,24 +1,25 @@
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
 const CODE='K7RQM2XAPZ9E',STORE='nightcity-red-room-whispers';
 const SKILLS=[['Perception','awareness','INT',1,1,'Восприятие'],['Stealth','body','DEX',1,1,'Скрытность']];
-const settle=(ms=30)=>new Promise(ok=>setTimeout(ok,ms));
+const settle=Idle.settle;
 // A fixed sequence of dice: each value is the face wanted (1..10).
 const dice=(...faces)=>{let i=0;return ()=>((faces[i++]??5)-1)/10+0.01};
 
 // One browser tab: room.js and room-whispers.js with their own module state. Tabs can share a localStorage (a reload).
 function loadTab({store=new Map(),character=null}={}){
  const listeners={},document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[],visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
  const notices=[],actions=[],saves=[];
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob};
  const state={lang:'ru',characters:character?[character]:[],campaigns:[]};
  const app={getState:()=>state,notify:m=>notices.push(m),notifyAction:(m,label,f)=>actions.push({m,label,f}),save:()=>{saves.push(1);return Promise.resolve({ok:true})},render(){},
   checkBase:(c,stat,level)=>c.armorBlocked?null:(Number(c.stats?.[stat])||0)+(Number(level)||0)};
  window.App=app;window.SkillReference={SKILLS,DV:[[9,'Простая','Simple'],[13,'Обычная','Everyday'],[15,'Трудная','Difficult'],[17,'Профессиональная','Professional'],[21,'Героическая','Heroic'],[24,'Невероятная','Incredible'],[29,'Легендарная','Legendary']]};
  window.CharacterExtra={init:c=>{if(c.extra===undefined)c.extra={};if(c.extra.luck===undefined)c.extra.luck=c.stats?.LUCK??0;return c.extra}};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js')+'\n'+read('rolls.js')+'\n'+read('room-whispers.js'),ctx);
  const R=window.Room._test,RW=window.RoomWhispers,sent=[],log=[];
  R.setApp(app);

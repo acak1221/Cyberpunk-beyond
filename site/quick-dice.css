@@ -1,0 +1,33 @@
+/* Quick dice: the floating d10 button and its sheet. Classes start with qd- (the Dice screen has its own .quick-dice). */
+.qd-fab{position:fixed;right:14px;bottom:20px;z-index:70;display:flex;align-items:center;justify-content:center;width:52px;height:52px;padding:0;color:#fff;background:var(--red);border:2px solid var(--panel);border-radius:50%;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.qd-fab[hidden]{display:none}
+.qd-fab.qd-left{right:auto;left:14px}
+.qd-fab .ico{width:26px;height:26px}
+.qd-fab:active{transform:scale(.94)}
+html:not(.ui-native) .qd-fab{border-radius:4px}
+@media (max-width:820px){.qd-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}
+.qd-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55)}
+.qd-sheet{position:fixed;left:0;right:0;bottom:0;z-index:1110;display:flex;flex-direction:column;gap:12px;max-height:min(88vh,740px);padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;color:var(--text);background:var(--panel);border:1px solid var(--border);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -14px 40px rgba(0,0,0,.45)}
+html:not(.ui-native) .qd-sheet{border-radius:0;border-top:3px solid var(--red)}
+.qd-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.qd-head h2{margin:0;font-size:20px;line-height:1.2;letter-spacing:0;text-transform:none}
+.qd-close{min-width:44px;min-height:44px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:10px;font-size:16px}
+.qd-sec h3{margin:0 0 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.qd-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.qd-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.qd-field input{width:100%;min-height:48px;padding:6px 10px;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:8px;font-size:18px}
+.qd-roll{width:100%;min-height:48px}
+.qd-dice{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.qd-die{min-height:48px;font-size:16px;font-weight:700}
+.qd-rows{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.qd-rows li{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px}
+.qd-row-text{display:flex;flex:1 1 auto;flex-direction:column;min-width:0}
+.qd-row-text strong,.qd-row-text small{overflow-wrap:anywhere}
+.qd-row-text small{color:var(--muted)}
+.qd-row-total{flex:0 0 auto;font:700 20px var(--display)}
+.qd-rows .btn{min-height:44px;flex:0 0 auto}
+.qd-none{margin:0;color:var(--muted);font-size:14px}
+.qd-switch{display:flex;align-items:center;gap:10px;min-height:44px;color:var(--muted);font-size:13px}
+.qd-switch input{width:24px;height:24px;margin:10px}
+@media (min-width:821px){.qd-sheet{left:auto;right:20px;bottom:84px;width:380px;border:1px solid var(--border);border-radius:16px}}
+@media print{.qd-fab,.qd-sheet,.qd-backdrop{display:none!important}}

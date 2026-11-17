@@ -1,5 +1,6 @@
 // What players in a room see of each tracker participant: the level for the room, the level of one participant,
 // what goes into the message and what a page keeps of a message it receives.
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -207,9 +208,9 @@ test('after the tracker is drawn again the list keeps the focus and «Дейст
 
 function loadRoom({lang='ru',vis=true,map=false}={}){
  const store=new Map(),listeners={},document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[],visibilityState:'visible'};
- const later=(f,ms)=>{const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,CompressionStream,DecompressionStream,ROLES:[],GMTools:{NPC_TEMPLATES:[]}};
- const ctx={window,confirm:()=>true,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const later=(f,ms)=>{const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,CompressionStream,DecompressionStream,ROLES:[],GMTools:{NPC_TEMPLATES:[]}};
+ const ctx={window,confirm:()=>true,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext((map?read('combat-tools.js')+'\n'+read('battle-map.js')+'\n':'')+read('room-transport.js')+'\n'+(vis?read('room-visibility.js')+'\n':'')+read('room.js'),ctx);
  const R=window.Room._test,sent=[];
  window.chars=[];window.camps=[];
@@ -217,7 +218,7 @@ function loadRoom({lang='ru',vis=true,map=false}={}){
  R.setTransport({publish:(sub,bytes)=>{sent.push({sub,bytes});return 1},close(){}});
  return {window,R,sent};
 }
-const CODE='K7RQM2XAPZ9E',settle=()=>new Promise(ok=>setTimeout(ok,30));
+const CODE='K7RQM2XAPZ9E',settle=Idle.settle;
 const SUM={name:'Ви',role:'solo',rank:4,hp:45,max:45,humanity:60,luck:6,luckMax:6,head:11,body:11,ref:7,dex:6,rep:0};
 // The tracker of one fight: a character with a sheet, an armored enemy, a wounded one, a player's row from the room.
 const fight=()=>({id:'c1',name:'Ночной рейс',round:2,turnIndex:0,roster:[
@@ -346,7 +347,7 @@ test('a player\'s page rebuilds what it receives; an older page keeps the old fi
 
 test('the Game Master\'s room page shows the list as players get it, with a line that says so',async()=>{
  const {gm,camp}=await table();camp.vis='state';camp.roster[1].hidden=true;
- gm.window.Room.changed();await new Promise(ok=>setTimeout(ok,500));
+ gm.window.Room.changed();await Idle.settle(500);
  const html=gm.R.roomView();
  assert.match(html,/rv-w1">Тяжело ранен</);assert.doesNotMatch(html,/Бандит/);
  assert.match(html,/<\/ol><p class="room-muted rv-note">Так список видят игроки\. Уровень меняется в трекере кампании\.<\/p>/);

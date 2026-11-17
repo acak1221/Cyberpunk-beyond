@@ -41,3 +41,15 @@
 .net-rn-prop { min-width: 0; }
 .net-link { min-width: 0; }
 .net-link select { min-height: 44px; }
+
+/* The Game Master's inbox of the netrunner's rolls: a panel of its own, on every screen, above the bottom bar. */
+.rn-inbox-host { position: fixed; left: 8px; right: 8px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 60; pointer-events: none; display: flex; justify-content: flex-end; }
+.rn-inbox-host:empty { display: none; }
+.rn-inbox { pointer-events: auto; width: 100%; max-width: 440px; max-height: 42vh; overflow: auto; color: var(--text); background: var(--panel-2); border: 1px solid var(--yellow); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .35); }
+.rn-inbox summary { display: flex; align-items: center; min-height: 44px; padding: 0 12px; font-weight: 700; cursor: pointer; }
+.rn-inbox-list { margin: 0; padding: 0 12px; list-style: none; }
+.rn-inbox-roll { padding: 8px 0; border-top: 1px solid var(--border); }
+.rn-inbox-what { margin: 0 0 6px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.rn-inbox-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 8px; }
+.rn-inbox-actions .btn { min-height: 44px; }
+.rn-inbox > details > .rn-inbox-actions { padding: 8px 12px; }

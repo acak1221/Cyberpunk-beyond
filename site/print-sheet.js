@@ -69,12 +69,13 @@ function model(c,env={}){
   native:text(c.native,120),nativeLevel:x.nativeLevel===undefined?null:num(x.nativeLevel),
   skills,specs,weapons,
   armorItems:items.filter(i=>i.category==='armor'),cyberItems:items.filter(i=>i.category==='cyberware'),gearItems:items.filter(i=>i.category==='equipment'||i.category==='other'),
-  gearText:text(c.gear,6000),cyberText:text(c.cyberware,6000),notes:text(c.notes,20000),life,
+  gearText:text(c.gear,6000),cyberText:text(c.cyberware,6000),notes:text(c.notes,20000),ownNotes:ownNotes(c),life,
   date:text(env.date,40)
  };
 }
 
 const box=(label,value,sub='')=>`<div class="ps-box"><span class="ps-box-label">${esc(label)}</span><b class="ps-box-value">${esc(value)}</b>${sub?`<small class="ps-box-sub">${esc(sub)}</small>`:''}</div>`;
+const ownNotes=c=>{try{const A=(typeof window!=='undefined'?window:globalThis).AgentNotes;return (A?.printNotes?.(c)||[]).slice(0,100).map(n=>({title:text(n.title,120),text:text(n.text,4000)})).filter(n=>n.title||n.text)}catch{return []}};
 const section=(title,body,cls='',side='')=>body?`<section class="ps-section ${cls}"><h2><span>${esc(title)}</span>${side?`<small>${esc(side)}</small>`:''}</h2>${body}</section>`:'';
 const itemLine=i=>`<li><b>${esc(i.name)}</b>${i.quantity!==1?` ×${esc(i.quantity)}`:''}${i.notes?` <span class="ps-dim">— ${esc(i.notes)}</span>`:''}</li>`;
 const items=rows=>rows.length?`<ul class="ps-items">${rows.map(itemLine).join('')}</ul>`:'';
@@ -115,7 +116,7 @@ ${section(t.specs,pairs(specRows),'ps-specs-block')}
 ${section(t.weapons,weaponsTable(m,t,false),'ps-weapons-block')}
 <div class="ps-columns"><div class="ps-column">${section(t.armor,armor,'ps-armor-block')}${section(t.cyberware,items(m.cyberItems)+prose(m.cyberText),'ps-cyber-block')}</div><div class="ps-column">${section(t.gear,items(m.gearItems)+prose(m.gearText),'ps-gear-block')}${section(t.ability,abilityBlock(m,t),'ps-ability-block')}</div></div>
 ${o.life?section(t.life,pairs(m.life.map(r=>[r.label,r.value])),'ps-life-block'):''}
-${o.notes?section(t.notes,prose(m.notes),'ps-notes-block'):''}
+${o.notes?section(t.notes,prose(m.notes)+(m.ownNotes||[]).map(n=>`${n.title?`<h3 class="ps-note-title">${esc(n.title)}</h3>`:''}${prose(n.text)}`).join(''),'ps-notes-block'):''}
 </article>`;
 }
 /* Which skills make it onto the card: the ones a GM asks for most, then the character's best. */

@@ -80,7 +80,7 @@ test('gm: a first group «Ведущему» with campaigns, gm and room, and no
 
 test('gm: the phone bottom bar and the home cards put the Game Master first',()=>{
  const {R}=load({store:{'nc-role':'gm'}});
- eq(R.bottom(['characters','combat','dice','room']),['campaigns','room','dice','gm']);
+ eq(R.bottom(['characters','combat','dice','room']),['overview','campaigns','room','gm']);
  const cards=[['rules'],['dice'],['campaigns'],['catalog'],['gm'],['net']];
  eq(R.cards(cards).map(c=>c[0]),['campaigns','gm','rules','dice','catalog','net']);
  eq(R.cards([['rules']]).map(c=>c[0]),['rules']);

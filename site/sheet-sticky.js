@@ -25,22 +25,18 @@
     doc.body.appendChild(pin);
     return pin;
   }
-  // The compact HUD is one row. A chip that does not fit whole is hidden (it is back when the page is at the top)
-  // instead of showing half of itself at the edge; the «Your turn» marker is the last one to go.
+  // The compact HUD is one row that scrolls sideways (the fade at its right edge says so): no chip is hidden, so money, the lock and sleep
+  // stay reachable. Only the «Your turn» marker is pulled into sight: it is scrolled to when it does not fit whole.
   function fitHud(dock) {
     const hud = dock.querySelector('.sheet-hud');
     if (!hud) return;
-    const kids = [...hud.children];
-    for (const k of kids) k.classList.remove('hud-cut');
+    for (const k of hud.children) k.classList.remove('hud-cut');
     if (!dock.classList.contains('dock-compact')) return;
-    const edge = () => hud.getBoundingClientRect().right - 1, cut = k => k.getClientRects().length > 0 && k.getBoundingClientRect().right > edge();
-    for (const k of kids.filter(cut)) k.classList.add('hud-cut');
-    const turn = kids.find(k => k.hasAttribute('data-room-turn') && !k.hidden);
-    if (turn && turn.classList.contains('hud-cut')) {
-      turn.classList.remove('hud-cut');
-      const keep = k => k === turn || k.classList.contains('hud-hp');
-      for (const k of kids.filter(k => !keep(k) && k.getClientRects().length > 0).reverse()) { if (!cut(turn)) break; k.classList.add('hud-cut'); }
-    }
+    const turn = [...hud.children].find(k => k.hasAttribute('data-room-turn') && !k.hidden);
+    if (turn && turn.getClientRects().length > 0 && turn.getBoundingClientRect().right > hud.getBoundingClientRect().right - 1 && !turn.dataset.hudSeen) {
+      turn.dataset.hudSeen = '1';
+      hud.scrollLeft = Math.max(0, turn.offsetLeft - hud.clientWidth + turn.offsetWidth + 8);
+    } else if (turn && turn.dataset.hudSeen && turn.getBoundingClientRect().right <= hud.getBoundingClientRect().right) delete turn.dataset.hudSeen;
   }
   function update() {
     queued = false;
@@ -54,6 +50,9 @@
     // Phone and narrow screens: the dock itself is sticky, only the HUD gets smaller.
     dock.classList.toggle('dock-compact', !flat && compactState(y, dock.classList.contains('dock-compact')));
     fitHud(dock);
+    // A row of chips that scrolls sideways says so with a fade at its right edge.
+    const row = dock.querySelector('.sheet-hud');
+    if (row) dock.classList.toggle('hud-overflow', row.scrollWidth > row.clientWidth + 2 && row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
     // Wide «Досье»: the tabs are a cell of the board grid and cannot stick, so a copy stands at the top while they are out of sight.
     const tabs = dock.querySelector('.sheet-tabs');
     if (!flat || !tabs) { if (pin) pin.hidden = true; return; }

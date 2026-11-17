@@ -1,0 +1,28 @@
+/* Last stylesheet: on phones and touch screens every control reaches 44 px, in every look. Boxes grow, text stays the same size. */
+@media (max-width: 820px), (pointer: coarse) {
+  html .btn, html .btn-primary, html .cx-button, html .shop-chip, html .skip-link,
+  html button.nx-more, html .nx-more, html .rule-source, html .hint-link, html .text-link, html .delete-button,
+  html .book-toc button, html .book-toc summary, html .book-contents a, html .book-contents button, html .book-contents summary,
+  html .search input, html input[type="file"], html input[type="search"] {
+    min-height: 44px !important; box-sizing: border-box;
+  }
+  html .nx-more, html .rule-source, html .hint-link, html .text-link, html .book-toc button, html .book-contents a, html .book-contents button {
+    display: inline-flex; align-items: center; min-width: 44px; padding-top: 8px; padding-bottom: 8px;
+  }
+  html .book-toc button { width: 100%; justify-content: space-between; text-align: left; }
+  html .book-toc summary { display: flex; align-items: center; }
+  html .delete-button { display: inline-flex; align-items: center; justify-content: center; }
+  html label:has(> input[type="checkbox"]), html label:has(> input[type="radio"]) { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; }
+  html input[type="checkbox"], html input[type="radio"] { width: 24px; height: 24px; flex: 0 0 auto; }
+  /* The floating dice button must not hide the end of a page. */
+  html .main, html .app-shell > .main { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+}
+/* The chips of the sheet header are 44 × 44 at least in every look and in the scrolled row (sheet-sticky.css makes them 30 px,
+   the cyber look squeezes the lock and the sleep chip to 26–32 px); the HP chip keeps room for the name and the number. */
+html .sheet-dock .sheet-hud .hud-chip, html .sheet-dock.dock-compact .sheet-hud .hud-chip { min-width: 44px; min-height: 44px; box-sizing: border-box; }
+html .sheet-dock .sheet-hud .hud-chip.hud-hp { min-width: 150px; min-height: 48px; }
+html .sheet-dock .sheet-hud .hud-chip:is(.hud-money, .dt-session, .hud-lock, .hud-awake) { min-width: 44px; }
+
+/* Polish: the «Досье» tabs and the role select are 44 px high on a phone / in every look. */
+@media (max-width: 820px) { html.ui-native.ui-board .sheet-tabs button, html.ui-board .sheet-tabs button { min-height: 44px; } }
+html body select[data-field="role"] { min-height: 44px; }

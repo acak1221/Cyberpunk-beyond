@@ -8,11 +8,19 @@
    room payload (GMExtras.sharedClocks still sends name, size and filled only), never written to the
    campaign journal (journal entries can be published to players) and the die is rolled locally, not
    through the shared dice, because a shared roll would show the name of a hidden clock to the room.
+   Two more optional fields live in the same place:
+   - pool: the clock is a pool of dice (size = how many dice, filled = how many are out). "Roll the pool" rolls the
+     dice that are left and takes out every one that shows the face the GM chose; the reminders then fire on how many
+     dice are left, down to 0. The room still gets name, size and filled, so a pool is shown to players as a clock.
+   - countdown: a real-time timer. Only an absolute end time (or the time left when paused) is stored, so a reload or a
+     tab in the background changes nothing; a ticker looks at it once a second and says when it has run out.
    The controls sit inside the clock card and reuse the event delegation of gm-extras.js. */
 (function(){
 'use strict';
 const MAX_TRIGGERS=6,MAX_TEXT=160,MAX_HIST=12,MAX_MESSAGE=400;
 const DICE=Object.freeze([4,6,10]);
+const POOL_SIDES=Object.freeze([4,6,8,10,12]),MAX_POOL=12;
+const MIN_CD=1,MAX_CD=10080,MIN_MS=60000,MAX_MS=MAX_CD*MIN_MS;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const GX=()=>typeof window!=='undefined'&&window.GMExtras||null;
@@ -30,7 +38,12 @@ const T={
   roll:d=>`Бросить d${d}`,rolled:(r,add)=>`Выпало ${r} — +${add} ${segRu(add)}`,rolledNone:(r,need)=>need?`Выпало ${r} — часы стоят (нужно ${need}+)`:`Выпало ${r} — часы уже заполнены`,
   undo:'Отменить',undone:'Бросок отменён.',trigDeleted:'Напоминание удалено.',trigBack:'Напоминание возвращено.',
   reached:(n,at,text)=>text?`Часы «${n}» дошли до ${at}: ${text}`:`Часы «${n}» дошли до ${at}.`,full:n=>`Часы «${n}» заполнены.`,tick:(round,n,f,s)=>`Раунд ${round}: часы «${n}» — ${f}/${s}`,
-  fired:'Сработавшие напоминания',strip:'Часы боя',fullBadge:'Заполнено'},
+  fired:'Сработавшие напоминания',strip:'Часы боя',fullBadge:'Заполнено',
+  poolRoll:'Бросить пул',poolSides:'Кость пула',poolFace:'Убирать кубики с гранью',poolHelp:'Бросаются все оставшиеся кубики; каждый, на котором выпала выбранная грань, убирается из пула. Напоминания срабатывают по числу оставшихся кубиков.',
+  poolLeft:(l,n,d)=>`Осталось ${l} из ${n}, кость d${d}`,poolRolled:(rolls,out,left)=>`Выпало ${rolls.join(', ')} — убрано ${out}, осталось ${left}`,poolNone:(rolls,left)=>`Выпало ${rolls.join(', ')} — ничего не убрано, осталось ${left}`,
+  poolEmpty:n=>`В пуле «${n}» не осталось кубиков.`,poolReached:(n,left,text)=>text?`В пуле «${n}» осталось ${left}: ${text}`:`В пуле «${n}» осталось ${left}.`,poolAt:n=>`осталось ${n}`,poolTag:(d,f)=>`d${d}: убираются кубики с гранью ${f}`,poolDone:'Пул пуст',
+  cd:'Таймер',cdMin:'Таймер, минут (пусто — без таймера)',cdHelp:'Хранится момент окончания, поэтому перезагрузка и другая вкладка таймер не сбивают. Таймер виден только вам.',cdSum:m=>`таймер: ${m} мин`,
+  cdStart:'Старт',cdPause:'Пауза',cdResume:'Продолжить',cdRestart:'Старт заново',cdReset:'Сбросить таймер',cdIdle:'готов',cdRun:'идёт',cdPaused:'на паузе',cdDone:'время вышло',cdLeft:'Осталось',cdExpired:n=>`Время вышло: «${n}».`,cdRemaining:s=>`Осталось ${s}`,cdRange:(a,b)=>`Таймер: от ${a} до ${b} минут. Прежнее значение сохранено.`},
  en:{toggle:'Triggers and auto-advance',sumTrig:n=>`reminders: ${n}`,sumCamp:n=>`combat: ${n}`,sumNone:'not set up',panel:'Triggers and auto-advance',
   trigHead:'Reminders',at:'At which segment',text:'Reminder text',textPh:'E.g. "The police arrive"',delTrig:'Delete the reminder',addTrig:'Reminder',maxTrig:'No more than 6 reminders per clock.',
   priv:'Only you see the reminder texts: players get only the name and the segments.',
@@ -39,12 +52,17 @@ const T={
   roll:d=>`Roll d${d}`,rolled:(r,add)=>`Rolled ${r} — +${add} ${add===1?'segment':'segments'}`,rolledNone:(r,need)=>need?`Rolled ${r} — the clock stays (needs ${need}+)`:`Rolled ${r} — the clock is already full`,
   undo:'Undo',undone:'The roll is undone.',trigDeleted:'The reminder is deleted.',trigBack:'The reminder is back.',
   reached:(n,at,text)=>text?`Clock “${n}” reached ${at}: ${text}`:`Clock “${n}” reached ${at}.`,full:n=>`Clock “${n}” is full.`,tick:(round,n,f,s)=>`Round ${round}: clock “${n}” — ${f}/${s}`,
-  fired:'Reminders that have come up',strip:'Combat clocks',fullBadge:'Full'}
+  fired:'Reminders that have come up',strip:'Combat clocks',fullBadge:'Full',
+  poolRoll:'Roll the pool',poolSides:'Pool die',poolFace:'Remove dice showing',poolHelp:'Every die that is left is rolled; each one that shows the chosen face is taken out of the pool. Reminders fire on how many dice are left.',
+  poolLeft:(l,n,d)=>`${l} of ${n} left, d${d}`,poolRolled:(rolls,out,left)=>`Rolled ${rolls.join(', ')} — ${out} out, ${left} left`,poolNone:(rolls,left)=>`Rolled ${rolls.join(', ')} — none removed, ${left} left`,
+  poolEmpty:n=>`The pool “${n}” has no dice left.`,poolReached:(n,left,text)=>text?`Pool “${n}” is down to ${left}: ${text}`:`Pool “${n}” is down to ${left}.`,poolAt:n=>`${n} left`,poolTag:(d,f)=>`d${d}: a die showing ${f} is removed`,poolDone:'Pool is empty',
+  cd:'Timer',cdMin:'Timer, minutes (empty for none)',cdHelp:'The end time is stored, so a reload or another tab does not disturb the timer. Only you see it.',cdSum:m=>`timer: ${m} min`,
+  cdStart:'Start',cdPause:'Pause',cdResume:'Resume',cdRestart:'Start again',cdReset:'Reset timer',cdIdle:'ready',cdRun:'running',cdPaused:'paused',cdDone:'time is up',cdLeft:'Left',cdExpired:n=>`Time is up: “${n}”.`,cdRemaining:s=>`${s} left`,cdRange:(a,b)=>`Timer: ${a} to ${b} minutes. The previous value is kept.`}
 };
 
 // ---------- stored fields ----------
 function cleanText(v){return typeof v==='string'?v.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,MAX_TEXT):''}
-const whole=v=>typeof v==='number'&&Number.isInteger(v)?v:typeof v==='string'&&/^\d{1,6}$/.test(v)?Number(v):null;
+const whole=v=>typeof v==='number'&&Number.isInteger(v)?v:typeof v==='string'&&/^\d{1,16}$/.test(v)?Number(v):null;
 function cleanTriggers(raw,size){
  if(!Array.isArray(raw))return [];
  const out=[];
@@ -63,6 +81,26 @@ function cleanTick(raw){
  const hist=(Array.isArray(raw.hist)?raw.hist:[]).filter(n=>typeof n==='number'&&Number.isInteger(n)&&n>=1&&n<=9999).slice(-MAX_HIST);
  return {camp:raw.camp,hist};
 }
+function cleanPool(raw){
+ if(!isObj(raw))return null;
+ const sides=whole(raw.sides);if(!POOL_SIDES.includes(sides))return null;
+ const f=whole(raw.face);
+ return {sides,face:f!==null&&f>=1&&f<=sides?f:1};
+}
+/* A timer is stored as plain numbers: ms is its length; end is the moment (ms since 1970) it runs out while it runs;
+   left is what was left when it was paused; done marks one that has run out. Never more than one of the three. */
+/* A running timer never ends later than its own length from now (a minute of slack for clocks that disagree): an end
+   far in the future, from a hand-edited file or a clock that was set ahead, would otherwise stay "running" forever. */
+const CLOCK_SLACK=60000;
+function cleanCountdown(raw){
+ if(!isObj(raw))return null;
+ const ms=whole(raw.ms);if(ms===null||ms<MIN_MS||ms>MAX_MS)return null;
+ const out={ms},end=whole(raw.end),left=whole(raw.left);
+ if(raw.done===true)out.done=true;
+ else if(end!==null&&end>0&&end<=8.64e15)out.end=Math.min(end,Date.now()+ms+CLOCK_SLACK);
+ else if(left!==null&&left>0&&left<=ms)out.left=left;
+ return out;
+}
 /* The extra fields of one clock, rebuilt from known fields only. A key appears only when it holds
    something, always in the same order, so an old clock stays exactly as it was and the campaign
    file can compare two clocks as plain data. */
@@ -70,8 +108,12 @@ function cleanExtra(raw,size){
  if(!isObj(raw))return null;
  const s=Number(size),out={};
  const triggers=cleanTriggers(raw.triggers,Number.isFinite(s)&&s>=1?s:1);if(triggers.length)out.triggers=triggers;
- const die=cleanDie(raw.die);if(die)out.die=die;
+
+ // A pool is its own way to roll: a die for filling segments does not go with it.
+ const pool=cleanPool(raw.pool),die=pool?null:cleanDie(raw.die);if(die)out.die=die;
  const tick=cleanTick(raw.tick);if(tick)out.tick=tick;
+ if(pool)out.pool=pool;
+ const cd=cleanCountdown(raw.countdown);if(cd)out.countdown=cd;
  return Object.keys(out).length?out:null;
 }
 
@@ -83,11 +125,46 @@ function crossings(before,after){
  const out=[],old=new Map((Array.isArray(before)?before:[]).map(c=>[c.id,c]));
  for(const c of Array.isArray(after)?after:[]){
   const b=old.get(c.id);if(!b||!(c.filled>b.filled))continue;
-  for(const tr of [...(c.triggers||[])].sort((x,y)=>x.at-y.at))if(tr.at>b.filled&&tr.at<=c.filled)out.push({kind:'trigger',id:c.id,name:c.name,at:tr.at,text:tr.text});
-  if(c.filled===c.size)out.push({kind:'full',id:c.id,name:c.name});
+  for(const tr of [...(c.triggers||[])].sort((x,y)=>x.at-y.at))if(tr.at>b.filled&&tr.at<=c.filled)out.push({kind:'trigger',id:c.id,name:c.name,at:tr.at,text:tr.text,...(c.pool?{pool:true,left:c.size-tr.at}:{})});
+  if(c.filled===c.size)out.push({kind:'full',id:c.id,name:c.name,...(c.pool?{pool:true}:{})});
  }
  return out;
 }
+/* Rolling a pool: every die that is left is rolled, and each one that shows the face the GM chose leaves the
+   pool. Returns the dice, how many left and how many are still in. */
+function poolRoll(clock,rng=Math.random){
+ const p=clock?.pool,sides=p&&POOL_SIDES.includes(p.sides)?p.sides:6,face=p&&p.face>=1&&p.face<=sides?p.face:1;
+ const left=Math.max(0,Math.min(clock.size,clock.size-clock.filled)),rolls=[];
+ for(let i=0;i<left;i++){let r=1+Math.floor(rng()*sides);if(!(r>=1&&r<=sides))r=1;rolls.push(r)}
+ const out=rolls.filter(r=>r===face).length;
+ return {rolls,sides,face,out,left:left-out};
+}
+/* ---- real-time timer (pure) ---- */
+const cdState=(cd,now)=>!cd?'none':cd.done?'done':cd.end>0?(cd.end<=now?'due':'running'):cd.left>0?'paused':'idle';
+function cdRemaining(cd,now){
+ if(!cd)return 0;
+ if(cd.done)return 0;
+ if(cd.end>0)return Math.min(cd.ms,Math.max(0,cd.end-now));
+ return cd.left>0?cd.left:cd.ms;
+}
+function cdStart(cd,now){
+ const st=cdState(cd,now);
+ if(st==='running'||st==='due')return cd;
+ if(st==='paused')return {ms:cd.ms,end:now+cd.left};
+ return {ms:cd.ms,end:now+cd.ms};
+}
+function cdPause(cd,now){
+ if(cdState(cd,now)!=='running')return cd;
+ return {ms:cd.ms,left:Math.max(1,Math.min(cd.ms,cd.end-now))};
+}
+const cdReset=cd=>({ms:cd.ms});
+const cdExpire=cd=>({ms:cd.ms,done:true});
+// 90 s -> "1:30", 3 700 s -> "1:01:40"; a started second counts as a whole one, so 0:00 means it is over.
+function cdFormat(ms){
+ const s=Math.max(0,Math.ceil((Number(ms)||0)/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60,p=n=>String(n).padStart(2,'0');
+ return h?`${h}:${p(m)}:${p(r)}`:`${m}:${p(r)}`;
+}
+const cdMinutes=cd=>cd?Math.round(cd.ms/MIN_MS):0;
 function rollAdvance(clock,rng=Math.random){
  const d=clock?.die,sides=DICE.includes(d?.sides)?d.sides:6,need=d?.need||0;
  let roll=1+Math.floor(rng()*sides);if(!(roll>=1&&roll<=sides))roll=1;
@@ -129,15 +206,15 @@ function tickBack(list,campId,leftRound){
 }
 function message(events,lang){
  const t=T[langNow(lang)],name=e=>e.name||t.noName;
- const lines=(Array.isArray(events)?events:[]).map(e=>e.kind==='trigger'?t.reached(name(e),e.at,e.text):e.kind==='full'?t.full(name(e)):e.kind==='tick'?t.tick(e.round,name(e),e.filled,e.size):'').filter(Boolean);
+ const lines=(Array.isArray(events)?events:[]).map(e=>e.kind==='trigger'?(e.pool?t.poolReached(name(e),e.left,e.text):t.reached(name(e),e.at,e.text)):e.kind==='full'?(e.pool?t.poolEmpty(name(e)):t.full(name(e))):e.kind==='timer'?t.cdExpired(name(e)):e.kind==='tick'?t.tick(e.round,name(e),e.filled,e.size):'').filter(Boolean);
  const text=lines.join(' · ');
  return text.length>MAX_MESSAGE?text.slice(0,MAX_MESSAGE-1)+'…':text;
 }
 
 // ---------- state ----------
 // Which settings panels are open and the latest roll of each clock: kept for this page only.
-let ui={open:new Set(),last:new Map()};
-function reset(){ui={open:new Set(),last:new Map()}}
+let ui={open:new Set(),last:new Map(),minute:new Map()};
+function reset(){ui={open:new Set(),last:new Map(),minute:new Map()}}
 function say(text){if(!text)return;try{app()?.notify?.(text)}catch(_){}}
 function sayUndo(text,undo){const a=app(),t=T[langNow()];try{if(typeof a?.notifyAction==='function')a.notifyAction(text,t.undo,undo);else a?.notify?.(text)}catch(_){}}
 // Called by gm-extras.js after every change of the clocks made in its own card.
@@ -193,6 +270,28 @@ function act(a,b,root,rng){
   });
   return true;
  }
+ if(a==='ct-pool-roll'){
+  const c=find(id);if(!c||!c.pool)return true;
+  if(c.filled>=c.size){say(t.poolEmpty(c.name||t.noName));return true}
+  const r=poolRoll(c,typeof rng==='function'?rng:Math.random),was=c.filled,now=was+r.out;
+  ui.last.set(id,{pool:true,rolls:r.rolls,out:r.out,left:r.left});
+  const head=`${c.name||t.noName}: ${r.out?t.poolRolled(r.rolls,r.out,r.left):t.poolNone(r.rolls,r.left)}`;
+  if(!r.out){say(head);return true}
+  const done=edit(id,x=>(x.filled=now,x));if(!done)return true;
+  sayUndo([head,message(done.events,lang)].filter(Boolean).join(' · ').slice(0,MAX_MESSAGE),()=>{
+   const cur=find(id);if(!cur||cur.filled!==now)return;
+   edit(id,x=>(x.filled=was,x));ui.last.delete(id);say(T[langNow()].undone);GX()?.refresh?.();refocus(id,[['ct-pool-roll'],['ct-open']]);
+  });
+  return true;
+ }
+ if(a==='ct-cd-toggle'||a==='ct-cd-reset'){
+  const c=find(id);if(!c||!c.countdown)return true;
+  const now=Date.now();
+  if(a==='ct-cd-reset')edit(id,x=>(x.countdown=cdReset(x.countdown),x));
+  else if(cdState(c.countdown,now)==='running')edit(id,x=>(x.countdown=cdPause(x.countdown,now),x));
+  else{edit(id,x=>(x.countdown=cdStart(x.countdown,now),x));ensureTicker()}
+  ui.minute.delete(id);return true;
+ }
  if(a==='ct-add-trig'){
   const c=find(id);if(!c)return true;
   if((c.triggers||[]).length>=MAX_TRIGGERS){say(t.maxTrig);return true}
@@ -239,6 +338,19 @@ function change(target){
   if(row>=0&&Number.isInteger(at)&&at>=1&&at<=c.size)edit(id,x=>(x.triggers=x.triggers.map((tr,k)=>k===row?{at,text:tr.text}:tr),x));
   return 'render';
  }
+ if(f==='ct-pool-sides'||f==='ct-pool-face'){
+  if(!c.pool)return true;
+  const v=Number(target.value);
+  edit(id,x=>{if(f==='ct-pool-sides'){if(POOL_SIDES.includes(v))x.pool={sides:v,face:Math.min(x.pool.face,v)}}else if(Number.isInteger(v)&&v>=1&&v<=x.pool.sides)x.pool={sides:x.pool.sides,face:v};return x});
+  ui.last.delete(id);return 'render';
+ }
+ if(f==='ct-cd-min'){
+  const raw=String(target.value==null?'':target.value).trim(),m=/^\d{1,5}$/.test(raw)?Number(raw):0;
+  // Only an empty field removes the timer; a number that does not fit keeps it and says so.
+  if(raw!==''&&!(m>=MIN_CD&&m<=MAX_CD)){say(T[langNow()].cdRange(MIN_CD,MAX_CD));ui.minute.delete(id);return 'render'}
+  edit(id,x=>{if(m>=MIN_CD&&m<=MAX_CD)x.countdown={ms:m*MIN_MS};else delete x.countdown;return x});
+  ui.minute.delete(id);return 'render';
+ }
  if(f==='ct-die'){
   const sides=Number(target.value);
   edit(id,x=>{if(DICE.includes(sides))x.die={sides,need:x.die&&x.die.need<=sides?x.die.need:0};else delete x.die;return x});
@@ -280,8 +392,90 @@ function round(campId,from,to){
  }catch(_){return []}
 }
 
+// ---------- the ticker of running timers ----------
+let timer=null;
+const runningTimers=list=>list.filter(c=>c.countdown&&c.countdown.end>0);
+function stopTicker(){if(timer!==null){try{clearInterval(timer)}catch(_){}timer=null}}
+/* Once a second: timers that have run out are closed (toast + vibration), and the figures on the screen are
+   updated in place, without drawing the card again, so the focus stays where it is. The live region hears the
+   remaining time once a minute. */
+/* A timer that has just run out is shown as finished by changing its few words in place: the card is not drawn
+   again, so a field the GM is typing in keeps its text, caret and focus. */
+function settleDone(ids){
+ try{
+  if(typeof document==='undefined'||!document.querySelector)return;
+  const t=T[langNow()];
+  for(const id of ids){
+   const el=document.querySelector(`[data-ct-time="${id}"]`);if(!el)continue;
+   el.textContent=cdFormat(0);
+   const box=el.parentNode;if(!box)continue;
+   box.classList?.add('done');
+   const w=box.querySelector?.('.ct-cdword');if(w)w.textContent=t.cdDone;
+   const b=box.querySelector?.('[data-gx-action="ct-cd-toggle"]');if(b)b.textContent=t.cdRestart;
+  }
+ }catch(_){}
+}
+function tick(now=Date.now()){
+ try{
+  const st=appState(),X=GX();if(!st||!X)return {expired:[]};
+  const before=X.readClocks(st),expired=runningTimers(before).filter(c=>cdState(c.countdown,now)==='due').map(c=>c.id);
+  if(expired.length){
+   const next=before.map(c=>expired.includes(c.id)?{...c,countdown:cdExpire(c.countdown)}:c);
+   X.writeClocks(st,next);try{app().save()}catch(_){}
+   say(message(before.filter(c=>expired.includes(c.id)).map(c=>({kind:'timer',name:c.name}))));
+   try{window.DiceFeel?.haptic?.('crit')}catch(_){}
+   settleDone(expired);
+  }
+  const list=X.readClocks(st);
+  if(typeof document!=='undefined'&&document.querySelector){
+   const t=T[langNow()];
+   for(const c of runningTimers(list)){
+    const rem=cdRemaining(c.countdown,now),el=document.querySelector(`[data-ct-time="${c.id}"]`);
+    if(el)el.textContent=cdFormat(rem);
+    const mins=Math.ceil(rem/MIN_MS),live=document.querySelector(`[data-ct-live="${c.id}"]`);
+    if(live&&ui.minute.get(c.id)!==mins){ui.minute.set(c.id,mins);live.textContent=t.cdRemaining(cdFormat(rem))}
+   }
+  }
+  if(!runningTimers(list).length)stopTicker();
+  return {expired};
+ }catch(_){return {expired:[]}}
+}
+function ensureTicker(){
+ if(timer!==null||typeof setInterval!=='function')return;
+ try{timer=setInterval(()=>tick(),1000)}catch(_){timer=null}
+}
+/* A timer that was running when the page was closed is picked up again: the state may come a little after this
+   script, so it is looked for a few times. A timer that ran out meanwhile is closed on the first look. */
+function boot(tries=0){
+ try{
+  const st=appState(),X=GX();
+  if(st&&X){if(runningTimers(X.readClocks(st)).length){tick();ensureTicker()}return}
+  if(tries<8&&typeof setTimeout==='function')setTimeout(()=>boot(tries+1),400);
+ }catch(_){}
+}
+if(typeof document!=='undefined'&&document.addEventListener){
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden'){tick();try{if(runningTimers(GX().readClocks(appState())).length)ensureTicker()}catch(_){}}});
+ if(typeof setTimeout==='function')setTimeout(()=>boot(),0);
+}
+
 // ---------- markup ----------
 const reached=c=>[...(c.triggers||[])].filter(x=>x.at<=c.filled&&x.text).sort((a,b)=>a.at-b.at);
+/* The row of dice in place of the wheel of a pool clock: a solid chip is a die still in, a hollow one is out. */
+function poolHTML(c,lang){
+ if(!isObj(c)||!c.pool)return '';
+ const t=T[langNow(lang)],left=Math.max(0,c.size-c.filled);
+ let chips='';for(let i=0;i<c.size;i++)chips+=`<span class="ct-chip${i<left?' on':''}"></span>`;
+ return `<div class="ct-pool${left===0?' empty':''}" role="img" aria-label="${esc(t.poolLeft(left,c.size,c.pool.sides))}"><span class="ct-chips" aria-hidden="true">${chips}</span><small aria-hidden="true">${esc(t.poolTag(c.pool.sides,c.pool.face))}</small></div>`;
+}
+/* The timer of a clock: the remaining time (updated in place by the ticker), start/pause and reset. One toggle
+   button keeps its data-gx-action, so the focus survives the card being drawn again after a press. */
+function cdHTML(c,lang){
+ const cd=c&&c.countdown;if(!cd)return '';
+ const t=T[langNow(lang)],id=esc(c.id),now=Date.now(),st=cdState(cd,now),running=st==='running'||st==='due';
+ const label=running?t.cdPause:st==='paused'?t.cdResume:st==='done'?t.cdRestart:t.cdStart;
+ const word=st==='done'?t.cdDone:st==='paused'?t.cdPaused:running?t.cdRun:t.cdIdle;
+ return `<div class="ct-cd${st==='done'?' done':''}" role="group" aria-label="${esc(t.cd)}: ${esc(c.name||t.noName)}"><span class="ct-time" data-ct-time="${id}">${esc(cdFormat(cdRemaining(cd,now)))}</span><span class="ct-cdword">${esc(word)}</span><span class="ct-sr" role="status" aria-live="polite" data-ct-live="${id}"></span><button type="button" class="btn ghost" data-gx-action="ct-cd-toggle" data-gx-id="${id}">${esc(label)}</button><button type="button" class="btn ghost" data-gx-action="ct-cd-reset" data-gx-id="${id}">↺ ${esc(t.cdReset)}</button></div>`;
+}
 /* The part of a clock card that belongs to this module. Every control carries data-gx-action or
    data-gx-field together with data-gx-id, and a reminder row adds its number as data-gx-seg:
    gm-extras.js finds the focused control again by exactly these three after it redraws the card.
@@ -292,23 +486,33 @@ function cardHTML(c,lang){
  if(!isObj(c)||typeof c.id!=='string')return '';
  const l=langNow(lang),t=T[l],id=esc(c.id),trig=c.triggers||[],open=ui.open.has(c.id),full=c.filled>=c.size;
  let h='<div class="ct-box">';
+ if(c.pool){
+  const got=ui.last.get(c.id);
+  h+=`<button type="button" class="btn ghost ct-roll" data-gx-action="ct-pool-roll" data-gx-id="${id}"${full?' aria-disabled="true"':''}>⬡ ${esc(t.poolRoll)}</button>`;
+  if(got&&got.pool)h+=`<p class="ct-last">${esc(got.out?t.poolRolled(got.rolls,got.out,got.left):t.poolNone(got.rolls,got.left))}</p>`;
+ }
+ h+=cdHTML(c,l);
  if(c.die){
   const got=ui.last.get(c.id);
   h+=`<button type="button" class="btn ghost ct-roll" data-gx-action="ct-roll" data-gx-id="${id}"${full?' aria-disabled="true"':''}>⬡ ${esc(t.roll(c.die.sides))}</button>`;
   if(got)h+=`<p class="ct-last">${esc(got.add?t.rolled(got.roll,got.add):t.rolledNone(got.roll,got.need))}</p>`;
  }
  const hit=reached(c);
- if(hit.length)h+=`<ul class="ct-fired" aria-label="${esc(t.fired)}">${hit.map(x=>`<li><b>${x.at}</b><span>${esc(x.text)}</span></li>`).join('')}</ul>`;
+ if(hit.length)h+=`<ul class="ct-fired" aria-label="${esc(t.fired)}">${hit.map(x=>`<li><b>${c.pool?esc(t.poolAt(c.size-x.at)):x.at}</b><span>${esc(x.text)}</span></li>`).join('')}</ul>`;
  const camp=c.tick?campaigns().find(k=>k.id===c.tick.camp):null;
- const sum=[trig.length?t.sumTrig(trig.length):'',c.die?'d'+c.die.sides:'',camp?t.sumCamp(String(camp.name||'—').slice(0,40)):''].filter(Boolean).join(' · ')||t.sumNone;
+ const sum=[trig.length?t.sumTrig(trig.length):'',c.die?'d'+c.die.sides:'',c.pool?'d'+c.pool.sides:'',c.countdown?t.cdSum(cdMinutes(c.countdown)):'',camp?t.sumCamp(String(camp.name||'—').slice(0,40)):''].filter(Boolean).join(' · ')||t.sumNone;
  h+=`<button type="button" class="btn ghost ct-toggle" data-gx-action="ct-open" data-gx-id="${id}" aria-expanded="${open?'true':'false'}"${open?` aria-controls="ct-panel-${id}"`:''}><span>${open?'▾':'▸'} ${esc(t.toggle)}</span><small>${esc(sum)}</small></button>`;
  if(open){
   h+=`<div class="ct-panel" id="ct-panel-${id}" role="group" aria-label="${esc(t.panel)}: ${esc(c.name||t.noName)}"><p class="ct-head">${esc(t.trigHead)}</p>`;
-  h+=trig.map((x,i)=>`<div class="ct-row"><select data-gx-field="ct-at" data-gx-id="${id}" data-gx-seg="${i}" aria-label="${esc(t.at)}">${Array.from({length:c.size},(_,n)=>`<option value="${n+1}"${x.at===n+1?' selected':''}>${n+1}/${c.size}</option>`).join('')}</select><button type="button" class="btn ghost ct-del" data-gx-action="ct-del-trig" data-gx-id="${id}" data-gx-seg="${i}" aria-label="${esc(t.delTrig)}">✕</button><input type="text" maxlength="${MAX_TEXT}" data-gx-field="ct-text" data-gx-id="${id}" data-gx-seg="${i}" value="${esc(x.text)}" placeholder="${esc(t.textPh)}" aria-label="${esc(t.text)}"></div>`).join('');
+  h+=trig.map((x,i)=>`<div class="ct-row"><select data-gx-field="ct-at" data-gx-id="${id}" data-gx-seg="${i}" aria-label="${esc(t.at)}">${Array.from({length:c.size},(_,n)=>`<option value="${n+1}"${x.at===n+1?' selected':''}>${c.pool?esc(t.poolAt(c.size-n-1)):`${n+1}/${c.size}`}</option>`).join('')}</select><button type="button" class="btn ghost ct-del" data-gx-action="ct-del-trig" data-gx-id="${id}" data-gx-seg="${i}" aria-label="${esc(t.delTrig)}">✕</button><input type="text" maxlength="${MAX_TEXT}" data-gx-field="ct-text" data-gx-id="${id}" data-gx-seg="${i}" value="${esc(x.text)}" placeholder="${esc(t.textPh)}" aria-label="${esc(t.text)}"></div>`).join('');
   h+=`<button type="button" class="btn ghost ct-add" data-gx-action="ct-add-trig" data-gx-id="${id}"${trig.length>=MAX_TRIGGERS?' aria-disabled="true"':''}>+ ${esc(t.addTrig)}</button>`;
   if(trig.length>=MAX_TRIGGERS)h+=`<p class="ct-note">${esc(t.maxTrig)}</p>`;
   h+=`<p class="ct-note">${esc(t.priv)}</p>`;
-  h+=`<label class="field">${esc(t.die)}<select data-gx-field="ct-die" data-gx-id="${id}"><option value="0">${esc(t.noDie)}</option>${DICE.map(d=>`<option value="${d}"${c.die?.sides===d?' selected':''}>d${d}</option>`).join('')}</select></label>`;
+  if(c.pool){
+   h+=`<label class="field">${esc(t.poolSides)}<select data-gx-field="ct-pool-sides" data-gx-id="${id}">${POOL_SIDES.map(d=>`<option value="${d}"${c.pool.sides===d?' selected':''}>d${d}</option>`).join('')}</select></label>`;
+   h+=`<label class="field">${esc(t.poolFace)}<select data-gx-field="ct-pool-face" data-gx-id="${id}">${Array.from({length:c.pool.sides},(_,n)=>`<option value="${n+1}"${c.pool.face===n+1?' selected':''}>${n+1}</option>`).join('')}</select></label><p class="ct-note">${esc(t.poolHelp)}</p>`;
+  }else h+=`<label class="field">${esc(t.die)}<select data-gx-field="ct-die" data-gx-id="${id}"><option value="0">${esc(t.noDie)}</option>${DICE.map(d=>`<option value="${d}"${c.die?.sides===d?' selected':''}>d${d}</option>`).join('')}</select></label>`;
+  h+=`<label class="field">${esc(t.cdMin)}<input type="number" inputmode="numeric" min="${MIN_CD}" max="${MAX_CD}" step="1" data-gx-field="ct-cd-min" data-gx-id="${id}" value="${c.countdown?cdMinutes(c.countdown):''}"></label><p class="ct-note">${esc(t.cdHelp)}</p>`;
   if(c.die)h+=`<label class="field">${esc(t.need)}<select data-gx-field="ct-need" data-gx-id="${id}"><option value="0">${esc(t.needAll)}</option>${Array.from({length:c.die.sides-1},(_,n)=>`<option value="${n+2}"${c.die.need===n+2?' selected':''}>${esc(t.needOn(n+2))}</option>`).join('')}</select></label>`;
   h+=`<label class="field">${esc(t.camp)}<select data-gx-field="ct-camp" data-gx-id="${id}"><option value="">${esc(t.noCamp)}</option>${campaigns().map(k=>`<option value="${esc(k.id)}"${camp===k?' selected':''}>${esc(String(k.name||'—').slice(0,60))}</option>`).join('')}</select></label><p class="ct-note">${esc(t.campHelp)}</p></div>`;
  }
@@ -326,5 +530,5 @@ function trackerHTML(campaign,lang){
  }catch(_){return ''}
 }
 
-window.ClockTriggers={MAX_TRIGGERS,MAX_TEXT,DICE,cleanExtra,crossings,rollAdvance,tickForward,tickBack,forget,message,changed,act,change,round,restart,cardHTML,trackerHTML,reset,_test:{ui:()=>ui}};
+window.ClockTriggers={MAX_TRIGGERS,MAX_TEXT,DICE,POOL_SIDES,MAX_POOL,MIN_CD,MAX_CD,cleanExtra,cleanPool,cleanCountdown,crossings,rollAdvance,poolRoll,cdState,cdRemaining,cdStart,cdPause,cdReset,cdExpire,cdFormat,cdMinutes,tick,ensureTicker,poolHTML,cdHTML,tickForward,tickBack,forget,message,changed,act,change,round,restart,cardHTML,trackerHTML,reset,_test:{ui:()=>ui,timer:()=>timer}};
 })();

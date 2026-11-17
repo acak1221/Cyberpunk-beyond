@@ -24,6 +24,17 @@ const KEY='nc-news-seen',ARCHIVE_KEY='nightcity-red-v1';
 const BODY_MAX=800,URL_MAX=2000;
 
 const RELEASES=[
+ // Release 14 is the new shell: navigation, home, settings and the sheet, combat and tools in one look.
+ {n:14,date:'2026-11-16',title:{ru:'Новая оболочка',en:'A new shell'},items:[
+  {ru:'Главная начинается с «Продолжить»: последний персонаж, кампания с текущим ходом и комната. Внизу — Главная, Персонажи, Бой, Кубики и «Ещё» со всеми разделами.',en:'Home starts with Continue: your last character, the campaign with the current turn and the room. The bottom bar has Home, Characters, Combat, Dice and More with every section.'},
+  {ru:'Поиск и команды по Ctrl+K или кнопке вверху, быстрые кубики на любом экране и компактная плашка результата с «Подробнее» и «Повторить».',en:'Search and commands with Ctrl+K or the top button, quick dice on any screen and a compact result chip with Details and Again.'},
+  {ru:'Все настройки на одной странице за шестерёнкой: вид, тема (есть чёрная), язык, роль, звук, сила вибрации, копии, память и очистка данных. Шрифты встроены в приложение.',en:'All settings live on one page behind the gear: look, theme (with a black one), language, role, sound, vibration strength, backups, storage and data erase. Fonts are built into the app.'},
+  {ru:'Лист: компактная шапка, один блок здоровья с отменой, полоса быстрых бросков, подробности числа по нажатию на характеристику или навык, группировка навыков.',en:'Sheet: a compact header, one health pad with undo, a quick-rolls rail, the breakdown of a number on tap and grouping of Skills.'},
+  {ru:'Бой как стол: раунд, кто ходит, «Следующий ход», группы противников с одним броском инициативы, быстрый бой без кампании. Удалённая кампания лежит в корзине.',en:'Combat as a table: the round, who acts, Next turn, groups of opponents with one initiative roll and a quick combat without a campaign. A deleted campaign goes to the bin.'},
+  {ru:'Персонажи: карточки, выбор нескольких с отменой, менеджер папок, создание в три экрана, заметки, цели, контакты и портрет с кадрированием и аватаром.',en:'Characters: richer cards, multi-select with undo, a folder manager, creation in three screens, notes, goals, contacts and a portrait with cropping and an avatar.'},
+  {ru:'Снаряжение: качество и модули оружия, слоты киберимплантов, гараж с SDP машин. Ведущему: часы-пул и обратный отсчёт, генератор NET, стол по вкладкам.',en:'Gear: weapon quality and attachments, cyberware slots and a garage with vehicle SDP. For the GM: pool and countdown clocks, a NET generator and a tabbed table.'},
+  {ru:'Комната: код и ссылку можно скрыть на экране, а список серверов меняется в самом приложении.',en:'Rooms: the code and link can be hidden on screen, and the server list is edited in the app itself.'}
+ ]},
  // Release 12 is the role switch; the Netrunner interface is a release of its own.
  {n:13,date:'2026-11-16',title:{ru:'Нетраннеру: дека, пульт, забег',en:'For netrunners: deck, console, run'},items:[
   {ru:'Дека как стойка слотов: ячейка на слот, выбор программы по классам, а установка и снятие отменяются кнопкой «Отменить».',en:'The cyberdeck as a rack of slots: a cell per slot, programs picked by class, and installing or removing can be undone with one button.'},

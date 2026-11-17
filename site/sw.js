@@ -10,8 +10,6 @@ const PDFJS = __PDFJS__;
 const VIEWS = __VIEWS__;
 const APP_CACHE = 'nc-red-app-' + VERSION;
 const PDF_CACHE = 'nc-red-pdfjs-' + PDFJS.version;
-const FONT_CACHE = 'nc-red-fonts-v1';
-const FONT_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 const SCOPE = self.registration.scope;
 const SCOPE_PATH = new URL(SCOPE).pathname;
 const SHELL = new URL('./', SCOPE).href;
@@ -66,7 +64,8 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    const keep = new Set([APP_CACHE, PDF_CACHE, FONT_CACHE]);
+    const keep = new Set([APP_CACHE, PDF_CACHE]);
+    // Fonts are local files in the app cache; the old cache of third-party fonts is dropped here.
     const names = (await caches.keys()).filter(name => name.startsWith('nc-red-') && !keep.has(name));
     // Earlier versions kept pdf.js in a per-version cache: carry it over instead of downloading it again.
     await adoptPdf(names.filter(name => name.startsWith('nc-red-runtime-'))).catch(() => {});
@@ -131,16 +130,6 @@ async function fromPdfCache(event, key, sha) {
   return response;
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const network = fetch(request).then(response => {
-    if (response && (response.ok || response.type === 'opaque')) cache.put(request, response.clone());
-    return response;
-  }).catch(() => cached);
-  return cached || network;
-}
-
 // The page always comes from this version's install, like the scripts it loads: a new version arrives as a
 // new worker (the update notice), never as new HTML on top of old scripts, and a slow network cannot delay
 // the start. Nested paths would resolve the page's relative script links under that path, so they redirect.
@@ -160,10 +149,6 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
-  if (FONT_HOSTS.has(url.hostname)) {
-    event.respondWith(staleWhileRevalidate(request, FONT_CACHE));
-    return;
-  }
   if (!url.href.startsWith(SCOPE)) return;
   const rel = url.pathname.slice(SCOPE_PATH.length);
   if (PDF_FILES.has(rel)) {

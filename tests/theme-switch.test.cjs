@@ -5,7 +5,7 @@ function setup({stored,native=true,prefersLight=false}={}){
  const store=new Map(stored===undefined?[]:[['nc-ui-theme',stored]]);
  const classes=new Set(native?['ui-native']:[]);
  const meta={content:'#11110f',setAttribute(k,v){this.content=v}};
- const buttons=['auto','dark','light'].map(v=>{const cl=new Set();return {dataset:{uiTheme:v},classList:{toggle(n,on){on?cl.add(n):cl.delete(n)},has:n=>cl.has(n)},attrs:{},setAttribute(k,v2){this.attrs[k]=v2},closest(s){return s==='[data-ui-theme]'?this:null}}});
+ const buttons=['auto','dark','light','black'].map(v=>{const cl=new Set();return {dataset:{uiTheme:v},classList:{toggle(n,on){on?cl.add(n):cl.delete(n)},has:n=>cl.has(n)},attrs:{},setAttribute(k,v2){this.attrs[k]=v2},closest(s){return s==='[data-ui-theme]'?this:null}}});
  const listeners={};
  const document={readyState:'complete',documentElement:{classList:{contains:n=>classes.has(n),toggle(n,on){on?classes.add(n):classes.delete(n)}}},querySelector:s=>s==='meta[name="theme-color"]'?meta:null,querySelectorAll:s=>s==='[data-ui-theme]'?buttons:[],addEventListener:(t,f)=>{listeners[t]=f}};
  const mq={matches:prefersLight,addEventListener(t,f){mq.cb=f}};
@@ -16,8 +16,10 @@ function setup({stored,native=true,prefersLight=false}={}){
 const click=(env,b)=>env.listeners.click({target:b});
 
 test('every theme button rendered by app.js is a handled mode',()=>{
- const values=[...site('app.js').matchAll(/data-ui-theme="([a-z]+)"/g)].map(m=>m[1]);
- assert.deepEqual([...new Set(values)].sort(),['auto','dark','light']);
+ // The menu draws its theme buttons from one list of modes; the settings page the same.
+ const values=[...site('app.js').match(/\[\['auto'[^\n]*?\['black',/)[0].matchAll(/\['([a-z]+)',/g)].map(m=>m[1]);
+ assert.deepEqual([...new Set(values)].sort(),['auto','black','dark','light']);
+ assert.match(site('app.js'),/data-ui-theme="\$\{m\}"/);assert.match(site('settings.js'),/\['auto','dark','light','black'\]\.map/);
  const env=setup();
  for(const v of values)assert.ok(env.window.ThemeSwitch.MODES.includes(v),v);
  assert.equal(env.window.ThemeSwitch.set('sepia'),false);

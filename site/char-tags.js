@@ -3,7 +3,8 @@
 
    What is stored: extra.folder (a string) and extra.tags (a list of strings) on the character itself, so a link, a file
    and a backup carry them. Both are optional; a sheet without them behaves as before. A folder is not a thing of its
-   own: it exists while at least one character names it, so there is nothing to rename or delete in bulk.
+   own: it exists while at least one character names it. The manager above the list (rename, merge, delete everywhere, with undo)
+   rewrites those strings on many sheets at once, so a file or a link looks exactly as before.
 
    Sorting a sheet is not an edit of the character. app.js leaves these two fields out when it decides whether a sheet
    changed, so filing a sheet never makes it "newer" than the player's own copy. The price: "merge from a backup"
@@ -24,11 +25,11 @@ const LIMITS=Object.freeze({FOLDER_MAX:40,TAG_MAX:24,TAGS_MAX:8,QUERY_MAX:80,CHI
 const T={
  ru:{region:'Поиск и фильтр персонажей',search:'Поиск по имени',searchHint:'Имя, папка или метка',folders:'Папки',tags:'Метки',all:'Все',none:'Без папки',
   shown:'Показано {n} из {m}',nothing:'Никого не найдено. Измените запрос или сбросьте фильтр.',reset:'Сбросить фильтр',
-  edit:'Папка и метки',folder:'Папка',folderIs:'Папка:',tagsAre:'Метки:',untitled:'Без имени',
+  edit:'Папка и метки',closeEditor:'Готово',folder:'Папка',folderIs:'Папка:',tagsAre:'Метки:',untitled:'Без имени',
   hint:'Через запятую, до 8 меток. Пустое поле убирает метки.',paused:'Сейчас изменения не сохраняются. Папка и метки остались прежними.'},
  en:{region:'Find and filter characters',search:'Search by name',searchHint:'Name, folder or tag',folders:'Folders',tags:'Tags',all:'All',none:'No folder',
   shown:'Showing {n} of {m}',nothing:'No one found. Change the search or reset the filter.',reset:'Reset filter',
-  edit:'Folder and tags',folder:'Folder',folderIs:'Folder:',tagsAre:'Tags:',untitled:'Untitled',
+  edit:'Folder and tags',closeEditor:'Done',folder:'Folder',folderIs:'Folder:',tagsAre:'Tags:',untitled:'Untitled',
   hint:'Separate with commas, up to 8 tags. An empty field removes the tags.',paused:'Changes are not being saved right now. The folder and tags stay as they were.'},
 };
 const L=lang=>lang==='en'?'en':'ru',t=(lang,k)=>T[L(lang)][k]??T.ru[k]??k;
@@ -151,7 +152,7 @@ function toolbar(characters,lang,scope){
  const idx=index(list);prune(idx);
  for(const id of [...open])if(!list.some(c=>isObject(c)&&c.id===id))open.delete(id);
  const shown=list.filter(c=>matches(c,filter())).length;
- return `<div class="char-tags-bar" data-char-tags-root><datalist id="char-tags-folders">${options(idx)}</datalist><section class="char-tags-body" data-char-tags-body aria-label="${esc(t(lang,'region'))}"${wanted(idx)?'':' hidden'}><label class="field char-tags-search"><span>${esc(t(lang,'search'))}</span><input type="search" data-char-tags="query" maxlength="${LIMITS.QUERY_MAX}" autocomplete="off" enterkeyhint="search" placeholder="${esc(t(lang,'searchHint'))}" value="${esc(query)}"></label><div class="char-tags-groups" data-char-tags-groups>${groups(idx,lang)}</div><div class="char-tags-status"><p data-char-tags-count role="status" aria-live="polite">${esc(statusText(shown,idx.total,lang))}</p><button type="button" class="btn small ghost" data-char-tags="reset"${active()?'':' hidden'}>${esc(t(lang,'reset'))}</button></div></section></div>`;
+ return `<div class="char-tags-bar" data-char-tags-root><datalist id="char-tags-folders">${options(idx)}</datalist><section class="char-tags-body" data-char-tags-body aria-label="${esc(t(lang,'region'))}"${wanted(idx)?'':' hidden'}><label class="field char-tags-search"><span>${esc(t(lang,'search'))}</span><input type="search" data-char-tags="query" maxlength="${LIMITS.QUERY_MAX}" autocomplete="off" enterkeyhint="search" placeholder="${esc(t(lang,'searchHint'))}" value="${esc(query)}"></label><div class="char-tags-groups" data-char-tags-groups>${groups(idx,lang)}</div>${manager(idx,lang)}<div class="char-tags-status"><p data-char-tags-count role="status" aria-live="polite">${esc(statusText(shown,idx.total,lang))}</p><button type="button" class="btn small ghost" data-char-tags="reset"${active()?'':' hidden'}>${esc(t(lang,'reset'))}</button></div></section></div>`;
 }
 function lineHTML(r,lang){
  return (r.folder?`<span class="char-tags-folder"><span class="char-tags-sr">${esc(t(lang,'folderIs'))} </span><span aria-hidden="true">▤ </span>${esc(r.folder)}</span>`:'')+(r.tags.length?`<span class="char-tags-sr">${esc(t(lang,'tagsAre'))} </span>`+r.tags.map(x=>`<span class="char-tags-tag">#${esc(x)}</span>`).join(' '):'');
@@ -161,7 +162,7 @@ function lineHTML(r,lang){
 function card(c,lang){
  if(!isObject(c)||typeof c.id!=='string'||!c.id)return '';
  const r=read(c),n=++seq,id=esc(c.id),name=typeof c.name==='string'&&c.name?c.name.slice(0,200):t(lang,'untitled'),has=r.folder||r.tags.length;
- return `<div class="char-tags" data-char-tags-card="${id}"><p class="char-tags-line" data-char-tags-line${has?'':' hidden'}>${lineHTML(r,lang)}</p><details class="char-tags-edit" data-char-tags-edit${open.has(c.id)?' open':''}><summary class="btn text-button" aria-label="${esc(t(lang,'edit')+': '+name)}">${esc(t(lang,'edit'))} <span aria-hidden="true">▾</span></summary><div class="char-tags-fields"><label class="field"><span>${esc(t(lang,'folder'))}</span><input type="text" data-char-tags-field="folder" data-char-tags-id="${id}" maxlength="${LIMITS.FOLDER_MAX}" list="char-tags-folders" autocomplete="off" value="${esc(r.folder)}"></label><label class="field"><span>${esc(t(lang,'tags'))}</span><input type="text" data-char-tags-field="tags" data-char-tags-id="${id}" maxlength="220" autocomplete="off" autocapitalize="none" aria-describedby="char-tags-hint-${n}" value="${esc(r.tags.join(', '))}"></label><small class="char-tags-hint" id="char-tags-hint-${n}">${esc(t(lang,'hint'))}</small></div></details></div>`;
+ return `<div class="char-tags" data-char-tags-card="${id}"><p class="char-tags-line" data-char-tags-line${has?'':' hidden'}>${lineHTML(r,lang)}</p><details class="char-tags-edit" data-char-tags-edit${open.has(c.id)?' open':''}><summary class="btn text-button" aria-label="${esc(t(lang,'edit')+': '+name)}">${esc(t(lang,'edit'))} <span aria-hidden="true">▾</span></summary><div class="char-tags-fields"><label class="field"><span>${esc(t(lang,'folder'))}</span><input type="text" data-char-tags-field="folder" data-char-tags-id="${id}" maxlength="${LIMITS.FOLDER_MAX}" list="char-tags-folders" autocomplete="off" value="${esc(r.folder)}"></label><label class="field"><span>${esc(t(lang,'tags'))}</span><input type="text" data-char-tags-field="tags" data-char-tags-id="${id}" maxlength="220" autocomplete="off" autocapitalize="none" aria-describedby="char-tags-hint-${n}" value="${esc(r.tags.join(', '))}"></label><small class="char-tags-hint" id="char-tags-hint-${n}">${esc(t(lang,'hint'))}</small><button type="button" class="btn small ghost" data-cl-folder-done>${esc(t(lang,'closeEditor'))}</button></div></details></div>`;
 }
 
 const doc=global.document;
@@ -186,6 +187,7 @@ function apply(root,lang){
  }
  const status=bar.querySelector('[data-char-tags-count]'),text=statusText(shown,total,lang);
  if(status&&status.textContent!==text)status.textContent=text;
+ try{global.CharList?.sync?.(lang)}catch{}
 }
 /* After a folder or tags changed: the line on the card, the list of folder names and the chips are drawn again, each
    inside its own box. The search field is never replaced, and neither is the page: the next field keeps the focus. */
@@ -194,7 +196,7 @@ function repaintBar(lang){
  const bar=doc?.querySelector?.('[data-char-tags-root]');if(!bar)return;
  const idx=index(list);prune(idx);
  const data=bar.querySelector('datalist'),box=bar.querySelector('[data-char-tags-groups]'),body=bar.querySelector('[data-char-tags-body]');
- if(data)data.innerHTML=options(idx);if(box)box.innerHTML=groups(idx,lang);if(body)body.hidden=!wanted(idx);
+ if(data)data.innerHTML=options(idx);if(box)box.innerHTML=groups(idx,lang);const mgr=bar.querySelector('[data-ctm-list]');if(mgr)mgr.innerHTML=managerRows(idx,lang);if(body)body.hidden=!wanted(idx);
  apply(doc,lang);
 }
 /* A change in a field is usually noticed when the player presses something else: the field loses the focus first. If the
@@ -266,6 +268,99 @@ doc?.addEventListener?.('change',e=>{if(e.target?.matches?.('[data-char-tags-fie
 doc?.addEventListener?.('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target?.matches?.('[data-char-tags-field]')){e.preventDefault?.();commit(e.target)}});
 doc?.addEventListener?.('toggle',e=>{const box=e.target?.matches?.('[data-char-tags-edit]')?e.target.closest('[data-char-tags-card]'):null,id=box?.dataset?.charTagsCard;if(!id)return;if(e.target.open)open.add(id);else open.delete(id)},true);
 
-global.CharTags={LIMITS,T,t,clean,key,parseTags,read,set,keep,index,matches,toolbar,card,apply,reset,
+
+/* ---- The manager of folders and tags: every folder and tag in use with the number of sheets, and for each one rename, merge
+   into another, and delete everywhere. A folder or tag is still only a string on each sheet (extra.folder, extra.tags), so an
+   exported sheet, a link and a backup look exactly as before; the manager is a way to rewrite those strings on many sheets at once.
+   Every change is one step for the undo: it remembers the strings the touched sheets had. */
+const MT={
+ ru:{manage:'Управление папками',head:'Все папки и метки',empty:'Папок и меток пока нет.',folders:'Папки',tags:'Метки',rename:'Переименовать',merge:'Слить в…',del:'Удалить',
+  nameOf:'Новое название: {0}',mergeOf:'Слить в другую: {0}',delOf:'Удалить везде: {0}',sheets:'листов:',
+  renamed:'Готово: «{a}» теперь «{b}», листов: {n}.',merged:'Готово: «{a}» слито в «{b}», листов: {n}.',deleted:'Готово: «{a}» убрано с листов: {n}.',
+  undo:'Вернуть',undone:'Возвращено: листов {n}.',stale:'Список изменился. Повторите действие.',same:'Название не изменилось.',blank:'Введите название.',
+  hint:'Удаление убирает только папку или метку: персонажи остаются. Всё можно вернуть кнопкой в уведомлении.'},
+ en:{manage:'Manage folders',head:'All folders and tags',empty:'No folders or tags yet.',folders:'Folders',tags:'Tags',rename:'Rename',merge:'Merge into…',del:'Delete',
+  nameOf:'New name: {0}',mergeOf:'Merge into another: {0}',delOf:'Delete everywhere: {0}',sheets:'sheets:',
+  renamed:'Done: “{a}” is now “{b}”, sheets: {n}.',merged:'Done: “{a}” merged into “{b}”, sheets: {n}.',deleted:'Done: “{a}” removed from sheets: {n}.',
+  undo:'Undo',undone:'Restored: {n} sheets.',stale:'The list changed. Try again.',same:'The name did not change.',blank:'Enter a name.',
+  hint:'Deleting only removes the folder or tag: the characters stay. Everything can be undone from the notice.'},
+};
+const mt=(lang,k,v)=>{let s=(MT[L(lang)][k]??MT.ru[k]??k);if(v)for(const [a,b] of Object.entries(v))s=s.split('{'+a+'}').join(String(b));return s};
+const snap=c=>({folder:isObject(c.extra)&&typeof c.extra.folder==='string'?c.extra.folder:undefined,tags:isObject(c.extra)&&Array.isArray(c.extra.tags)?[...c.extra.tags]:undefined});
+/* The plan of one change, applied at once. `kind` is 'folder' or 'tag', `fromKey` the key() of what changes, `to` the new name or
+   null to remove it. -> {ok, changed:[{c,before}], to}; a name that cleans down to nothing is refused (that is a delete). */
+function change(list,kind,fromKey,to){
+ const out={ok:true,changed:[],to:null};if(!Array.isArray(list)||(kind!=='folder'&&kind!=='tag'))return {ok:false,reason:'args',changed:[],to:null};
+ let target=null;
+ if(to!==null){target=kind==='folder'?clean(typeof to==='string'?to:'',LIMITS.FOLDER_MAX):cleanTag(to);if(!target)return {ok:false,reason:'blank',changed:[],to:null};out.to=target}
+ for(const c of list){
+  if(!isObject(c)||(c.extra!==undefined&&!isObject(c.extra)))continue;const r=read(c);let patch=null;
+  if(kind==='folder'){if(r.folder&&key(r.folder)===fromKey&&(target===null||r.folder!==target))patch={folder:target===null?'':target}}
+  else if(r.tags.some(x=>key(x)===fromKey)){const next=target===null?r.tags.filter(x=>key(x)!==fromKey):r.tags.map(x=>key(x)===fromKey?target:x);patch={tags:next}}
+  if(!patch)continue;
+  const before=snap(c);if(set(c,patch))out.changed.push({c,before});
+ }
+ return out;
+}
+// Puts back the strings the sheets had before a change. A sheet that is no longer there is skipped.
+function revert(changed,list){
+ let n=0;const here=new Set(Array.isArray(list)?list:[]);
+ for(const {c,before} of Array.isArray(changed)?changed:[]){
+  if(!isObject(c)||(here.size&&!here.has(c)))continue;
+  if(c.extra!==undefined&&!isObject(c.extra))continue;
+  if(before.folder===undefined){if(c.extra)delete c.extra.folder}else{if(!c.extra)c.extra={};c.extra.folder=before.folder}
+  if(before.tags===undefined){if(c.extra)delete c.extra.tags}else{if(!c.extra)c.extra={};c.extra.tags=[...before.tags]}
+  n++;
+ }
+ return n;
+}
+const managerRow=(kind,e,all,lang)=>{
+ const others=all.filter(x=>x.key!==e.key);
+ return `<li class="ctm-row" data-ctm-row data-ctm-kind="${kind}" data-ctm-key="${esc(e.key)}"><div class="ctm-name"><span>${esc(kind==='tag'?'#'+e.label:e.label)}</span><b><span class="char-tags-sr">${esc(mt(lang,'sheets'))} </span>${e.count}</b></div><div class="ctm-controls"><input type="text" class="ctm-input" data-ctm-input maxlength="${kind==='tag'?LIMITS.TAG_MAX:LIMITS.FOLDER_MAX}" autocomplete="off" value="${esc(e.label)}" aria-label="${esc(mt(lang,'nameOf',{0:e.label}))}"><button type="button" class="btn small ghost" data-ctm="rename">${esc(mt(lang,'rename'))}</button>${others.length?`<select class="ctm-merge" data-ctm-merge aria-label="${esc(mt(lang,'mergeOf',{0:e.label}))}"><option value="">${esc(mt(lang,'merge'))}</option>${others.map(x=>`<option value="${esc(x.key)}">${esc(kind==='tag'?'#'+x.label:x.label)}</option>`).join('')}</select>`:''}<button type="button" class="btn small ghost ctm-delete" data-ctm="delete" aria-label="${esc(mt(lang,'delOf',{0:e.label}))}">${esc(mt(lang,'del'))}</button></div></li>`;
+};
+function managerRows(idx,lang){
+ const part=(kind,items,head)=>items.length?`<h4>${esc(mt(lang,head))}</h4><ul class="ctm-list">${items.map(e=>managerRow(kind,e,items,lang)).join('')}</ul>`:'';
+ return (part('folder',idx.folders,'folders')+part('tag',idx.tags,'tags'))||`<p class="char-tags-hint">${esc(mt(lang,'empty'))}</p>`;
+}
+function manager(idx,lang){
+ return `<details class="char-tags-manager" data-ctm-root${mgrOpen?' open':''}><summary data-ctm-summary>${esc(mt(lang,'manage'))}</summary><div class="ctm-body"><div data-ctm-list>${managerRows(idx,lang)}</div><p class="char-tags-hint">${esc(mt(lang,'hint'))}</p></div></details>`;
+}
+let mgrOpen=false;
+function managerRun(el,how){
+ const App=global.App,row=el?.closest?.('[data-ctm-row]');if(!App||!row)return false;
+ let state;try{state=App.getState?.()}catch{return false}
+ if(!state||state.view!=='characters'||!Array.isArray(state.characters))return false;
+ const lang=state.lang,kind=row.dataset.ctmKind,fromKey=row.dataset.ctmKey,chars=state.characters,idx=index(chars);
+ const found=(kind==='folder'?idx.folders:idx.tags).find(x=>x.key===fromKey);if(!found){App.notify?.(mt(lang,'stale'));return false}
+ if(App.archive?.canEdit?.()===false){App.notify?.(t(lang,'paused'));return false}
+ let to=null,msg='renamed';
+ if(how==='rename'){const input=row.querySelector('[data-ctm-input]');to=String(input?.value??'');const probe=kind==='folder'?clean(to,LIMITS.FOLDER_MAX):cleanTag(to);
+  if(!probe){App.notify?.(mt(lang,'blank'));input?.focus?.();return false}
+  if(kind==='folder'?probe===found.label:probe===found.label){App.notify?.(mt(lang,'same'));input?.focus?.();return false}
+  const other=(kind==='folder'?idx.folders:idx.tags).find(x=>x.key===key(probe)&&x.key!==fromKey);if(other){to=other.label;msg='merged'}}
+ else if(how==='merge'){const sel=row.querySelector('[data-ctm-merge]'),target=(kind==='folder'?idx.folders:idx.tags).find(x=>x.key===sel?.value&&x.key!==fromKey);if(!target){return false}to=target.label;msg='merged'}
+ else if(how==='delete'){to=null;msg='deleted'}else return false;
+ const res=change(chars,kind,fromKey,to);
+ if(!res.ok||!res.changed.length){if(res.reason==='blank')App.notify?.(mt(lang,'blank'));return false}
+ const n=res.changed.length,a=(kind==='tag'?'#':'')+found.label,b=res.to===null?'':(kind==='tag'?'#':'')+res.to;
+ App.save?.();mgrOpen=true;
+ const epoch=state,undo=()=>{
+  let now;try{now=App.getState?.()}catch{now=null}
+  if(now!==epoch||now.characters!==chars||App.archive?.canEdit?.()===false){App.notify?.(mt(lang,'stale'));return}
+  const k=revert(res.changed,chars);App.save?.();App.render?.();App.notify?.(mt(lang,'undone',{n:k}));
+ };
+ App.render?.();
+ const msgText=mt(lang,msg,{a,b,n});
+ if(typeof App.notifyAction==='function')App.notifyAction(msgText,mt(lang,'undo'),undo);else App.notify?.(msgText);
+ // The page was drawn anew: the focus goes back to the manager, which is still open.
+ try{doc?.querySelector?.('[data-ctm-summary]')?.focus?.()}catch{}
+ return true;
+}
+doc?.addEventListener?.('click',e=>{const b=e.target?.closest?.('button[data-ctm]');if(b)managerRun(b,b.dataset.ctm)});
+doc?.addEventListener?.('change',e=>{if(e.target?.matches?.('[data-ctm-merge]')&&e.target.value)managerRun(e.target,'merge')});
+doc?.addEventListener?.('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target?.matches?.('[data-ctm-input]')){e.preventDefault?.();managerRun(e.target,'rename')}});
+doc?.addEventListener?.('toggle',e=>{if(e.target?.matches?.('[data-ctm-root]'))mgrOpen=!!e.target.open},true);
+
+global.CharTags={LIMITS,T,t,MT,mt,change,revert,managerRows,clean,key,parseTags,read,set,keep,index,matches,toolbar,card,apply,reset,
  _test:{state:()=>({owner,query,folder,tags:[...tags],open:[...open],held,pending:pending!==null}),commit,press,typed,hold,release}};
 })(typeof window!=='undefined'?window:globalThis);

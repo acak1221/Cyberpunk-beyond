@@ -23,7 +23,12 @@ function handle(e,doc=global.document){
  if(!e||e.key!=='/'||e.defaultPrevented||e.isComposing||e.ctrlKey||e.metaKey||e.altKey)return false;
  if(typing(e.target)||typing(doc.activeElement))return false;
  if(!desktop())return false;
- const el=target(doc);if(!el)return false;
+ const el=target(doc);
+ // A page without a search field of its own: «/» opens the command palette instead.
+ if(!el){
+  if(doc.querySelector?.('dialog[open],[aria-modal="true"]')||typeof global.CommandPalette?.open!=='function')return false;
+  e.preventDefault();global.CommandPalette.open();return true;
+ }
  e.preventDefault();el.focus();try{el.select?.()}catch{}return true;
 }
 try{global.document?.addEventListener('keydown',e=>handle(e))}catch{}

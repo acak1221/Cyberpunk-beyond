@@ -59,7 +59,8 @@ test('rolls use the modifier once unless it is pinned',()=>{
 test('the next-roll bar and quick HP reuse the sheet fields instead of writing data themselves',()=>{
  const tabs=source('sheet-tabs.js');
  assert.match(tabs,/\[data-cx-field="\$\{kind==='luckUse'\?'luckUse':'modifier'\}"\]/);
- assert.match(tabs,/\[data-sheet-hp-reason\]/);assert.match(tabs,/\[data-field="hp"\]/);
- for(const f of ['app.js','character-extra.js'])for(const hook of ['data-cx-field','data-sheet-hp-reason'])if(f==='app.js'||hook==='data-cx-field')assert.match(source(f),new RegExp(hook));
+ // HP goes through HpPad (hp-pad.js) and App.applyHp, which runs the same guarded rules as the sheet's HP field.
+ assert.match(source('hp-pad.js'),/data-field="hp"/);assert.match(source('hp-pad.js'),/App\.applyHp/);
+ for(const f of ['app.js','character-extra.js'])for(const hook of ['data-cx-field','applyHp'])if(f==='app.js'||hook==='data-cx-field')assert.match(source(f),new RegExp(hook));
  assert.match(tabs,/'< '\+death/,'a Death Save succeeds only under BODY (p. 188)');
 });

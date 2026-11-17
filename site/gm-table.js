@@ -8,6 +8,7 @@
    part 2 builds HTML for campaigns.js; part 3 handles the clicks. */
 (function(){
 'use strict';
+const rollRng=()=>(window.Rolls?.rand||Math.random)();
 const T={
  ru:{
   expand:'Подробнее',collapse:'Свернуть',expandAll:'Развернуть всё',collapseAll:'Свернуть всё',colName:'Участник',colInit:'Иниц.',colHp:'HP',
@@ -123,14 +124,14 @@ function attacksOf(row,templates,library){
 }
 const die=(sides,rng)=>{const n=rng();return typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<1?1+Math.floor(n*sides):null};
 // 1d10 + base with the critical rule (p. 130) and the attacker's wound penalty.
-function rollAttack(base,wound,rng=Math.random){
+function rollAttack(base,wound,rng=rollRng){
  if(!Number.isSafeInteger(base)||!Number.isSafeInteger(wound))return null;
  const first=die(10,rng);if(first===null)return null;
  const extra=first===1||first===10?die(10,rng):0;if(extra===null)return null;
  return {first,extra,base,wound,total:base+wound+first+(first===10?extra:first===1?-extra:0)};
 }
 // Weapon damage; two or more sixes on d6 are a Critical Injury (p. 187).
-function rollDamage(spec,rng=Math.random){
+function rollDamage(spec,rng=rollRng){
  const m=DICE.exec(String(spec||'').trim()),count=m?Number(m[1]):0,sides=m?Number(m[2]):0;
  if(count<1||count>20)return null;
  const dice=Array.from({length:count},()=>die(sides,rng));if(dice.some(x=>x===null))return null;
@@ -141,7 +142,7 @@ const npcSp=(r,loc)=>{const n=Number(r?.sp?.[loc]);return Number.isSafeInteger(n
 // A critical hit on an NPC row: 2d6 on the injury table of the hit location, the result is added to the row's note (max 300 characters).
 function critInjury(target,loc,args){
  if(!target||target.kind!=='npc')return null;
- const rng=typeof args?.rng==='function'?args.rng:Math.random,a=die(6,rng),b=die(6,rng),total=a!==null&&b!==null?a+b:0,row=total?window.CombatTools?.injuryFor?.(loc==='head'?'head':'body',total):null;
+ const rng=typeof args?.rng==='function'?args.rng:rollRng,a=die(6,rng),b=die(6,rng),total=a!==null&&b!==null?a+b:0,row=total?window.CombatTools?.injuryFor?.(loc==='head'?'head':'body',total):null;
  if(!row)return null;
  const l=args?.lang==='en'?'en':'ru',tt=T[l],name=row[l]||row.en||'?',eff=row.effect?.[l]||'',cn=target.combatNote;
  if(!(cn===undefined||(cn&&typeof cn==='object'&&!Array.isArray(cn)&&cn.version===1&&typeof cn.text==='string')))return null;
@@ -317,13 +318,13 @@ function handle(e,c,ctx){
    const wound=woundPenalty(window.Campaigns?.woundOf?.(row,null)),r=rollAttack(attack.base,wound);if(!r)return {};
    const detail=`1d10 ${r.first}${r.extra?(r.first===10?' + ':' − ')+r.extra:''} + ${r.base}${r.wound?` − ${-r.wound} (${t.wound(r.wound)})`:''} = ${r.total}`;
    keep(results,row.id,{lines:[t.attackLine(who,attack.name,detail)]});
-   try{window.Rolls?.check?.(`${who} · ${attack.name}`,{first:r.first,extra:r.extra,total:r.total},lang)}catch{}
+   try{(window.GmRolls||window.Rolls)?.check?.(`${who} · ${attack.name}`,{first:r.first,extra:r.extra,total:r.total},lang)}catch{}
    return {rerender:true,notify:t.attackLine(who,attack.name,detail)};
   }
   const r=rollDamage(attack.damage);if(!r)return {};
   const detail=`${attack.damage}: ${r.dice.join(' + ')} = ${r.total}`,line=t.damageLine(who,attack.name,detail)+(r.critical?' '+t.crit:'');
   keep(results,row.id,{lines:[...(old&&!old.damage&&!old.undo?old.lines.slice(-1):[]),line],damage:{total:r.total,critical:r.critical,melee:attack.melee,target:old?.target||''},target:old?.target||''});
-  try{window.Rolls?.sum?.(`${who} · ${attack.name}`,r.dice,r.sides,{total:r.total})}catch{}
+  try{(window.GmRolls||window.Rolls)?.sum?.(`${who} · ${attack.name}`,r.dice,r.sides,{total:r.total})}catch{}
   return {rerender:true,notify:line};
  }
  if(a==='apply-roll'||a==='pc-damage'){

@@ -420,8 +420,8 @@ function act(a,b,lang,rng){
    const x=tables().find(y=>y.id===id),r=x?roll(x,rng):null;if(!r)return {draw:true};
    const text=r.entry?r.entry.text:'',quiet=ui.quiet&&roomActive(),lab=label(x.name,lang),det=detail(r,x.die,lang),sides=dieInfo(x.die).sides;
    ui.last={id:x.id,dice:r.dice,total:r.total,text,quiet};
-   // The public way: history + room feed in one call. The quiet way writes the history only.
-   try{if(quiet)global.RollHistory?.add?.({label:lab,detail:det,total:r.total});else global.App?.report?.(lab,det,r.total,r.dice.map(v=>({v,s:sides})))}catch{}
+   // The public way: history + room feed in one call (through GmRolls when the GM has chosen hidden rolls, the result then stays in the GM-only list). The quiet way writes the history only.
+   try{if(quiet&&global.GmRolls?.mode?.()!=='hidden')global.RollHistory?.add?.({label:lab,detail:det,total:r.total});else if(typeof global.GmRolls?.emit==='function')global.GmRolls.emit(lab,det,r.total,r.dice.map(v=>({v,s:sides})));else global.App?.report?.(lab,det,r.total,r.dice.map(v=>({v,s:sides})))}catch{}
    // gm-extras redraws its whole group (this card included) when it takes the result into «recent results».
    try{global.GMExtras?.push?.({kind:'custom',custom:{name:x.name,die:x.die,dice:r.dice,total:r.total,text}})}catch{}
    return {draw:true,pushed:true,focus:rollBtn(x.id)};

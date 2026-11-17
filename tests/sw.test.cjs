@@ -89,7 +89,7 @@ test('activate keeps the PDF reader across app updates and drops other versions'
  const sw=worker();
  for(const name of ['nc-red-app-old','nc-red-runtime-old','nc-red-pdfjs-old',`nc-red-pdfjs-${PDFJS.version}`,'nc-red-fonts-v1','someone-else'])await sw.caches.open(name);
  await sw.install();await sw.activate();
- assert.deepEqual((await sw.caches.keys()).sort(),[`nc-red-app-${VERSION}`,'nc-red-fonts-v1',`nc-red-pdfjs-${PDFJS.version}`,'someone-else'].sort());
+ assert.deepEqual((await sw.caches.keys()).sort(),[`nc-red-app-${VERSION}`,`nc-red-pdfjs-${PDFJS.version}`,'someone-else'].sort());
  assert.ok(sw.self.claimed);
 });
 

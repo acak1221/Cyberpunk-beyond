@@ -1,3 +1,4 @@
+const Idle=require('./helpers/idle.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -7,9 +8,9 @@ const zipOK=(()=>{try{new CompressionStream('deflate-raw');new DecompressionStre
 function loadRoom({store=new Map(),timers=null,lang='ru'}={}){
  const listeners={},document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,visibilityState:'visible'};
  // Long timers (the 30 s wait for a GM receipt) are either collected to be fired by the test or do not keep node running.
- const later=(f,ms)=>{if(timers&&ms>=1000){timers.push(f);return timers.length}const h=setTimeout(f,ms);if(ms>=1000)h.unref?.();return h};
- const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:globalThis.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
- const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout,setInterval,clearInterval,console};
+ const later=(f,ms)=>{if(timers&&ms>=1000){timers.push(f);return timers.length}const h=Idle.timeout(f,ms);if(ms>=1000)h.unref?.();return h};
+ const window={document,localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,location:{hash:'',origin:'https://example.test',pathname:'/'},addEventListener(){},confirm:()=>true,navigator:{},btoa,atob,Response,Blob,ReadableStream,CompressionStream,DecompressionStream,ROLES:[{id:'solo',name:{ru:'Соло',en:'Solo'}},{id:'fixer',name:{ru:'Фиксер',en:'Fixer'}}]};
+ const ctx={window,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,setTimeout:later,clearTimeout:Idle.clear,setInterval,clearInterval,console};
  vm.runInNewContext(read('room-transport.js')+'\n'+read('room.js'),ctx);
  const R=window.Room._test,notices=[],sent=[];
  R.setApp({getState:()=>({lang,characters:window.chars||[],campaigns:window.camps||[]}),notify:m=>notices.push(m)});
@@ -42,7 +43,7 @@ async function player(r,{store,memberId='p1',sameAs,character,sheets='zj',timers
  return p;
 }
 // Replies (receipts) are sent without being awaited, so let them settle.
-const settle=()=>new Promise(ok=>setTimeout(ok,30));
+const settle=Idle.settle;
 const deliver=async(to,r,msgs)=>{await settle();for(const m of msgs.splice(0))await to.R.receive({topic:r.topic+'/'+m.sub,retain:false,payload:m.bytes});await settle()};
 const V={id:'v1',name:'Ви',role:'solo',rank:4,hp:40,stats:{BODY:8,WILL:6},notes:'Короткая заметка',extra:{portrait:'data:image/png;base64,AAAA',sourceKey:'mine'}};
 

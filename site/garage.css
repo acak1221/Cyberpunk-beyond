@@ -1,0 +1,40 @@
+/* Garage card (equipment tab) and the compact rows on the combat page. Touch targets are 44px or more. */
+.garage{margin-top:16px}
+.garage .gr-list{list-style:none;margin:12px 0;padding:0;display:grid;gap:12px}
+.gr-vehicle,.gr-combat-row{display:grid;gap:10px;border:1px solid var(--border,#373637);background:var(--panel,#1b1b1d);padding:12px 14px}
+.gr-head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.gr-meta{color:var(--muted,#a19b96);font-size:.86rem}
+.gr-sdp{display:flex;align-items:center;gap:12px}
+.gr-step{min-width:44px;min-height:44px;padding:0 14px;font:inherit;font-size:1.25rem;font-weight:700;color:var(--text,#eee);background:var(--panel-2,#222224);border:1px solid var(--border,#373637);cursor:pointer}
+.gr-step:hover{background:var(--panel-hover,#29292b)}
+.gr-val{font-size:1.1rem;min-width:7ch;text-align:center}
+.gr-val b{font-size:1.5rem;font-variant-numeric:tabular-nums}
+.gr-val small{color:var(--muted,#a19b96)}
+.gr-bar{height:8px;background:var(--panel-2,#222224);border:1px solid var(--border,#373637)}
+.gr-bar i{display:block;height:100%;background:var(--yellow,#e9c66d)}
+.gr-zero{margin:0;color:#e07a6a;font-size:.9rem}
+.gr-actions{display:flex;flex-wrap:wrap;gap:8px}
+.gr-actions .btn,.gr-add .btn,.gr-pick .btn,.gr-upgrades .btn{min-height:44px}
+.gr-hit{display:grid;gap:8px;border:1px dashed var(--yellow,#e9c66d);padding:10px 12px}
+.gr-hit p,.gr-note{margin:0;font-size:.86rem;line-height:1.5;color:var(--muted,#a19b96)}
+.gr-dice{font-family:'IBM Plex Mono',monospace}
+.gr-vehicle details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.gr-upgrades{list-style:none;margin:6px 0;padding:0;display:grid;gap:8px}
+.gr-upgrades li{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-top:1px solid var(--border,#373637);padding-top:8px}
+.gr-up-name{display:grid;gap:2px;min-width:0}
+.gr-up-name small{color:var(--muted,#a19b96);overflow-wrap:anywhere}
+.gr-pick,.gr-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end;margin-top:10px}
+.gr-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0}
+.gr-sdpbox{display:grid;gap:10px}
+.garage .rule-source,.garage-combat .rule-source{min-height:44px;display:inline-flex;align-items:center}
+html .garage select,html .garage input,html .garage .field input,html .garage textarea,html .garage-combat input,html .garage-combat .field input{min-height:44px;box-sizing:border-box;max-width:100%}
+.garage textarea{width:100%}
+.garage-combat{display:grid;gap:10px;margin:12px 0}
+.gr-combat-title{font-size:.8rem;letter-spacing:.1em;color:var(--muted,#a19b96)}
+@media (max-width:560px){.gr-upgrades li{grid-template-columns:1fr auto}.gr-upgrades li .rule-source{grid-column:1}}
+html.ui-native.ui-light .gr-vehicle,html.ui-native.ui-light .gr-combat-row{background:#fff;border-color:#cbc8c3}
+html.ui-native.ui-light .gr-step{color:#1d1b18;background:#f1efeb;border-color:#cbc8c3}
+html.ui-native.ui-light .gr-bar{background:#eceae6;border-color:#cbc8c3}
+html.ui-native.ui-light .gr-bar i{background:#856514}
+html.ui-native.ui-light .gr-meta,html.ui-native.ui-light .gr-note,html.ui-native.ui-light .gr-hit p,html.ui-native.ui-light .gr-up-name small{color:#5f594e}
+html.ui-native.ui-light .gr-zero{color:#a3341f}

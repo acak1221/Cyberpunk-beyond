@@ -293,17 +293,21 @@ function handle(op,b,a,l,ctx){
    if(lk.beat){e.state='open';focusLater(`[data-net="run-toggle"][data-floor="${attr(n.floor.id)}"][data-entry="${attr(e.id)}"]`)}
    rollNote={floorId:n.floor.id,entryId:e.id,text:z.rolled({total:lk.total,dv:lk.dv},lk.beat)};return {dirty:true,rerender:true};
   }
-  const r=window.NetTools.check(a.rank,a.modifier,e.dv);
+  // Without a linked runner the desk's own NET Action counter is spent, as the sheet's counter is for a linked one (NetTools.deskCheck).
   // The roll goes to the shared feed when a room is open, so its label is made of fixed words and numbers only:
   // the GM's names and notes for the architecture must not reach the players this way.
-  window.Rolls?.check?.(z.rollLabel(z.types[e.type],n.depth,r.dv),r,lang(l));
-  if(r.success){e.state='open';focusLater(`[data-net="run-toggle"][data-floor="${attr(n.floor.id)}"][data-entry="${attr(e.id)}"]`)}rollNote={floorId:n.floor.id,entryId:e.id,text:z.rolled(r,r.success)};return {dirty:r.success,rerender:true};
+  const dv=clamp(e.dv,0,999),u=typeof window.NetTools.deskCheck==='function'?window.NetTools.deskCheck(a,dv,z.rollLabel(z.types[e.type],n.depth,dv),lang(l)):null;
+  if(u&&!u.ok)return {rerender:true,notify:u.message};
+  const r=u?u.r:window.NetTools.check(a.rank,a.modifier,e.dv);
+  if(!u)window.Rolls?.check?.(z.rollLabel(z.types[e.type],n.depth,r.dv),r,lang(l));
+  if(r.success){e.state='open';focusLater(`[data-net="run-toggle"][data-floor="${attr(n.floor.id)}"][data-entry="${attr(e.id)}"]`)}rollNote={floorId:n.floor.id,entryId:e.id,text:z.rolled(r,r.success)};return {dirty:r.success||!!u,rerender:true};
  }
  if(e.type!=='ice')return null;
  if(op==='run-rez'){
   const delta=Number(b.dataset.delta);if(delta!==1&&delta!==-1)return null;// REZ does not grow past the maximum of the record. A record without a maximum, or one already above it, is the GM's own number and is not cut.
   const now=clamp(e.rez,0,999),max=clamp(e.maxRez,0,999),top=max>0?Math.max(max,now):999,next=clamp(now+delta,0,top);if(next===e.rez)return null;
-  e.rez=next;if(next===0&&(e.state==='waiting'||e.state==='pursuing'))e.state='derezzed';return done;
+  // REZ falling to 0 derezzes the ICE; REZ coming back above 0 on a derezzed one brings it back to waiting (the state reset does the same), so the chip, the map, the player's view and the reset always agree with the number. A destroyed ICE or the GM's own «other» state is not touched.
+  e.rez=next;if(next===0&&(e.state==='waiting'||e.state==='pursuing'))e.state='derezzed';else if(next>0&&e.state==='derezzed')e.state='waiting';return done;
  }
  if(op==='run-ice'){focusLater('[data-net-combat="mode"]');return {rerender:true,ice:{key:encodeURIComponent(n.floor.id)+':'+encodeURIComponent(e.id),mode:e.state==='waiting'?'encounter':'ice'}}}
  return null;

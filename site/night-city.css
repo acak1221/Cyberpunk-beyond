@@ -1,0 +1,15 @@
+/* Night City reference launcher: one tile per part of the city. Theme variables only; tiles stack on a phone. */
+.nc-root{display:grid;gap:10px;min-width:0}
+.nc-root>*{min-width:0;margin:0}
+.nc-note{color:var(--muted);font-size:.85rem;line-height:1.5}
+.nc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
+.nc-card{display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--panel-2);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:6px}
+.nc-card h3{margin:0;font-size:1rem;letter-spacing:0;text-transform:none}
+.nc-card p{margin:0;color:var(--muted);font-size:.85rem;line-height:1.45}
+.nc-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.nc-jump,.nc-go{min-height:44px}
+/* netrun-console.css also styles «.nc-grid» (three narrow columns for the console buttons): the city launcher keeps its own columns,
+   one on a phone (wide enough for every word), two from 600 px, three on a desktop. */
+.nc-root .nc-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+@media(min-width:600px){.nc-root .nc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.nc-root .nc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}

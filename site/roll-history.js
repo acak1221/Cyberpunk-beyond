@@ -7,8 +7,8 @@ const KEY='nc-roll-history',MAX=50;
 let list=[],undoStack=null,loaded=false;
 const int=v=>{const n=Number(v);return v!==null&&v!==''&&Number.isFinite(n)?Math.trunc(n):null};
 const lang=()=>{try{return global.App?.lang?.()==='en'?'en':'ru'}catch{return 'ru'}};
-const T={ru:{again:'Повторить бросок',clear:'Очистить историю',undo:'Вернуть',cleared:'История очищена.',empty:'Пока бросков нет.'},
- en:{again:'Roll again',clear:'Clear history',undo:'Undo',cleared:'History cleared.',empty:'No rolls yet.'}};
+const T={ru:{again:'Повторить бросок',chipAgain:'Повторить',clear:'Очистить историю',undo:'Вернуть',cleared:'История очищена.',empty:'Пока бросков нет.'},
+ en:{again:'Roll again',chipAgain:'Again',clear:'Clear history',undo:'Undo',cleared:'History cleared.',empty:'No rolls yet.'}};
 const tr=k=>T[lang()][k];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function cleanReplay(r){
@@ -53,8 +53,8 @@ function replay(r){
 /* Called by the toast of a fresh roll: adds the «Roll again» button. */
 function decorate(box,roll){
  const r=cleanReplay(roll?.replay);if(!r||!box?.querySelector)return;
- const body=box.querySelector('.roll-body');if(!body)return;
- const b=global.document.createElement('button');b.type='button';b.className='btn small roll-again';b.textContent=tr('again');
+ const body=box.querySelector('.roll-actions')||box.querySelector('.roll-body');if(!body)return;
+ const b=global.document.createElement('button');b.type='button';b.className='btn small roll-again';b.textContent=tr('chipAgain');b.setAttribute('aria-label',tr('again'));
  b.addEventListener('click',()=>replay(r),{once:true});body.append(b);
 }
 function onClick(ev){

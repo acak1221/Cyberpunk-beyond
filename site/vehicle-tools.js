@@ -1,6 +1,9 @@
 /* Cyberpunk RED Corebook: Vehicle Combat, pp. 189–192 and critical checks, p. 130. */
 (function(){
 'use strict';
+// Dice come from Rolls (one random source, history and room feed); Math.random only where Rolls is not loaded.
+const rollD=n=>{const R=window.Rolls,v=R?.d?.(n);return Number.isInteger(v)?v:1+Math.floor((R?.rand||Math.random)()*n)};
+const rollRng=()=>(window.Rolls?.rand||Math.random)();
 const MANEUVERS=Object.freeze({
  basic:{dv:10,ru:'Обычное управление',en:'Basic driving'},
  swerve:{dv:13,ru:'Резкий объезд',en:'Swerve'},
@@ -21,12 +24,12 @@ const RAM={
  ru:{type:'Цель столкновения',pedestrian:'Пешеход',cover:'Укрытие',vehicle:'Другой транспорт',object:'Другой объект с HP',dex:'DEX пешехода',evasion:'Навык Evasion',modifier:'Другие модификаторы',dodge:'Бросить уклонение',onlyPedestrian:'Уклонение здесь доступно только для пешехода.',damageRoll:'Бросить урон столкновения',mode:'Как бросать урон для сторон?',shared:'Один бросок для обеих сторон',separate:'Отдельный бросок для каждой стороны',gm:'Книга не уточняет, общий или отдельные броски урона использовать: выберите с ведущим.',dodgeHelp:'Пешеход пешком может уклониться против DV 13 независимо от REF. Успешное уклонение позволяет оказаться на транспорте по желанию.',bad:'Проверьте выбранные параметры и числовые значения.',yes:'успех',no:'провал',dodged:'Пешеход избежал наезда и может оказаться на транспорте по желанию. Проверьте другие возможные столкновения отдельно.',hit:'Пешеход не уклонился. Если столкновение состоялось, используйте бросок урона ниже.',damageA:'Транспорт',damageB:'Цель',same:'Обе стороны',onFoot:'После наезда движение может продолжаться; если у пешехода осталось больше 0 HP, он может оказаться на транспорте по желанию.',obstacle:'Если укрытие или другой транспорт после урона достигли 0 HP/SDP, движение может продолжаться; иначе оно останавливается.',objectMove:'Остановку при столкновении с другим объектом определяет ведущий.',resolution:'Применяйте урон только если столкновение состоялось. Учтите SP и повреждение брони по правилам, затем примените урон вручную. Каждый участник аварии получает Whiplash: +5 урона напрямую к HP и +1 к базовому штрафу Death Save. Бонусный урон не ослабляет броню. Повторное ранение и другие спорные обстоятельства решает ведущий. Правило двух шестёрок для дополнительных критических ранений относится к атакам ближнего и дальнего боя; остальные последствия согласуйте с ведущим.',noWrite:'Броски не изменяют HP, SDP, броню или листы персонажей.'},
  en:{type:'Collision target',pedestrian:'Pedestrian',cover:'Cover',vehicle:'Another vehicle',object:'Another object with HP',dex:'Pedestrian DEX',evasion:'Evasion skill',modifier:'Other modifiers',dodge:'Roll dodge',onlyPedestrian:'This dodge is available only for a pedestrian.',damageRoll:'Roll collision damage',mode:'How should damage be rolled for the sides?',shared:'One roll for both sides',separate:'Separate rolls for each side',gm:'The book does not specify a shared or separate damage roll: choose with the GM.',dodgeHelp:'A pedestrian on foot can dodge against DV 13 regardless of REF. On a success they may choose to be on the vehicle.',bad:'Check the selected options and numeric values.',yes:'success',no:'failure',dodged:'The pedestrian avoids the impact and may choose to be on the vehicle. Resolve any other possible collisions separately.',hit:'The pedestrian failed to dodge. If the collision occurred, use the damage roll below.',damageA:'Vehicle',damageB:'Target',same:'Both sides',onFoot:'The vehicle can continue after hitting a pedestrian; if the pedestrian has more than 0 HP, they may choose to be on the vehicle.',obstacle:'If the cover or other vehicle is reduced to 0 HP/SDP by the damage, movement may continue; otherwise it stops.',objectMove:'The GM decides whether movement stops on impact with another object.',resolution:'Apply damage only if the collision occurred. Apply SP, armor ablation and damage manually. Everyone in the crash suffers Whiplash: +5 damage directly to HP and +1 to the base Death Save penalty. Bonus damage does not ablate armor. The GM decides how to handle a repeated injury and other uncertain situations. The two-sixes rule for additional Critical Injuries applies to melee and ranged attacks; discuss any other consequences with the GM.',noWrite:'Rolls do not change HP, SDP, armor or character sheets.'}
 };
-function dodgeRam({dex,evasion,modifier},die=()=>1+Math.floor(Math.random()*10)){
+function dodgeRam({dex,evasion,modifier},die=()=>rollD(10)){
  if(!integer(dex,0,100)||!integer(evasion,0,100)||!integer(modifier,-100,100))return null;
  const first=die();if(!integer(first,1,10))return null;const extra=(first===1||first===10)?die():0;if((first===1||first===10)&&!integer(extra,1,10))return null;
  const total=dex+evasion+modifier+first+(first===1?-extra:extra);return {first,extra,total,dv:13,success:total>13};
 }
-function ramDamage(mode,die=()=>1+Math.floor(Math.random()*6)){
+function ramDamage(mode,die=()=>rollD(6)){
  if(mode!=='shared'&&mode!=='separate')return null;
  const rolls=[];for(let i=0;i<(mode==='shared'?6:12);i++){const value=die();if(!integer(value,1,6))return null;rolls.push(value)}
  const first=rolls.slice(0,6),second=mode==='shared'?first.slice():rolls.slice(6);return {mode,first,second,firstTotal:first.reduce((a,b)=>a+b,0),secondTotal:second.reduce((a,b)=>a+b,0)};
@@ -46,7 +49,7 @@ function handleRam(action,root,lang){
  const result=r.mode==='shared'?`${t.same}: 6d6 (${r.first.join(', ')}) = ${r.firstTotal}`:`${t.damageA}: 6d6 (${r.first.join(', ')}) = ${r.firstTotal}; ${t.damageB}: 6d6 (${r.second.join(', ')}) = ${r.secondTotal}`;
  out.textContent=`${t[target]} · ${result}. ${target==='pedestrian'?t.onFoot:target==='object'?t.objectMove:t.obstacle} ${t.noWrite}`;return true;
 }
-function check({ref,skill,modifier,task},die=()=>1+Math.floor(Math.random()*10)){
+function check({ref,skill,modifier,task},die=()=>rollD(10)){
  if(!integer(ref,0,100)||!integer(skill,0,100)||!integer(modifier,-100,100)||!Object.hasOwn(MANEUVERS,task))return null;
  if(task==='basic'&&ref+skill>9)return {auto:true,task};
  const first=die(),extra=(first===1||first===10)?die():0;

@@ -7,6 +7,9 @@
      Optional (a campaign without it behaves as before), small, read through clean() every time, part of the campaign
      file and of the backup. Coordinates are whole numbers 0…1000 across the stage, so they do not depend on the
      picture and mean the same on the players' grid.
+     GM-only extras (never in the room message, see payload()): districts:[{id,name≤30}] (up to 20), and per pin d (district id),
+     par (the pin it is a room of, depth 1), npc (up to 8 NPC library ids; an id whose entry was deleted is shown as gone),
+     f (faction id, offered only where window.Factions exists).
    - the picture: only in this browser (IndexedDB, one record per campaign id). It is never written into the campaign,
      so it is in no export, no backup and no room message. A map picture is hundreds of kilobytes; inside the saved
      data it would eat the space the sheets live in.
@@ -20,6 +23,9 @@
 const TYPES=['bar','clinic','fixer','gang','safehouse','job','shop','corp','danger','other'];
 // One sign per type, so the colour of a pin is never the only thing that tells the types apart.
 const GLYPH={bar:'♫',clinic:'✚',fixer:'$',gang:'☠',safehouse:'⌂',job:'★',shop:'◈',corp:'▲',danger:'!',other:'●'};
+const MAX_DISTRICTS=20,MAX_DNAME=30,MAX_NPC=8,MAX_QUERY=60;
+// Where focus goes after an NPC is added or removed: the picker when it is still there, else the first NPC button.
+const NPC_FOCUS='[data-cm-npcpick],[data-cm-act="npc-fight"],[data-cm-act="npc-del"]';
 const MAX_PINS=80,MAX_SHARED=40,MAX_ROUTE=20,MAX_NAME=60,MAX_NOTE=300,MAX_BYTES=16000,TTL=12*3600*1000,RESEND=180000;
 const PIC_SIDE=1600,PIC_CHARS=900000,PIC_READ=1200000,MAX_FILE=20*1024*1024,DB='nightcity-red-citymap',STORE='pics',GRACE=7*24*3600*1000;
 const T={
@@ -47,6 +53,16 @@ const T={
   stLive:n=>`Комната открыта. Игроки видят меток: ${n}.`,stCrew:' Место группы показано.',cut:(a,b)=>` Из-за объёма игрокам уйдут только ${a} из ${b}.`,
   roomFrom:'Метки показывает ведущий. Картинка карты остаётся у него, здесь — условная сетка.',roomStage:n=>`Схема города, меток: ${n}`,roomStageCrew:', отмечено место группы',roomCrewAt:n=>`Группа здесь: ${n}`,roomCrew:'Группа отмечена на карте.',updated:'Ведущий обновил карту города.',
   gmSees:n=>`Игроки видят меток: ${n}.`,gmNone:'Игроки пока не видят карту. Откройте кампанию → «Карта города» и отметьте метки.',gmNoCampaign:'Чтобы показывать игрокам карту города, выберите выше кампанию для комнаты.',
+  search:'Поиск по меткам',searchPh:'Название или заметка',found:(n,m)=>`Найдено меток: ${n} из ${m}.`,districtFilter:'Фильтр по району',allDistricts:'Все районы',noDistrict:'Без района',
+  districts:'РАЙОНЫ',districtName:'Название района',districtAdd:'Добавить район',districtDel:'Удалить район',districtRen:'Название района',districtHint:`Свои районы города, до ${MAX_DISTRICTS}. Метке район можно назначить в её карточке.`,
+  districtFull:`Районов не больше ${MAX_DISTRICTS}.`,districtDup:'Район с таким названием уже есть.',districtNeed:'Введите название района.',
+  sayDistrictAdded:n=>`Район «${n}» добавлен.`,sayDistrictRen:n=>`Район переименован: «${n}».`,districtRemoved:n=>`Район «${n}» удалён. Метки остались без района.`,
+  pinDistrict:'Район',pinParent:'Находится в метке',noParent:'Сама по себе',parentLock:'У этой метки есть помещения, поэтому сама она не может быть помещением.',parentBad:'Сюда метку поместить нельзя: помещение внутри помещения не бывает.',
+  rooms:'Помещения',addRoom:'Добавить помещение',newRoom:n=>`Помещение ${n}`,sayRoom:(n,p)=>`Помещение «${n}» добавлено в «${p}».`,bIn:n=>`в: ${n}`,bRooms:n=>`помещений: ${n}`,bNpc:n=>`NPC: ${n}`,
+  faction:'Фракция',noFaction:'Без фракции',factionGone:'Фракция удалена',
+  npcHead:'NPC ЗДЕСЬ',npcHint:'Только для ведущего: игроки этого не получают.',npcPick:'NPC из библиотеки',npcAdd:'Добавить NPC',npcFight:'В бой',npcDel:'Убрать',npcGone:'Удалён из библиотеки',
+  npcFull:`У метки не больше ${MAX_NPC} NPC.`,npcDup:'Этот NPC уже здесь.',npcNoLib:'В библиотеке NPC пока никого нет. Создайте противника в разделе «Библиотека NPC».',npcNone:'Выберите NPC из списка.',
+  npcFought:(n,c)=>`«${n}» добавлен в бой кампании «${c}».`,npcFightFail:'Не удалось добавить: список бойцов кампании переполнен.',npcMissing:'Этого NPC уже нет в библиотеке.',
   types:{bar:'Бар',clinic:'Клиника',fixer:'Фиксер',gang:'Банда',safehouse:'Убежище',job:'Заказ',shop:'Магазин',corp:'Корпорация',danger:'Опасность',other:'Другое'}},
  en:{title:'CITY MAP',pageTitle:'City map',back:'Back to the campaign',local:'Stored on this device',lead:n=>`Campaign “${n}”. Your picture, your pins; the picture stays in this browser only.`,
   cardNone:'No city map yet. Load your own picture or put pins on the placeholder grid.',cardLine:(n,m)=>`Pins: ${n} · shown to players: ${m}`,cardCrew:n=>` · crew: ${n}`,open:'Open the city map',
@@ -72,6 +88,16 @@ const T={
   stLive:n=>`The room is open. Players see pins: ${n}.`,stCrew:' The place of the crew is shown.',cut:(a,b)=>` Because of their size only ${a} of ${b} are sent to players.`,
   roomFrom:'The pins are shown by the Game Master. The map picture stays with them; this is a placeholder grid.',roomStage:n=>`City layout, pins: ${n}`,roomStageCrew:', the place of the crew is marked',roomCrewAt:n=>`The crew is here: ${n}`,roomCrew:'The crew is marked on the map.',updated:'The Game Master updated the city map.',
   gmSees:n=>`Players see pins: ${n}.`,gmNone:'Players do not see the map yet. Open the campaign → “City map” and mark pins.',gmNoCampaign:'To show the city map to players, choose a campaign for the room above.',
+  search:'Search pins',searchPh:'Name or note',found:(n,m)=>`Pins found: ${n} of ${m}.`,districtFilter:'Filter by district',allDistricts:'All districts',noDistrict:'No district',
+  districts:'DISTRICTS',districtName:'District name',districtAdd:'Add a district',districtDel:'Delete the district',districtRen:'District name',districtHint:`Your own districts of the city, up to ${MAX_DISTRICTS}. A pin gets its district in its own card.`,
+  districtFull:`No more than ${MAX_DISTRICTS} districts.`,districtDup:'A district with this name already exists.',districtNeed:'Enter a district name.',
+  sayDistrictAdded:n=>`District “${n}” is added.`,sayDistrictRen:n=>`District renamed: “${n}”.`,districtRemoved:n=>`District “${n}” is deleted. Its pins now have no district.`,
+  pinDistrict:'District',pinParent:'Located inside the pin',noParent:'On its own',parentLock:'This pin has rooms, so it cannot be a room itself.',parentBad:'The pin cannot be put there: a room cannot sit inside another room.',
+  rooms:'Rooms',addRoom:'Add a room',newRoom:n=>`Room ${n}`,sayRoom:(n,p)=>`Room “${n}” is added to “${p}”.`,bIn:n=>`in: ${n}`,bRooms:n=>`rooms: ${n}`,bNpc:n=>`NPCs: ${n}`,
+  faction:'Faction',noFaction:'No faction',factionGone:'The faction is deleted',
+  npcHead:'NPCS HERE',npcHint:'Game Master only: players never receive this.',npcPick:'NPC from the library',npcAdd:'Add the NPC',npcFight:'To combat',npcDel:'Remove',npcGone:'Deleted from the library',
+  npcFull:`A pin holds no more than ${MAX_NPC} NPCs.`,npcDup:'This NPC is already here.',npcNoLib:'The NPC library is empty. Create an opponent in “NPC library”.',npcNone:'Choose an NPC from the list.',
+  npcFought:(n,c)=>`“${n}” is added to the combat of “${c}”.`,npcFightFail:'Could not add: the campaign roster is full.',npcMissing:'This NPC is no longer in the library.',
   types:{bar:'Bar',clinic:'Clinic',fixer:'Fixer',gang:'Gang',safehouse:'Safehouse',job:'Job',shop:'Shop',corp:'Corporation',danger:'Danger',other:'Other'}}
 };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -93,10 +119,27 @@ const enc=typeof TextEncoder!=='undefined'?new TextEncoder():null;
 const size=s=>enc?enc.encode(s).length:s.length*3;
 
 /* ---------- Data ---------- */
+// The districts of a city are the Game Master's own list: id, a short name, at most MAX_DISTRICTS of them.
+function cleanDistricts(raw){
+ const out=[],seen=new Set(),names=new Set();
+ for(const d of Array.isArray(raw)?raw:[]){
+  if(out.length>=MAX_DISTRICTS)break;
+  if(!isObj(d)||typeof d.id!=='string'||!ID.test(d.id)||d.id==='__proto__'||seen.has(d.id))continue;
+  const name=line(d.name,MAX_DNAME);if(!name||names.has(norm(name)))continue;
+  seen.add(d.id);names.add(norm(name));out.push({id:d.id,name});
+ }
+ return out;
+}
+// Library ids of the NPCs met at a pin. Whether they still exist in the library is checked when they are shown, not here.
+function cleanNpcIds(raw){
+ const out=[];
+ for(const x of Array.isArray(raw)?raw:[]){if(out.length>=MAX_NPC)break;if(typeof x==='string'&&ID.test(x)&&!out.includes(x))out.push(x)}
+ return out;
+}
 // A copy that can be trusted, or null. Only the fields named here survive, whatever the value held.
 function clean(raw){
  if(!isObj(raw)||raw.v!==1)return null;
- const pins=[],ids=new Set();let shown=0;
+ const pins=[],ids=new Set(),districts=cleanDistricts(raw.districts),dids=new Set(districts.map(d=>d.id)),wantPar=new Map();let shown=0;
  for(const p of Array.isArray(raw.pins)?raw.pins:[]){
   if(pins.length>=MAX_PINS)break;
   if(!isObj(p)||typeof p.id!=='string'||!ID.test(p.id)||ids.has(p.id)||!TYPES.includes(p.t)||!int(p.x,0,1000)||!int(p.y,0,1000))continue;
@@ -104,9 +147,18 @@ function clean(raw){
   const pin={id:p.id,t:p.t,x:p.x,y:p.y,name},note=para(p.note,MAX_NOTE);
   if(note.trim())pin.note=note;
   if(p.shown===true&&shown<MAX_SHARED){pin.shown=true;shown++}
+  // Game-Master-only extras. None of them is ever read by payload(): it names the fields it sends one by one.
+  if(typeof p.d==='string'&&dids.has(p.d))pin.d=p.d;
+  if(typeof p.f==='string'&&ID.test(p.f))pin.f=p.f;
+  const npc=cleanNpcIds(p.npc);if(npc.length)pin.npc=npc;
+  if(typeof p.par==='string'&&ID.test(p.par)&&p.par!==p.id)wantPar.set(p.id,p.par);
   ids.add(p.id);pins.push(pin);
  }
+ // A room belongs to a pin that is not a room itself (depth 1): a pin that holds rooms loses its own parent.
+ const holders=new Set([...wantPar.values()].filter(x=>ids.has(x)));
+ for(const pin of pins){const par=wantPar.get(pin.id);if(par&&ids.has(par)&&!holders.has(pin.id))pin.par=par}
  const out={v:1,ratio:ratioOf(raw.ratio),pins},route=[];
+ if(districts.length)out.districts=districts;
  for(const id of Array.isArray(raw.route)?raw.route:[]){if(route.length>=MAX_ROUTE)break;if(typeof id==='string'&&ids.has(id)&&route[route.length-1]!==id)route.push(id)}
  if(route.length)out.route=route;
  if(typeof raw.crew==='string'&&ids.has(raw.crew))out.crew=raw.crew;
@@ -119,7 +171,7 @@ const foreign=c=>c?.cityMap!==undefined&&c?.cityMap!==null&&!read(c);
 const blank=()=>({v:1,ratio:1.5,pins:[]});
 function write(c,map){const next=clean(map);if(!next||!isObj(c))return false;c.cityMap=next;return true}
 let seq=0;
-const newId=()=>'p'+Date.now().toString(36)+(seq++).toString(36)+Math.floor(Math.random()*1296).toString(36);
+const newId=(k='p')=>k+Date.now().toString(36)+(seq++).toString(36)+Math.floor(Math.random()*1296).toString(36);
 const pinOf=(map,id)=>map.pins.find(p=>p.id===id)||null;
 function addPin(map,{t,x,y,name}={}){
  if(map.pins.length>=MAX_PINS)return null;
@@ -139,8 +191,10 @@ const routeNow=(map,ids)=>ids.filter(id=>pinOf(map,id)).filter((id,i,a)=>a[i-1]!
 // Removing a pin takes it off the route and lifts the crew mark; what is returned puts all three back.
 function removePin(map,id){
  const index=map.pins.findIndex(p=>p.id===id);if(index<0)return null;
- const snap={pin:{...map.pins[index]},index,route:(map.route||[]).slice(),crew:map.crew===id};
+ const kids=kidsOf(map,id).map(p=>p.id),snap={pin:{...map.pins[index]},index,route:(map.route||[]).slice(),crew:map.crew===id,kids};
+ if(snap.pin.npc)snap.pin.npc=snap.pin.npc.slice();
  map.pins.splice(index,1);
+ for(const k of kids)delete pinOf(map,k).par; // the rooms of a deleted pin stay as pins of their own
  if(map.route)map.route=map.route.filter(x=>x!==id);
  if(map.crew===id)delete map.crew;
  return snap;
@@ -153,6 +207,7 @@ function restorePin(map,snap){
  const id=snap.pin.id,left=routeNow(map,snap.route.filter(x=>x!==id)),now=map.route||[];
  if(now.length===left.length&&now.every((x,i)=>x===left[i])){const old=routeNow(map,snap.route);if(old.length)map.route=old;else delete map.route}
  if(snap.crew&&!map.crew)map.crew=id;
+ for(const k of snap.kids||[]){const kid=pinOf(map,k);if(kid&&!kid.par&&kid.id!==id&&!snap.pin.par)kid.par=id}
  return true;
 }
 // A tap on the last stop takes it off the route; a tap on any other pin makes it the next stop.
@@ -184,7 +239,81 @@ function freeSpot(map){
 }
 const typesUsed=map=>TYPES.map(t=>[t,map.pins.filter(p=>p.t===t).length]).filter(x=>x[1]);
 // An empty filter shows everything.
-const filterPins=(map,types)=>!types||!types.size?map.pins.slice():map.pins.filter(p=>types.has(p.t));
+// Search is over the name and the note: every word typed has to be found, in any order, whatever the case.
+const norm=s=>String(s??'').toLowerCase();
+const words=q=>norm(String(q??'').slice(0,MAX_QUERY)).split(/\s+/).filter(Boolean);
+const hasText=(p,ws)=>{if(!ws.length)return true;const hay=norm(p.name+' '+(p.note||''));return ws.every(w=>hay.includes(w))};
+// district: '' = any, '-' = pins without a district, otherwise a district id.
+const inDistrict=(p,d)=>!d||(d==='-'?!p.d:p.d===d);
+const filterPins=(map,types,o)=>{const ws=words(o?.q),d=o?.district||'';return map.pins.filter(p=>(!types||!types.size||types.has(p.t))&&inDistrict(p,d)&&hasText(p,ws))};
+// The numbers on the chips: each group counts the pins that the other filters leave, so a number is what a tap would show.
+function counts(map,{q='',types=null,district=''}={}){
+ const t=Object.create(null),d=Object.create(null);for(const k of TYPES)t[k]=filterPins(map,null,{q,district}).filter(p=>p.t===k).length;
+ const base=filterPins(map,types,{q});d['']=base.length;d['-']=base.filter(p=>!p.d).length;
+ for(const x of map.districts||[])d[x.id]=base.filter(p=>p.d===x.id).length;
+ return {all:filterPins(map,types,{q,district}).length,types:t,districts:d};
+}
+const kidsOf=(map,id)=>map.pins.filter(p=>p.par===id);
+// Districts. A district that is deleted leaves its pins without one.
+function addDistrict(map,name){
+ const n=line(name,MAX_DNAME);if(!n)return {ok:false,reason:'name'};
+ const list=map.districts||[];if(list.length>=MAX_DISTRICTS)return {ok:false,reason:'full'};
+ if(list.some(d=>norm(d.name)===norm(n)))return {ok:false,reason:'dup'};
+ const d={id:newId('d'),name:n};map.districts=[...list,d];return {ok:true,district:d};
+}
+function renameDistrict(map,id,name){
+ const d=(map.districts||[]).find(x=>x.id===id);if(!d)return {ok:false,reason:'missing'};
+ const n=line(name,MAX_DNAME);if(!n)return {ok:false,reason:'name'};
+ if(map.districts.some(x=>x.id!==id&&norm(x.name)===norm(n)))return {ok:false,reason:'dup'};
+ d.name=n;return {ok:true,name:n};
+}
+function removeDistrict(map,id){
+ const list=map.districts||[],index=list.findIndex(d=>d.id===id);if(index<0)return null;
+ const snap={district:{...list[index]},index,pins:map.pins.filter(p=>p.d===id).map(p=>p.id)};
+ const rest=list.filter(d=>d.id!==id);if(rest.length)map.districts=rest;else delete map.districts;
+ for(const p of map.pins)if(p.d===id)delete p.d;
+ return snap;
+}
+function restoreDistrict(map,snap){
+ const list=map.districts||[];if(!snap?.district||list.length>=MAX_DISTRICTS||list.some(d=>d.id===snap.district.id))return false;
+ const next=list.slice();next.splice(Math.min(snap.index,next.length),0,{...snap.district});map.districts=next;
+ for(const id of snap.pins||[]){const p=pinOf(map,id);if(p&&!p.d)p.d=snap.district.id}
+ return true;
+}
+function setDistrict(map,id,did){
+ const p=pinOf(map,id);if(!p)return false;
+ if(!did){delete p.d;return true}
+ if(!(map.districts||[]).some(d=>d.id===did))return false;p.d=did;return true;
+}
+// A pin can be a room of another pin (depth 1): the holder must not be a room, and a holder cannot become a room.
+function setParent(map,id,pid){
+ const p=pinOf(map,id);if(!p)return {ok:false,reason:'missing'};
+ if(!pid){delete p.par;return {ok:true}}
+ const h=pinOf(map,pid);if(!h||pid===id)return {ok:false,reason:'missing'};
+ if(h.par||kidsOf(map,id).length)return {ok:false,reason:'depth'};
+ p.par=pid;return {ok:true};
+}
+function setFaction(map,id,fid){
+ const p=pinOf(map,id);if(!p)return false;
+ if(!fid){delete p.f;return true}
+ if(typeof fid!=='string'||!ID.test(fid))return false;p.f=fid;return true;
+}
+function addNpc(map,id,nid){
+ const p=pinOf(map,id);if(!p)return {ok:false,reason:'missing'};
+ if(typeof nid!=='string'||!ID.test(nid))return {ok:false,reason:'bad'};
+ const list=p.npc||[];if(list.includes(nid))return {ok:false,reason:'dup'};if(list.length>=MAX_NPC)return {ok:false,reason:'full'};
+ p.npc=[...list,nid];return {ok:true,count:p.npc.length};
+}
+function removeNpc(map,id,nid){
+ const p=pinOf(map,id);if(!p||!(p.npc||[]).includes(nid))return false;
+ const rest=p.npc.filter(x=>x!==nid);if(rest.length)p.npc=rest;else delete p.npc;return true;
+}
+// What stands behind the ids of a pin: the library entries that still exist and the ids that are gone (deleted from the library).
+function npcOf(pin,library){
+ const byId=new Map((Array.isArray(library)?library:[]).filter(e=>isObj(e)&&typeof e.id==='string').map(e=>[e.id,e])),found=[],gone=[];
+ for(const id of pin?.npc||[]){const e=byId.get(id);if(e)found.push(e);else gone.push(id)}
+ return {found,gone};
+}
 // Arrow keys move a pin by 1% of the stage, with Shift by 5%.
 function nudge(x,y,key,shift){
  const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[key];if(!d)return null;
@@ -317,7 +446,7 @@ async function keepPic(c,rec,l){
 const views=new Map();let openId=null;
 function view(c){
  const id=String(c?.id??'');let v=views.get(id);
- if(!v){if(views.size>30)views.clear();v={sel:null,mode:'select',filter:new Set(),zoom:1,say:'',type:'other',labels:true};views.set(id,v)}
+ if(!v){if(views.size>30)views.clear();v={sel:null,mode:'select',filter:new Set(),q:'',district:'',zoom:1,say:'',type:'other',labels:true};views.set(id,v)}
  return v;
 }
 const isOpen=id=>openId!==null&&openId===String(id??'');
@@ -339,7 +468,7 @@ function stageHTML(map,v,t,url){
  const route=(map.route||[]).map(id=>pinOf(map,id)).filter(Boolean).map(p=>[p.x,p.y]);
  // The stage keeps the proportions of the picture (held between 1:2 and 2:1; a longer picture is fitted inside), and pins
  // are placed in shares of the stage, so they sit on the same spots at any zoom and on the players' grid.
- return `<div class="cm-scroll" data-cm-scroll data-cm-mode="${v.mode}" tabindex="0" role="group" aria-label="${esc(t.stage)}"><div class="cm-stage${url?'':' cm-grid'}" data-cm-stage style="aspect-ratio:${map.ratio};width:${v.zoom*100}%">${url?`<img class="cm-pic" src="${esc(url)}" alt="" draggable="false">`:''}${routeSVG(route)}${filterPins(map,v.filter).map(pin).join('')}</div></div>`;
+ return `<div class="cm-scroll" data-cm-scroll data-cm-mode="${v.mode}" tabindex="0" role="group" aria-label="${esc(t.stage)}"><div class="cm-stage${url?'':' cm-grid'}" data-cm-stage style="aspect-ratio:${map.ratio};width:${v.zoom*100}%">${url?`<img class="cm-pic" src="${esc(url)}" alt="" draggable="false">`:''}${routeSVG(route)}${filterPins(map,v.filter,{q:v.q,district:v.district}).map(pin).join('')}</div></div>`;
 }
 const link=()=>{try{return global.Room?.mapLink||null}catch{return null}};
 const whoIs=()=>{try{const w=link()?.who?.();return isObj(w)?w:null}catch{return null}};
@@ -354,19 +483,43 @@ function bodyHTML(c,l){
  if(!pics.has(id))loadPic(id);
  if(v.sel&&!pinOf(map,v.sel))v.sel=null;
  for(const k of [...v.filter])if(!map.pins.some(p=>p.t===k))v.filter.delete(k);
- const vis=filterPins(map,v.filter),sel=v.sel?pinOf(map,v.sel):null,shown=map.pins.filter(p=>p.shown).length;
+ if(v.district&&v.district!=='-'&&!(map.districts||[]).some(d=>d.id===v.district))v.district='';
+ if(v.district==='-'&&!(map.districts||[]).length)v.district='';
+ const vis=filterPins(map,v.filter,{q:v.q,district:v.district}),cnt=counts(map,{q:v.q,types:v.filter,district:v.district}),sel=v.sel?pinOf(map,v.sel):null,shown=map.pins.filter(p=>p.shown).length;
  const mode=(k,text)=>`<button type="button" class="btn ghost cm-mode" data-cm-act="mode" data-cm-value="${k}" aria-pressed="${v.mode===k?'true':'false'}">${esc(text)}</button>`;
  const tools=`<div class="cm-toolbar" role="group" aria-label="${esc(t.tools)}"><div class="cm-modes" role="group" aria-label="${esc(t.modeLabel)}">${mode('select',t.modeSelect)}${mode('add',t.modeAdd)}${mode('route',t.modeRoute)}</div><label class="field cm-newtype">${esc(t.newType)}<select data-cm-newtype>${TYPES.map(k=>`<option value="${k}"${v.type===k?' selected':''}>${esc(t.types[k])}</option>`).join('')}</select></label><button type="button" class="btn ghost" data-cm-act="add-centre"${map.pins.length>=MAX_PINS?' disabled':''}>＋ ${esc(t.addCentre)}</button><div class="cm-zoom"><button type="button" class="btn ghost" data-cm-act="zoom-out" aria-label="${esc(t.zoomOut)}"${v.zoom<=1?' disabled':''}>−</button><span class="cm-zoom-now" aria-hidden="true">${esc(t.zoom(v.zoom))}</span><button type="button" class="btn ghost" data-cm-act="zoom-in" aria-label="${esc(t.zoomIn)}"${v.zoom>=3?' disabled':''}>＋</button></div><button type="button" class="btn ghost" data-cm-act="labels" aria-pressed="${v.labels?'true':'false'}">${esc(t.labels)}</button><label class="btn ghost cm-file">${esc(pic?t.picChange:t.picUpload)}<input type="file" accept="image/jpeg,image/png,image/webp" data-cm-file></label>${pic?`<button type="button" class="btn ghost cm-danger" data-cm-act="pic-remove">${esc(t.picRemove)}</button>`:''}</div>`;
  const used=typesUsed(map);
- const filters=used.length?`<div class="cm-filters" role="group" aria-label="${esc(t.filter)}"><button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="" aria-pressed="${v.filter.size?'false':'true'}">${esc(t.all)} <span class="cm-count">${map.pins.length}</span></button>${used.map(([k,n])=>`<button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="${k}" aria-pressed="${v.filter.has(k)?'true':'false'}">${glyph(k)}${esc(t.types[k])} <span class="cm-count">${n}</span></button>`).join('')}</div>`:'';
+ const search=map.pins.length?`<label class="field cm-search">${esc(t.search)}<input type="search" data-cm-search maxlength="${MAX_QUERY}" value="${esc(v.q)}" placeholder="${esc(t.searchPh)}" autocomplete="off" enterkeyhint="search"></label>`:'';
+ const filters=used.length?`<div class="cm-filters" role="group" aria-label="${esc(t.filter)}"><button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="" aria-pressed="${v.filter.size?'false':'true'}">${esc(t.all)} <span class="cm-count">${cnt.all}</span></button>${used.map(([k])=>`<button type="button" class="cm-filter" data-cm-act="filter" data-cm-value="${k}" aria-pressed="${v.filter.has(k)?'true':'false'}">${glyph(k)}${esc(t.types[k])} <span class="cm-count">${cnt.types[k]}</span></button>`).join('')}</div>`:'';
+ const dchip=(k,text,n)=>`<button type="button" class="cm-filter" data-cm-act="district" data-cm-value="${k}" aria-pressed="${v.district===k?'true':'false'}">${esc(text)} <span class="cm-count">${n}</span></button>`;
+ const dfilters=(map.districts||[]).length?`<div class="cm-filters cm-dfilters" role="group" aria-label="${esc(t.districtFilter)}">${dchip('',t.allDistricts,cnt.districts[''])}${map.districts.map(d=>dchip(d.id,d.name,cnt.districts[d.id])).join('')}${map.pins.some(p=>!p.d)?dchip('-',t.noDistrict,cnt.districts['-']):''}</div>`:'';
  const hint=v.mode==='add'?t.hintAdd:v.mode==='route'?t.hintRoute:t.hintSelect;
- const main=`<section class="card cm-main">${tools}${filters}<p class="cm-hint" data-cm-hint>${esc(hint)}${pic?'':' '+esc(t.gridHint)}${volatile.has(id)?' '+esc(t.picSession):''}</p>${stageHTML(map,v,t,pic?.url||'')}<div class="cm-route-row"><p class="cm-route-line" data-cm-route-line>${esc(routeText(map,t))}</p>${map.route?.length?`<button type="button" class="btn ghost" data-cm-act="route-clear">${esc(t.routeClear)}</button>`:''}</div><p class="cm-say" aria-hidden="true" data-cm-say>${esc(v.say)}</p><input type="hidden" data-cm-drop value=""></section>`;
- const editor=`<section class="card cm-editor"><div class="card-heading"><span>${esc(t.editor)}</span><span data-nx>${sel?glyph(sel.t):''}</span></div>${sel?`<label class="field">${esc(t.name)}<input type="text" data-cm-field="name" maxlength="${MAX_NAME}" value="${esc(sel.name)}" autocomplete="off"></label><label class="field">${esc(t.type)}<select data-cm-field="t">${TYPES.map(k=>`<option value="${k}"${sel.t===k?' selected':''}>${esc(t.types[k])}</option>`).join('')}</select></label><label class="field textarea-field">${esc(t.note)}<textarea data-cm-field="note" rows="4" maxlength="${MAX_NOTE}" aria-describedby="cm-note-hint">${esc(sel.note||'')}</textarea></label><p class="cm-hint" id="cm-note-hint">${esc(t.noteHint)}</p><label class="cm-check"><input type="checkbox" data-cm-field="shown"${sel.shown?' checked':''}> <span>${esc(t.show)}</span></label><div class="cm-actions"><button type="button" class="btn ghost" data-cm-act="crew" aria-pressed="${map.crew===sel.id?'true':'false'}">${esc(t.crewHere)}</button><button type="button" class="btn ghost cm-danger" data-cm-act="pin-remove">✕ ${esc(t.remove)}</button></div>`:`<p class="cm-hint">${esc(t.editorNone)}</p>`}</section>`;
- const row=p=>{const stops=stopsOf(map,p.id),badges=[map.crew===p.id?t.bCrew:'',p.shown?t.bShown:'',stops.length?t.bStop(stops.join(', ')):''].filter(Boolean);
+ const main=`<section class="card cm-main">${tools}${search}${filters}${dfilters}<p class="cm-hint" data-cm-hint>${esc(hint)}${pic?'':' '+esc(t.gridHint)}${volatile.has(id)?' '+esc(t.picSession):''}</p>${stageHTML(map,v,t,pic?.url||'')}<div class="cm-route-row"><p class="cm-route-line" data-cm-route-line>${esc(routeText(map,t))}</p>${map.route?.length?`<button type="button" class="btn ghost" data-cm-act="route-clear">${esc(t.routeClear)}</button>`:''}</div><p class="cm-say" aria-hidden="true" data-cm-say>${esc(v.say)}</p><input type="hidden" data-cm-drop value=""></section>`;
+ const st=appState(),lib=(()=>{try{const l=global.NpcLibrary?.readLibrary?.(st);return Array.isArray(l)?l:[]}catch{return []}})();
+ const facs=(()=>{try{const l=typeof global.Factions?.read==='function'?global.Factions.read(st):null;return Array.isArray(l)?l:null}catch{return null}})();
+ const opt=(val,text,cur)=>`<option value="${esc(val)}"${val===cur?' selected':''}>${esc(text)}</option>`;
+ const extras=p=>{
+  const kids=kidsOf(map,p.id),holders=map.pins.filter(x=>x.id!==p.id&&!x.par);
+  const dsel=(map.districts||[]).length?`<label class="field">${esc(t.pinDistrict)}<select data-cm-field="d">${opt('',t.noDistrict,p.d||'')}${map.districts.map(d=>opt(d.id,d.name,p.d||'')).join('')}</select></label>`:'';
+  const psel=`<label class="field">${esc(t.pinParent)}<select data-cm-field="par"${kids.length?' disabled aria-describedby="cm-par-hint"':''}>${opt('',t.noParent,p.par||'')}${holders.map(x=>opt(x.id,x.name,p.par||'')).join('')}</select></label>${kids.length?`<p class="cm-hint" id="cm-par-hint">${esc(t.parentLock)}</p>`:''}`;
+  const fsel=facs?`<label class="field">${esc(t.faction)}<select data-cm-field="f">${opt('',t.noFaction,p.f||'')}${facs.map(x=>opt(x.id,x.name||'—',p.f||'')).join('')}${p.f&&!facs.some(x=>x.id===p.f)?opt(p.f,t.factionGone,p.f):''}</select></label>`:'';
+  return dsel+psel+fsel;
+ };
+ const below=p=>{
+  const kids=kidsOf(map,p.id),mine=p.npc||[],{found}=npcOf(p,lib),have=new Set(mine),avail=lib.filter(e=>!have.has(e.id));
+  const rooms=p.par?'':`<div class="cm-rooms"><p class="overline">${esc(t.rooms)}</p>${kids.length?`<ul class="cm-rows">${kids.map(k=>`<li><button type="button" class="cm-row" data-cm-row="${esc(k.id)}" aria-pressed="false">${glyph(k.t)}<span class="cm-row-text"><b>${esc(k.name)}</b></span></button></li>`).join('')}</ul>`:''}<button type="button" class="btn ghost" data-cm-act="room-add"${map.pins.length>=MAX_PINS?' disabled':''}>＋ ${esc(t.addRoom)}</button></div>`;
+  const rows=mine.map(id=>{const e=found.find(x=>x.id===id),nm=e?e.name:t.npcGone;return `<li class="cm-npc"><span class="cm-npc-name">${esc(nm)}</span>${e?`<button type="button" class="btn ghost" data-cm-act="npc-fight" data-cm-value="${esc(id)}" aria-label="${esc(t.npcFight+': '+nm)}">${esc(t.npcFight)}</button>`:''}<button type="button" class="btn ghost cm-danger" data-cm-act="npc-del" data-cm-value="${esc(id)}" aria-label="${esc(t.npcDel+': '+nm)}">✕</button></li>`}).join('');
+  const pick=!lib.length?`<p class="cm-hint">${esc(t.npcNoLib)}</p>`:avail.length&&mine.length<MAX_NPC?`<label class="field">${esc(t.npcPick)}<select data-cm-npcpick>${avail.map(e=>opt(e.id,e.name,'')).join('')}</select></label><button type="button" class="btn ghost" data-cm-act="npc-add">＋ ${esc(t.npcAdd)}</button>`:'';
+  return rooms+`<div class="cm-npcs"><p class="overline">${esc(t.npcHead)} <span class="cm-count">${mine.length} / ${MAX_NPC}</span></p><p class="cm-hint">${esc(t.npcHint)}</p>${mine.length?`<ul class="cm-rows">${rows}</ul>`:''}${pick}</div>`;
+ };
+ const editor=`<section class="card cm-editor"><div class="card-heading"><span>${esc(t.editor)}</span><span data-nx>${sel?glyph(sel.t):''}</span></div>${sel?`<label class="field">${esc(t.name)}<input type="text" data-cm-field="name" maxlength="${MAX_NAME}" value="${esc(sel.name)}" autocomplete="off"></label><label class="field">${esc(t.type)}<select data-cm-field="t">${TYPES.map(k=>`<option value="${k}"${sel.t===k?' selected':''}>${esc(t.types[k])}</option>`).join('')}</select></label>${extras(sel)}<label class="field textarea-field">${esc(t.note)}<textarea data-cm-field="note" rows="4" maxlength="${MAX_NOTE}" aria-describedby="cm-note-hint">${esc(sel.note||'')}</textarea></label><p class="cm-hint" id="cm-note-hint">${esc(t.noteHint)}</p><label class="cm-check"><input type="checkbox" data-cm-field="shown"${sel.shown?' checked':''}> <span>${esc(t.show)}</span></label><div class="cm-actions"><button type="button" class="btn ghost" data-cm-act="crew" aria-pressed="${map.crew===sel.id?'true':'false'}">${esc(t.crewHere)}</button><button type="button" class="btn ghost cm-danger" data-cm-act="pin-remove">✕ ${esc(t.remove)}</button></div>${below(sel)}`:`<p class="cm-hint">${esc(t.editorNone)}</p>`}</section>`;
+ const facsList=(()=>{try{const l=typeof global.Factions?.read==='function'?global.Factions.read(appState()):null;return Array.isArray(l)?l:null}catch{return null}})();
+ const row=p=>{const stops=stopsOf(map,p.id),dn=p.d?(map.districts||[]).find(d=>d.id===p.d)?.name:'',hold=p.par?pinOf(map,p.par)?.name:'',nk=kidsOf(map,p.id).length,badges=[map.crew===p.id?t.bCrew:'',p.shown?t.bShown:'',stops.length?t.bStop(stops.join(', ')):'',dn||'',hold?t.bIn(hold):'',nk?t.bRooms(nk):'',(p.npc||[]).length?t.bNpc(p.npc.length):'',p.f?(facsList?(facsList.find(x=>x.id===p.f)?.name||t.factionGone):''):''].filter(Boolean);
   return `<li><button type="button" class="cm-row" data-cm-row="${esc(p.id)}" aria-pressed="${v.sel===p.id?'true':'false'}">${glyph(p.t)}<span class="cm-row-text"><b class="cm-row-name">${esc(p.name)}</b><span class="cm-row-type">${esc(t.types[p.t])}${badges.length?' · '+esc(badges.join(' · ')):''}</span></span></button></li>`};
  const list=`<section class="card cm-list"><div class="card-heading"><span>${esc(t.list)}</span><span data-nx>${vis.length===map.pins.length?map.pins.length:vis.length+' / '+map.pins.length}</span></div>${vis.length?`<ul class="cm-rows">${vis.map(row).join('')}</ul>`:`<p class="cm-hint">${esc(map.pins.length?t.listFiltered:t.listEmpty)}</p>`}</section>`;
+ const dcard=`<section class="card cm-districts"><div class="card-heading"><span>${esc(t.districts)}</span><span data-nx>${(map.districts||[]).length} / ${MAX_DISTRICTS}</span></div><p class="cm-hint">${esc(t.districtHint)}</p>${(map.districts||[]).length?`<ul class="cm-rows cm-dlist">${map.districts.map(d=>`<li class="cm-district"><label class="field"><span class="cm-lbl">${esc(t.districtRen)}</span><input type="text" aria-label="${esc(t.districtRen+': '+d.name)}" data-cm-dfield="${esc(d.id)}" maxlength="${MAX_DNAME}" value="${esc(d.name)}" autocomplete="off"></label><span class="cm-count" aria-hidden="true">${map.pins.filter(p=>p.d===d.id).length}</span><button type="button" class="btn ghost cm-danger" data-cm-act="district-remove" data-cm-value="${esc(d.id)}" aria-label="${esc(t.districtDel+': '+d.name)}">✕</button></li>`).join('')}</ul>`:''}<div class="cm-dadd"><label class="field">${esc(t.districtName)}<input type="text" data-cm-dname maxlength="${MAX_DNAME}" autocomplete="off"></label><button type="button" class="btn ghost" data-cm-act="district-add"${(map.districts||[]).length>=MAX_DISTRICTS?' disabled':''}>＋ ${esc(t.districtAdd)}</button></div></section>`;
  const share=`<section class="card cm-share"><div class="card-heading"><span>${esc(t.share)}</span><span data-nx>${shown} / ${MAX_SHARED}</span></div><label class="cm-check"><input type="checkbox" data-cm-field="crewShown"${map.crewShown?' checked':''}> <span>${esc(t.crewShow)}</span></label><p class="cm-status" role="status">${esc(statusText(c,t))}</p><p class="cm-hint cm-local">${esc(t.picLocal)}</p></section>`;
- return `<div class="cm-layout">${main}<div class="cm-side">${editor}${list}${share}</div></div>`;
+ return `<div class="cm-layout">${main}<div class="cm-side">${editor}${list}${dcard}${share}</div></div>`;
 }
 // The page of the map: Campaigns.render returns it instead of the tracker while the map is open.
 // The line a screen reader hears after an action stands outside the part that is redrawn: a live region that arrives
@@ -394,6 +547,10 @@ function focusKey(el){
  if(d.cmAct!==undefined)return '[data-cm-act="'+d.cmAct+'"]'+(d.cmValue!==undefined?'[data-cm-value="'+d.cmValue+'"]':'');
  if(d.cmField!==undefined)return '[data-cm-field="'+d.cmField+'"]';
  if(d.cmNewtype!==undefined)return '[data-cm-newtype]';
+ if(d.cmSearch!==undefined)return '[data-cm-search]';
+ if(d.cmDname!==undefined)return '[data-cm-dname]';
+ if(d.cmDfield!==undefined)return '[data-cm-dfield="'+d.cmDfield+'"]';
+ if(d.cmNpcpick!==undefined)return '[data-cm-npcpick]';
  if(d.cmFile!==undefined)return '[data-cm-file]';
  if(d.cmScroll!==undefined)return '[data-cm-scroll]';
  return null;
@@ -402,12 +559,14 @@ function focusKey(el){
 function repaint(root,c,l,prefer){
  const body=root?.querySelector?.('[data-cm-body]');if(!body)return false;
  let active=null;try{active=root.contains?.(global.document.activeElement)?global.document.activeElement:null}catch{}
+ let caret=null;try{if(active?.dataset?.cmSearch!==undefined)caret=[active.selectionStart,active.selectionEnd]}catch{}
  const want=prefer||focusKey(active),sc=root.querySelector('[data-cm-scroll]'),left=sc?.scrollLeft||0,top=sc?.scrollTop||0;
  body.innerHTML=bodyHTML(c,l);
  // The same words twice in a row (a pin moved step by step) still have to be a change, or they are read once only.
  try{const live=root.querySelector('[data-cm-live]'),say=foreign(c)?'':view(c).say;if(live)live.textContent=say&&live.textContent===say?say+'\u00a0':say}catch{}
  const now=root.querySelector('[data-cm-scroll]');if(now){now.scrollLeft=left;now.scrollTop=top}
- if(want){let el=null;try{el=root.querySelector(want)}catch{}if(!el||el.disabled)el=root.querySelector('[data-cm-act="mode"][aria-pressed="true"]');try{el?.focus?.({preventScroll:true})}catch{}}
+ if(want){let el=null;try{el=root.querySelector(want)}catch{}if(!el||el.disabled)el=root.querySelector('[data-cm-act="mode"][aria-pressed="true"]');try{el?.focus?.({preventScroll:true})}catch{}
+  if(caret&&el?.dataset?.cmSearch!==undefined){try{el.setSelectionRange(caret[0],caret[1])}catch{}}}
  return true;
 }
 // Something outside a click on the page changed the map (the picture arrived, an undo): draw the open page again.
@@ -447,7 +606,7 @@ function handle(e,c,ctx){
  const done=(dirty,prefer,say='')=>{if(dirty&&!write(c,map))return idle;v.say=say;repaint(root,c,l,prefer);return {handled:true,dirty:!!dirty}};
  const place=(x,y)=>{
   const pin=addPin(map,{t:v.type,x,y,name:t.newPin(map.pins.length+1)});if(!pin){notify(t.full);return idle}
-  v.sel=pin.id;v.mode='select';if(v.filter.size)v.filter.add(pin.t);
+  v.sel=pin.id;v.mode='select';v.q='';if(v.filter.size)v.filter.add(pin.t);if(v.district&&v.district!=='-')pin.d=v.district;
   return done(true,'[data-cm-field="name"]',t.sayAdded(pin.name));
  };
  const remove=pid=>{
@@ -457,6 +616,10 @@ function handle(e,c,ctx){
   if(r.dirty)offerUndo(c,t.removed(snap.pin.name),t.undo,m=>restorePin(m,snap));
   return r;
  };
+ if(e.type==='input'&&el.dataset?.cmSearch!==undefined){
+  v.q=String(el.value??'').slice(0,MAX_QUERY);
+  return done(false,'[data-cm-search]',t.found(filterPins(map,v.filter,{q:v.q,district:v.district}).length,map.pins.length));
+ }
  if(e.type==='input'){
   // Text is saved as it is typed and the page is not redrawn, so the caret stays where it is; the places that repeat the name follow it.
   const f=el.dataset?.cmField,p=v.sel?pinOf(map,v.sel):null;if(!p||(f!=='name'&&f!=='note'))return idle;
@@ -480,10 +643,19 @@ function handle(e,c,ctx){
   }
   if(d.cmFile!==undefined){const file=el.files?.[0];try{el.value=''}catch{}if(file)attach(file,c,l).catch(()=>{});return idle}
   if(d.cmNewtype!==undefined){if(TYPES.includes(el.value))v.type=el.value;return idle}
+  if(d.cmDfield!==undefined){
+   const dn=(map.districts||[]).find(x=>x.id===d.cmDfield);if(!dn)return idle;
+   const r=renameDistrict(map,dn.id,el.value);
+   if(!r.ok){el.value=dn.name;if(r.reason==='dup')notify(t.districtDup);return idle}
+   return done(true,'[data-cm-dfield="'+dn.id+'"]',t.sayDistrictRen(r.name));
+  }
   const f=d.cmField,p=v.sel?pinOf(map,v.sel):null;
   if(f==='crewShown'){if(el.checked===true)map.crewShown=true;else delete map.crewShown;return done(true,'[data-cm-field="crewShown"]')}
   if(!p)return idle;
   if(f==='t'){if(!updatePin(map,p.id,{t:el.value}))return idle;if(v.filter.size)v.filter.add(p.t);return done(true,'[data-cm-field="t"]')}
+  if(f==='d'){if(!setDistrict(map,p.id,el.value))return done(false,'[data-cm-field="d"]');if(!inDistrict(p,v.district))v.district='';return done(true,'[data-cm-field="d"]')}
+  if(f==='par'){const r=setParent(map,p.id,el.value);if(!r.ok){notify(t.parentBad);return done(false,'[data-cm-field="par"]')}return done(true,'[data-cm-field="par"]')}
+  if(f==='f'){if(!setFaction(map,p.id,el.value))return done(false,'[data-cm-field="f"]');return done(true,'[data-cm-field="f"]')}
   if(f==='shown'){const r=setShown(map,p.id,el.checked===true);if(!r.ok){el.checked=false;notify(t.sharedFull);return idle}return done(true,'[data-cm-field="shown"]')}
   // A name cannot be empty: leaving the field empty brings the saved name back.
   if(f==='name'&&!line(el.value,MAX_NAME)){el.value=p.name;return idle}
@@ -494,6 +666,43 @@ function handle(e,c,ctx){
   if(a==='zoom-in'||a==='zoom-out'){v.zoom=Math.min(3,Math.max(1,v.zoom+(a==='zoom-in'?1:-1)));return done(false,v.zoom>=3?'[data-cm-act="zoom-out"]':v.zoom<=1?'[data-cm-act="zoom-in"]':null)}
   if(a==='labels'){v.labels=!v.labels;return done(false)}
   if(a==='filter'){const k=act.dataset.cmValue;if(!k)v.filter.clear();else if(v.filter.has(k))v.filter.delete(k);else if(TYPES.includes(k))v.filter.add(k);const p=v.sel?pinOf(map,v.sel):null;if(p&&v.filter.size&&!v.filter.has(p.t))v.sel=null;return done(false)}
+  if(a==='district'){const k=act.dataset.cmValue||'';v.district=k===''||k==='-'||(map.districts||[]).some(d=>d.id===k)?k:'';const p=v.sel?pinOf(map,v.sel):null;if(p&&v.district&&!inDistrict(p,v.district))v.sel=null;return done(false)}
+  if(a==='district-add'){
+   const input=root.querySelector?.('[data-cm-dname]'),r=addDistrict(map,input?.value);
+   if(!r.ok){notify(r.reason==='full'?t.districtFull:r.reason==='dup'?t.districtDup:t.districtNeed);return done(false,'[data-cm-dname]')}
+   return done(true,'[data-cm-dname]',t.sayDistrictAdded(r.district.name));
+  }
+  if(a==='district-remove'){
+   const snap=removeDistrict(map,act.dataset.cmValue);if(!snap)return idle;
+   if(v.district===snap.district.id)v.district='';
+   const r=done(true,'[data-cm-dname]',t.districtRemoved(snap.district.name));
+   if(r.dirty)offerUndo(c,t.districtRemoved(snap.district.name),t.undo,m=>restoreDistrict(m,snap));
+   return r;
+  }
+  if(a==='room-add'){
+   const h=v.sel?pinOf(map,v.sel):null;if(!h||h.par)return idle;
+   const room=addPin(map,{t:'other',x:h.x,y:h.y,name:t.newRoom(kidsOf(map,h.id).length+1)});if(!room){notify(t.full);return idle}
+   room.par=h.id;if(h.d)room.d=h.d;v.sel=room.id;v.mode='select';v.q='';if(v.filter.size)v.filter.add(room.t);
+   return done(true,'[data-cm-field="name"]',t.sayRoom(room.name,h.name));
+  }
+  if(a==='npc-add'){
+   const p=v.sel?pinOf(map,v.sel):null;if(!p)return idle;
+   const pick=root.querySelector?.('[data-cm-npcpick]'),nid=pick?.value||'';
+   if(!nid){notify(t.npcNone);return idle}
+   const r=addNpc(map,p.id,nid);if(!r.ok){notify(r.reason==='full'?t.npcFull:r.reason==='dup'?t.npcDup:t.npcNone);return idle}
+   return done(true,NPC_FOCUS);
+  }
+  if(a==='npc-del'){const p=v.sel?pinOf(map,v.sel):null;if(!p||!removeNpc(map,p.id,act.dataset.cmValue))return idle;return done(true,NPC_FOCUS)}
+  if(a==='npc-fight'){
+   const p=v.sel?pinOf(map,v.sel):null;if(!p||!(p.npc||[]).includes(act.dataset.cmValue))return idle;
+   const lib=(()=>{try{return global.NpcLibrary?.readLibrary?.(appState())||[]}catch{return []}})(),e=lib.find(x=>x.id===act.dataset.cmValue);
+   if(!e){notify(t.npcMissing);return idle}
+   // Same way the NPC library puts a preset into the roster: numbered name, the combat note, armor.
+   const uid=()=>global.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2),res=global.NpcLibrary.addToCampaign(c,e,1,l,uid);
+   if(!res.ok){notify(t.npcFightFail);return idle}
+   notify(t.npcFought(res.added[0]?.name||e.name,line(c.name,100)||'—'));
+   return {handled:true,dirty:true};
+  }
   if(a==='add-centre'){
    // A second pin put in the centre steps aside, so it does not hide the first one.
    const spot=freeSpot(map);return place(spot.x,spot.y);
@@ -606,6 +815,7 @@ function wire(){
  // Saving goes the usual way, through the campaign page: a hidden field gets the new place and reports a change.
  const send=(root,value)=>{const input=root?.querySelector?.('[data-cm-drop]');if(!input||typeof global.Event!=='function')return;input.value=value;input.dispatchEvent(new global.Event('change',{bubbles:true}))};
  doc.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target?.dataset?.cmDname!==undefined){e.preventDefault();e.target.closest?.('[data-cm-root]')?.querySelector?.('[data-cm-act="district-add"]')?.click?.();return}
   const pin=e.target?.closest?.('button[data-cm-pin]');if(!pin||e.altKey||e.ctrlKey||e.metaKey)return;
   const root=pin.closest('[data-cm-root]');
   if(e.key==='Delete'){e.preventDefault();send(root,'del|'+pin.dataset.cmPin);return}
@@ -640,8 +850,8 @@ function wire(){
 }
 wire();
 
-global.CityMap={TYPES,GLYPH,MAX_PINS,MAX_SHARED,MAX_ROUTE,MAX_NAME,MAX_NOTE,MAX_BYTES,TTL,PIC_SIDE,PIC_CHARS,
- clean,read,foreign,blank,write,addPin,updatePin,movePin,removePin,restorePin,toggleRoute,clearRoute,setCrew,setShown,typesUsed,filterPins,nudge,
+global.CityMap={TYPES,GLYPH,MAX_PINS,MAX_SHARED,MAX_ROUTE,MAX_NAME,MAX_NOTE,MAX_BYTES,TTL,MAX_DISTRICTS,MAX_DNAME,MAX_NPC,MAX_QUERY,PIC_SIDE,PIC_CHARS,
+ clean,read,foreign,blank,write,addPin,updatePin,movePin,removePin,restorePin,toggleRoute,clearRoute,setCrew,setShown,typesUsed,filterPins,counts,kidsOf,addDistrict,renameDistrict,removeDistrict,restoreDistrict,setDistrict,setParent,setFaction,addNpc,removeNpc,npcOf,nudge,
  fit,validPic,loadPic,savePic,keepPic,dropPic,sweep,freeSpot,
  isOpen,page,card,owns,handle,
  payload,cleanShared,publish,receive,roomCard,statusText,

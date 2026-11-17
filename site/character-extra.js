@@ -205,7 +205,7 @@
   function rangeBands(w){const table=window.CombatTools?.RANGE?.[rangeType(w)]?.single;return Array.isArray(table)?table.map((dv,i)=>Number.isSafeInteger(dv)&&BANDS[i]?{band:i,dv,from:BANDS[i][0],to:BANDS[i][1]}:null).filter(Boolean):[]}
   function rangeDV(w){const pick=rangeChoice.get(w),hit=rangeBands(w).find(b=>b.band===pick);return hit?hit.dv:0}
   // What the attack button adds: the same number as a skill button, plus the weapon's own modifier.
-  function attackBonus(c,w,index){const skill=w?.skill||'Handgun',spec=w&&Object.hasOwn(w,'skillSpecializationId')?(index?index.byId.get(w.skillSpecializationId)||null:attackSpecialization(c,w.skillSpecializationId)):null,stat=spec?spec.stat:(w?.stat||'REF'),level=spec?spec.level:num(c?.skills?.[skill],0,10),f=window.App?.checkBonus;return (typeof f==='function'?f(c,stat,level,window.Effects?.attackKind?.(skill)||'',spec?'':skill):currentStat(c,stat)+level)+num(w?.modifier??0,-100,100)}
+  function attackBonus(c,w,index){const skill=w?.skill||'Handgun',spec=w&&Object.hasOwn(w,'skillSpecializationId')?(index?index.byId.get(w.skillSpecializationId)||null:attackSpecialization(c,w.skillSpecializationId)):null,stat=spec?spec.stat:(w?.stat||'REF'),level=spec?spec.level:num(c?.skills?.[skill],0,10),f=window.App?.checkBonus;return (typeof f==='function'?f(c,stat,level,window.Effects?.attackKind?.(skill)||'',spec?'':skill):currentStat(c,stat)+level)+num(w?.modifier??0,-100,100)+(Number(window.WeaponAttach?.attackModifier?.(w))||0)}
   try{document.addEventListener('toggle',e=>{const d=e.target;if(!d?.matches?.('[data-cx-weapon-edit]'))return;const w=window.App?.active?.()?.extra?.weapons?.[Number(d.dataset.cxWeaponEdit)];if(w){if(d.open)editOpen.add(w);else editOpen.delete(w)}},true)}catch{}
   // The check modifier is for the next roll only, unless the player pinned it.
   function useModifier(x){const m=num(x.modifier,-100,100);if(x.modifierHold!==true)x.modifier=0;return m}
@@ -248,9 +248,9 @@
     if(action==='add-skill')x.specializations.push({id:id(),name:'',stat:'INT',level:0,cost:1});
     else if(action==='remove-skill'&&item('specializations'))x.specializations.splice(idx,1);
     else if(action==='add-weapon')x.weapons.push({id:id(),name:'',skill:'Handgun',stat:'REF',modifier:0,damage:'',rof:1,capacity:0,ammo:0,ammoCost:1,usesAmmo:false,notes:''});
-    else if(action==='remove-weapon'&&item('weapons'))x.weapons.splice(idx,1);
+    else if(action==='remove-weapon'&&item('weapons')){x.weapons.splice(idx,1);try{window.WeaponAttach?.pruneDangling?.(c)}catch{}}
     else if(action==='add-item')x.items.push({id:id(),name:'',category:'equipment',quantity:1,notes:''});
-    else if(action==='remove-item'&&item('items'))x.items.splice(idx,1);
+    else if(action==='remove-item'&&item('items')){x.items.splice(idx,1);try{window.WeaponAttach?.pruneDangling?.(c)}catch{}}
     else if(action==='restore-luck'){x.luck=num(c.stats?.LUCK,0,20);x.luckUse=0}
     else if(action==='reset-death')x.deathPenalty=num(x.baseDeathPenalty,0,100);
         else if(action==='guided-award-ip'){

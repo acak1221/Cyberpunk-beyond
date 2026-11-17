@@ -11,7 +11,7 @@ const { execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), net = require('node:net'), http = require('node:http');
 
 const ROOT = path.join(__dirname, '..', '..');
-const VIEWS = ['overview', 'characters', 'lifepath', 'rules', 'catalog', 'combat', 'net', 'medical', 'repair', 'gm', 'dice', 'campaigns', 'book', 'builder-choice', 'builder', 'quick-builder', 'news', 'room', 'sheet/v1'];
+const VIEWS = ['overview', 'characters', 'lifepath', 'rules', 'catalog', 'combat', 'net', 'medical', 'repair', 'gm', 'gm/npc', 'gm/clocks', 'gm/tables', 'gm/market', 'gm/world', 'gm/help', 'settings', 'dice', 'campaigns', 'book', 'builder-choice', 'builder', 'quick-builder', 'news', 'room', 'sheet/v1'];
 const optional = name => { try { return require(name); } catch { return null; } };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const freePort = () => new Promise((resolve, reject) => { const s = net.createServer(); s.once('error', reject); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
@@ -48,17 +48,19 @@ async function main() {
   const results = [];
   const NOISE = /WebSocket|ERR_INTERNET_DISCONNECTED|ERR_CONNECTION|Failed to load resource|fonts\.g/;
   // One browser profile with saved data, like a returning player.
-  async function device({ lang = 'ru', look = 'native', theme = 'dark', data = true, width = 1280 } = {}) {
+  async function device({ lang = 'ru', look = 'native', theme = 'dark', data = true, width = 1280, asked = true } = {}) {
     // No motion: a color measured in the middle of a fade-in is not the color the player reads.
     const ctx = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: 'reduce' });
-    await ctx.addInitScript(([state, brokers, style, mode]) => {
+    await ctx.addInitScript(([state, brokers, style, mode, askedRole]) => {
       if (sessionStorage.getItem('seeded')) return;
+      // The role is asked once in a dialog on the home page; the runs that are about something else have already answered it.
+      if (askedRole) localStorage.setItem('nc-pref-role-asked', 'true');
       if (state) localStorage.setItem('nightcity-red-v1', state);
       if (brokers) localStorage.setItem('nightcity-red-room-brokers', brokers);
       localStorage.setItem('nc-ui-style', style);
       localStorage.setItem('nc-ui-theme', mode);
       sessionStorage.setItem('seeded', '1');
-    }, [data ? JSON.stringify({ characters: [character], campaigns: [campaign], lang }) : null, brokerUrl ? JSON.stringify([{ url: brokerUrl }]) : null, look, theme]);
+    }, [data ? JSON.stringify({ characters: [character], campaigns: [campaign], lang }) : null, brokerUrl ? JSON.stringify([{ url: brokerUrl }]) : null, look, theme, asked]);
     const page = await ctx.newPage();
     page.errs = [];
     page.on('pageerror', e => page.errs.push('page error: ' + e.message));
@@ -128,15 +130,15 @@ async function main() {
     await ctx.close();
   });
 
-  await check('phone: the menu drawer takes the focus and gives it back', async fail => {
+  await check('phone: the menu sheet takes the focus and gives it back', async fail => {
     const { ctx, page } = await device({ width: 390 });
     await page.goto(BASE + '#/overview'); await wait(400);
     await page.evaluate(() => document.querySelector('.menu-toggle').click()); await wait(450);
-    const open = await page.evaluate(() => ({ inside: !!document.activeElement?.closest('#app-sidebar'), inert: document.querySelector('.content').inert }));
-    if (!open.inside || !open.inert) fail('the open drawer: ' + JSON.stringify(open));
+    const open = await page.evaluate(() => ({ inside: !!document.activeElement?.closest('.more-sheet'), inert: document.querySelector('#app').inert, modal: document.querySelector('.more-sheet')?.getAttribute('aria-modal') }));
+    if (!open.inside || !open.inert || open.modal !== 'true') fail('the open sheet: ' + JSON.stringify(open));
     await page.keyboard.press('Escape'); await wait(250);
-    const closed = await page.evaluate(() => ({ toggle: document.activeElement?.classList.contains('menu-toggle'), inert: document.querySelector('.content').inert }));
-    if (!closed.toggle || closed.inert) fail('after Escape: ' + JSON.stringify(closed));
+    const closed = await page.evaluate(() => ({ toggle: document.activeElement?.classList.contains('menu-toggle'), inert: document.querySelector('#app').inert, gone: !document.querySelector('.more-sheet') }));
+    if (!closed.toggle || closed.inert || !closed.gone) fail('after Escape: ' + JSON.stringify(closed));
     for (const e of page.errs) fail(e);
     await ctx.close();
   });
@@ -156,7 +158,7 @@ async function main() {
     if (!/Что нового.*есть новое/.test(before.name)) fail('the menu item does not say that something is new: ' + before.name);
     // Reached the way a player does: the «Ещё» button, then the menu item.
     await page.click('.bottom-nav [data-shell="menu"]'); await wait(450);
-    await page.click('.nav-item[data-view="news"]'); await wait(400);
+    await page.click('.more-tile[data-more-view="news"]'); await wait(400);
     const shown = await page.evaluate(() => ({ hash: location.hash, h1: document.querySelector('#app .content h1')?.textContent, cards: document.querySelectorAll('.wn-release').length, releases: window.WhatsNew.RELEASES.length, tagged: [...document.querySelectorAll('.wn-release')].filter(c => c.querySelector('.wn-new')).map(c => c.dataset.wnRelease), latest: String(window.WhatsNew.latest()), dots: document.querySelectorAll('.wn-dot').length, stored: localStorage.getItem('nc-news-seen'), sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
     if (shown.hash !== '#/news' || shown.h1 !== 'Что нового') fail('the page did not open: ' + JSON.stringify(shown));
     if (shown.cards !== shown.releases || shown.cards < 2) fail('not every release is listed: ' + shown.cards);
@@ -282,7 +284,7 @@ async function main() {
     await wide.page.goto(BASE + '#/sheet/v1'); await wait(500);
     const board = await wide.page.evaluate(() => {
       const box = sel => document.querySelector(sel).getBoundingClientRect(), aside = box('.sheet-aside'), skills = box('#sheet-skills'), tabs = box('.sheet-tabs');
-      return { columns: aside.right <= skills.left && skills.right <= tabs.left, skillsTab: getComputedStyle(document.querySelector('.sheet-tabs [data-sheet-tab="skills"]')).display, stats: document.querySelectorAll('.sheet-stat-strip > div').length, tabs: [...document.querySelectorAll('.sheet-tabs [data-sheet-tab]')].filter(b => b.getClientRects().length).map(b => b.dataset.sheetTab).join(','), active: document.querySelector('.sheet-layout').dataset.activeTab, skillsScroll: getComputedStyle(document.querySelector('#sheet-skills .skills-list')).overflowY, quickInPanel: box('.sheet-quick-rolls').left >= tabs.left - 1 && box('.sheet-quick-rolls').top > box('.dossier-filter').top, scroll: document.documentElement.scrollWidth - innerWidth, pressed: document.querySelector('[data-ui-style][aria-pressed="true"]')?.dataset.uiStyle };
+      return { columns: aside.right <= skills.left && skills.right <= tabs.left, skillsTab: getComputedStyle(document.querySelector('.sheet-tabs [data-sheet-tab="skills"]')).display, stats: document.querySelectorAll('.sheet-stat-strip > div').length, tabs: [...document.querySelectorAll('.sheet-tabs [data-sheet-tab]')].filter(b => b.getClientRects().length).map(b => b.dataset.sheetTab).join(','), active: document.querySelector('.sheet-layout').dataset.activeTab, skillsScroll: getComputedStyle(document.querySelector('#sheet-skills .skills-list')).overflowY, quickInPanel: box('.sheet-quick-rolls').left >= tabs.left - 1 && box('.sheet-quick-rolls').top > box('.dossier-filter').top, scroll: document.documentElement.scrollWidth - innerWidth, pressed: document.documentElement.classList.contains('ui-board') ? 'board' : '' };
     });
     if (!board.columns) fail('the condition, the skills and the panel are not three columns');
     if (board.skillsTab !== 'none') fail('the «Навыки» tab is still shown beside the skills column');
@@ -382,7 +384,7 @@ async function main() {
 
     // Before any group: the list is what it was, and the only new thing is the button that makes a group.
     if ((await cards()).join() !== 'none/weapon,none/armor,none/armor,none/gear') fail('the list without groups is not the plain list: ' + await cards());
-    if (await page.evaluate(() => document.querySelectorAll('.inventory-groups button').length !== 1 || !!document.querySelector('#sheet-items [data-ig-group], #sheet-items [data-ig-none], #sheet-items .inv-weapon select'))) fail('a sheet without groups shows more than the «＋ Группа» button');
+    if (await page.evaluate(() => document.querySelectorAll('.inventory-groups button').length !== 1 || !!document.querySelector('#sheet-items [data-ig-group], #sheet-items [data-ig-none], #sheet-items .inv-weapon select:not([data-wa-quality]):not([data-wa-pick])'))) fail('a sheet without groups shows more than the «＋ Группа» button');
 
     // Make «Рюкзак» from a ready-made name, with Enter.
     await page.click('[data-ig-action="new"]');
@@ -589,7 +591,7 @@ async function main() {
     if (!(await until(() => page.evaluate(n => window.App.getState().campaigns[0].roster.some(r => r.kind === 'npc' && r.name === n), npc), 3000))) fail('the opponent was not added under the generated name: ' + npc);
     await sideways('campaign');
     // The NPC library on the GM page.
-    await page.goto(BASE + '#/gm'); await wait(400);
+    await page.goto(BASE + '#/gm/npc'); await wait(400);
     await page.evaluate(() => document.querySelector('[data-nl-action="new"]')?.click()); await wait(200);
     await page.evaluate(() => document.querySelector('[data-nl-root] [data-ng="npc"]')?.click());
     if (!(await value('[data-nl-field="name"]'))) fail('the die does nothing in the NPC library form');
@@ -645,7 +647,7 @@ async function main() {
       s.characters.splice(0, s.characters.length, base, copy('r2', 'Rook', filed ? { folder: 'Корпораты', tags: ['долг'] } : {}), copy('j3', 'Jackie', {}));
       window.App.save(); window.App.render();
     }, filed);
-    const cards = page => page.evaluate(() => [...document.querySelectorAll('.character-grid [data-character-card]')].map(c => c.dataset.characterCard + (c.hidden ? ':hidden' : '')).join());
+    const cards = page => page.evaluate(() => [...document.querySelectorAll('.character-grid [data-character-card]')].map(c => c.dataset.characterCard + (c.hidden ? ':hidden' : '')).sort((x, y) => ['v1', 'r2', 'j3'].indexOf(x.split(':')[0]) - ['v1', 'r2', 'j3'].indexOf(y.split(':')[0])).join());
     const status = page => page.evaluate(() => document.querySelector('[data-char-tags-count]')?.textContent || '');
     const focusOn = page => page.evaluate(() => { const a = document.activeElement; return a ? (a.dataset.charTagsField || a.dataset.charTags || a.tagName) + ':' + (a.dataset.charTagsId || '') : ''; });
     const sideways = page => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -655,8 +657,9 @@ async function main() {
     if (!(await page.isVisible('[data-char-tags="query"]'))) fail('with three characters there is no search field');
     if (await page.locator('.char-tags-chip').count()) fail('chips are drawn before any folder or tag exists');
     // The editor opens from the keyboard; Tab from the folder to the tags files the sheet and keeps the focus in the editor.
-    await page.focus('[data-char-tags-card="v1"] summary'); await page.keyboard.press('Enter'); await page.keyboard.press('Tab');
-    if ((await focusOn(page)) !== 'folder:v1') fail('Tab from the opened editor does not reach the folder field: ' + await focusOn(page));
+    // The editor opens from the «⋯» menu of the card (the keyboard opens the menu with Enter); the focus lands in the folder field.
+    await page.focus('[data-character-card="v1"] .cl-more'); await page.keyboard.press('Enter'); await page.click('[data-character-card="v1"] [data-cl="folder"]'); await wait(120);
+    if ((await focusOn(page)) !== 'folder:v1') fail('the folder field does not take the focus when the editor opens: ' + await focusOn(page));
     await page.keyboard.type('  Банда  '); await page.keyboard.press('Tab');
     if ((await focusOn(page)) !== 'tags:v1') fail('after the folder was filed the focus is not in the tags field: ' + await focusOn(page));
     if ((await page.evaluate(() => document.querySelector('[data-char-tags="folder"][value="банда"] b')?.textContent)) !== '1') fail('the folder chip did not appear with a count of one');
@@ -668,7 +671,7 @@ async function main() {
     const stored = await until(() => page.evaluate(() => { const x = JSON.parse(localStorage.getItem('nightcity-red-v1')).characters.find(c => c.id === 'v1').extra; return x.folder === 'Банда' && (x.tags || []).join() === 'долг,стрелок'; }), 4000);
     if (!stored) fail('the folder and tags were not saved');
     // A press on a chip straight from another card's field: the field is filed first, and the press still lands.
-    await page.click('[data-char-tags-card="r2"] summary');
+    await page.click('[data-character-card="r2"] .cl-more'); await page.click('[data-character-card="r2"] [data-cl="folder"]'); await wait(120);
     await page.click('[data-char-tags-field="folder"][data-char-tags-id="r2"]'); await page.keyboard.type('Корпы');
     await page.click('[data-char-tags="folder"][value="банда"]');
     if ((await page.getAttribute('[data-char-tags="folder"][value="банда"]', 'aria-pressed')) !== 'true') fail('the press on the chip was lost while the other field was being filed');
@@ -725,7 +728,7 @@ async function main() {
       const o = await device({ width }), p = o.page;
       await p.goto(BASE + '#/characters'); await wait(500);
       await seed(p, false); await wait(200);
-      await p.click('[data-char-tags-card="v1"] summary');
+      await p.click('[data-character-card="v1"] .cl-more'); await p.click('[data-character-card="v1"] [data-cl="folder"]'); await wait(120);
       await p.click('[data-char-tags-field="folder"][data-char-tags-id="v1"]'); await p.keyboard.type('Банда');
       await p.click('[data-character-card="r2"] [data-action="open"]'); await wait(300);
       const hash = await p.evaluate(() => location.hash);
@@ -747,7 +750,7 @@ async function main() {
       const o = await device({ look, theme, width: 390 }), p = o.page;
       await p.goto(BASE + '#/characters'); await wait(400);
       await seed(p, true); await wait(200);
-      await p.click('[data-char-tags="tag"][value="долг"]'); await p.click('[data-char-tags-card="v1"] summary');
+      await p.click('[data-char-tags="tag"][value="долг"]'); await p.click('[data-character-card="v1"] .cl-more'); await p.click('[data-character-card="v1"] [data-cl="folder"]'); await wait(120);
       // The pointer leaves the card: the colors measured are the ones a phone shows, not the hover of a mouse resting on the card.
       await p.mouse.move(2, 2); await wait(150);
       if ((await cards(p)) !== 'v1,r2,j3:hidden') fail(`${look} ${theme}: the tag chip shows ${await cards(p)}`);
@@ -766,7 +769,7 @@ async function main() {
     const d = await device({ width: 390 }), page = d.page;
     const fits = async where => { const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]); if (sw > iw) fail(`${where}: the page scrolls sideways (${sw} > ${iw})`); };
     const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('nightcity-red-v1') || '{}').gmExtras?.rollTables || []);
-    await page.goto(BASE + '#/gm');
+    await page.goto(BASE + '#/gm/tables');
     if (!(await until(() => page.evaluate(() => !!document.querySelector('[data-gx-root] [data-rtb-root] [data-rtb-action="new"]'))))) { fail('the card of custom tables is not on the GM screen'); await d.ctx.close(); return; }
     await page.click('[data-rtb-action="new"]');
     if (!(await until(() => page.evaluate(() => document.activeElement?.dataset?.rtbField === 'name'), 3000, 50))) fail('the new table form does not take the focus into its name field');
@@ -826,7 +829,7 @@ async function main() {
     const line = await page.evaluate(() => document.querySelector('#history-list')?.innerText || '');
     if (!/Таблица: Встречи <b>в порту<\/b>/.test(line) || !/1d6: \d · /.test(line)) fail('the roll is not in the roll history: ' + line.slice(0, 120));
     // The file: out, and back in as «nothing new».
-    await page.goto(BASE + '#/gm'); await wait(400);
+    await page.goto(BASE + '#/gm/tables'); await wait(400);
     const [download] = await Promise.all([page.waitForEvent('download'), page.click(`[data-rtb-action="export"][data-rtb-id="${table.id}"]`)]);
     const saved = await download.path(), file = JSON.parse(fs.readFileSync(saved, 'utf8'));
     if (file.format !== 'nightcity-red-roll-tables' || file.version !== 1 || file.tables?.length !== 1 || file.tables[0].name !== table.name) fail('the exported file is not a table file: ' + JSON.stringify(file).slice(0, 120));
@@ -883,7 +886,7 @@ async function main() {
     const axe = (() => { try { return fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; } })();
     if (axe) for (const [look, theme, width] of [['native', 'light', 390], ['board', 'dark', 1280], ['cyber', 'dark', 1280]]) {
       const o = await device({ look, theme, width }), p = o.page;
-      await p.goto(BASE + '#/gm'); await wait(400);
+      await p.goto(BASE + '#/gm/tables'); await wait(400);
       await p.evaluate(f => { const st = window.App.getState(); st.gmExtras = { ...(st.gmExtras || {}), rollTables: f.tables }; window.App.save(); window.RollTables.openFile(JSON.stringify({ ...f, tables: [{ ...f.tables[0], id: 'other', group: '' }] })); window.App.render(); }, file);
       await p.click(rollBtn); await wait(200);
       const rules = async where => {
@@ -910,7 +913,7 @@ async function main() {
     const stored = () => page.evaluate(() => { const s = JSON.parse(localStorage.getItem('nightcity-red-v1') || '{}'); return { lib: s.gmExtras?.npcLibrary || [], roster: s.campaigns?.[0]?.roster || [] }; });
     const onHeading = step => until(() => page.evaluate(n => document.activeElement?.matches('[data-nb-heading]') && document.querySelector('[data-nb-step-body]')?.dataset.nbStepBody === String(n), step), 3000, 50);
     const said = () => page.evaluate(() => document.querySelector('[data-nb-status]')?.textContent || '');
-    await page.goto(BASE + '#/gm');
+    await page.goto(BASE + '#/gm/npc');
     if (!(await until(() => page.evaluate(() => { const b = document.querySelector('[data-gx-root] [data-nb-root]'), l = document.querySelector('[data-nl-root]'); return !!b && !!l && !!(b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); })))) { fail('the builder card is not above the NPC library on the GM screen'); await d.ctx.close(); return; }
     await page.click('[data-nb-action="open"]');
     if (!(await onHeading(0))) fail('opening the builder does not take the focus to the heading of step one');
@@ -1020,7 +1023,7 @@ async function main() {
     await d.ctx.close();
     // English: every step without Russian text.
     const en = await device({ lang: 'en', width: 390 });
-    await en.page.goto(BASE + '#/gm'); await until(() => en.page.evaluate(() => !!document.querySelector('[data-nb-action="open"]')));
+    await en.page.goto(BASE + '#/gm/npc'); await until(() => en.page.evaluate(() => !!document.querySelector('[data-nb-action="open"]')));
     await en.page.click('[data-nb-action="open"]');
     for (let step = 0; step < 4; step++) {
       const text = await en.page.evaluate(() => document.querySelector('[data-nb-root]').innerText + [...document.querySelectorAll('[data-nb-root] [aria-label]')].map(x => x.getAttribute('aria-label')).join(' '));
@@ -1034,7 +1037,7 @@ async function main() {
     const axe = (() => { try { return fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; } })();
     for (const [look, theme, width] of [['native', 'light', 390], ['board', 'dark', 390], ['board', 'light', 1280], ['cyber', 'dark', 1280]]) {
       const o = await device({ look, theme, width }), p = o.page;
-      await p.goto(BASE + '#/gm'); await until(() => p.evaluate(() => !!document.querySelector('[data-nb-action="open"]')));
+      await p.goto(BASE + '#/gm/npc'); await until(() => p.evaluate(() => !!document.querySelector('[data-nb-action="open"]')));
       await p.click('[data-nb-action="open"]');
       for (let step = 0; step < 4; step++) {
         if (step === 1) { await p.click('[data-nb-action="attack"][data-nb-i="0"]'); for (let i = 0; i < 5; i++) await p.click('[data-nb-action="sp"][data-nb-d="1"]'); }
@@ -1065,7 +1068,7 @@ async function main() {
     await P.goto(link); await wait(600);
     await P.fill('#room-player-name', 'Аня'); await P.selectOption('#room-character', 'v1'); await P.click('[data-room-action="join"]');
     if (!(await until(() => G.evaluate(() => [...window.Room._test.members().values()].some(m => m.name === 'Аня'))))) fail('the Game Master does not see the player');
-    await G.evaluate(() => { const st = window.App.getState(); st.gmExtras = { ...(st.gmExtras || {}), rollTables: [{ id: 'room1', name: 'Слухи', group: '', die: '1d6', entries: [{ from: 1, to: 6, text: 'Патруль у ворот' }] }] }; window.App.save(); location.hash = '#/gm'; });
+    await G.evaluate(() => { const st = window.App.getState(); st.gmExtras = { ...(st.gmExtras || {}), rollTables: [{ id: 'room1', name: 'Слухи', group: '', die: '1d6', entries: [{ from: 1, to: 6, text: 'Патруль у ворот' }] }] }; window.App.save(); location.hash = '#/gm/tables'; });
     const roll = '[data-rtb-action="roll"][data-rtb-id="room1"]';
     if (!(await until(() => G.evaluate(s => !!document.querySelector(s) && !!document.querySelector('[data-rtb-field="quiet"]'), roll)))) { fail('in a room the card has no roll button or no «Не показывать бросок игрокам»'); await gm.ctx.close(); await player.ctx.close(); return; }
     const inFeed = page => page.evaluate(() => window.Room._test.state().feed.filter(r => r.label === 'Таблица: Слухи').map(r => String(r.detail)));
@@ -1101,6 +1104,8 @@ async function main() {
     await P.evaluate(() => document.querySelector('[data-action="skill-roll"][data-skill="Athletics"]')?.click());
     if (!(await until(() => G.evaluate(() => window.Room._test.state().feed.some(r => /Атлетика/.test(r.label) && r.who === 'Аня'))))) fail('a sheet roll did not reach the Game Master');
     await P.evaluate(() => window.App.setView('combat')); await wait(400);
+    await P.evaluate(() => { document.querySelector('[data-cd-action="tools-toggle"]')?.click(); }); await wait(200);
+    await P.evaluate(() => { document.querySelector('[data-cd-action="tool"][data-tool="grapple"]')?.click(); }); await wait(300);
     await P.evaluate(() => document.querySelector('[data-gr-action="grab-roll"]')?.click());
     if (!(await until(() => G.evaluate(() => window.Room._test.state().feed.some(r => r.label === 'Захват'))))) fail('a tool roll did not reach the Game Master');
     for (const e of [...G.errs, ...P.errs]) fail(e);
@@ -1406,7 +1411,7 @@ async function main() {
       await P.fill('#room-player-name', 'Аня'); await P.selectOption('#room-character', 'v1'); await P.click('[data-room-action="join"]');
       if (!(await until(() => G.evaluate(() => [...window.Room._test.members().values()].some(m => m.name === 'Аня'))))) fail('the Game Master does not see the player');
     }
-    await G.goto(BASE + '#/gm'); await wait(400);
+    await G.goto(BASE + '#/gm/clocks'); await wait(400);
     await seed(G);
     const toggle = '[data-gx-action="ct-open"][data-gx-id="c1"]';
     if (!(await until(() => G.evaluate(s => document.querySelector(s)?.getAttribute('aria-expanded') === 'false', toggle), 5000, 100))) { fail('the clock card has no «Триггеры и автоход» button'); await close(); return; }
@@ -1478,7 +1483,7 @@ async function main() {
     const axeFile = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();
     if (axeFile) for (const [look, theme, width] of [['native', 'dark', 1280], ['native', 'light', 390], ['cyber', 'dark', 390], ['board', 'dark', 1280], ['board', 'light', 390]]) {
       const d = await device({ look, theme, width }), page = d.page;
-      await page.goto(BASE + '#/gm'); await wait(400);
+      await page.goto(BASE + '#/gm/clocks'); await wait(400);
       await seed(page);
       await page.evaluate(() => { const st = window.App.getState(), list = window.GMExtras.readClocks(st); list[0].filled = 4; list[0].die = { sides: 6, need: 4 }; list[0].triggers.push({ at: 2, text: 'Вторая <b>волна</b>' }); window.GMExtras.writeClocks(st, list); window.App.save(); window.GMExtras.refresh(); });
       await page.click(toggle);
@@ -2187,8 +2192,9 @@ async function main() {
     const rolled = (await hist(page))[0];
     if (!/^Backdoor \(Interface 4\) \| .*\+ 4 \+ 0 \+ 3 \(модификатор\)/.test(rolled)) fail('the roll in history is not labelled with the modifier: ' + rolled);
     if (!/DV 11/.test(rolled)) fail('the DV is not in the roll: ' + rolled);
-    if ((await run(page, 'nc1')).used !== 1) fail('the roll did not spend one NET Action');
-    if ((await page.locator('.nc-pip.is-on').count()) !== 2) fail('the pips do not show 2 actions left');
+    // Jack In is a NET Action itself, so after it and one roll two of the three are spent.
+    if ((await run(page, 'nc1')).used !== 2) fail('Jack In and one roll did not spend two NET Actions: ' + (await run(page, 'nc1')).used);
+    if ((await page.locator('.nc-pip.is-on').count()) !== 1) fail('the pips do not show 1 action left');
     // Zap: a sure hit and a sure miss (modifier +100 / -100).
     await setField(page, '[data-nc-mod]', 100); await setField(page, '[data-rp-net-dv]', 50);
     await page.click('[data-netrun-roll="Zap"]'); await wait(300);
@@ -2199,6 +2205,8 @@ async function main() {
       if (!/1d6 = [1-6]$/.test(t.trim())) fail('the Zap damage line is wrong: ' + t);
       if (!/Zap/.test((await hist(page))[0]) || !/1d6: [1-6]/.test((await hist(page))[0])) fail('the Zap damage did not reach the history: ' + (await hist(page))[0]);
     }
+    // A new turn gives the actions back; then a sure miss.
+    await page.click('[data-nc-act="turn"]'); await wait(150);
     await setField(page, '[data-nc-mod]', -100); await setField(page, '[data-rp-net-dv]', 99);
     await page.click('[data-netrun-roll="Zap"]'); await wait(300);
     if (await page.locator('[data-nc-act="zap-dmg"]').count()) fail('a Zap miss offers damage');
@@ -2227,10 +2235,12 @@ async function main() {
     }
     await small(page, 'console and card 390');
     // Jack Out: no dialog, does what it did, and «Отменить» brings the run back.
+    const usedBeforeOut = (await run(page, 'nc1')).used || 0;
     await page.click('[data-nc-act="jack-out"]'); await wait(300);
     if (await page.evaluate(() => document.activeElement?.dataset?.ncAct) !== 'jack-in') fail('the focus was lost after Jack Out');
     const out = await run(page, 'nc1');
-    if (out.jackedIn !== undefined || out.used !== 0) fail('Jack Out did not clear the flag and the counter: ' + JSON.stringify(out));
+    // Jack Out is a NET Action too: the flag goes, the counter takes one more.
+    if (out.jackedIn !== undefined || out.used !== usedBeforeOut + 1) fail('Jack Out did not clear the flag and count one action: ' + JSON.stringify(out));
     if (await page.evaluate(() => window.App.getState().characters.find(x => x.id === 'nc1').extra.cyberdecks.decks[0].entries.some(e => e.active || e.rez !== undefined))) fail('Jack Out did not reset the programs');
     if (dialogs) fail('a native dialog was shown (' + dialogs + ')');
     if (!(await page.locator('#app-notice .notice-action').count())) fail('no «Отменить» after Jack Out');
@@ -2246,7 +2256,7 @@ async function main() {
       if (!(await p.locator('[data-nc-root]').count())) { fail(tag + ': no console'); await o.ctx.close(); continue; }
       await p.click('[data-nc-act="jack-in"]'); await wait(150);
       await p.click('[data-netrun-roll="Control"]'); await wait(250);
-      if ((await run(p, 'nc2')).used !== 1) fail(tag + ': a roll did not spend an action');
+      if ((await run(p, 'nc2')).used !== 2) fail(tag + ': Jack In and a roll did not spend two actions');
       await small(p, tag); await sideways(p, tag); await axeFor(p, tag);
       const cc = await p.evaluate(() => getComputedStyle(document.querySelector('.nc-grid')).gridTemplateColumns.split(' ').length);
       if (cc < (width < 600 ? 2 : 3)) fail(tag + ': the grid has ' + cc + ' columns');
@@ -2351,25 +2361,29 @@ async function main() {
   });
 
   await check('role switch: chooser on a fresh profile, player menu, a GM screen by link with a notice, GM group and phone bar, kept after reload', async fail => {
-    const { ctx, page } = await device({ data: false, width: 1280 });
+    const { ctx, page } = await device({ data: false, width: 1280, asked: false });
     await page.goto(BASE); await page.waitForSelector('#app-sidebar .nav-item', { state: 'attached' });
     const nav = () => page.$$eval('#app-sidebar .nav-item', els => els.map(e => e.dataset.view));
     const bar = () => page.$$eval('.bottom-nav button[data-view]', els => els.map(e => e.dataset.view));
     const cards = () => page.$$eval('.quick-grid .quick-card', els => els.map(e => e.dataset.view));
     const role = () => page.evaluate(() => localStorage.getItem('nc-role'));
-    if (!(await page.locator('.role-chooser').count())) fail('a fresh profile does not get the chooser on the home page');
-    if ((await page.locator('.role-chooser [data-role-set]').count()) !== 2) fail('the chooser does not have its two buttons');
+    // The very first launch shows the welcome alone; the question comes once there is a character to work with.
+    if (await page.locator('.role-first-run').count()) fail('the role dialog covers the welcome of a fresh profile');
+    await page.evaluate(c => { window.App.getState().characters.push(c); window.App.save(); window.App.render(); }, character); await wait(300);
+    if (!(await page.locator('.role-first-run[role="dialog"]').count())) fail('a profile with a character is not asked in the first-run dialog');
+    if ((await page.locator('.role-first-run [data-role-set]').count()) !== 2) fail('the dialog does not have its two buttons');
+    if (!(await page.evaluate(() => !!document.activeElement?.closest('.role-first-run')))) fail('the focus is not in the dialog');
     let n = await nav();
     if (!n.includes('gm') || !n.includes('campaigns') || (await role()) !== null) fail('not chosen: the menu changed or a role was written without a choice');
     // The switch is a labelled group of two buttons of at least 44 px.
     const sw = await page.$$eval('.role-switch button', els => els.map(e => { const r = e.getBoundingClientRect(); return [e.getAttribute('aria-pressed'), Math.round(r.width), Math.round(r.height)]; }));
     if (sw.length !== 2 || sw.some(([p, w, h]) => p !== 'false' || w < 44 || h < 44)) fail('the menu switch is not two unpressed buttons of 44 px: ' + JSON.stringify(sw));
-    await page.click('.role-chooser [data-role-set="player"]'); await wait(200);
+    await page.click('.role-first-run [data-role-set="player"]'); await wait(200);
     n = await nav();
     if (n.includes('gm') || n.includes('campaigns') || !n.includes('room') || !n.includes('net')) fail('player menu is wrong: ' + n);
     const c = await cards();
     if (c.includes('gm') || c.includes('campaigns') || !c.includes('rules')) fail('player home cards are wrong: ' + c);
-    if (await page.locator('.role-chooser').count()) fail('the chooser stays after a choice');
+    if (await page.locator('.role-first-run').count()) fail('the dialog stays after a choice');
     if ((await role()) !== 'player') fail('the choice was not stored');
     if ((await page.$eval('.role-switch [data-role-set="player"]', e => e.getAttribute('aria-pressed'))) !== 'true') fail('the switch does not show the player');
     // A GM screen by link opens in full, with the notice, and the notice button switches.
@@ -2379,27 +2393,109 @@ async function main() {
     if (!/Это экран ведущего/.test(await page.locator('.role-notice').innerText())) fail('the notice text is wrong');
     await page.click('.role-notice [data-role-set="gm"]'); await wait(300);
     if (await page.locator('.role-notice').count()) fail('the notice stays after switching');
-    if (!(await page.url()).endsWith('#/gm')) fail('switching moved away from the screen: ' + page.url());
+    if (!/#\/gm(\/|$)/.test(await page.url())) fail('switching moved away from the screen: ' + page.url());
     if ((await role()) !== 'gm') fail('the notice button did not choose the GM');
     const first = await page.$$eval('#app-sidebar .nav-group-label', els => els[0].textContent);
     n = await nav();
     if (first !== 'Ведущему' || n.slice(0, 3).join() !== 'campaigns,gm,room' || n.length !== new Set(n).size) fail('GM menu is wrong: ' + first + ' ' + n);
     // The phone: the GM bottom bar, the switch in the drawer, no sideways scroll.
     await page.setViewportSize({ width: 390, height: 844 }); await wait(300);
-    if ((await bar()).join() !== 'campaigns,room,dice,gm') fail('GM phone bar is wrong: ' + await bar());
+    if ((await bar()).join() !== 'overview,campaigns,room,gm') fail('GM phone bar is wrong: ' + await bar());
     await page.click('.bottom-nav [data-shell="menu"]'); await wait(500);
-    const box = await page.locator('.role-switch [data-role-set="player"]').boundingBox();
+    const box = await page.locator('.more-sheet .role-switch [data-role-set="player"]').boundingBox();
     if (!box || box.width < 44 || box.height < 44) fail('the drawer switch is missing or too small: ' + JSON.stringify(box));
-    await page.click('.role-switch [data-role-set="player"]'); await wait(300);
-    if ((await bar()).join() !== 'characters,combat,dice,room') fail('player phone bar is wrong: ' + await bar());
+    await page.click('.more-sheet .role-switch [data-role-set="player"]'); await wait(300);
+    await page.keyboard.press('Escape'); await wait(200);
+    if ((await bar()).join() !== 'overview,characters,combat,dice') fail('player phone bar is wrong: ' + await bar());
     if ((await page.locator('.role-notice').count()) !== 1) fail('the notice is not shown after switching back on the GM screen');
     if (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) > 0) fail('sideways scroll at 390 px');
-    await page.click('.role-switch [data-role-set="gm"]'); await wait(300);
+    await page.click('.bottom-nav [data-shell="menu"]'); await wait(300);
+    await page.click('.more-sheet .role-switch [data-role-set="gm"]'); await wait(300);
+    await page.keyboard.press('Escape'); await wait(200);
     // The choice survives a reload.
     await page.reload(); await page.waitForSelector('#app-sidebar .nav-item', { state: 'attached' }); await wait(300);
-    if ((await role()) !== 'gm' || (await bar()).join() !== 'campaigns,room,dice,gm') fail('the role did not survive a reload');
+    if ((await role()) !== 'gm' || (await bar()).join() !== 'overview,campaigns,room,gm') fail('the role did not survive a reload');
     await page.setViewportSize({ width: 1280, height: 844 }); await wait(200);
     if ((await page.$$eval('#app-sidebar .nav-group-label', els => els[0].textContent)) !== 'Ведущему') fail('the GM group is gone after the reload');
+    for (const e of page.errs) fail(e);
+    await ctx.close();
+  });
+
+  await check('the sheet on a phone (390): every tab in view (NETRUN too), the Skills list in the first screen, one HP pad that does not heal by a stale Undo', async fail => {
+    const { ctx, page } = await device({ width: 390 });
+    await page.goto(BASE + '#/characters'); await wait(300);
+    await page.evaluate(() => { const st = window.App.getState(); st.characters.push({ id: 'nr1', name: 'Nova', role: 'netrunner', rank: 4, stats: { INT: 8, REF: 7, DEX: 6, TECH: 6, COOL: 6, WILL: 6, LUCK: 6, MOVE: 6, BODY: 8, EMP: 6 }, skills: { Evasion: 4 }, hp: 45, humanity: 60, head: 11, bodyArmor: 11 }); window.App.save(); });
+    await page.goto(BASE + '#/sheet/nr1'); await wait(600);
+    const tabs = await page.evaluate(() => [...document.querySelectorAll('.sheet-tabs [data-sheet-tab]')].map(b => { const r = b.getBoundingClientRect(); return { id: b.dataset.sheetTab, ok: r.width >= 44 && r.height >= 44 && r.left >= 0 && r.right <= innerWidth + 1 }; }));
+    if (!tabs.some(t => t.id === 'netrun')) fail('the NETRUN tab is missing for a netrunner');
+    for (const t of tabs) if (!t.ok) fail(`tab ${t.id} is cut off or under 44 px`);
+    await page.click('.sheet-tabs [data-sheet-tab="skills"]'); await wait(300);
+    const top = await page.evaluate(() => { const r = document.querySelector('.skills-list .skill-row:not([hidden])')?.getBoundingClientRect(); return r ? r.top : null; });
+    if (top === null || top > 780) fail(`the first Skill row starts at ${top} px, not in the first screen`);
+    await page.click('[data-hud-hp]'); await wait(150);
+    const hp = () => page.evaluate(() => window.App.active().hp);
+    await page.click('[data-hp-step="-5"]'); await wait(200);
+    if (await hp() !== 40) fail('a −5 step did not give 40');
+    await page.evaluate(() => { window.App.active().hp = 11; });
+    await page.evaluate(() => window.SheetTabs.refreshHud()); await wait(100);
+    if (await page.locator('[data-hp-undo]').count()) fail('the Undo of an older change is still offered after HP changed another way');
+    await page.keyboard.press('Escape');
+    for (const e of page.errs.splice(0)) fail(e);
+    await ctx.close();
+  });
+
+  await check('new shell on a phone: Continue block, bottom bar with Home and More, quick dice, command palette, roll chip', async fail => {
+    const { ctx, page } = await device({ width: 390 });
+    await page.goto(BASE); await page.waitForSelector('.home-continue'); await wait(300);
+    const home = await page.locator('.home-continue').innerText();
+    if (!/Продолжить/.test(home) || !/Vee/.test(home) || !/Раунд 1 · Ход: Ganger/.test(home)) fail('the Continue block is wrong: ' + home.replace(/\n+/g, ' | '));
+    if ((await page.$$eval('.bottom-nav button', els => els.map(e => e.dataset.view || '*').join())) !== 'overview,characters,combat,dice,*') fail('the phone bar is not Home, Characters, Combat, Dice, More');
+    const small = await page.$$eval('.home-continue .btn, .bottom-nav button, .top-search', els => els.filter(e => { const r = e.getBoundingClientRect(); return r.height < 43.5 || r.width < 43.5; }).map(e => e.textContent.trim().slice(0, 20)));
+    if (small.length) fail('touch targets under 44 px: ' + small.join(' / '));
+    // More: a labelled dialog of tiles, Escape gives the focus back.
+    await page.click('.bottom-nav [data-shell="menu"]'); await wait(300);
+    const more = await page.evaluate(() => ({ role: document.querySelector('#more-sheet')?.getAttribute('role'), modal: document.querySelector('#more-sheet')?.getAttribute('aria-modal'), tiles: document.querySelectorAll('.more-tile').length, inside: !!document.activeElement?.closest('#more-sheet'), inert: document.querySelector('#app').inert }));
+    if (more.role !== 'dialog' || more.modal !== 'true' || more.tiles < 12 || !more.inside || !more.inert) fail('the More sheet: ' + JSON.stringify(more));
+    await page.keyboard.press('Escape'); await wait(200);
+    if (!(await page.evaluate(() => document.activeElement?.matches('.bottom-nav [data-shell="menu"]') && !document.querySelector('#more-sheet')))) fail('Escape did not close the sheet and return the focus');
+    // Quick dice: through the roll chip, with the last rolls listed.
+    await page.click('.qd-fab'); await wait(200);
+    await page.click('[data-qd-dice="2d6"]'); await wait(300);
+    const chip = await page.evaluate(() => { const r = document.querySelector('#app-notice').getBoundingClientRect(); return { top: Math.round(r.top), visible: document.querySelector('#app-notice').classList.contains('visible'), text: document.querySelector('#app-notice').innerText }; });
+    if (!chip.visible || chip.top > 120 || !/2d6/.test(chip.text) || !/Повторить/.test(chip.text)) fail('the roll chip: ' + JSON.stringify(chip));
+    if ((await page.locator('.qd-rows li').count()) < 1) fail('the last rolls are not listed');
+    await page.keyboard.press('Escape'); await wait(200);
+    // Palette: a skill roll by name, then the chip goes away when another screen opens.
+    await page.click('.top-search'); await wait(200);
+    if ((await page.$eval('#cmdk-input', e => e.getAttribute('role') + e.getAttribute('aria-controls'))) !== 'comboboxcmdk-list') fail('the palette field is not a combobox that owns the list');
+    await page.keyboard.type('уклон'); await wait(150);
+    if (!/Бросить Уклонение/.test(await page.locator('.cmdk-opt').first().innerText())) fail('the skill roll is not the first result');
+    await page.keyboard.press('Enter'); await wait(400);
+    if (!/Уклонение: \d+/.test(await page.locator('#app-notice').innerText())) fail('the palette did not roll the skill');
+    if (await page.evaluate(() => document.activeElement === document.body)) fail('the focus fell to the page body after the roll');
+    await page.click('.bottom-nav button[data-view="characters"]'); await wait(250);
+    if (await page.evaluate(() => document.querySelector('#app-notice').classList.contains('visible'))) fail('the roll chip stays over another screen');
+    await page.keyboard.press('Control+k'); await wait(200); await page.keyboard.type('след'); await wait(150); await page.keyboard.press('Enter'); await wait(400);
+    if (!/Раунд 2/.test(await page.locator('.turn-now').innerText())) fail('«Следующий ход» from the palette did not step the tracker');
+    if (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) > 0) fail('sideways scroll at 390 px');
+    for (const e of page.errs) fail(e);
+    await ctx.close();
+  });
+
+  await check('first launch: one welcome with two ways, a one-line tour banner, the role asked once in a dialog', async fail => {
+    const { ctx, page } = await device({ data: false, width: 390, asked: false });
+    await page.goto(BASE); await page.waitForSelector('.home-hero'); await wait(300);
+    if ((await page.locator('.home-path').count()) !== 2 || !(await page.locator('.ob-banner').count()) || (await page.locator('.role-chooser, .ob-intro').count())) fail('the first launch is not a hero with two paths and a banner');
+    await page.click('.ob-banner [data-ob="skip"]'); await wait(250);
+    if (await page.locator('.ob-banner').count()) fail('the banner stays after Hide');
+    if (await page.evaluate(() => document.activeElement === document.body)) fail('the focus fell to the page body after hiding the banner');
+    if (await page.locator('.role-first-run').count()) fail('the role dialog covers the welcome of a fresh profile');
+    await page.evaluate(c => { window.App.getState().characters.push(c); window.App.save(); window.App.render(); }, character); await wait(300);
+    if (!(await page.evaluate(() => !!document.activeElement?.closest('.role-first-run')))) fail('the role dialog does not hold the focus');
+    await page.keyboard.press('Escape'); await wait(200);
+    if (await page.locator('.role-first-run').count()) fail('Escape did not close the role dialog');
+    await page.reload(); await wait(400);
+    if (await page.locator('.role-first-run').count()) fail('the role is asked again after «Later»');
     for (const e of page.errs) fail(e);
     await ctx.close();
   });
@@ -2492,7 +2588,8 @@ async function main() {
     const rezBefore = await P.evaluate(() => window.App.getState().characters.find(c => c.id === 'nova').extra.cyberdecks.decks[0].entries[0].rez);
     if (rezBefore !== undefined) fail('the proposal changed the sheet before it was accepted');
     await P.click('[data-rn-accept]'); await wait(300);
-    if (await P.evaluate(() => document.activeElement === document.body)) fail('the focus fell to the page top after accepting a proposal');
+    // The redraw may land after the first look: focus counts as lost only if it is still on the body after the last re-check.
+    if (!(await until(() => P.evaluate(() => document.activeElement !== document.body), 3000, 100))) fail('the focus fell to the page top after accepting a proposal');
     const rez = await P.evaluate(() => window.App.getState().characters.find(c => c.id === 'nova').extra.cyberdecks.decks[0].entries[0].rez);
     if (rez !== 4) fail('accepting did not take 3 REZ off the Worm: ' + rez);
     if (!(await until(() => G.evaluate(() => window.RoomNetrun._test.share().prop.length === 0)))) fail('the Game Master still holds an accepted proposal');
@@ -2506,11 +2603,24 @@ async function main() {
     await gm.ctx.close(); await runner.ctx.close(); await third.ctx.close();
   });
 
+  // The new shell and the ported features live in their own file; each check there runs the accessibility rules on what it draws.
+  const axeFile0 = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();
+  const axeSource0 = axeFile0 ? fs.readFileSync(axeFile0, 'utf8') : null;
+  const axeAt = async (page, selector, where, fail) => {
+    if (!axeSource0) return;
+    await page.mouse.move(0, 0); await wait(100); await page.evaluate(axeSource0);
+    const found = await page.evaluate(sel => window.axe.run(document.querySelector(sel) || document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] }, resultTypes: ['violations'] }).then(r => r.violations.filter(v => ['critical', 'serious'].includes(v.impact)).map(v => v.id + ' (' + v.nodes.length + '): ' + v.nodes[0].target.join(' ').slice(0, 70))), selector);
+    for (const v of found) fail(where + ': ' + v);
+  };
+  await require('./parts/shell-features.cjs')({ check, device, BASE, wait, until, fs, character, campaign, axeAt, brokerUrl });
+  await require('./parts/ported-features.cjs')({ check, device, BASE, wait, until, fs, character, campaign, axeAt, brokerUrl });
+  await require('./parts/load-features.cjs')({ check, device, BASE, wait, until });
+
   const axePath = (() => { try { return require.resolve('axe-core/axe.min.js'); } catch { return null; } })();
   if (!axePath) skip('accessibility rules (axe)', 'axe-core is not installed');
   else await check('accessibility rules (axe): names, roles and contrast on every screen in every look', async fail => {
     const source = fs.readFileSync(axePath, 'utf8');
-    for (const [look, theme, width] of [['native', 'dark', 1280], ['native', 'light', 390], ['cyber', 'dark', 1280], ['board', 'dark', 1440], ['board', 'light', 390]]) {
+    for (const [look, theme, width] of [['native', 'dark', 1280], ['native', 'light', 390], ['cyber', 'dark', 1280], ['board', 'dark', 1440], ['board', 'light', 390], ['native', 'black', 390]]) {
       const { ctx, page } = await device({ look, theme, width });
       for (const view of VIEWS) {
         await page.goto(BASE + '#/' + view); await wait(300);

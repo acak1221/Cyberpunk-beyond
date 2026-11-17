@@ -1,0 +1,84 @@
+/* GM hub: sticky tab bar, rolls switch, finder, NPC filter row, help. Theme variables only (they follow the look in use);
+   a tab shows its panes by the data-tab of the hub, so the pieces inside keep redrawing themselves untouched. */
+.gm-hub{display:flex;flex-direction:column;gap:12px;min-width:0}
+.gm-hub>*{min-width:0}
+.gm-hub .gx-group{display:none}
+.gm-hub [data-gm-pane]{display:none}
+.gm-hub[data-tab="meeting"] [data-gm-pane="meeting"],
+.gm-hub[data-tab="npc"] [data-gm-pane="npc"],
+.gm-hub[data-tab="clocks"] [data-gm-pane="clocks"],
+.gm-hub[data-tab="tables"] [data-gm-pane="tables"],
+.gm-hub[data-tab="market"] [data-gm-pane="market"],
+.gm-hub[data-tab="world"] [data-gm-pane="world"],
+.gm-hub[data-tab="help"] [data-gm-pane="help"]{display:block}
+.gm-hub .gm-tools,.gm-hub .gm-extras,.gmh-body{display:flex;flex-direction:column;gap:12px;min-width:0}
+.gm-hub [data-nf-item][hidden],.gmh-body [data-nf-item][hidden]{display:none!important}
+.gmh-body{outline:none}
+.gmh-body [data-gm-pane]:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.gmh-bar{position:sticky;top:var(--gm-hub-top,0px);z-index:12;margin:0 -2px;padding:6px 2px;background:var(--bg,var(--panel));border-bottom:1px solid var(--border)}
+.gmh-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.gmh-tab{flex:0 0 auto;min-height:44px;min-width:44px;padding:0 16px;color:var(--muted);font:inherit;font-weight:700;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;cursor:pointer;white-space:nowrap}
+.gmh-tab:hover{color:var(--text)}
+.gmh-tab[aria-selected="true"]{color:var(--text);background:var(--panel);border-color:var(--red);box-shadow:inset 0 -3px 0 var(--red)}
+.gmh-tab:focus-visible,.gmh-hit:focus-visible,.nf-chip:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.gmh-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;align-items:start}
+/* finder */
+.gmh-find{display:grid;gap:6px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2)}
+.gmh-find>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:700}
+.gmh-find[open]{padding-bottom:10px}
+
+.gmh-find input{width:100%;box-sizing:border-box;min-height:44px}
+.gmh-results{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.gmh-results:empty{display:none}
+.gmh-hit{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:44px;padding:8px 14px;color:var(--text);font:inherit;text-align:left;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.gmh-hit span{color:var(--muted);font-size:.8rem}
+.gmh-count{margin:0;color:var(--muted);font-size:.8rem}
+.gmh-count:empty{display:none}
+/* help */
+.gmh-help-card p{margin:0;line-height:1.5}
+.gmh-links{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:.85rem}
+.gmh-links code{color:var(--text)}
+/* rolls switch and hidden history (gm-rolls.js) */
+.gmr-mode{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2)}
+.gmr-mode legend{padding:0 6px;color:var(--muted);font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.gmr-opt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 8px;cursor:pointer}
+.gmr-opt input{width:20px;height:20px;margin:0}
+.gmr-hint{flex:1 1 100%;margin:0;color:var(--muted);font-size:.8rem;line-height:1.4}
+.gmr-history{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2)}
+.gmr-history summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:700}
+.gmr-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.gmr-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.gmr-row div{display:grid;min-width:0}
+.gmr-row small{color:var(--muted);overflow-wrap:anywhere}
+.gmr-row .btn{grid-column:1/-1;min-height:44px}
+.gmr-actions{margin-top:8px}
+.gmr-actions .btn{min-height:44px}
+/* NPC filter row (npc-filter.js) */
+.nf-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px 12px;align-items:end;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2)}
+.nf-row .field{display:grid;gap:4px;font-size:.85rem;min-width:0}
+.nf-row input,.nf-row select{width:100%;box-sizing:border-box;min-height:44px}
+.nf-tiers{display:flex;flex-wrap:wrap;gap:6px}
+.nf-chip{min-height:44px;padding:0 14px;color:var(--text);font:inherit;font-weight:600;background:var(--panel);border:1px solid var(--border);border-radius:999px;cursor:pointer}
+.nf-chip[aria-pressed="true"]{border-color:var(--red);box-shadow:inset 0 -3px 0 var(--red)}
+.nf-reset{min-height:44px}
+.nf-count{grid-column:1/-1;margin:0;color:var(--muted);font-size:.8rem}
+.nf-count:empty{display:none}
+/* threat level select (gm-tools.js) */
+.gm-level{display:grid;gap:4px;margin-top:8px}
+.gm-level select{min-height:44px}
+@media (max-width:640px){
+ .gmh-tab{padding:0 14px}
+ .gmr-mode{padding:4px 8px}
+ .gmr-mode .gmr-hint{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.gmh-tab{transition:color .15s,border-color .15s}}
+
+/* the rolls switch only matters where something is rolled; an empty hidden list takes no room */
+.gm-hub[data-tab="clocks"] .gmr-mode,.gm-hub[data-tab="market"] .gmr-mode,.gm-hub[data-tab="help"] .gmr-mode{display:none}
+.gmr-history[data-gmr-empty]{display:none}
+.gmh-bar .gmh-tabs{scroll-padding:0 24px}
+/* touch targets inside the hub */
+.gm-hub summary,.gm-hub .rule-source,.gm-hub .nx-more,.gm-hub .btn,.gm-hub input[type="file"],.gm-hub select,.gm-hub input[type="search"]{min-height:44px}
+.gm-hub summary{display:flex;align-items:center;cursor:pointer}
+.gm-hub .rule-source,.gm-hub .nx-more{display:inline-flex;align-items:center;padding-top:6px;padding-bottom:6px}
+.gm-hub .btn{display:inline-flex;align-items:center;justify-content:center}

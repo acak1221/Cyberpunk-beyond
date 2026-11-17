@@ -173,7 +173,7 @@ test('run-go and run-start: the place is saved, the old field follows, unknown f
 test('run-roll: success opens the lock, failure leaves it, and the label never carries the GM’s names',()=>{
  E.reset();const a=runArch();a.name='Secret Vault';rolls.length=0;const real=ctx.Math.random;
  ctx.Math.random=()=>0;let r=E.handle('run-roll',btn({floor:'f1',entry:'p1'}),a,'ru');
- assert.equal(a.floors[0].entries[0].state,'closed');assert.equal(r.dirty,false);assert.equal(r.rerender,true);assert.match(E.runHtml(a,'ru',{}),/role="status">Interface \+ 1d10: 4 ≤ DV 8\. Не выше DV/);
+ assert.equal(a.floors[0].entries[0].state,'closed');assert.equal(r.dirty,true,'a failed roll still spent the desk NET Action');assert.equal(a.remaining,2);assert.equal(r.rerender,true);assert.match(E.runHtml(a,'ru',{}),/role="status">Interface \+ 1d10: 4 ≤ DV 8\. Не выше DV/);
  ctx.Math.random=()=>0.8;r=E.handle('run-roll',btn({floor:'f1',entry:'p1'}),a,'en');
  assert.equal(a.floors[0].entries[0].state,'open');assert.equal(r.dirty,true);assert.match(E.runHtml(a,'en',{}),/role="status">Interface \+ 1d10: 13 &gt; DV 8\. Success: marked “Open”/);
  ctx.Math.random=real;
@@ -191,7 +191,7 @@ test('run-rez: one step at a time within 0..999; zero makes waiting or pursuing 
  const a=runArch(),ice=a.floors[1].entries[0],press=d=>E.handle('run-rez',btn({floor:'f2',entry:'i1',delta:String(d)}),a,'ru');
  assert.equal(press(-1).dirty,true);assert.equal(ice.rez,19);assert.equal(press(5),null);assert.equal(press(0),null);assert.equal(ice.rez,19);
  ice.rez=1;ice.state='pursuing';press(-1);assert.equal(ice.rez,0);assert.equal(ice.state,'derezzed');assert.equal(press(-1),null,'not below zero');
- press(1);assert.equal(ice.rez,1);assert.equal(ice.state,'derezzed','the GM decides when it is back');
+ press(1);assert.equal(ice.rez,1);assert.equal(ice.state,'waiting','REZ back above 0: the ICE is active again (chip, map, view and reset agree)');ice.state='derezzed';ice.rez=0;ice.state='destroyed';press(1);assert.equal(ice.state,'destroyed','a destroyed ICE stays destroyed');ice.state='waiting';ice.rez=1;
  ice.rez=999;assert.equal(press(1),null);ice.rez=1;ice.state='destroyed';press(-1);assert.equal(ice.state,'destroyed');
  assert.equal(E.handle('run-rez',btn({floor:'f1',entry:'p1',delta:'-1'}),a,'ru'),null);
 });

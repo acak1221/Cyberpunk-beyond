@@ -1,19 +1,20 @@
 // «Показать нетраннеру» (site/room-netrun.js): the Game Master shows one run to ONE player of a room. What is not revealed is
 // not in the bytes, a third member cannot read the run, garbage is dropped, a page that does not know the message type carries
 // on, the player's roll and proposals travel back sealed, and stopping removes the retained copy.
+const Idle = require('./helpers/idle.cjs');
 const { test } = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
 const read = f => fs.readFileSync(path.join(__dirname, '..', 'site', f), 'utf8');
 const plain = x => JSON.parse(JSON.stringify(x));
 const CODE = 'K7RQM2XAPZ9E';
-const settle = (ms = 25) => new Promise(ok => setTimeout(ok, ms));
+const settle = Idle.settle;
 const BRANCH_N = " }else if(m.t==='netrun'&&sub==='n'){\n  // «Показать нетраннеру» (room-netrun.js): sealed to one member's box and addressed to them; the receiving page checks both.\n  if(fromGM&&await global.RoomNetrun?.receive?.(m.d,at,p.retain))repaint();\n }else if(m.t==='netrun-up'&&sub==='e'){\n  if(session.role==='gm'&&fresh&&!p.retain&&m.d.to===session.memberId&&await global.RoomNetrun?.receiveUp?.(m.d,{fp,from:m.from}))repaint();\n";
 const SECRETS = ['ТАЙНА-ИМЯ-АРХИТЕКТУРЫ', 'ТАЙНА-ЗАМЕТКИ', 'ТАЙНА-ЗАПИСЬ', 'ТАЙНА-ЭТАЖ', 'ТАЙНА-ВЕТКА', 'ТАЙНА-ГЛУБЬ', 'Dragon', 'Sabertooth'];
 
 function loadTab({ old = false, name = 'tab' } = {}) {
   const listeners = {}, store = new Map(), notices = [], actions = [], sent = [], saves = [], checks = [];
   const document = { addEventListener(t, f) { (listeners[t] ||= []).push(f); }, querySelector: () => null, createElement: () => ({}), visibilityState: 'visible' };
-  const window = { document, localStorage: { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) }, crypto: globalThis.crypto, location: { hash: '#/sheet', origin: 'https://example.test', pathname: '/' }, addEventListener() {}, confirm: () => true, navigator: {}, btoa, atob };
-  const ctx = { window, TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, JSON, Math, Date, Number, String, Array, Object, Map, Set, Promise, Error, setTimeout: (f, ms) => { const h = setTimeout(f, ms); if (ms >= 1000) h.unref?.(); return h; }, clearTimeout, setInterval, clearInterval, console, URL, Blob, Response: globalThis.Response, ReadableStream: globalThis.ReadableStream };
+  const session = new Map(), window = { document, sessionStorage: { getItem: k => (session.has(k) ? session.get(k) : null), setItem: (k, v) => session.set(k, String(v)), removeItem: k => session.delete(k) }, localStorage: { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) }, crypto: Idle.crypto, location: { hash: '#/sheet', origin: 'https://example.test', pathname: '/' }, addEventListener() {}, confirm: () => true, navigator: {}, btoa, atob };
+  const ctx = { window, TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, JSON, Math, Date, Number, String, Array, Object, Map, Set, Promise, Error, setTimeout: (f, ms) => { const h = Idle.timeout(f, ms); if (ms >= 1000) h.unref?.(); return h; }, clearTimeout: Idle.clear, setInterval, clearInterval, console, URL, Blob, Response: globalThis.Response, ReadableStream: globalThis.ReadableStream };
   let room = read('room.js');
   if (old) { assert.equal(room.split(BRANCH_N).length, 2); room = room.replace(BRANCH_N, ''); }
   const st = { lang: 'ru', characters: [], campaigns: [], netArchitectures: [] };
@@ -262,10 +263,12 @@ test('the runner’s roll: no DV, the label names the target, the result goes to
   assert.equal(w.ana.N.rollTarget('Nonsense'), false);
   await settle(15);
   const up = w.ana.sent.filter(m => m.sub === 'e'); assert.ok(up.length >= 2);
-  for (const m of up) { assert.equal(bytesHave(m.bytes, 'Backdoor'), false); assert.equal(bytesHave(m.bytes, 'p2'), false); }
+  for (const m of up) { assert.equal(bytesHave(m.bytes, 'Backdoor'), false); assert.equal(bytesHave(m.bytes, 'ТАЙНА-ЗАПИСЬ'), false); assert.equal(bytesHave(m.bytes, 'Замок'), false); }
   // Only the chosen runner's roll is accepted.
   const note = w.gm.notices.length; await w.deliver(w.ana, [w.gm]);
   const inbox = w.gm.N._test.inbox(); assert.equal(inbox.length, 2); assert.equal(inbox[0].ab, 'Backdoor'); assert.equal(inbox[0].entry, 'p2'); assert.equal(inbox[0].who, 'Аня'); assert.ok(w.gm.notices.length > note);
+  // The inbox is kept for the session: what arrived is in sessionStorage, with the room, and nothing but known fields.
+  const kept = JSON.parse(w.gm.window.sessionStorage.getItem('nc-netrun-inbox')); assert.equal(kept.items.length, 2); assert.deepEqual(kept.items.map(r => r.id), plain(inbox.map(r => r.id))); assert.ok(kept.room.length > 0);
   // Replayed: the same bytes again add nothing.
   await w.deliver({ sent: up.slice(0, 1).map(m => ({ ...m })), R: w.ana.R }, [w.gm]); assert.equal(w.gm.N._test.inbox().length, 2);
   // Eve forges a roll: she is not the chosen runner.
@@ -481,4 +484,18 @@ test('the runner’s panel: no repeated heading, and the focus is put back after
   assert.equal(focused.length, 2); assert.match(focused[1], /data-rn-target/);
   doc.activeElement = { tag: 'button' }; w.ana.N.onClick(press('[data-rn-roll]', { rnRoll: 'Backdoor' })); await settle(550);
   assert.equal(focused.length, 2, 'focus that is already somewhere is left alone');
+});
+
+test('Undo of a verdict given from the inbox panel takes the answer out of the runner’s view and sends the view again', async () => {
+  const { w, sheet } = await rollWorld(), a = w.gm.st.netArchitectures[0];
+  w.ana.N._test.select('p2'); assert.ok(w.ana.N.rollTarget('Backdoor').ok); await settle(15); await w.deliver(w.ana, [w.gm]);
+  const first = w.gm.N._test.inbox()[0];
+  w.gm.N.inboxAct('no', first.id); await settle(300); await w.deliver(w.gm, [w.ana]);
+  assert.match(w.ana.N.panel(sheet, 'ru'), /Ведущий: не получилось/);
+  assert.equal(w.gm.actions.length, 1, 'the panel offers Undo');
+  w.gm.actions[0].run(); await settle(300); await w.deliver(w.gm, [w.ana]);
+  assert.equal(w.gm.N._test.inbox().length, 1, 'the roll is back in the inbox');
+  assert.doesNotMatch(w.ana.N.panel(sheet, 'ru'), /Ведущий:/, 'the runner no longer sees the taken-back answer');
+  assert.equal(w.gm.N._test.share().res.some(r => r.rid === first.id), false);
+  void a;
 });

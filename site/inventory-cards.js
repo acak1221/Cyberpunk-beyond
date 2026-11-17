@@ -73,14 +73,14 @@ function actions(c,record,lang){
 // Under the name of a thing: its line and its buttons. Empty for a thing written in by hand, which has neither.
 function quick(c,record,lang){
  // mods: the named modifiers tied to this thing (named-modifiers.js), to read only.
- const text=line(record,lang),buttons=actions(c,record,lang),mods=global.NamedModifiers?.itemChips?.(c,record,lang)||'';
- return text||buttons||mods?`<div class="inv-quick">${text?`<span class="inv-line">${esc(text)}</span>`:''}${mods}${buttons?`<span class="inv-actions">${buttons}</span>`:''}</div>`:'';
+ const text=line(record,lang),buttons=actions(c,record,lang),mods=(global.NamedModifiers?.itemChips?.(c,record,lang)||'')+(global.WeaponAttach?.linkChip?.(c,record,lang)||''),tie=global.WeaponAttach?.linkField?.(c,record,lang)||'';
+ return text||buttons||mods||tie?`<div class="inv-quick">${text?`<span class="inv-line">${esc(text)}</span>`:''}${mods}${buttons||tie?`<span class="inv-actions">${buttons}${tie}</span>`:''}</div>`:'';
 }
 // A weapon is a card in the inventory too; its rolls stay on the fight tab, one tap away.
 function weaponRow(c,w,lang,name){
  const item=catalog(w?.catalogId),label=name||w?.name||'',cap=whole(w?.capacity),uses=w?.usesAmmo===true||cap>0;
- const parts=[w?.damage?`${t(lang,'damage')} ${w.damage}`:'',`${t(lang,'rof')} ${Math.max(1,whole(w?.rof)||1)}`,uses&&cap>0?`${t(lang,'mag')} ${Math.max(0,whole(w?.ammo))}/${cap}`:'',whole(item?.page)>0?`${t(lang,'page')} ${whole(item.page)}`:''].filter(Boolean);
- return `<div class="cx-entry cx-item inv-weapon" data-inventory-row data-inventory-group="${esc(global.ItemGroups?.groupOf?.(c,w)||'')}" data-inventory-type="weapon" data-inventory-other="${esc([label,item?.name?.ru,item?.name?.en].filter(Boolean).join(' '))}"><div class="inv-head">${sign('weapon')}<strong>${esc(label||t(lang,'weapon'))}</strong><span class="gf-meta"><span class="gf-tag">${esc(t(lang,'weapon'))}</span></span></div><div class="inv-quick"><span class="inv-line">${esc(parts.join(' · '))}</span>${global.NamedModifiers?.itemChips?.(c,w,lang)||''}<span class="inv-actions">${global.ItemGroups?.field?.(c,'weapons',w,lang)||''}<button type="button" class="cx-button inv-act" data-hud-jump="sheet-weapons">${esc(t(lang,'toCombat'))} →</button></span></div></div>`;
+ const parts=[w?.damage?`${t(lang,'damage')} ${w.damage}`:'',`${t(lang,'rof')} ${Math.max(1,whole(w?.rof)||1)}`,uses&&cap>0?`${t(lang,'mag')} ${Math.max(0,whole(w?.ammo))}/${cap}`:'',whole(item?.page)>0?`${t(lang,'page')} ${whole(item.page)}`:'',...(global.WeaponAttach?.lineParts?.(w,lang)||[])].filter(Boolean);
+ return `<div class="cx-entry cx-item inv-weapon" data-inventory-row data-inventory-group="${esc(global.ItemGroups?.groupOf?.(c,w)||'')}" data-inventory-type="weapon" data-inventory-other="${esc([label,item?.name?.ru,item?.name?.en].filter(Boolean).join(' '))}"><div class="inv-head">${sign('weapon')}<strong>${esc(label||t(lang,'weapon'))}</strong><span class="gf-meta"><span class="gf-tag">${esc(t(lang,'weapon'))}</span></span></div><div class="inv-quick"><span class="inv-line">${esc(parts.join(' · '))}</span>${global.NamedModifiers?.itemChips?.(c,w,lang)||''}<span class="inv-actions">${global.ItemGroups?.field?.(c,'weapons',w,lang)||''}<button type="button" class="cx-button inv-act" data-hud-jump="sheet-weapons">${esc(t(lang,'toCombat'))} →</button></span></div>${global.WeaponAttach?.panel?.(c,w,lang)||''}</div>`;
 }
 // The weapon cards one by one, each with its record, so that item-groups.js can put a card into its group.
 function weaponList(c,lang,nameOf){

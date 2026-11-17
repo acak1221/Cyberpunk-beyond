@@ -52,7 +52,7 @@ function inert(v,depth=0,text=2000){
  return out;
 }
 function extras(src,known,out){for(const k of Object.keys(src).slice(0,80)){if(known.has(k)||BAD_KEYS.has(k)||k.length>60)continue;const x=inert(src[k],1);if(x!==undefined)out[k]=x}return out}
-const ROSTER_KEYS=new Set(['id','kind','characterId','name','ref','hp','maxHp','initiative','bonus','order','ties','held','out','dead','hidden','vis','deathPenalty','sp','body','sourcePage','sourceTemplate','sourceLibrary','combatNote']);
+const ROSTER_KEYS=new Set(['id','kind','characterId','name','ref','hp','maxHp','initiative','bonus','order','ties','held','out','dead','hidden','vis','deathPenalty','sp','body','sourcePage','sourceTemplate','sourceLibrary','combatNote','grp']);
 function cleanRosterEntry(r,taken,index=0){
  if(!isObj(r)||!['pc','npc'].includes(r.kind))return null;
  const out=extras(r,ROSTER_KEYS,{});
@@ -72,10 +72,12 @@ function cleanRosterEntry(r,taken,index=0){
  const page=int(r.sourcePage,1,999,NaN);if(Number.isFinite(page)&&r.sourcePage!==undefined)out.sourcePage=page;
  const tpl=line(r.sourceTemplate,80);if(tpl)out.sourceTemplate=tpl;
  if(typeof r.sourceLibrary==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(r.sourceLibrary))out.sourceLibrary=r.sourceLibrary;
+ // A group of opponents (combat-dock.js): the id ties the rows to a stat block in campaign.groups.
+ if(r.kind==='npc'&&typeof r.grp==='string'&&/^[A-Za-z0-9_-]{1,60}$/.test(r.grp))out.grp=r.grp;
  if(isObj(r.combatNote)&&typeof r.combatNote.text==='string'){const text=para(r.combatNote.text,300);if(text)out.combatNote={version:1,text}}
  return out;
 }
-const CAMPAIGN_KEYS=new Set(['id','name','notes','roster','round','turnIndex','journal','beats','journalShared','vis','agentFeed','cityMap']);
+const CAMPAIGN_KEYS=new Set(['id','name','notes','roster','round','turnIndex','journal','beats','journalShared','vis','agentFeed','cityMap','rumors','groups']);
 // A campaign from a file, rebuilt: {campaign, dropped}. The id is kept only as a hint; apply() always gives a new one.
 function cleanCampaign(c){
  if(!isObj(c))return null;
@@ -95,8 +97,19 @@ function cleanCampaign(c){
  // The «Агент» feed is rebuilt by its own module; without that module it is left out, never kept as it came.
  const rawFeed=Array.isArray(c.agentFeed)?c.agentFeed:[],feed=global.RoomAgent?.read?.({agentFeed:rawFeed})||[];
  dropped+=rawFeed.length-feed.length;if(feed.length)out.agentFeed=feed;
+ // The rumors are rebuilt by their own module (rumors.js); without that module they are left out, never kept as they came.
+ const rawRumors=Array.isArray(c.rumors)?c.rumors:[],rumors=global.Rumors?.read?.({rumors:rawRumors})||[];
+ dropped+=rawRumors.length-rumors.length;if(rumors.length)out.rumors=rumors;
  // The city map is rebuilt by its own module (city-map.js); without that module it is left out, never kept as it came.
  if(c.cityMap!==undefined&&c.cityMap!==null){const cm=global.CityMap?.clean?.(c.cityMap);if(cm)out.cityMap=cm;else dropped++}
+ // Stat blocks of the opponent groups: only ones that some row points to, at most 100.
+ if(Array.isArray(c.groups)){const used=new Set(out.roster.map(r=>r.grp).filter(Boolean)),seen=new Set(),groups=[];
+  for(const g of c.groups.slice(0,100)){if(!isObj(g)||typeof g.id!=='string'||!used.has(g.id)||seen.has(g.id))continue;seen.add(g.id);
+   const x={id:g.id,name:line(g.name,100),ref:int(g.ref,0,20,0),note:para(g.note,300)};
+   if(isObj(g.sp)){const h=int(g.sp.head,0,30,NaN),b=int(g.sp.body,0,30,NaN);if(Number.isFinite(h)&&Number.isFinite(b))x.sp={head:h,body:b}}else x.sp=null;
+   groups.push(x)}
+  if(groups.length)out.groups=groups;
+ }
  return {campaign:out,dropped};
 }
 // The same check app.js makes for a campaign in a snapshot.
@@ -136,7 +149,7 @@ function parse(text){
  for(const c of list('campaigns').slice(0,MAX_CAMPAIGNS)){const x=cleanCampaign(c);if(x){bundle.campaigns.push(x.campaign);bundle.dropped+=x.dropped}else bundle.dropped++}
  bundle.dropped+=Math.max(0,list('campaigns').length-MAX_CAMPAIGNS);
  const X=global.GMExtras,L=global.NpcLibrary,G=global.GMTools;
- for(const c of list('clocks').slice(0,X?.MAX_CLOCKS||30)){const x=X?.cleanClock?.(c);if(x)bundle.clocks.push({name:x.name,size:x.size,filled:x.filled,...(x.triggers?{triggers:x.triggers}:{}),...(x.die?{die:x.die}:{})});else bundle.dropped++}
+ for(const c of list('clocks').slice(0,X?.MAX_CLOCKS||30)){const x=X?.cleanClock?.(c);if(x)bundle.clocks.push({name:x.name,size:x.size,filled:x.filled,...(x.triggers?{triggers:x.triggers}:{}),...(x.die?{die:x.die}:{}),...(x.pool?{pool:x.pool}:{}),...(x.countdown?{countdown:{ms:x.countdown.ms}}:{})});else bundle.dropped++}
  for(const e of list('library').slice(0,L?.MAX||100)){const x=L?.cleanEntry?.(e);if(x)bundle.library.push(x);else bundle.dropped++}
  for(const n of list('gmNpcs').slice(0,MAX_GM_NPCS)){const x=isObj(n)?inert(n,0,5000):null,base=G?.initial?.();
   if(x&&base&&G.validWorkspace({...base,roster:[{...x,id:'check'}]}))bundle.gmNpcs.push({...x,id:validId(x.id)?x.id:uid()});else bundle.dropped++}
@@ -223,7 +236,7 @@ function apply(bundle,select,deps={}){
  }
  if(X&&p.clocks.some(r=>r.status==='add'||r.status==='rename')){
   const list=X.readClocks(state),ids=new Set(list.map(x=>x.id));
-  for(const row of p.clocks){if(row.status!=='add'&&row.status!=='rename')continue;const src=bundle.clocks[row.index],c=X.cleanClock({id:freshId(ids,()=>shortId('clk')),name:row.finalName,size:src.size,filled:src.filled,shared:false,triggers:src.triggers,die:src.die});if(c){list.push(c);counts.clocks++}}
+  for(const row of p.clocks){if(row.status!=='add'&&row.status!=='rename')continue;const src=bundle.clocks[row.index],c=X.cleanClock({id:freshId(ids,()=>shortId('clk')),name:row.finalName,size:src.size,filled:src.filled,shared:false,triggers:src.triggers,die:src.die,pool:src.pool,countdown:src.countdown});if(c){list.push(c);counts.clocks++}}
   X.writeClocks(state,list);
  }
  const ws=state.gmWorkspace;
