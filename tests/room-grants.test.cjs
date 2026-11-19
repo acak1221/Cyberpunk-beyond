@@ -4,14 +4,16 @@ const read=f=>fs.readFileSync(path.join(__dirname,'..','site',f),'utf8');
 const plain=x=>JSON.parse(JSON.stringify(x));
 
 // The pure part with the sheet's real tools: armor rules from combat-tools + damage-apply, the ledger from wallet.
-function load({state=null,link=null}={}){
+function load({state=null,link=null,tracker=false}={}){
  const store=new Map(),notices=[],listeners={};
  const document={addEventListener(type,f){(listeners[type]||=[]).push(f)},querySelector:()=>null,querySelectorAll:()=>[]};
  const sess=new Map(),window={document,sessionStorage:{getItem:k=>sess.has(k)?sess.get(k):null,setItem:(k,v)=>sess.set(k,String(v)),removeItem:k=>sess.delete(k)},localStorage:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},crypto:Idle.crypto,navigator:{},confirm:()=>true,addEventListener(){}};
  window.window=window;
  const ctx={window,document,globalThis:window,crypto:Idle.crypto,console,JSON,Math,Date,Number,String,Array,Object,Map,Set,Promise,Error,Uint8Array,setTimeout,clearTimeout};
  vm.createContext(ctx);
- for(const f of ['wallet.js','combat-tools.js','equipment-tools.js','damage-apply.js','room-grants.js'])vm.runInContext(read(f),ctx,{filename:f});
+ const files=['wallet.js','combat-tools.js','equipment-tools.js','damage-apply.js','room-grants.js'];
+ if(tracker)files.push('gm-table.js');
+ for(const f of files)vm.runInContext(read(f),ctx,{filename:f});
  let saves=0;
  if(state)window.App={getState:()=>state,lang:()=>state.lang||'ru',save(){saves++},render(){},notify:m=>notices.push(m)};
  if(link)window.Room={grantLink:link,changed(){}};
@@ -29,6 +31,8 @@ test('a grant is rebuilt from known fields and refused when anything is out of r
  assert.equal(G.clean(grant({kind:'item',n:2,name:'  Медпак\u0000 '})).name,'Медпак');
  assert.equal(G.clean(grant({note:'x'.repeat(500)})).note.length,120);
  assert.equal(G.clean(grant({note:{a:1}})).note,'');
+ assert.equal(G.clean(grant({critical:'false'})),null);
+ assert.equal(G.clean(grant({source:'unknown'})),null);
 });
 
 test('damage goes through the armor of the hit location and wears it down',()=>{
@@ -43,6 +47,51 @@ test('damage goes through the armor of the hit location and wears it down',()=>{
  const s=V(),stopped=G.preview(s,G.clean(grant({n:9})),'en');assert.deepEqual(plain(stopped.lines),['HP 45 → 45','Armor stopped the damage.']);
  // Straight to HP ignores armor.
  const d=V();G.apply(d,G.clean(grant({via:'direct',n:20})),'ru');assert.equal(d.hp,25);assert.equal(d.bodyArmor,11);
+ const down={...V(),hp:0};G.apply(down,G.clean(grant({via:'direct',n:2})),'ru');assert.equal(down.extra.deathPenalty,undefined,'legacy direct grants keep their non-attack source');
+});
+
+test('the same tracker hit gives a local sheet and a room player the same preview and damage',()=>{
+ const code='K7RQM2XAPZ9E',member='player';
+ const campaign={id:'fight',roster:[{id:'row',kind:'pc',characterId:'v1'}]};
+ function trackerHit(page,pc,{type,location,critical}){
+  const fields={raw:{value:'12'},type:{value:type},location:{value:location},critical:{checked:critical}};
+  const box={querySelector:selector=>fields[/^\[data-gt-field="([^"]+)"\]$/.exec(selector)[1]]};
+  const button={dataset:{gtAction:'pc-damage',id:'row'},closest:selector=>selector==='[data-gt-action]'?button:selector==='.gt-box'?box:null};
+  return page.window.GMTable.handle({type:'click',target:button},campaign,{lang:'en',characters:[pc]});
+ }
+ const cases=[
+  {type:'standard',location:'body',critical:true,hp:39,sp:10},
+  {type:'standard',location:'head',critical:true,hp:38,sp:10},
+  {type:'melee',location:'body',critical:true,hp:34,sp:10},
+  {type:'direct',location:'body',critical:true,hp:28,sp:11},
+  {type:'standard',location:'body',critical:true,armor:15,hp:40,sp:15},
+  {type:'standard',location:'body',critical:false,hp:44,sp:10},
+  {type:'direct',location:'body',critical:true,startHp:0,hp:0,sp:11,penalty:1}
+ ];
+ for(const hit of cases){
+  const sheet=()=>({...V(),hp:hit.startHp??45,bodyArmor:hit.armor??11});
+  const local=sheet(),remote=sheet(),gmCopy=sheet(),state={lang:'en',characters:[remote]};
+  const player=load({state,link:{who:()=>({role:'player',code})}});
+  const gm=load({tracker:true,link:{
+   memberFor:()=>member,targets:()=>[{id:member,cid:'v1',character:'V',name:'Ann'}],
+   send:(id,data)=>{assert.equal(id,member);return player.G.receive(plain(data),{from:'gm',gm:'GM'})}
+  }});
+  assert.equal(trackerHit(load({tracker:true}),local,hit).dirty,true);
+  assert.equal(trackerHit(gm,gmCopy,hit).rerender,true);
+  assert.deepEqual(gmCopy,sheet());
+  assert.deepEqual(remote,sheet());
+  player.G._test.load(code); // A saved, unanswered offer survives a reload.
+  const [offer]=player.G._test.pending();
+  assert.ok(offer);
+  const preview=player.G.preview(remote,offer,'en');
+  assert.equal(preview.lines[0],`HP ${remote.hp} → ${hit.hp}`,JSON.stringify(hit));
+  if(hit.critical)assert.match(player.G.describe(offer,'en'),/critical/i);
+  player.G._test.answer(offer.gid,true);
+  assert.deepEqual(plain(remote),plain(local),JSON.stringify(hit));
+  assert.equal(remote.hp,hit.hp);
+  assert.equal(remote[hit.location==='head'?'head':'bodyArmor'],hit.sp);
+  assert.equal(remote.extra.deathPenalty,hit.penalty);
+ }
 });
 
 test('healing stops at the maximum; money goes through the wallet with a ledger entry',()=>{
@@ -171,8 +220,8 @@ test('only the Game Master\'s device sends a grant; a player\'s device sends onl
  gm.R.members().set(keys.ann.id,{name:'Аня',role:'player',fp:keys.ann.key.fp,dev:'a'.repeat(16),cid:'v1',character:{name:'Ви',hp:45,max:45},at:Date.now()});
  gm.R.members().set(keys.bob.id,{name:'Боб',role:'player',fp:keys.bob.key.fp,dev:'b'.repeat(16),cid:'',character:null,at:Date.now()});
  assert.deepEqual(plain(gm.window.Room.grantLink.targets()),[{id:keys.ann.id,name:'Аня',cid:'v1',character:'Ви'}]);
- assert.equal(await gm.window.Room.grantLink.send(keys.ann.id,grant()),1);assert.equal(gm.sent.length,1);
- await give(ann,gm.sent[0].bytes);assert.equal(ann.got.length,1);assert.equal(ann.got[0].d.to,keys.ann.id);
+ assert.equal(await gm.window.Room.grantLink.send(keys.ann.id,grant({critical:true})),1);assert.equal(gm.sent.length,1);
+ await give(ann,gm.sent[0].bytes);assert.equal(ann.got.length,1);assert.equal(ann.got[0].d.to,keys.ann.id);assert.equal(ann.got[0].d.critical,true);
  assert.equal(await gm.window.Room.grantLink.reply(keys.ann.id,{gid:GID,state:'applied'}),0,'a GM does not answer grants');
  // The answer reaches the GM only when addressed to it.
  await give(gm,await msg('ann','grant-ack',{to:keys.gm.id,gid:GID,state:'applied',text:'ok'}));assert.equal(gm.acks.length,1);assert.equal(gm.acks[0].meta.from,keys.ann.id);

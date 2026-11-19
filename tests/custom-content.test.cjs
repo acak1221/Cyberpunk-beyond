@@ -302,10 +302,11 @@ test('adding an older backup never replaces an entry edited here; only "replace 
 // The real app.js with the transfer panel and the custom collection, enough of a page to press its inputs.
 function appHarness({lang='ru',encoded=[]}={}){
  const listeners={},docListeners={},notices=[],ls=new Map(),store=new Map();let uid=0;
- const el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){(listeners[t]||=[]).push(fn)}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v)},classList:{add(){},remove(){}}}};
+ let noticeButton;
+ const el=()=>({innerHTML:'',setAttribute(){},addEventListener(t,fn){(listeners[t]||=[]).push(fn)}}),nodes={'#app':el(),'#sync-root':el(),'#sync-adapter-status':el(),'#app-notice':{set textContent(v){notices.push(v);noticeButton=null},append(b){noticeButton=b},classList:{add(){},remove(){}}}};
  const adapter={stateLabel:()=>'',start(){},canEdit:()=>true,getScope:()=>'local',hasQueued:()=>false,save:()=>Promise.resolve({ok:true}),copies:()=>[],readCopy:id=>store.get(id)??null,removeCopy:id=>store.delete(id),keepBeforeRestore(snapshot){const id='copy-'+store.size;store.set(id,snapshot);return id},dropOlderBeforeRestore(){},forget(){},lastBackup:()=>null,persistence:()=>'granted'};
  const localStorage={getItem:k=>ls.has(k)?ls.get(k):null,setItem:(k,v)=>{ls.set(k,String(v))},removeItem:k=>{ls.delete(k)}};
- const document={querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({click(){},remove(){}}),body:{appendChild(){}},addEventListener(t,fn){(docListeners[t]||=[]).push(fn)}};
+ const document={querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({addEventListener(t,fn){if(t==='click')this.click=fn},click(){},remove(){}}),body:{appendChild(){}},addEventListener(t,fn){(docListeners[t]||=[]).push(fn)}};
  class Enc extends TextEncoder{encode(text){encoded.push(text);return super.encode(text)}}
  const w={document,ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false,render:()=>''},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create:()=>adapter},confirm:()=>true,scrollTo(){},crypto:globalThis.crypto,localStorage,addEventListener(){},setTimeout,clearTimeout};
  const ctx={window:w,document,Blob:class{},URL:{createObjectURL:()=>'blob:x',revokeObjectURL(){}},localStorage,globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:()=>true,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap,TextEncoder:Enc,TextDecoder,Uint8Array,Error};
@@ -316,10 +317,66 @@ function appHarness({lang='ru',encoded=[]}={}){
  const inRoot={closest:s=>s==='[data-transfer-root]'?{}:null};
  const openFile=data=>w.Transfer._test.onChange({target:{...inRoot,matches:s=>s==='[data-xfer-file]',files:[{name:'a.json',size:10,text:async()=>JSON.stringify(data)}],value:'x'}});
  const press=action=>w.Transfer._test.onClick({target:{closest:s=>s==='[data-xfer]'?{dataset:{xfer:action},disabled:false,closest:q=>q==='[data-transfer-root]'?{}:null}:null}});
- return {w,C:w.CustomContent,T:w.Transfer,notices,encoded,change,openFile,press,state:()=>w.qa.state()};
+ return {w,C:w.CustomContent,T:w.Transfer,notices,encoded,change,openFile,press,store,adapter,undoNotice:()=>noticeButton?.click(),state:()=>w.qa.state()};
 }
 const sheet=(id,name)=>({id,name,role:'solo',rank:4,stats:{INT:6,REF:6,DEX:6,TECH:6,COOL:6,WILL:6,LUCK:6,MOVE:6,BODY:8,EMP:6},skills:{Handgun:2},hp:45,humanity:60,head:0,bodyArmor:0,extra:{uid:'u-'+id,updatedAt:5}});
 const archive=(snapshot,items=[weapon],npcs=[npc])=>({format:'nightcity-red-backup',version:1,savedAt:1,...snapshot,_completeSnapshot:snapshot,customContent:{format:'nightcity-red-custom',version:1,items,npcs}});
+
+test('undo of a full restore brings back custom items and opponents, including an empty collection',async()=>{
+ for(const populated of [true,false]){
+  const h=appHarness(),api=h.w.App.archive;
+  if(populated)h.C.restoreFromBackup(archive({},[{...weapon,price:777}],[{...npc,hp:41}]));
+  h.state().characters.push(sheet('mine','Mine'));
+  const before=plain(h.C.getData()),file=archive({characters:[sheet('other','Other')],campaigns:[]},[weapon,{id:'extra',category:'gear',name:{en:'Cable'}}],[npc]);
+  await h.change('restore-backup',file);
+  assert.equal(h.state().characters[0].id,'other');assert.equal(h.C.getData().items[0].price,250);
+  const restored=plain(h.C.getData());
+  h.undoNotice();
+  assert.equal(h.state().characters[0].id,'mine');assert.deepEqual(plain(h.C.getData()),before);
+  assert.deepEqual(plain(h.C.load()),before,'reloading the collection reads the restored version');
+  assert.equal(h.w.CATALOG.some(i=>i.id==='custom-extra'),false);
+  assert.equal(api.undo([...h.store.keys()].at(-1)),true,'undo itself can be undone');
+  assert.equal(h.state().characters[0].id,'other');assert.deepEqual(plain(h.C.getData()),restored);
+  h.store.set('legacy',JSON.stringify({characters:[sheet('old','Old')],campaigns:[]}));
+  assert.equal(api.undo('legacy'),true);assert.deepEqual(plain(h.C.getData()),restored,'older snapshots held only the main archive');
+ }
+});
+
+test('a full restore rolls back when the custom collection cannot be written',async()=>{
+ const h=appHarness(),ls=h.w.localStorage;
+ h.state().characters.push(sheet('mine','Mine'));h.C.restoreFromBackup(archive({},[{...weapon,price:777}],[]));
+ const before=plain(h.C.getData()),stored=ls.getItem(h.C.KEY),set=ls.setItem;
+ const writes=[];h.adapter.save=s=>{writes.push(plain(s));return Promise.resolve({ok:true})};
+ ls.setItem=(key,value)=>{if(key===h.C.KEY)throw Error('quota');set(key,value)};
+ await h.change('restore-backup',archive({characters:[sheet('other','Other')],campaigns:[]}));
+ assert.equal(h.state().characters[0].id,'mine');assert.equal(writes.at(-1).characters[0].id,'mine');
+ assert.deepEqual(plain(h.C.getData()),before);assert.equal(ls.getItem(h.C.KEY),stored);
+ assert.equal(h.store.size,0,'a failed replacement leaves no new snapshot');
+});
+
+test('a failed undo keeps the restored data and can retry from the original snapshot',async()=>{
+ const h=appHarness(),ls=h.w.localStorage,api=h.w.App.archive;
+ h.state().characters.push(sheet('mine','Mine'));
+ h.C.restoreFromBackup(archive({},[{...weapon,price:777}],[]));
+ await h.change('restore-backup',archive({characters:[sheet('other','Other')],campaigns:[]}));
+ const [point]=h.store.keys(),set=ls.setItem;
+ ls.setItem=(key,value)=>{if(key===h.C.KEY)throw Error('quota');set(key,value)};
+ assert.equal(api.undo(point),false);assert.deepEqual([...h.store.keys()],[point]);
+ assert.equal(h.state().characters[0].id,'other');assert.equal(h.C.getData().items[0].price,250);
+ ls.setItem=set;assert.equal(api.undo(point),true);
+ assert.equal(h.state().characters[0].id,'mine');assert.equal(h.C.getData().items[0].price,777);
+});
+
+test('undo of Replace in the transfer panel removes its added custom entries',async()=>{
+ const h=appHarness();
+ h.state().characters.push(sheet('mine','Mine'));
+ h.C.restoreFromBackup(archive({},[{...weapon,price:777}],[]));
+ const before=plain(h.C.getData());
+ await h.openFile(archive({characters:[sheet('other','Other')],campaigns:[]}));
+ h.press('arm');h.press('apply-replace');
+ assert.equal(h.C.getData().items[0].price,777);assert.equal(h.C.getData().npcs.length,1);
+ h.press('undo');assert.equal(h.state().characters[0].id,'mine');assert.deepEqual(plain(h.C.getData()),before);
+});
 
 test('an archive the app refuses as newer brings no custom content with it',async()=>{
  for(const id of ['import-backup','import-file']){

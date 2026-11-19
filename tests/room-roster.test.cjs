@@ -57,6 +57,25 @@ test('an initiative roll from a player without a sheet at the GM\'s adds their r
  row.hidden=true;assert.equal(gm.R.combatPayload().order.length,2);
 });
 
+test('a room initiative update keeps the current turn after a tie-break',async()=>{
+ const {msg,give,gm,seat}=await table();
+ vm.runInNewContext(read('campaigns.js'),{window:gm.window});
+ seat('ann',DEV_A,'v1',{...SUM});
+ const camp=gm.window.camps[0];
+ camp.roster=[
+  {id:'v',kind:'npc',own:DEV_A+':v1',name:'Ви',initiative:12,order:1,ties:[4,1]},
+  {id:'bandit',kind:'npc',name:'Бандит',initiative:12,order:2,ties:[4,8]}
+ ];
+ const current=()=>gm.R.combatPayload().order.find(row=>row.current)?.name;
+ assert.equal(current(),'Бандит');
+
+ await give(gm,await msg('ann','roll',{who:'Аня',label:'Инициатива',detail:'',total:17,init:true,cid:'v1'}));
+
+ assert.equal(camp.roster[0].initiative,17);
+ assert.equal(current(),'Бандит');
+ assert.equal(gm.window.Campaigns.ordered(camp)[camp.turnIndex].id,'bandit');
+});
+
 test('the player\'s page knows a row from the room is theirs',async()=>{
  const {page}=await table(),ann=page('ann','player',{session:{characterId:'v1'}}),dev=ann.R.deviceId();
  assert.equal(ann.R.isMine({pc:true,own:dev+':v1',name:'Кто-то'}),true);

@@ -166,7 +166,7 @@ function readBackup(data){
  if(data.format==='nightcity-red-backup'){
   if(data.version!==1)return Number.isSafeInteger(data.version)&&data.version>1?{newer:true}:null;
   let next=data._completeSnapshot;
-  if(!next){next={...data};delete next.format;delete next.version;delete next.unpersistedDrafts;delete next._completeSnapshot}
+  if(!next){next={...data};delete next.format;delete next.version;delete next.unpersistedDrafts;delete next._completeSnapshot;delete next.customContent}
   // The "unreadable records" download keeps sections under setAside; a full restore sets them aside again.
   if(next.setAside!==undefined){const {setAside,...rest}=next;next={...rest,quarantine:[].concat(rest.quarantine??[],setAside)}}
   return salvageArchive(next);
@@ -329,14 +329,24 @@ function deleteCharacter(c,scope,epoch){const entry=moveToBin(c);state.active=nu
 // Writes a full replacement at once instead of after the save delay. Snapshots from earlier restores go only once the replacement is
 // written. With no room next to the snapshot just kept, that snapshot (never an earlier one) is given up, and only if the replacement
 // then fits and the user agrees to lose undo; otherwise, or if the write still fails, the data goes back to what is stored.
-function commitReplace(kept,before){
- save();const first=syncAdapter.flush?.();
- if(!first||first.ok){if(kept)syncAdapter.dropOlderBeforeRestore?.(kept);return 'ok'}
+function restorePoint(main,materials){
+ return materials?JSON.stringify({format:'nightcity-red-backup',version:1,_completeSnapshot:JSON.parse(main),customContent:window.CustomContent.snapshot()}):main;
+}
+function commitReplace(kept,before,materials){
+ let mainWritten=false;
+ function write(){
+  save();mainWritten=syncAdapter.flush?.()?.ok!==false;
+  if(!mainWritten)return false;
+  if(materials){if(!materials.write())return false;render()}
+  return true;
+ }
+ if(write()){if(kept)syncAdapter.dropOlderBeforeRestore?.(kept);return 'ok'}
  // Drop the write that did not fit, so that nothing retries it while the question below is open or after the data is put back.
  syncAdapter.forget?.();
  if(kept){
   syncAdapter.removeCopy?.(kept);
-  if(syncAdapter.hasRoom?.(JSON.stringify(snapshotAppState()).length-before.length)!==false&&confirm(tr('restoreNoRoomBoth'))){save();if(syncAdapter.flush?.()?.ok!==false)return 'noUndo';syncAdapter.forget?.()}
+  const growth=(mainWritten?0:JSON.stringify(snapshotAppState()).length-before.length)+(materials?.growth||0);
+  if(syncAdapter.hasRoom?.(growth)!==false&&confirm(tr('restoreNoRoomBoth'))){if(write())return 'noUndo';syncAdapter.forget?.()}
  }
  const prev=JSON.parse(before);try{applySyncedSnapshot(prev)}catch{persistedSnapshot=withoutSetAside(prev);state={...state,...snapshotState(prev,state.lang)};render()}
  save();if(syncAdapter.flush?.()?.ok===false)syncAdapter.forget?.();notify(tr('restoreNoRoom'));return 'reverted';
@@ -345,16 +355,24 @@ function commitReplace(kept,before){
 function replaceWithCopy(id,question){
  const scope=editScope(),epoch=appScopeEpoch,raw=syncAdapter?.readCopy?.(id);
  if(raw==null){notify(tr('copyMissing'));render();return}
- let read=null;try{read=salvageArchive(JSON.parse(raw))}catch{}
+ let read=null,materials=null;
+ try{
+  const file=JSON.parse(raw);
+  if(file.format==='nightcity-red-backup'){
+   read=readBackup(file);
+   if(file.customContent!==undefined)materials=window.CustomContent.prepareRestore(file,'undo');
+  }else read=salvageArchive(file);
+ }catch{read=null}
  if(!read||read.newer){notify(tr(read?.newer?'newerFile':'copyNothing'));return}
  if(syncAdapter.hasQueued()){notify(tr('waitSave'));return}
- const before=JSON.stringify(snapshotAppState()),fresh=()=>appScopeEpoch===epoch&&sameEditScope(scope)&&JSON.stringify(snapshotAppState())===before;
+ const before=JSON.stringify(snapshotAppState()),point=restorePoint(before,materials),fresh=()=>appScopeEpoch===epoch&&sameEditScope(scope)&&restorePoint(JSON.stringify(snapshotAppState()),materials)===point;
  if(question&&!confirm(question))return;
  if(!fresh()){staleAction();return}
- const kept=syncAdapter.keepBeforeRestore?.(before);
+ const kept=syncAdapter.keepBeforeRestore?.(point);
  if(kept===false&&!confirm(tr('restoreNoSnapshot')))return;
  if(!fresh()){staleAction();return}
- applySyncedSnapshot(read.snapshot);if(commitReplace(kept,before)!=='reverted')notify(tr('reverted'));
+ applySyncedSnapshot(read.snapshot);if(commitReplace(kept,before,materials)==='reverted')return false;
+ notify(tr('reverted'));return true;
 }
 function handleSetAside(b){
  const a=b.dataset.setAside,id=b.dataset.id||'',scope=editScope(),epoch=appScopeEpoch,fresh=()=>appScopeEpoch===epoch&&sameEditScope(scope);
@@ -615,14 +633,16 @@ $('#app').addEventListener('change',async e=>{if(staleView()||handleCyberSurgery
  const read=readBackup(data);if(read?.newer){notify(tr('newerFile'));return}if(!read)throw Error('invalid');
  if(read.items.length&&!read.snapshot.characters.length&&!read.snapshot.campaigns.length){notify(tr('nothingReadable'));return}
  if(syncAdapter.hasQueued()){notify(tr('waitSave'));return}
- const beforeConfirm=JSON.stringify(snapshotAppState()),fresh=()=>appScopeEpoch===epoch&&sameEditScope(scope)&&state===loadedState&&fileCurrent()&&!syncAdapter.hasQueued()&&JSON.stringify(snapshotAppState())===beforeConfirm;
+ const materials=window.CustomContent?.prepareRestore(data,'overwrite');
+ const beforeConfirm=JSON.stringify(snapshotAppState()),point=restorePoint(beforeConfirm,materials);
+ const fresh=()=>appScopeEpoch===epoch&&sameEditScope(scope)&&state===loadedState&&fileCurrent()&&!syncAdapter.hasQueued()&&restorePoint(JSON.stringify(snapshotAppState()),materials)===point;
  if(!confirm(tr('restoreConfirm')+(read.items.length?'\n\n'+fill(tr('restorePartial'),describeItems(read.items)):'')))return;
  if(!fresh()){staleAction();return}
- const kept=syncAdapter.keepBeforeRestore?.(beforeConfirm);
+ const kept=syncAdapter.keepBeforeRestore?.(point);
  if(kept===false&&!confirm(tr('restoreNoSnapshot')))return;
  if(!fresh()){staleAction();return}
- applySyncedSnapshot(read.snapshot);const done=commitReplace(kept,beforeConfirm);if(done==='reverted')return;window.CustomContent?.restoreFromBackup(data,{quiet:true,overwrite:true});const restored=JSON.stringify(snapshotAppState()),restoredEpoch=appScopeEpoch;
- if(kept&&done==='ok')notifyAction(tr('restoreDone'),tr('restoreUndo'),()=>{if(appScopeEpoch!==restoredEpoch){staleAction();return}replaceWithCopy(kept,JSON.stringify(snapshotAppState())===restored?'':tr('restoreUndoChanged'))},15000);else notify(tr('restoreDoneNoUndo'));
+ applySyncedSnapshot(read.snapshot);const done=commitReplace(kept,beforeConfirm,materials);if(done==='reverted')return;const restored=restorePoint(JSON.stringify(snapshotAppState()),materials),restoredEpoch=appScopeEpoch;
+ if(kept&&done==='ok')notifyAction(tr('restoreDone'),tr('restoreUndo'),()=>{if(appScopeEpoch!==restoredEpoch){staleAction();return}replaceWithCopy(kept,restorePoint(JSON.stringify(snapshotAppState()),materials)===restored?'':tr('restoreUndoChanged'))},15000);else notify(tr('restoreDoneNoUndo'));
  }catch{if(appScopeEpoch===epoch&&sameEditScope(scope)&&state===loadedState&&fileCurrent())notify(tr('backupError'))}finally{if(el.files?.[0]===file)el.value=''}return}if(el.id==='import-backup'){let file=el.files?.[0];if(!file)return;const scope=editScope(),epoch=appScopeEpoch,loadedState=state,fileCurrent=()=>state.view==='characters'&&el.isConnected===true&&document.querySelector('#'+el.id)===el&&el.files?.[0]===file;if(!sameEditScope(scope)||!fileCurrent())return;try{let data=JSON.parse(await file.text());if(appScopeEpoch!==epoch||!sameEditScope(scope)||state!==loadedState||!fileCurrent()){staleAction();return}if(importArchive(data)!==false)window.CustomContent?.restoreFromBackup(data)}catch{if(appScopeEpoch===epoch&&sameEditScope(scope)&&state===loadedState&&fileCurrent())notify(tr('backupError'))}finally{if(el.files?.[0]===file)el.value=''}return}if(el.id==='import-file'){const file=el.files?.[0];if(!file)return;const scope=editScope(),epoch=appScopeEpoch,loadedState=state,fileCurrent=()=>state.view==='characters'&&el.isConnected===true&&document.querySelector('#'+el.id)===el&&el.files?.[0]===file;if(!sameEditScope(scope)||!fileCurrent())return;try{const data=JSON.parse(await file.text());if(appScopeEpoch!==epoch||!sameEditScope(scope)||state!==loadedState||!fileCurrent()){staleAction();return}if(data&&typeof data==='object'&&!data.character&&(data.format==='nightcity-red-backup'||Array.isArray(data.characters))){try{if(importArchive(data)!==false)window.CustomContent?.restoreFromBackup(data)}catch{notify(tr('backupError'))}return}const obj=data.character||data;if(!validateCharacter(obj))throw Error('invalid');if(window.ShareLink?.offer)await window.ShareLink.offer(obj,{kind:'file'});else if(!importSheet(obj,{open:true}).ok)throw Error('invalid')}catch{if(appScopeEpoch===epoch&&sameEditScope(scope)&&state===loadedState&&fileCurrent())notify(tr('importError'))}finally{if(el.files?.[0]===file)el.value=''}return}if(!c)return;updateField(el,c);if(el.dataset.skill)window.SkillFilter?.apply(el.closest('.card'),state.lang);if(el.dataset.field==='role'){render();return}refreshSheet(c)});
 // HP edits stay in the control until change, then choose whether a reduction is damage.
 const sheetHPDrafts=new WeakMap();
@@ -692,7 +712,17 @@ markSheets(); // The loaded sheets are the starting point for edit times; loadin
 function archiveHelpers(){return {shape:c=>({...newCharacter(),...c,stats:{...newCharacter().stats,...c.stats},skills:{...newCharacter().skills,...c.skills}}),uid:sheetUid,editTime,blank:(key,v)=>blankSection(key,v,undefined),campaignOk:importableCampaign}}
 function archiveReady(data){const read=readBackup(data);if(read?.newer)return {ok:false,reason:'newer'};if(!read)return {ok:false,reason:'invalid'};if(!syncAdapter?.canEdit?.())return {ok:false,reason:'paused'};syncAdapter.hasQueued();return {ok:true,read,before:JSON.stringify(snapshotAppState())}}
 function archiveKeep(before){const kept=syncAdapter.keepBeforeRestore?.(before);return kept===false&&!confirm(tr('restoreNoSnapshot'))?null:{kept}}
-function archiveReplace(data,sig){const r=archiveReady(data);if(!r.ok)return r;const x=r.read.snapshot;if(sig!==undefined&&window.Transfer.plan(JSON.parse(r.before),x,archiveHelpers()).sig!==sig)return {ok:false,reason:'stale'};if(!x.characters.length&&!x.campaigns.length)return {ok:false,reason:'empty'};const k=archiveKeep(r.before);if(!k)return {ok:false,reason:'cancelled'};try{applySyncedSnapshot(x)}catch{if(k.kept)syncAdapter.removeCopy?.(k.kept);return {ok:false,reason:'invalid'}}const done=commitReplace(k.kept,r.before);return done==='reverted'?{ok:false,reason:'storage'}:{ok:true,undo:k.kept&&done==='ok'?k.kept:null}}
+function archiveReplace(data,sig){
+ const r=archiveReady(data);if(!r.ok)return r;
+ const x=r.read.snapshot;
+ if(sig!==undefined&&window.Transfer.plan(JSON.parse(r.before),x,archiveHelpers()).sig!==sig)return {ok:false,reason:'stale'};
+ if(!x.characters.length&&!x.campaigns.length)return {ok:false,reason:'empty'};
+ const materials=window.CustomContent?.prepareRestore(data,'add'),k=archiveKeep(restorePoint(r.before,materials));
+ if(!k)return {ok:false,reason:'cancelled'};
+ try{applySyncedSnapshot(x)}catch{if(k.kept)syncAdapter.removeCopy?.(k.kept);return {ok:false,reason:'invalid'}}
+ const done=commitReplace(k.kept,r.before,materials);
+ return done==='reverted'?{ok:false,reason:'storage'}:{ok:true,undo:k.kept&&done==='ok'?k.kept:null,customAdded:materials?.added||0};
+}
 // Adds what is new, updates sheets the archive holds a later version of (same uid; they keep their id and campaign places) and fills sections that are empty here.
 function archiveMerge(data,sig){
  const r=archiveReady(data);if(!r.ok)return r;
@@ -720,7 +750,7 @@ function archiveMerge(data,sig){
  const done=commitReplace(k.kept,r.before);if(done==='reverted')return {ok:false,reason:'storage'};
  render();return {ok:true,undo:k.kept&&done==='ok'?k.kept:null};
 }
-const ARCHIVE_API={read:d=>readBackup(d),snapshot:()=>snapshotAppState(),helpers:archiveHelpers,merge:archiveMerge,replace:archiveReplace,undo:id=>{const was=JSON.stringify(snapshotAppState());replaceWithCopy(id,'');return JSON.stringify(snapshotAppState())!==was},canEdit:()=>!!syncAdapter?.canEdit?.(),lastBackup:()=>syncAdapter?.lastBackup?.()||null,atRisk:()=>storageAtRisk()};
+const ARCHIVE_API={read:d=>readBackup(d),snapshot:()=>snapshotAppState(),helpers:archiveHelpers,merge:archiveMerge,replace:archiveReplace,undo:id=>replaceWithCopy(id,'')===true,canEdit:()=>!!syncAdapter?.canEdit?.(),lastBackup:()=>syncAdapter?.lastBackup?.()||null,atRisk:()=>storageAtRisk()};
 window.App={archive:ARCHIVE_API,getState:()=>state,active:()=>active()||null,save:()=>save(),render:()=>render(),notify:m=>notify(m),
  notifyAction:(message,label,action,ms)=>notifyAction(message,label,action,ms),editScope:()=>editScope(),lang:()=>state.lang,applyHp:(value,reason,c)=>applyHp(value,reason,c),canEdit:c=>{try{return !staleView()&&currentCharacter(c,editScope(),true)}catch{return false}},skillInfo:name=>{const s=SKILLS.find(x=>x[0]===name),c=active();return s?{name:s[0],ru:s[1],stat:s[2],mult:s[3],required:!!s[4],total:c?skillTotal(c,s):''}:null},checkBonus:(c,stat,level,kind,skill)=>checkBonus(c,stat,level,kind,skill),checkBase:(c,stat,level,kind,skill)=>checkBase(c,stat,level,kind,skill),initiativeBonus:c=>initiativeBonus(c),rollMods:(c,kind,skill,stat)=>({wound:woundPenalty(c),effect:effectModifier(c,kind,skill,stat)}),rollNamed:(c,kind,skill,stat)=>namedParts(c,kind,skill,stat),
  importCharacter:(obj,options)=>importSheet(obj,options),findImport:(obj,options)=>importMatch(obj,options),

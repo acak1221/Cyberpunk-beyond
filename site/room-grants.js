@@ -17,6 +17,7 @@
     ru: {
       kind: { damage: 'Урон', heal: 'Лечение', cash: 'Деньги', ip: 'IP', item: 'Предмет' },
       loc: { body: 'тело', head: 'голова' }, via: { armor: 'через броню', melee: 'ближний бой, половина брони', direct: 'напрямую в HP' },
+      criticalBonus: 'критическое ранение (+5 к урону)',
       locField: 'Куда', viaField: 'Как считать', amount: 'Сколько', itemName: 'Название предмета', qty: 'Количество', note: 'Пояснение (необязательно)',
       take: 'Списать, а не выдать', give: 'Выдать: урон, деньги, IP…', giveAll: 'Выдать всем игрокам', toOne: 'Выдать игроку', toAll: 'Выдать всем игрокам', send: 'Отправить', cancel: 'Отмена',
       hint: 'Игрок увидит предложение и сам нажмёт «Применить» — после этого его лист всё посчитает.',
@@ -32,6 +33,7 @@
     en: {
       kind: { damage: 'Damage', heal: 'Healing', cash: 'Money', ip: 'IP', item: 'Item' },
       loc: { body: 'body', head: 'head' }, via: { armor: 'through armor', melee: 'melee, half armor', direct: 'straight to HP' },
+      criticalBonus: 'Critical Injury (+5 damage)',
       locField: 'Where', viaField: 'How to count', amount: 'How much', itemName: 'Item name', qty: 'Quantity', note: 'Note (optional)',
       take: 'Take away instead of giving', give: 'Give: damage, money, IP…', giveAll: 'Give to all players', toOne: 'Give to player', toAll: 'Give to all players', send: 'Send', cancel: 'Cancel',
       hint: 'The player sees the offer and presses “Apply” — their sheet then does the maths.',
@@ -65,7 +67,11 @@
     const g = { gid: d.gid, kind: d.kind, n, cid, note: text(d.note, 120) };
     if (d.kind === 'damage') {
       if (!LOCS.includes(d.loc) || !VIA.includes(d.via)) return null;
+      if (d.critical !== undefined && typeof d.critical !== 'boolean') return null;
+      if (d.source !== undefined && d.source !== 'attack' && d.source !== 'other') return null;
       g.loc = d.loc; g.via = d.via;
+      if (d.critical === true) g.critical = true;
+      if (d.via === 'direct' && d.source === 'attack') g.source = 'attack';
     }
     if (d.kind === 'item') { g.name = text(d.name, 100); if (!g.name) return null; }
     return g;
@@ -74,7 +80,7 @@
   // One line that names the offer: «Урон 14 · тело · через броню».
   function describe(g, lang) {
     const t = tx(lang);
-    if (g.kind === 'damage') return `${t.kind.damage} ${g.n} · ${t.loc[g.loc]} · ${t.via[g.via]}`;
+    if (g.kind === 'damage') return `${t.kind.damage} ${g.n} · ${t.loc[g.loc]} · ${t.via[g.via]}${g.critical === true ? ' · ' + t.criticalBonus : ''}`;
     if (g.kind === 'heal') return `${t.kind.heal} +${g.n} HP`;
     if (g.kind === 'cash') return `${t.kind.cash} ${g.n > 0 ? '+' : '−'}${money(Math.abs(g.n))} eb`;
     if (g.kind === 'ip') return `+${g.n} IP`;
@@ -86,7 +92,8 @@
     const hp = whole(c.hp); if (hp === null) return null;
     const type = g.via === 'direct' ? 'direct' : g.via === 'melee' ? 'melee' : 'standard';
     let q = null;
-    try { q = DA.quote(c, { type, location: g.loc, raw: g.n, critical: false, ...(hp < 1 ? { source: type === 'direct' ? 'other' : 'attack' } : {}) }); } catch { q = null; }
+    const source = type === 'direct' && g.source !== 'attack' ? 'other' : 'attack';
+    try { q = DA.quote(c, { type, location: g.loc, raw: g.n, critical: g.critical === true, ...(hp < 1 ? { source } : {}) }); } catch { q = null; }
     if (!q) return null;
     let copy = null; try { copy = DA.armorClone(c, q); } catch { copy = null; }
     return copy ? { q, copy } : null;
@@ -166,7 +173,7 @@
     let n = whole(String(v.n ?? '').trim());
     if (n === null || n < 1 || n > LIMIT[kind]) return { error: t.badAmount };
     if (kind === 'cash' && v.take) n = -n;
-    const g = clean({ gid, kind, n, cid, note: text(String(v.note ?? ''), 120), loc: v.loc, via: v.via, name: text(String(v.name ?? ''), 100) });
+    const g = clean({ gid, kind, n, cid, note: text(String(v.note ?? ''), 120), loc: v.loc, via: v.via, critical: v.critical, source: v.source, name: text(String(v.name ?? ''), 100) });
     if (!g) return { error: kind === 'item' ? t.badName : t.badAmount };
     return { grant: g };
   }

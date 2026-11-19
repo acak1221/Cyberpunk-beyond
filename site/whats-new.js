@@ -24,6 +24,10 @@ const KEY='nc-news-seen',ARCHIVE_KEY='nightcity-red-v1';
 const BODY_MAX=800,URL_MAX=2000;
 
 const RELEASES=[
+ {n:15,date:'2026-11-20',title:{ru:'Восстановление архивов и бой в комнате',en:'Archive restores and room combat'},items:[
+  {ru:'Отмена восстановления архива возвращает прежние версии ваших предметов и противников вместе с персонажами. Повторный перенос той же кампании с жетонами на карте сохраняет одну копию.',en:'Undoing an archive restore brings back your previous custom items and opponents along with your characters. Importing the same campaign with map tokens again keeps a single copy.'},
+  {ru:'Игрок в комнате получает тот же критический урон, что и на локальном листе. Если игрок обновит инициативу после ничьей, текущий участник сохранит ход.',en:'A player in a room takes the same critical damage as on a local sheet. Updating initiative after a tie keeps the turn with the current participant.'}
+ ]},
  // Release 14 is the new shell: navigation, home, settings and the sheet, combat and tools in one look.
  {n:14,date:'2026-11-16',title:{ru:'Новая оболочка',en:'A new shell'},items:[
   {ru:'Главная начинается с «Продолжить»: последний персонаж, кампания с текущим ходом и комната. Внизу — Главная, Персонажи, Бой, Кубики и «Ещё» со всеми разделами.',en:'Home starts with Continue: your last character, the campaign with the current turn and the room. The bottom bar has Home, Characters, Combat, Dice and More with every section.'},

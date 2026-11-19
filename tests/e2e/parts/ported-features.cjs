@@ -30,6 +30,46 @@ module.exports = async function portedFeatures({ check, device, BASE, wait, unti
     await ctx.close();
   });
 
+  await check('full backup restore: Undo keeps the original sheet and custom catalog after reload', async fail => {
+    const { ctx, page } = await device({});
+    const item = (id, price) => ({ id, name: { en: id }, category: 'gear', price });
+    const materials = items => ({ format: 'nightcity-red-custom', version: 1, items, npcs: [] });
+    const backup = {
+      format: 'nightcity-red-backup', version: 1,
+      _completeSnapshot: { characters: [{ ...character, id: 'imported', hp: 12 }], campaigns: [] },
+      customContent: materials([item('kit', 250), item('cable', 50)])
+    };
+    try {
+      await page.addInitScript(data => {
+        if (sessionStorage.getItem('custom-seeded')) return;
+        localStorage.setItem('nightcity-red-custom-v1', JSON.stringify(data));
+        sessionStorage.setItem('custom-seeded', '1');
+      }, materials([item('kit', 777)]));
+      await page.goto(BASE + '#/characters');
+      const checkState = async (id, hp, expectedItems) => {
+        await page.locator(`[data-character-card="${id}"]`).waitFor();
+        const actual = await page.evaluate(() => ({
+          sheets: window.App.getState().characters.map(c => [c.id, c.hp]),
+          items: window.CustomContent.getData().items.map(i => [i.id, i.price]).sort(),
+          catalog: window.CATALOG.filter(i => i.custom).map(i => [i.id.slice('custom-'.length), i.price]).sort()
+        }));
+        const expected = { sheets: [[id, hp]], items: expectedItems, catalog: expectedItems };
+        if (JSON.stringify(actual) !== JSON.stringify(expected)) fail(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+      };
+      await checkState(character.id, character.hp, [['kit', 777]]);
+      await page.setInputFiles('#restore-backup', {
+        name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup))
+      });
+      await checkState('imported', 12, [['cable', 50], ['kit', 250]]);
+      await page.locator('#app-notice .notice-action').click();
+      await page.locator(`[data-character-card="${character.id}"]`).waitFor();
+      await page.reload();
+      await checkState(character.id, character.hp, [['kit', 777]]);
+    } finally {
+      await ctx.close();
+    }
+  });
+
   await check('quick builder: three screens, roll everything, one confirmation, a character appears and the focus stays', async fail => {
     const { ctx, page } = await device({ width: 390, data: false });
     await page.goto(BASE + '#/quick-builder'); await wait(500);
