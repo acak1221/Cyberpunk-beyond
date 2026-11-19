@@ -213,7 +213,7 @@ function harness(saved,{lang='en'}={}){
  const document={querySelector:s=>nodes[s]||null,documentElement:{},title:'',createElement:()=>({click(){},remove(){}}),body:{appendChild(){}},addEventListener(){}};
  const w={document,ROLES:[{id:'solo',name:{en:'Solo',ru:'Соло'},description:{en:'',ru:''}}],CombatTools:{handle:()=>false},Book:{handle:()=>false},Campaigns:{handle:()=>false,render:()=>''},NetTools:{setScope(){},validArchitectures:Array.isArray},RoleTools:{render:()=>'',handle:()=>({handled:false}),refresh(){}},LocalStore:{create(){return adapter}},confirm:ask,scrollTo(){},crypto:globalThis.crypto,localStorage:{getItem:k=>ls.has(k)?ls.get(k):null,setItem:(k,v)=>{ls.set(k,String(v))}},addEventListener(){},setTimeout,clearTimeout};
  const ctx={window:w,document,Blob:class{},URL:{createObjectURL:()=>'blob:x',revokeObjectURL(){}},localStorage:{getItem:k=>k==='nightcity-red-v1'?raw:null,setItem(){}},globalThis:{crypto:{randomUUID:()=>'id-'+(++uid)}},confirm:ask,setTimeout:()=>0,clearTimeout(){},console,Math,Date,JSON,Set,Map,Number,String,Array,Object,Promise,WeakMap,TextEncoder,TextDecoder,Uint8Array,Error};
- vm.createContext(ctx);for(const f of ['character-extra.js','equipment-tools.js','transfer.js'])vm.runInContext(source(f),ctx);
+ vm.createContext(ctx);for(const f of ['character-extra.js','equipment-tools.js','battle-map.js','transfer.js'])vm.runInContext(source(f),ctx);
  vm.runInContext(source('app.js')+`\nrender=()=>{};state.lang=${JSON.stringify(lang)};window.qa={state:()=>state,snapshot:snapshotAppState,validate:validateSnapshot,page:()=>characters(),overview:()=>overview(),go:v=>{state.view=v}};`,ctx);
  return {w,api:w.App.archive,T:w.Transfer,qa:w.qa,adapter,store,kept,notices,confirms,answer:a=>reply=a,state:()=>w.qa.state(),snap:()=>plain(w.qa.snapshot())};
 }
@@ -242,6 +242,38 @@ test('adding an archive adds new sheets, updates older ones in place and keeps c
  assert.equal(again.changes,0);assert.deepEqual(plain(again.campaigns.map(c=>c.kind)),['same']);assert.equal(h.api.merge(file,again.sig).reason,'empty');
  // Undo puts everything back.
  assert.equal(h.api.undo(r.undo),true);assert.deepEqual(plain(h.snap().characters),before.characters);assert.deepEqual(plain(h.snap().campaigns),before.campaigns);
+});
+
+test('merging an archive with battle-map tokens twice keeps one campaign and distinguishes real map edits',()=>{
+ const h=harness({schemaVersion:1,characters:[],campaigns:[]});
+ const campaign={id:'job',name:'Ambush',roster:[
+  pc('runner','v'),{id:'guard',kind:'npc',name:'Guard',initiative:5,order:1}
+ ],map:{v:1,w:10,h:8,tokens:[{id:'guard',x:2,y:3},{id:'runner',x:6,y:1,m:5}],cover:[[5,2]]}};
+ const file=backup({schemaVersion:1,characters:[character('v')],campaigns:[campaign]});
+ const original=plain(file);
+ assert.equal(h.api.merge(file).ok,true);
+ const saved=h.state().campaigns[0];
+ assert.notEqual(saved.roster[0].id,'runner');
+ assert.notEqual(saved.roster[1].id,'guard');
+ assert.deepEqual(plain(saved.map.tokens.map(t=>t.id)),[saved.roster[1].id,saved.roster[0].id]);
+ const preview=f=>h.T.plan(h.api.snapshot(),h.api.read(f).snapshot,h.api.helpers());
+ const repeat=preview(file);
+ assert.equal(repeat.campaigns[0].kind,'same');
+ assert.equal(h.api.merge(file,repeat.sig).reason,'empty');
+ assert.equal(h.state().campaigns.length,1);
+ assert.deepEqual(file,original,'the comparison leaves the archive untouched');
+
+ const changed=plain(file);
+ const map=changed._completeSnapshot.campaigns[0].map;
+ map.tokens[0].x++;
+ assert.equal(preview(changed).campaigns[0].kind,'copy','moving a token changes the map');
+ map.tokens[0].x--;
+ [map.tokens[0].id,map.tokens[1].id]=[map.tokens[1].id,map.tokens[0].id];
+ const swapped=preview(changed);
+ assert.equal(swapped.campaigns[0].kind,'copy','the same squares now belong to different participants');
+ assert.equal(h.api.merge(changed,swapped.sig).ok,true);
+ assert.equal(h.state().campaigns.length,2);
+ assert.equal(h.api.merge(changed).reason,'empty');
 });
 
 test('when the browser has no room the import is not half-done: the data goes back to what it was',()=>{

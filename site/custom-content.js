@@ -264,11 +264,30 @@ function persist(next){
 }
 const getData=()=>JSON.parse(JSON.stringify(data));
 const npcEntries=()=>data.npcs.map(toNpcEntry);
-// The backup file carries the collection next to the main archive; a backup without it changes nothing here.
-function backupPart(){return data.items.length||data.npcs.length?{customContent:{format:FORMAT,version:VERSION,items:getData().items,npcs:getData().npcs}}:{}}
+// A restore point also records an empty collection, so undo can remove the first imported entries.
+function snapshot(){return {format:FORMAT,version:VERSION,...getData()}}
+function backupPart(){return data.items.length||data.npcs.length?{customContent:snapshot()}:{}}
 const backupPack=file=>{const src=plainObject(file)&&plainObject(file.customContent)?file.customContent:null,pack=src?readPack(src):null;return pack&&pack.ok?pack:null};
 // What adding a backup would do here, for a preview: `kept` are entries stored here under the same id with other content.
 function backupPlan(file){const pack=backupPack(file);if(!pack)return null;const p=planImport(data,pack);return {added:p.added,kept:p.updated,same:p.same,overflow:p.overflow}}
+// File restore takes the incoming versions, transfer only adds, and undo restores the exact saved collection.
+function prepareRestore(file,mode){
+ let next,added=0;
+ if(mode==='undo'){
+  const src=file.customContent;
+  if(!src||src.format!==FORMAT||src.version!==VERSION||!Array.isArray(src.items)||!Array.isArray(src.npcs))throw Error('invalid custom snapshot');
+  const clean=cleanData(src);
+  if(clean.items.length!==src.items.length||clean.npcs.length!==src.npcs.length)throw Error('invalid custom snapshot');
+  next={items:clean.items,npcs:clean.npcs};
+ }else{
+  const pack=backupPack(file);if(!pack)return null;
+  const result=applyImport(data,pack,mode==='add');
+  next=result.data;added=result.added;
+ }
+ if(same(next,data))return null;
+ const storedSize=collection=>collection.items.length||collection.npcs.length?JSON.stringify({format:FORMAT,version:VERSION,...collection}).length:0;
+ return {added,growth:storedSize(next)-storedSize(data),write:()=>persist(next)};
+}
 // A backup only adds: an entry edited here is never replaced by the file's version, like the sheets of the main archive.
 // `overwrite` is for "replace everything with the archive", where the user has agreed to take the file's versions.
 function restoreFromBackup(file,opts){
@@ -465,5 +484,5 @@ global.addEventListener?.('storage',e=>{if(e&&e.key===KEY){load();syncCatalog(gl
 global.CustomContent={KEY,FORMAT,PACK_FORMAT,VERSION,MAX_ITEMS,MAX_NPCS,MAX_FILE_CHARS,CATEGORIES,WEAPON_SKILLS,
  checkItem,cleanItem,checkNpc,cleanNpc,cleanData,toCatalogItem,toNpcEntry,syncCatalog,statLine,humanityAtCreation,hpFromStats,parseSkills,parseAttacks,
  buildPack,readPack,parsePack,planImport,applyImport,saveItem,saveNpc,remove,
- load,getData,npcEntries,backupPart,backupPlan,restoreFromBackup,render,handle,openPack,reset};
+ load,getData,npcEntries,snapshot,backupPart,backupPlan,prepareRestore,restoreFromBackup,render,handle,openPack,reset};
 })(typeof window!=='undefined'?window:globalThis);

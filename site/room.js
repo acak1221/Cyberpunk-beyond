@@ -260,9 +260,27 @@ const rowOwn=r=>r&&r.kind==='npc'&&typeof r.own==='string'&&OWN.test(r.own)?r.ow
 const memberOwning=own=>{if(!own)return null;for(const [id,m] of members)if(!m.me&&m.dev&&isOnline(m))for(const e of entriesOf(m))if(own===m.dev+':'+e.cid)return [id,m,e];return null};
 const linkedCampaign=()=>{if(session?.role!=='gm'||!session.campaignId)return null;const camp=app?.getState?.()?.campaigns?.find(x=>x.id===session.campaignId);return camp&&Array.isArray(camp.roster)?camp:null};
 const inRoster=(camp,own)=>{const chars=app?.getState?.()?.characters||[];return camp.roster.some(r=>rowOwn(r)===own||(r.kind==='pc'&&ownerOf(chars.find(c=>c?.id===r.characterId))===own))};
-const sameOrder=list=>[...list].sort((a,b)=>(Number(b.initiative)||0)-(Number(a.initiative)||0)||(Number(a.order)||0)-(Number(b.order)||0));
-// Adding a row must not move the turn away from whoever has it.
-function keepTurn(camp,change){const active=sameOrder(camp.roster)[int(camp.turnIndex,0,500)];change();if(active){const i=sameOrder(camp.roster).indexOf(active);if(i>=0)camp.turnIndex=i}}
+function orderedRoster(camp){
+ if(global.Campaigns?.ordered)return global.Campaigns.ordered(camp);
+ // The room can run on its own, without the campaign tracker.
+ return [...(camp.roster||[])].sort((a,b)=>{
+  const initiative=(Number(b.initiative)||0)-(Number(a.initiative)||0);
+  if(initiative)return initiative;
+  const x=a.ties||[],y=b.ties||[];
+  for(let i=0;i<Math.max(x.length,y.length);i++){
+   const tie=(Number(y[i])||0)-(Number(x[i])||0);
+   if(tie)return tie;
+  }
+  return (Number(a.order)||0)-(Number(b.order)||0);
+ });
+}
+function keepTurn(camp,change){
+ const activeId=orderedRoster(camp)[int(camp.turnIndex,0,500)]?.id;
+ change();
+ if(!activeId)return;
+ const index=orderedRoster(camp).findIndex(row=>row.id===activeId);
+ if(index>=0)camp.turnIndex=index;
+}
 function rowFromRoom(camp,m,e){
  e=e||{cid:m.cid,character:m.character};
  const own=m.dev+':'+e.cid;if(!OWN.test(own)||!e.character||inRoster(camp,own)||camp.roster.filter(r=>rowOwn(r)).length>=MAX_MEMBERS)return null;
@@ -343,7 +361,7 @@ function visPart(r,c,camp){
 function combatPayload(){
  if(!drives()||!session.campaignId)return null;
  const st=app?.getState?.(),camp=st?.campaigns?.find(x=>x.id===session.campaignId);if(!camp)return null;
- const roster=[...(camp.roster||[])].sort((a,b)=>{let n=(Number(b.initiative)||0)-(Number(a.initiative)||0);if(n)return n;const x=a.ties||[],y=b.ties||[];for(let i=0;i<Math.max(x.length,y.length);i++){n=(Number(y[i])||0)-(Number(x[i])||0);if(n)return n}return (Number(a.order)||0)-(Number(b.order)||0)});
+ const roster=orderedRoster(camp);
  const turn=int(camp.turnIndex,0,500),shown=roster.map((r,i)=>({r,now:i===turn})).filter(x=>global.RoomVisibility?.level?global.RoomVisibility.level(x.r,camp)!=='hidden':x.r.kind==='pc'||!!rowOwn(x.r)||(x.r.hidden!==true&&!(camp.vis==='hidden'&&!['name','state','full'].includes(x.r.vis))));
  // A row whose character was deleted keeps a visible name for older pages; newer ones read 'none' and show «без персонажа».
  // Hidden participants are not sent at all; when one of them acts, players only learn that somebody hidden does.

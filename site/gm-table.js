@@ -336,7 +336,7 @@ function handle(e,c,ctx){
   const args={raw,location:read('location')?.value==='head'?'head':'body',type:read('type')?.value,critical:read('critical')?.checked===true};
   const pc=pcOf(target),to=onlineMember(pc)||onlineMember(target);
   if(to){
-   const sent=window.RoomGrants.sendTo(to,{kind:'damage',n:raw,loc:args.location,via:args.type==='melee'?'melee':args.type==='direct'?'direct':'armor',note:own?'':nameOf(row)},lang);
+   const sent=window.RoomGrants.sendTo(to,{kind:'damage',n:raw,loc:args.location,via:args.type==='melee'?'melee':args.type==='direct'?'direct':'armor',critical:args.critical,source:'attack',note:own?'':nameOf(row)},lang);
    if(!sent.ok)return {notify:sent.error||t.failed};
    const line=t.sentHit(nameOf(target),sent.text);
    keep(results,row.id,{lines:[...(res?.lines||[]).slice(-2),line],target:target.id});

@@ -31,8 +31,23 @@ const defaultEditTime=c=>{const t=c?.extra?.updatedAt;return Number.isFinite(t)&
 const defaultBlank=(key,v)=>v==null||Array.isArray(v)&&!v.length||isObj(v)&&!Object.keys(v).length;
 // A sheet without what differs between devices by design: its local id and the note of where it was imported from.
 function sheetBody(c,uid){const {id,...rest}=c||{};const extra=isObj(rest.extra)?{...rest.extra}:{};delete extra.sourceKey;extra.uid=uid;return canon({...rest,extra})}
-// A campaign without local ids; player characters are named by their sheet uid so the same campaign matches on both devices.
-function campaignBody(k,uidOf){const {id,...rest}=k||{};return canon({...rest,notes:rest.notes||'',roster:(Array.isArray(rest.roster)?rest.roster:[]).map(r=>{const {id:rid,...entry}=r||{};return entry.kind==='pc'?{...entry,characterId:uidOf(entry.characterId)}:entry})})}
+// Compare campaigns using sheet UIDs and roster positions, which survive importing onto another device.
+function campaignBody(k,uidOf){
+ const {id,...body}=k||{},roster=Array.isArray(body.roster)?body.roster:[];
+ body.notes=body.notes||'';
+ if(body.map&&global.BattleMap?.rekey){
+  // Apply the same token remapping as the importer, with stable row ids for this comparison.
+  const copy={map:body.map,roster:roster.map((_,index)=>({id:String(index)}))};
+  global.BattleMap.rekey(copy,roster);
+  body.map=copy.map;
+ }
+ body.roster=roster.map(row=>{
+  const {id,...entry}=row||{};
+  if(entry.kind==='pc')entry.characterId=uidOf(entry.characterId);
+  return entry;
+ });
+ return canon(body);
+}
 const label=v=>typeof v==='string'&&v.trim()?v.trim().slice(0,80):'';
 
 function plan(local,incoming,helpers={}){
@@ -469,12 +484,13 @@ function apply(mode){
  const inc=ui.incoming,api=global.App?.archive,l=lang(),{w}=words(l);
  if(!inc||inc.error||!api||ui.busy)return;
  ui.busy=true;let r;
+ const want=customPlan(inc.data);
  try{r=mode==='replace'?api.replace(inc.data,inc.plan.sig):api.merge(inc.data,inc.plan.sig)}catch{r={ok:false}}
- // Custom content is added once the main archive is in, or when the archive had nothing else to add.
- const want=customPlan(inc.data);let cc=null;
- if(want?.added&&(r?.ok||mode!=='replace'&&r?.reason==='empty'))try{cc=global.CustomContent.restoreFromBackup(inc.data,{quiet:true})}catch{}
+ // Replace commits the collection with the archive so its undo covers both stores.
+ let cc=mode==='replace'&&r?.ok?{changed:r.customAdded}:null;
+ if(mode!=='replace'&&want?.added&&(r?.ok||r?.reason==='empty'))try{cc=global.CustomContent.restoreFromBackup(inc.data,{quiet:true})}catch{}
  const ccText=!want?.added?'':cc?.changed?' '+w(`Свои материалы: добавлено ${cc.changed}.`,`Custom content: ${cc.changed} added.`):' '+w('Свои материалы добавить не удалось: в браузере не хватает места.','Custom content could not be added: the browser is out of room.');
- if(cc?.changed)try{global.App?.render?.()}catch{}
+ if(mode!=='replace'&&cc?.changed)try{global.App?.render?.()}catch{}
  ui.busy=false;ui.arm=false;
  if(!r?.ok&&cc?.changed){ui.incoming=null;note(ccText.trim(),'ok');paint('[data-xfer-note]');return}
  if(!r?.ok){
